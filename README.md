@@ -10,7 +10,7 @@ Neo ECO Prototype is an unofficial addon for Neo ECO AE Extension and Applied En
 - JEI multiblock build previews for the three L1 structures.
 - L1 storage cells, drives, energy cells, interfaces, and supporting blocks.
 - Dedicated-server-safe crafting interface fallback for the preview10 runtime.
-- Independent addon models, textures, translations, and recipes under the `neoecoprototype` namespace.
+- Addon-owned model, texture, translation, and recipe files organized under the `neoecoprototype` namespace; some visual resources are adapted from upstream Neo ECO AE Extension assets and retain their upstream licensing.
 
 ## Compatibility
 
