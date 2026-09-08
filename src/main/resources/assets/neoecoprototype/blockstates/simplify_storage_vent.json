@@ -1,0 +1,1 @@
+{"variants":{"facing=north":{"model":"neoecoprototype:block/storage_vent"},"facing=south":{"model":"neoecoprototype:block/storage_vent","y":180},"facing=east":{"model":"neoecoprototype:block/storage_vent","y":90},"facing=west":{"model":"neoecoprototype:block/storage_vent","y":270}}}

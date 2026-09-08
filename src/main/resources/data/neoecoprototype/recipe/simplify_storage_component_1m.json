@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "A": { "item": "ae2:fluix_dust" },
+    "B": { "item": "ae2:cell_component_256k" },
+    "C": { "item": "ae2:calculation_processor" },
+    "D": { "item": "ae2:quartz_glass" },
+    "E": { "item": "ae2:cell_component_1k" }
+  },
+  "pattern": ["ACA", "BDB", "AEA"],
+  "result": {
+    "count": 1,
+    "id": "neoecoprototype:simplify_storage_component_1m"
+  }
+}

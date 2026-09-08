@@ -1,0 +1,14 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "A": { "item": "neoecoae:aluminum_ingot" },
+    "B": { "item": "ae2:quartz_vibrant_glass" },
+    "C": { "item": "neoecoprototype:simplify_green_crystal_matrix" }
+  },
+  "pattern": ["ABA", "BCB", "ABA"],
+  "result": {
+    "count": 1,
+    "id": "neoecoprototype:simplify_green_aluminum_casing"
+  }
+}

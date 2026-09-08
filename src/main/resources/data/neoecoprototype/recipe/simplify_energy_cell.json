@@ -1,0 +1,24 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "A": {
+      "item": "ae2:charged_certus_quartz_crystal"
+    },
+    "B": {
+      "item": "neoecoprototype:simplify_storage_casing"
+    },
+    "C": {
+      "item": "minecraft:redstone_block"
+    }
+  },
+  "pattern": [
+    "ABA",
+    "BCB",
+    "ABA"
+  ],
+  "result": {
+    "count": 2,
+    "id": "neoecoprototype:simplify_energy_cell"
+  }
+}

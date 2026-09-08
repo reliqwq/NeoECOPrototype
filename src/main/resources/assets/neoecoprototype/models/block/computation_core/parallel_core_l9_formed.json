@@ -1,0 +1,8 @@
+{
+    "parent": "neoecoprototype:block/computation_core/parallel_core_formed_base",
+    "textures": {
+        "particle": "neoecoprototype:block/computation_recolor/core/core_side_c",
+        "side": "neoecoprototype:block/computation_recolor/core/core_side_c",
+        "light": "neoecoprototype:block/computation_recolor/core/parallel_core_light_c_on"
+    }
+}

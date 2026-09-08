@@ -1,0 +1,15 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "A": { "item": "neoecoprototype:simplify_crafting_casing" },
+    "B": { "item": "neoecoprototype:simplify_crafting_parallel_core" },
+    "C": { "item": "neoecoprototype:simplify_crafting_worker" },
+    "D": { "item": "ae2:engineering_processor" }
+  },
+  "pattern": ["ABA", "CDC", "ABA"],
+  "result": {
+    "count": 1,
+    "id": "neoecoprototype:simplify_crafting_system"
+  }
+}

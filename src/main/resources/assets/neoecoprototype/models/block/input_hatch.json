@@ -1,0 +1,6 @@
+{
+  "parent": "block/cube_all",
+  "textures": {
+    "all": "neoecoprototype:block/crafting_recolor/hatch_input"
+  }
+}

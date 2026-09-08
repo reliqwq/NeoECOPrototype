@@ -1,0 +1,26 @@
+{
+  "type": "neoecoae:integrated_working_station",
+  "energy": 10000,
+  "inputItems": [
+    {
+      "count": 3,
+      "item": "neoecoprototype:simplify_storage_component_4m"
+    },
+    {
+      "count": 26,
+      "item": "neoecoae:energized_superconductive_ingot"
+    },
+    {
+      "count": 1,
+      "item": "neoecoae:superconducting_processor"
+    },
+    {
+      "count": 1,
+      "item": "neoecoae:crystal_ingot"
+    }
+  ],
+  "itemOutput": {
+    "count": 1,
+    "id": "neoecoae:eco_cell_component_16m"
+  }
+}

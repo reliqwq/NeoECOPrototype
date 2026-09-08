@@ -1,0 +1,24 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "cn.dancingsnow.neoecoprototype.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "mixins": [
+    "ECOComputationSystemBlockEntityMixin",
+    "ECOCraftingSystemBlockEntityMixin",
+    "NEBlockEntityPowerMixin",
+    "ECOCraftingHighPowerMixin",
+    "ECOMachineInterfaceBlockEntityMixin",
+    "ECOClientUIBridgeMixin",
+    "ECOCraftingPatternBusBlockEntityMixin",
+    "ECOCraftingInterfaceUIMixin",
+    "ECOStorageInterfaceUIMixin",
+    "ECOComputationInterfaceUIMixin",
+    "MBCalculatorTargetAccessor",
+    "NEComputationClusterCalculatorMixin",
+    "NECraftingClusterCalculatorMixin"
+  ],
+  "client": [
+    "FixedBlockEntityRenderersMixin"
+  ]
+}

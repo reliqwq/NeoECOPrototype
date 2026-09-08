@@ -1,0 +1,49 @@
+{
+    "loader":"neoforge:composite",
+	"parent":"block/block",
+	"textures": {
+		"particle": "neoecoprototype:block/computation_recolor/casing"
+	},
+    "children": {
+        "base": {
+            "parent": "neoecoprototype:block/computation_cooling_controller/controller_formed_base",
+            "textures": {
+                "base": "neoecoprototype:block/computation_recolor/cooling_controller/controller_c_formed",
+                "particle": "neoecoprototype:block/computation_recolor/cooling_controller/controller_east_c"
+            }
+        },
+        "glass": {
+            "render_type":"translucent",
+			"textures":{
+				"base": "neoecoprototype:block/computation_recolor/cooling_controller/controller_c_formed"
+			},
+            "elements": [
+                {
+                    "name": "front_a",
+                    "from": [5, -12, 1],
+                    "to": [11, 28, 1],
+                    "faces": {
+                        "north": {"uv": [4.625, 0.5, 5.375, 5.5], "texture": "#base"}
+                    }
+                },
+                {
+                    "name": "front_b",
+                    "from": [11, 6, 1],
+                    "to": [15, 10, 1],
+                    "faces": {
+                        "north": {"uv": [4.125, 2.75, 4.625, 3.25], "texture": "#base"}
+                    }
+                },
+                {
+                    "name": "back_a",
+                    "from": [5, -12, 31],
+                    "to": [11, 28, 31],
+                    "rotation": {"angle": 0, "axis": "y", "origin": [0, 0, 16]},
+                    "faces": {
+                        "south": {"uv": [6.625, 0.5, 7.375, 5.5], "texture": "#base"}
+                    }
+                }
+            ]
+        }
+    }
+}

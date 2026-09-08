@@ -1,0 +1,42 @@
+modLoader = "javafml"
+loaderVersion = "[4,)"
+license = "GPL-3.0-only"
+
+[[mods]]
+modId = "neoecoprototype"
+version = "1.0.0"
+displayName = "Neo ECO Prototype"
+authors = "DancingSnow"
+description = "A simplified addon for Neo ECO AE Extension: adds the L1 (tier index 0) storage subsystem below eco's L4."
+logoFile = ""
+
+[[mixins]]
+config = "neoecoprototype.mixins.json"
+
+[[dependencies.neoecoprototype]]
+modId = "neoforge"
+mandatory = true
+versionRange = "[21.1.0,)"
+ordering = "NONE"
+side = "BOTH"
+
+[[dependencies.neoecoprototype]]
+modId = "minecraft"
+mandatory = true
+versionRange = "[1.21.1,1.22)"
+ordering = "NONE"
+side = "BOTH"
+
+[[dependencies.neoecoprototype]]
+modId = "ae2"
+mandatory = true
+versionRange = "[19.2.17,)"
+ordering = "NONE"
+side = "BOTH"
+
+[[dependencies.neoecoprototype]]
+modId = "neoecoae"
+mandatory = true
+versionRange = "[21.2.0-preview10,)"
+ordering = "NONE"
+side = "BOTH"

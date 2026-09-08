@@ -1,0 +1,14 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "A": { "item": "ae2:quartz_glass" },
+    "B": { "item": "neoecoprototype:simplify_computation_casing" },
+    "C": { "item": "neoecoprototype:simplify_green_crystal_matrix" }
+  },
+  "pattern": ["ABA", "BCB", "ABA"],
+  "result": {
+    "count": 1,
+    "id": "neoecoprototype:simplify_computation_cooling_controller"
+  }
+}

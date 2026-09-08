@@ -1,0 +1,14 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "A": { "item": "neoecoprototype:simplify_computation_casing" },
+    "B": { "tag": "ae2:smart_dense_cable" },
+    "C": { "item": "ae2:quartz_glass" }
+  },
+  "pattern": ["ABA", "BCB", "ABA"],
+  "result": {
+    "count": 2,
+    "id": "neoecoprototype:simplify_computation_transmitter"
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "A": { "item": "neoecoae:energized_crystal_dust" },
+    "B": { "item": "neoecoprototype:simplify_storage_component_1m" },
+    "C": { "item": "ae2:quartz_glass" },
+    "D": { "item": "neoecoae:superconducting_processor" },
+    "E": { "item": "neoecoae:energized_superconductive_ingot" }
+  },
+  "pattern": ["ADA", "BCB", "AEA"],
+  "result": {
+    "count": 1,
+    "id": "neoecoprototype:simplify_storage_component_4m"
+  }
+}

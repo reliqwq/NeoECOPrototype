@@ -1,0 +1,14 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "A": { "item": "neoecoprototype:simplify_green_crystal_matrix" },
+    "B": { "item": "minecraft:redstone" },
+    "C": { "item": "neoecoae:aluminum_alloy_ingot" }
+  },
+  "pattern": ["ABA", "B B", "CCC"],
+  "result": {
+    "count": 1,
+    "id": "neoecoprototype:simplify_fluid_storage_matrix_housing"
+  }
+}

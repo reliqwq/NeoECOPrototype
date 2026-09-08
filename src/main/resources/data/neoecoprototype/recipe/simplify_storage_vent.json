@@ -1,0 +1,24 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "A": {
+      "item": "neoecoprototype:simplify_storage_casing"
+    },
+    "B": {
+      "item": "minecraft:ice"
+    },
+    "C": {
+      "item": "ae2:quartz_block"
+    }
+  },
+  "pattern": [
+    "ABA",
+    "BCB",
+    "ABA"
+  ],
+  "result": {
+    "count": 4,
+    "id": "neoecoprototype:simplify_storage_vent"
+  }
+}

@@ -1,0 +1,80 @@
+plugins {
+    id 'java-library'
+    id 'net.neoforged.moddev' version '2.0.78'
+}
+
+version = '1.0.0'
+group = 'cn.dancingsnow.neoecoprototype'
+
+base {
+    archivesName = 'neoecoprototype'
+}
+
+java.toolchain.languageVersion = JavaLanguageVersion.of(21)
+
+repositories {
+    mavenCentral()
+    mavenLocal()
+    maven {
+        name = 'NeoForged'
+        url = 'https://maven.neoforged.net/releases'
+    }
+    // The addon depends on the public AE2/GuideME/LDLib2 APIs and the
+    // Neo ECO AE Extension runtime. The exact local development artifacts
+    // are documented in README.md and are intentionally not committed.
+    maven { url "https://api.modrinth.com/maven" }
+    maven { url "https://maven.appeng.io" } // AE2官方maven
+    maven { url 'https://maven.aliyun.com/repository/public' }
+    maven { url 'https://maven.aliyun.com/repository/gradle-plugin' }
+    mavenCentral()
+    maven { url 'https://maven.terraformersmc.com/' }
+    maven { url 'https://repo.sleeping.town/' }
+}
+
+dependencies {
+    implementation "net.neoforged:neoforge:21.1.233"
+
+    // 三个运行时 mod 全部本地化到 libs/（沙箱/离线构建需要）：
+    implementation files("libs/ae2-19.2.17.jar")               // AE2 (modId: ae2)
+    implementation files("libs/guideme-21.1.1.jar")            // GuideME (AE2 强制依赖, modId: guideme)
+    implementation files("libs/ldlib2-2.2.8.jar")              // LDLib2 (eco 预览运行依赖, modId: ldlib2)
+    implementation files("libs/neoecoae-21.2.0-preview10-local.jar") // preview10 without unavailable AdvancedAE integration
+    // 开发辅助 mod（与 eco 预览 neweco 同版本）：
+    implementation files("libs/jei-1.21.1-neoforge-19.27.0.340.jar")  // JEI (mezz.jei, 19.27.0.340)
+    implementation files("libs/jade-7428884.jar")                      // Jade 🔍 (curse jade-324717:7428884)
+
+    compileOnly "org.projectlombok:lombok:1.18.34"
+    annotationProcessor "org.projectlombok:lombok:1.18.34"
+
+    testImplementation platform("org.junit:junit-bom:5.10.2")
+    testImplementation "org.junit.jupiter:junit-jupiter"
+}
+
+tasks.named('test', Test) {
+    useJUnitPlatform()
+}
+
+neoForge {
+    version = '21.1.233'
+
+    runs {
+        client {
+            client()
+        }
+        server {
+            server()
+        }
+        // NeoForge 21.1.233 GameTest server; keep the namespace enabled explicitly.
+        gameTestServer {
+            type = 'gameTestServer'
+            systemProperty 'neoforge.enableGameTest', 'true'
+            systemProperty 'neoforge.enabledGameTestNamespaces', 'neoecoprototype'
+        }
+    }
+
+    mods {
+        neoecoprototype {
+            sourceSet(sourceSets.main)
+        }
+    }
+}

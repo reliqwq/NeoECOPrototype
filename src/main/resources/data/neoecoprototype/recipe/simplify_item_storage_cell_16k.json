@@ -1,0 +1,12 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    { "item": "neoecoprototype:simplify_item_storage_matrix_housing" },
+    { "item": "ae2:cell_component_16k" }
+  ],
+  "result": {
+    "count": 1,
+    "id": "neoecoprototype:simplify_item_storage_cell_16k"
+  }
+}

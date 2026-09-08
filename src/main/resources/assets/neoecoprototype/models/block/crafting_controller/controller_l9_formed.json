@@ -1,0 +1,8 @@
+{
+    "parent": "neoecoprototype:block/crafting_controller/controller_formed_base",
+    "textures": {
+        "base": "neoecoprototype:block/crafting_recolor/controller_formed/controller_formed_c",
+		"screen": "neoecoprototype:block/crafting_recolor/controller/screen_on_c",
+        "particle": "neoecoprototype:block/crafting_recolor/controller/controller_side_c"
+    }
+}

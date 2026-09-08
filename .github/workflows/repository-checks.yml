@@ -1,0 +1,33 @@
+name: Repository checks
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  hygiene:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Check whitespace errors
+        run: git diff --check
+
+      - name: Check repository boundaries
+        shell: bash
+        run: |
+          set -euo pipefail
+          for path in build run libs knowledge neoeco10 neweco neweco8; do
+            if [[ -e "$path" ]]; then
+              echo "Forbidden development artifact is tracked: $path" >&2
+              exit 1
+            fi
+          done
+          if grep -RIn --include='*.json' --include='*.mcmeta' --include='*.json5' 'neoecoae:' src/main/resources/assets; then
+            echo 'Addon-owned assets must not reference the neoecoae resource namespace.' >&2
+            exit 1
+          fi

@@ -1,0 +1,14 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "A": { "item": "neoecoprototype:simplify_crafting_casing" },
+    "B": { "item": "minecraft:bucket" },
+    "C": { "item": "ae2:export_bus" }
+  },
+  "pattern": ["ABA", "BCB", "ABA"],
+  "result": {
+    "count": 1,
+    "id": "neoecoprototype:simplify_fluid_output_hatch"
+  }
+}

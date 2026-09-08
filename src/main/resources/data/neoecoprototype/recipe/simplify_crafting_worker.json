@@ -1,0 +1,6 @@
+{
+  "type":"minecraft:crafting_shaped","category":"misc",
+  "key":{"A":{"item":"neoecoprototype:simplify_crafting_casing"},"B":{"item":"ae2:calculation_processor"},"C":{"item":"minecraft:piston"}},
+  "pattern":["AAA","BCB","AAA"],
+  "result":{"count":2,"id":"neoecoprototype:simplify_crafting_worker"}
+}

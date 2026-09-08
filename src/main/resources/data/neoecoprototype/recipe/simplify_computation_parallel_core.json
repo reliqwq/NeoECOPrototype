@@ -1,0 +1,14 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "A": { "item": "neoecoprototype:simplify_computation_casing" },
+    "B": { "item": "ae2:engineering_processor" },
+    "C": { "item": "ae2:logic_processor" }
+  },
+  "pattern": ["ABA", "BCB", "ABA"],
+  "result": {
+    "count": 4,
+    "id": "neoecoprototype:simplify_computation_parallel_core"
+  }
+}

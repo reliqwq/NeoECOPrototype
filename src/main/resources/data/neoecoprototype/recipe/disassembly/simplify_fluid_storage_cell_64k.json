@@ -1,0 +1,8 @@
+{
+  "type": "ae2:storage_cell_disassembly",
+  "cell": "neoecoprototype:simplify_fluid_storage_cell_64k",
+  "cell_disassembly_items": [
+    { "id": "neoecoprototype:simplify_fluid_storage_matrix_housing", "count": 1 },
+    { "id": "ae2:cell_component_64k", "count": 1 }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "A": { "item": "ae2:certus_quartz_crystal" },
+    "B": { "item": "minecraft:glowstone_dust" }
+  },
+  "pattern": [" A ", "ABA", " A "],
+  "result": {
+    "count": 1,
+    "id": "neoecoprototype:simplify_green_crystal_matrix"
+  }
+}

@@ -1,0 +1,7 @@
+{
+	"parent": "neoecoprototype:block/computation_controller/controller_off_base",
+	"textures": {
+		"level": "neoecoprototype:block/computation_recolor/controller/controller_side_layer_a",
+		"side": "neoecoprototype:block/computation_recolor/casing_side_east"
+	}
+}

@@ -1,0 +1,7 @@
+{
+    "parent": "neoecoprototype:block/computation_cooling_controller/controller_off_base",
+    "textures": {
+        "east": "neoecoprototype:block/computation_recolor/cooling_controller/controller_east_b",
+        "particle": "neoecoprototype:block/computation_recolor/cooling_controller/controller_east_b"
+    }
+}
