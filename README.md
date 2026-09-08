@@ -43,7 +43,7 @@ Required local development files are listed in `build.gradle`. Place lawful copi
 .\gradlew.bat build --offline
 ```
 
-The output is written to `build/libs/neoecoprototype-1.0.0.jar`.
+The output is written to `build/libs/neoecoprototype-1.0.1.jar`.
 
 Do not commit `libs/`, `run/`, `build/`, reference checkouts, or local world data. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for dependency licensing information.
 
@@ -66,9 +66,10 @@ Please read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request. Bu
 
 Neo ECO Prototype is released under the GNU General Public License version 3.0 only. See [LICENSE](LICENSE).
 
-Copyright (C) 2026 DancingSnow.
+Copyright (C) 2026 reliqwq.
 
 ## Credits
 
-- `DancingSnow`: addon author and maintainer.
+- `reliqwq`: addon author and maintainer.
+- `DancingSnow`: original author of Neo ECO AE Extension, the required upstream mod.
 - `Yang120`: special thanks for substantial help from the original Neo ECO AE Extension team.
