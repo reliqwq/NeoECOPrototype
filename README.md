@@ -33,6 +33,10 @@ Neo ECO Prototype is not affiliated with or endorsed by Mojang, Microsoft, Appli
 
 The release JAR does not bundle the dependency JARs listed above. Obtain them from their respective maintainers and follow their licenses and distribution rules.
 
+## KubeJS Support
+
+KubeJS is optional. Use `ServerEvents.recipes` to add, remove, or replace addon recipes, including the Neo ECO AE Extension integrated working station recipe type. See [docs/kubejs.md](docs/kubejs.md) for script examples. KubeJS scripts do not change multiblock structure definitions or controller behavior.
+
 ## Development Build
 
 The current development setup uses local dependency JARs under `libs/` because Neo ECO AE Extension preview10 is not consumed from a public Maven coordinate in this project. Those files are intentionally excluded from GitHub.
