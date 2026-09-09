@@ -1,7 +1,7 @@
 package cn.dancingsnow.neoecoprototype.mixin;
 
 /*
- * Version lock: NeoForge 21.1.233, AE2 19.2.17, Eco 21.2.0-preview11.
+ * Version lock: NeoForge 21.1.233, AE2 19.2.17, Eco 21.2.0-preview12.
  * Last verified: 2026-09-08. Upgrade check: getBuildDefinition/onReady signatures.
  */
 

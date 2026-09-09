@@ -1,7 +1,0 @@
-{
-  "parent": "neoecoprototype:block/network_switch_base",
-  "textures": {
-    "base": "neoecoprototype:block/network_switch/crafting",
-    "light": "neoecoprototype:block/network_switch/light"
-  }
-}

@@ -1,6 +1,6 @@
 package cn.dancingsnow.neoecoprototype.mixin;
 
-/* Version lock: NeoForge 21.1.233, Eco 21.2.0-preview11. Check NEBlockEntity#onReady return injection. */
+/* Version lock: NeoForge 21.1.233, Eco 21.2.0-preview12. Check NEBlockEntity#onReady return injection. */
 
 import cn.dancingsnow.neoecoae.blocks.entity.NEBlockEntity;
 import cn.dancingsnow.neoecoprototype.NeoECOPrototype;

@@ -1,6 +1,6 @@
 package cn.dancingsnow.neoecoprototype.mixin;
 
-/* Version lock: NeoForge 21.1.233, Eco 21.2.0-preview11. Check headerRow argument layout. */
+/* Version lock: NeoForge 21.1.233, Eco 21.2.0-preview12. Check headerRow argument layout. */
 
 import cn.dancingsnow.neoecoprototype.registration.ModRegistration;
 import cn.dancingsnow.neoecoae.blocks.entity.crafting.ECOCraftingPatternBusBlockEntity;

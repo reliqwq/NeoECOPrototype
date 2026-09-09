@@ -1,6 +1,6 @@
 package cn.dancingsnow.neoecoprototype.mixin;
 
-/* Version lock: NeoForge 21.1.233, Eco 21.2.0-preview11. Check ECOMachineInterfaceBlockEntity#createUI. */
+/* Version lock: NeoForge 21.1.233, Eco 21.2.0-preview12. Check ECOMachineInterfaceBlockEntity#createUI. */
 
 import cn.dancingsnow.neoecoprototype.gui.LocalGuiTitleContext;
 import cn.dancingsnow.neoecoae.blocks.entity.ECOMachineInterfaceBlockEntity;

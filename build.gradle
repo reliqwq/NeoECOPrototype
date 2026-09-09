@@ -3,7 +3,7 @@ plugins {
     id 'net.neoforged.moddev' version '2.0.78'
 }
 
-version = '1.0.2'
+version = '1.0.3'
 group = 'cn.dancingsnow.neoecoprototype'
 
 base {
@@ -38,7 +38,7 @@ dependencies {
     implementation files("libs/ae2-19.2.17.jar")               // AE2 (modId: ae2)
     implementation files("libs/guideme-21.1.1.jar")            // GuideME (AE2 强制依赖, modId: guideme)
     implementation files("libs/ldlib2-2.2.8.jar")              // LDLib2 (eco 预览运行依赖, modId: ldlib2)
-    implementation files("libs/neoecoae-21.2.0-preview11-local.jar") // preview11 with unavailable AdvancedAE integration disabled
+    implementation files("libs/neoecoae-21.2.0-preview12-local.jar") // preview12 with unavailable AdvancedAE integration disabled
     // 开发辅助 mod（与 eco 预览 neweco 同版本）：
     implementation files("libs/jei-1.21.1-neoforge-19.27.0.340.jar")  // JEI (mezz.jei, 19.27.0.340)
     implementation files("libs/jade-7428884.jar")                      // Jade 🔍 (curse jade-324717:7428884)
