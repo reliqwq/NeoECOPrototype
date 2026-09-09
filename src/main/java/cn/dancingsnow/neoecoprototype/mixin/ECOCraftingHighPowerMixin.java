@@ -1,6 +1,6 @@
 package cn.dancingsnow.neoecoprototype.mixin;
 
-/* Version lock: NeoForge 21.1.233, Eco 21.2.0-preview10. Check crafting component #onReady methods. */
+/* Version lock: NeoForge 21.1.233, Eco 21.2.0-preview11. Check crafting component #onReady methods. */
 
 import cn.dancingsnow.neoecoae.blocks.entity.NEBlockEntity;
 import cn.dancingsnow.neoecoprototype.NeoECOPrototype;

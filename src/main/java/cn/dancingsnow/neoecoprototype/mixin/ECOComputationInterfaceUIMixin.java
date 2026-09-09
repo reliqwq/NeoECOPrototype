@@ -1,6 +1,6 @@
 package cn.dancingsnow.neoecoprototype.mixin;
 
-/* Version lock: NeoForge 21.1.233, Eco 21.2.0-preview10. Check ComputationInterfaceUI#title. */
+/* Version lock: NeoForge 21.1.233, Eco 21.2.0-preview11. Check ComputationInterfaceUI#title. */
 
 import cn.dancingsnow.neoecoprototype.gui.LocalGuiTitleContext;
 import net.minecraft.network.chat.Component;

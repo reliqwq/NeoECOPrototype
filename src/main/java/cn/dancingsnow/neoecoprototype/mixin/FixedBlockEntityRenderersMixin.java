@@ -1,6 +1,6 @@
 package cn.dancingsnow.neoecoprototype.mixin;
 
-/* Version lock: NeoForge 21.1.233, Eco 21.2.0-preview10. Check render method descriptor and lookup call. */
+/* Version lock: NeoForge 21.1.233, Eco 21.2.0-preview11. Check render method descriptor and lookup call. */
 
 import cn.dancingsnow.neoecoae.client.rendering.FixedBlockEntityRenderers;
 import net.minecraft.core.BlockPos;
