@@ -5,8 +5,8 @@ Neo ECO Prototype is an addon. It does not include the dependency JARs in this r
 ## Neo ECO AE Extension
 
 - Mod ID: `neoecoae`
-- Latest local development version used here: `21.2.0-preview14`
-- Published compatibility baseline: `21.2.0-preview12`
+- Version used by Neo ECO Prototype 1.0.4: `21.2.0-preview14`
+- Previous published compatibility baseline: `21.2.0-preview12`
 - License declared by the upstream mod: GNU GPLv3
 - Upstream authors listed by the upstream metadata: DancingSnow, ZhuRuoLing, and Yang120231
 

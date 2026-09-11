@@ -4,7 +4,7 @@ license = "GPL-3.0-only"
 
 [[mods]]
 modId = "neoecoprototype"
-version = "1.0.3"
+version = "1.0.4"
 displayName = "Neo ECO Prototype"
 authors = "reliqwq"
 description = "A simplified addon for Neo ECO AE Extension: adds the L1 (tier index 0) storage subsystem below eco's L4."
@@ -37,6 +37,6 @@ side = "BOTH"
 [[dependencies.neoecoprototype]]
 modId = "neoecoae"
 mandatory = true
-versionRange = "[21.2.0-preview12,)"
+versionRange = "[21.2.0-preview14,)"
 ordering = "NONE"
 side = "BOTH"

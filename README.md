@@ -19,7 +19,7 @@ Neo ECO Prototype is an unofficial addon for Neo ECO AE Extension and Applied En
 | Minecraft | 1.21.1 |
 | NeoForge | 21.1.233 or compatible 21.1.x release |
 | Applied Energistics 2 | 19.2.17 or compatible 19.2.x release |
-| Neo ECO AE Extension | 21.2.0-preview12 or a compatible release |
+| Neo ECO AE Extension | 21.2.0-preview14 or a compatible release |
 | Java | 21 |
 
 Neo ECO Prototype is not affiliated with or endorsed by Mojang, Microsoft, Applied Energistics 2, or Neo ECO AE Extension. Minecraft and related names are trademarks of their respective owners.
@@ -39,7 +39,7 @@ KubeJS is optional. Use `ServerEvents.recipes` to add, remove, or replace addon 
 
 ## Development Build
 
-The current development setup uses a local Neo ECO AE Extension preview14 JAR under `libs/` because that preview is not consumed from a public Maven coordinate in this project. The local development copy is intentionally excluded from GitHub. The latest published Neo ECO Prototype release remains tested against the preview12 compatibility baseline; preview14 support is currently local and unreleased.
+The current development setup uses a local Neo ECO AE Extension preview14 JAR under `libs/` because that preview is not consumed from a public Maven coordinate in this project. The local development copy is intentionally excluded from GitHub. Neo ECO Prototype 1.0.4 is tested against the preview14 compatibility baseline.
 
 Required local development files are listed in `build.gradle`. Place lawful copies of the exact compatible dependencies in `libs/`, then run:
 
@@ -47,7 +47,7 @@ Required local development files are listed in `build.gradle`. Place lawful copi
 .\gradlew.bat build --offline
 ```
 
-The output is written to `build/libs/neoecoprototype-1.0.3.jar`.
+The output is written to `build/libs/neoecoprototype-1.0.4.jar`.
 
 Do not commit `libs/`, `run/`, `build/`, reference checkouts, or local world data. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for dependency licensing information.
 

@@ -217,7 +217,10 @@ public class SimplifyStorageHostBlockEntity
                         setStoragePriority(priority);
                     }
                 },
-                delta -> changeStoragePriority(holder.player, delta)));
+                delta -> changeStoragePriority(holder.player, delta),
+                 () -> false,
+                 () -> 0L,
+                 () -> { }));
         actionUI.addTo(root);
         return new ModularUI(UI.of(root,
                 java.util.List.of(StylesheetManager.INSTANCE.getStylesheetSafe(NEStyleSheets.ECO))), holder.player);
