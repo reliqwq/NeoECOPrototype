@@ -9,7 +9,7 @@ Neo ECO Prototype is an unofficial addon for Neo ECO AE Extension and Applied En
 - L1 storage, computation, and crafting multiblock definitions.
 - JEI multiblock build previews for the three L1 structures.
 - L1 storage cells, drives, energy cells, interfaces, and supporting blocks.
-- Dedicated-server-safe crafting interface fallback for the preview12 runtime.
+- Dedicated-server-safe crafting interface fallback for the Neo ECO AE Extension preview runtime.
 - Addon-owned model, texture, translation, and recipe files organized under the `neoecoprototype` namespace; some visual resources are adapted from upstream Neo ECO AE Extension assets and retain their upstream licensing.
 
 ## Compatibility
@@ -39,7 +39,7 @@ KubeJS is optional. Use `ServerEvents.recipes` to add, remove, or replace addon 
 
 ## Development Build
 
-The current development setup uses a local Neo ECO AE Extension preview12 JAR under `libs/` because that release is not consumed from a public Maven coordinate in this project. Those files are intentionally excluded from GitHub.
+The current development setup uses a local Neo ECO AE Extension preview14 JAR under `libs/` because that preview is not consumed from a public Maven coordinate in this project. The local development copy is intentionally excluded from GitHub. The latest published Neo ECO Prototype release remains tested against the preview12 compatibility baseline; preview14 support is currently local and unreleased.
 
 Required local development files are listed in `build.gradle`. Place lawful copies of the exact compatible dependencies in `libs/`, then run:
 
@@ -68,12 +68,16 @@ Please read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request. Bu
 
 ## License
 
-Neo ECO Prototype is released under the GNU General Public License version 3.0 only. See [LICENSE](LICENSE).
+Neo ECO Prototype code is released under the GNU General Public License version 3.0 only. See [LICENSE](LICENSE).
+
+Textures and models are artwork assets and are **All Rights Reserved (ARR)** unless a specific upstream license is stated in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Artwork may not be extracted, reused, or redistributed separately without permission. Required attribution must be retained.
 
 Copyright (C) 2026 reliqwq.
 
 ## Credits
 
 - `reliqwq`: addon author and maintainer.
+- `Neo-TiX`: original lead artist and artwork contributor; attribution retained with permission.
+- `寒冰`: original artwork contributor; attribution retained with permission.
 - `DancingSnow`: original author of Neo ECO AE Extension, the required upstream mod.
 - `Yang120`: special thanks for substantial help from the original Neo ECO AE Extension team.
