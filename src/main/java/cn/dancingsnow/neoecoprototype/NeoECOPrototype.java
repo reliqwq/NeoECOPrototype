@@ -79,6 +79,9 @@ public class NeoECOPrototype {
     private static void commonSetup(final FMLCommonSetupEvent event) {
         // Bind each block to its BlockEntityType (AE2's AEBaseEntityBlock#setBlockEntity).
         ModRegistration.linkBlockEntityTypes();
+        // The infinite concrete matrix is vanilla-only, so its handler needs no mod check.
+        event.enqueueWork(
+                cn.dancingsnow.neoecoprototype.items.InfiniteConcreteCellHandler::register);
         if (ModList.get().isLoaded("beyonddimensions")) {
             // Hand eco's cell registry a handler for the network-bound cell.
             event.enqueueWork(BeyondIntegration::registerCellHandler);

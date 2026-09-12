@@ -5,14 +5,26 @@ Neo ECO Prototype is an addon. It does not include the dependency JARs in this r
 ## Neo ECO AE Extension
 
 - Mod ID: `neoecoae`
-- Version used by Neo ECO Prototype 1.0.4.1: `21.2.0-preview14`
-- Previous published compatibility baseline: `21.2.0-preview12`
+- Version used by Neo ECO Prototype 1.0.5: local build of upstream commit `111a6fd6` (upstream version string `21.2.0-preview14`)
+- Previous published compatibility baseline: `21.2.0-preview14`
 - License declared by the upstream mod: GNU GPLv3
 - Upstream authors listed by the upstream metadata: DancingSnow, ZhuRuoLing, and Yang120231
 
-Neo ECO Prototype is an independent addon and is not the Neo ECO AE Extension project. The local preview12 development JAR used during testing is intentionally not redistributed by this repository.
+Neo ECO Prototype is an independent addon and is not the Neo ECO AE Extension project. The local development JAR used during testing is intentionally not redistributed by this repository.
 
 Special thanks to `Yang120` for substantial help from the original Neo ECO AE Extension team.
+
+## Advanced AE / GeckoLib (local development runtime only)
+
+- Mod IDs: `advanced_ae`, `geckolib`
+- Present in the local development runtime because the upstream compat mixins expect them at runtime; not compile dependencies of this addon and never redistributed.
+- Advanced AE 1.6.9 by pedroksl; GeckoLib 4.8.3 by BernieL.
+
+## Extended AE (optional compile-time reference only)
+
+- Mod ID: `extendedae`
+- Version: `1.21-2.2.28` (compile-time reference dependency, `compileOnly`); the addon builds and runs without it and never redistributes it.
+- ExtendedAE by GlodBlock, GNU LGPLv3.
 
 ## Artwork and model assets
 

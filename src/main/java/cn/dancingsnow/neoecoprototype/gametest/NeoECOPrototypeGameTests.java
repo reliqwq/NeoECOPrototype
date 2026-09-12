@@ -29,6 +29,10 @@ public final class NeoECOPrototypeGameTests {
                                     "simplify_chemical_storage_cell_1m")),
                     "optional Mekanism chemical storage cell is not registered");
         }
+        helper.assertTrue(BuiltInRegistries.ITEM.containsKey(
+                        ResourceLocation.fromNamespaceAndPath(NeoECOPrototype.MOD_ID,
+                                "simplify_concrete_storage_cell")),
+                "infinite concrete storage cell is not registered");
         helper.succeed();
     }
 }

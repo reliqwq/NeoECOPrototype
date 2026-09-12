@@ -39,7 +39,7 @@ KubeJS is optional. Use `ServerEvents.recipes` to add, remove, or replace addon 
 
 ## Development Build
 
-The current development setup uses a local Neo ECO AE Extension preview14 JAR under `libs/` because that preview is not consumed from a public Maven coordinate in this project. The local development copy is intentionally excluded from GitHub. Neo ECO Prototype 1.0.4.1 is tested against the preview14 compatibility baseline.
+The current development setup uses a local Neo ECO AE Extension JAR under `libs/`, built from the upstream `111a6fd6` cell-display-interface commit (upstream version string `21.2.0-preview14`), because that build is not consumed from a public Maven coordinate in this project. The local development copy is intentionally excluded from GitHub. Neo ECO Prototype 1.0.5 is tested against that compatibility baseline.
 
 Required local development files are listed in `build.gradle`. Place lawful copies of the exact compatible dependencies in `libs/`, then run:
 
@@ -47,7 +47,7 @@ Required local development files are listed in `build.gradle`. Place lawful copi
 .\gradlew.bat build --offline
 ```
 
-The output is written to `build/libs/neoecoprototype-1.0.4.1.jar`.
+The output is written to `build/libs/neoecoprototype-1.0.5.jar`.
 
 Do not commit `libs/`, `run/`, `build/`, reference checkouts, or local world data. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for dependency licensing information.
 

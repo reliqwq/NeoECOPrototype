@@ -3,7 +3,7 @@ plugins {
     id 'net.neoforged.moddev' version '2.0.78'
 }
 
-version = '1.0.4.1'
+version = '1.0.5'
 group = 'cn.dancingsnow.neoecoprototype'
 
 base {
@@ -38,7 +38,9 @@ dependencies {
     implementation files("libs/ae2-19.2.17.jar")               // AE2 (modId: ae2)
     implementation files("libs/guideme-21.1.1.jar")            // GuideME (AE2 强制依赖, modId: guideme)
     implementation files("libs/ldlib2-2.2.8.jar")              // LDLib2 (eco 预览运行依赖, modId: ldlib2)
-    implementation files("libs/neoecoae-21.2.0-preview14-local.jar") // preview14 with optional integrations disabled for local development
+    // 从上游 commit 111a6fd6802ff44dc96e076feed3a854bb962582 构建
+    // （"添加cell接口"：ECOCellType 增加 visible 显示开关）。
+    implementation files("libs/neoecoae-21.2.0-111a6fd6-local.jar")
     // Temporary local runtime dependencies for client inspection; restore compileOnly after viewing.
     implementation files("libs/Mekanism-1.21.1-10.7.19.85.jar")
     implementation files("libs/Applied-Mekanistics-1.6.3.jar")
@@ -46,6 +48,14 @@ dependencies {
     // Optional integration: Beyond Dimensions. compileOnly so the addon still builds
     // and runs without it; the cell is registered only when the mod is present.
     compileOnly files("libs/beyonddimensions-1.21.1-neoforge-0.7.30.jar")
+    // 可选参考依赖：ExtendedAE（非强制，仅编译期可见，用于对齐其无限元件的处理方式）。
+    // 运行时不需要它；当前代码没有引用其类。
+    compileOnly files("libs/extendedae-892005-7478960.jar") // ExtendedAE 1.21-2.2.28
+    // 上游 neoecoae(111a6fd6) 的 compat mixin 需要这些模组在运行时存在才不崩
+    // （AdvancedAeCraftingServiceMixin 的方法体直接引用 advanced_ae 的类）。
+    // 仅运行时加载，不进编译类路径，也不是本插件的依赖。
+    runtimeOnly files("libs/advancedae-1084104-7374386.jar")   // Advanced AE 1.6.9（自带 ae2addonlib）
+    runtimeOnly files("libs/geckolib-neoforge-1.21.1-4.8.3.jar") // Advanced AE 的必需前置
     // 开发辅助 mod（与 eco 预览 neweco 同版本）：
     implementation files("libs/jei-1.21.1-neoforge-19.27.0.340.jar")  // JEI (mezz.jei, 19.27.0.340)
     implementation files("libs/jade-7428884.jar")                      // Jade 🔍 (curse jade-324717:7428884)
