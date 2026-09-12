@@ -15,11 +15,11 @@ class SimplifyPowerProfileTest {
     }
 
     @Test
-    void allComponentPowerBaselinesUseOneEighth() {
+    void componentPowerBaselinesUseReducedCraftingPower() {
         SimplifyPowerProfile profile = SimplifyPowerProfile.L1;
 
         assertEquals(16.0D / 8.0D, profile.baseComponentIdlePower(), EPSILON);
-        assertEquals(64.0D / 8.0D, profile.highIdleComponentPower(), EPSILON);
+        assertEquals(32.0D / 8.0D, profile.highIdleComponentPower(), EPSILON);
         assertEquals(256.0D / 8.0D, profile.storageDriveIdlePower(), EPSILON);
     }
 
@@ -30,10 +30,10 @@ class SimplifyPowerProfileTest {
     }
 
     @Test
-    void computationAndCraftingControllersUseOneEighthOfEcoBaseline() {
+    void computationAndCraftingControllersUseConfiguredBaselines() {
         SimplifyPowerProfile profile = SimplifyPowerProfile.L1;
 
         assertEquals(16.0D / 8.0D, profile.computationControllerIdlePower(), EPSILON);
-        assertEquals(64.0D / 8.0D, profile.craftingControllerIdlePower(), EPSILON);
+        assertEquals(32.0D / 8.0D, profile.craftingControllerIdlePower(), EPSILON);
     }
 }

@@ -39,6 +39,13 @@ dependencies {
     implementation files("libs/guideme-21.1.1.jar")            // GuideME (AE2 强制依赖, modId: guideme)
     implementation files("libs/ldlib2-2.2.8.jar")              // LDLib2 (eco 预览运行依赖, modId: ldlib2)
     implementation files("libs/neoecoae-21.2.0-preview14-local.jar") // preview14 with optional integrations disabled for local development
+    // Temporary local runtime dependencies for client inspection; restore compileOnly after viewing.
+    implementation files("libs/Mekanism-1.21.1-10.7.19.85.jar")
+    implementation files("libs/Applied-Mekanistics-1.6.3.jar")
+    implementation files("libs/ae2jeiintegration-1.2.1.jar")
+    // Optional integration: Beyond Dimensions. compileOnly so the addon still builds
+    // and runs without it; the cell is registered only when the mod is present.
+    compileOnly files("libs/beyonddimensions-1.21.1-neoforge-0.7.30.jar")
     // 开发辅助 mod（与 eco 预览 neweco 同版本）：
     implementation files("libs/jei-1.21.1-neoforge-19.27.0.340.jar")  // JEI (mezz.jei, 19.27.0.340)
     implementation files("libs/jade-7428884.jar")                      // Jade 🔍 (curse jade-324717:7428884)

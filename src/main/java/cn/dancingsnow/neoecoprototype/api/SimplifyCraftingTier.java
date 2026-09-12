@@ -5,7 +5,7 @@ import net.minecraft.resources.ResourceLocation;
 
 /** L1 crafting-only tier; its parallelism is independent from computation L1. */
 public enum SimplifyCraftingTier implements IECOTier {
-    L1(0, 4, 0, 0, 0, 0, 0, 0);
+    L1(0, 16, 32, 0, 0, 0, 0, 0);
 
     private final int tier;
     private final int crafterParallel;

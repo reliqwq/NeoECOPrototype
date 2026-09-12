@@ -15,11 +15,11 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 /** Scales Eco's shared 16 AE/t component baseline for addon-owned L1 parts. */
 @Mixin(NEBlockEntity.class)
 public abstract class NEBlockEntityPowerMixin {
-    @Inject(method = "onReady", at = @At("RETURN"))
+    @Inject(method = "onReady", at = @At("RETURN"), require = 1)
     private void neoecoprototype$l1BaseComponentPower(CallbackInfo ci) {
         NEBlockEntity<?, ?> self = (NEBlockEntity<?, ?>) (Object) this;
         ResourceLocation blockId = BuiltInRegistries.BLOCK.getKey(self.getBlockState().getBlock());
-        if (NeoECOPrototype.MOD_ID.equals(blockId.getNamespace())) {
+        if (blockId != null && NeoECOPrototype.MOD_ID.equals(blockId.getNamespace())) {
             self.getMainNode().setIdlePowerUsage(SimplifyPowerProfile.L1.baseComponentIdlePower());
         }
     }

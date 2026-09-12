@@ -79,6 +79,13 @@ public class ModRegistration {
 
     public static final DeferredRegister<Item> ITEMS =
             DeferredRegister.create(Registries.ITEM, NeoECOPrototype.MOD_ID);
+    public static Supplier<? extends Item> OPTIONAL_CHEMICAL_CELL_1K;
+    public static Supplier<? extends Item> OPTIONAL_CHEMICAL_CELL_16K;
+    public static Supplier<? extends Item> OPTIONAL_CHEMICAL_CELL_1M;
+    public static Supplier<? extends Item> OPTIONAL_CHEMICAL_CELL_4M;
+    public static Supplier<? extends Item> OPTIONAL_BEYOND_STORAGE_CELL;
+    public static final Supplier<Item> SIMPLIFY_CHEMICAL_STORAGE_MATRIX_HOUSING =
+            ITEMS.register("simplify_chemical_storage_matrix_housing", () -> new Item(new Item.Properties()));
 
     @SuppressWarnings("unchecked")
     public static final DeferredRegister<BlockEntityType<?>> BLOCK_ENTITIES =
@@ -277,6 +284,12 @@ public class ModRegistration {
              ITEMS.register("simplify_item_storage_matrix_housing", () -> new Item(new Item.Properties()));
      public static final Supplier<Item> SIMPLIFY_FLUID_STORAGE_MATRIX_HOUSING =
              ITEMS.register("simplify_fluid_storage_matrix_housing", () -> new Item(new Item.Properties()));
+     public static final Supplier<Item> PIGCAT_STORAGE_MATRIX_HOUSING =
+             ITEMS.register("pigcat_storage_matrix_housing", () -> new Item(new Item.Properties()));
+     public static final Supplier<SimplifyStorageCellItem> PIGCAT_STORAGE_CELL =
+             ITEMS.register("pigcat_storage_cell",
+                     () -> storageCell(AEKeyType.items(), SimplifyStorageCellItem::getItemCellType,
+                             SimplifyStorageCellItem.BYTES_2K5, SimplifyStorageCellItem.BYTES_2K5_PER_TYPE));
 
      public static final Supplier<Item> SIMPLIFY_STORAGE_COMPONENT_1M =
              ITEMS.register("simplify_storage_component_1m", () -> new Item(new Item.Properties()));
@@ -629,8 +642,20 @@ public class ModRegistration {
                          output.accept(SIMPLIFY_FLUID_CELL_64K.get());
                          output.accept(SIMPLIFY_FLUID_CELL_1M.get());
                          output.accept(SIMPLIFY_FLUID_CELL_4M.get());
+                         if (OPTIONAL_CHEMICAL_CELL_1K != null) {
+                             output.accept(OPTIONAL_CHEMICAL_CELL_1K.get());
+                             output.accept(OPTIONAL_CHEMICAL_CELL_16K.get());
+                              output.accept(OPTIONAL_CHEMICAL_CELL_1M.get());
+                              output.accept(OPTIONAL_CHEMICAL_CELL_4M.get());
+                         }
+                         if (OPTIONAL_BEYOND_STORAGE_CELL != null) {
+                              output.accept(OPTIONAL_BEYOND_STORAGE_CELL.get());
+                          }
+                          output.accept(SIMPLIFY_CHEMICAL_STORAGE_MATRIX_HOUSING.get());
                          output.accept(SIMPLIFY_GREEN_CRYSTAL_MATRIX.get());
                          output.accept(SIMPLIFY_ITEM_STORAGE_MATRIX_HOUSING.get());
+                         output.accept(PIGCAT_STORAGE_MATRIX_HOUSING.get());
+                         output.accept(PIGCAT_STORAGE_CELL.get());
                          output.accept(SIMPLIFY_FLUID_STORAGE_MATRIX_HOUSING.get());
                         output.accept(SIMPLIFY_COMPUTATION_SYSTEM_ITEM.get());
                         output.accept(SIMPLIFY_COMPUTATION_DRIVE_ITEM.get());

@@ -38,6 +38,15 @@ public class SimplifyStorageCellItem extends ECOStorageCellItem {
     /** 4 MiB */
     public static final long BYTES_4M = 1L << 22;
 
+    /**
+     * 2.5 KiB - the deliberately small capacity of the pigcat matrix.
+     * 2560 = 2.5 x 1024, so the cell reads as "2.5k" next to eco's k/M/MiB ladder.
+     * The per-type cost keeps the same bytes/256 ratio as every other L1 cell.
+     */
+    public static final long BYTES_2K5 = 2560L;
+    /** 2560 / 256 types, matching the {@code bytes >> 8} ratio of the other L1 cells. */
+    public static final int BYTES_2K5_PER_TYPE = (int) (BYTES_2K5 >> 8);
+
     private final long bytes;
     private final int bytesPerType;
     private final int totalTypes;

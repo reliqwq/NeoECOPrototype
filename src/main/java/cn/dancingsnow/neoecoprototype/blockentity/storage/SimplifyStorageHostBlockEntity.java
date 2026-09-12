@@ -1,10 +1,13 @@
 package cn.dancingsnow.neoecoprototype.blockentity.storage;
 
 import appeng.api.networking.IGridNodeListener;
+import appeng.api.stacks.AEKeyType;
 import appeng.api.storage.IStorageMounts;
 import appeng.api.storage.IStorageProvider;
+import cn.dancingsnow.neoecoae.all.NERegistries;
 import cn.dancingsnow.neoecoae.api.storage.ECOCellType;
 import cn.dancingsnow.neoecoae.api.storage.IECOStorageCell;
+import cn.dancingsnow.neoecoae.api.storage.IECOStorageCellItem;
 import cn.dancingsnow.neoecoae.blocks.NEBlock;
 import cn.dancingsnow.neoecoae.blocks.entity.NEBlockEntity;
 import cn.dancingsnow.neoecoae.gui.storage.StorageHostActionUI;
@@ -33,6 +36,7 @@ import com.lowdragmc.lowdraglib2.syncdata.holder.blockentity.ISyncPersistRPCBloc
 import com.lowdragmc.lowdraglib2.syncdata.storage.FieldManagedStorage;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
@@ -234,13 +238,26 @@ public class SimplifyStorageHostBlockEntity
                 () -> 0L,
                 () -> Long.toString(getMaxLoadUsedBytes()),
                 this::createCellEntries,
-                java.util.List.of(
-                        createStorageTypeLine(SimplifyStorageCellItem.getItemCellType(), 0),
-                        createStorageTypeLine(SimplifyStorageCellItem.getFluidCellType(), 1)),
+                createStorageTypeLines(),
                 () -> false,
                 () -> false,
                 () -> false,
                 createReadOnlyEmptyComponentInventory());
+    }
+
+    private java.util.List<StorageHostUI.StorageTypeLine> createStorageTypeLines() {
+        java.util.List<StorageHostUI.StorageTypeLine> lines = new java.util.ArrayList<>();
+        lines.add(createStorageTypeLine(SimplifyStorageCellItem.getItemCellType(), 0));
+        lines.add(createStorageTypeLine(SimplifyStorageCellItem.getFluidCellType(), 1));
+        ECOCellType chemical = getChemicalCellType();
+        if (chemical != null) {
+            lines.add(createStorageTypeLine(chemical, 2));
+        }
+        return lines;
+    }
+
+    private ECOCellType getChemicalCellType() {
+        return NERegistries.CELL_TYPE.get(ResourceLocation.fromNamespaceAndPath("neoecoae", "mekanism"));
     }
 
     private StorageHostUI.StorageTypeLine createStorageTypeLine(ECOCellType cellType, int registryIndex) {
@@ -266,9 +283,19 @@ public class SimplifyStorageHostBlockEntity
                 continue;
             }
             ECOCellType cellType = cell.getCellType();
-            int typeId = cellType.equals(SimplifyStorageCellItem.getFluidCellType())
-                    ? 1 : 0;
-            int kind = typeId == 1 ? StorageHostUI.CellEntry.KIND_FLUID : StorageHostUI.CellEntry.KIND_ITEM;
+            int typeId = 0;
+            int kind = StorageHostUI.CellEntry.KIND_ITEM;
+            ItemStack cellStack = drive.getCellStack();
+            if (cellStack != null && cellStack.getItem() instanceof IECOStorageCellItem cellItem) {
+                java.util.Set<AEKeyType> keyTypes = cellItem.getKeyTypes();
+                if (keyTypes.contains(AEKeyType.fluids())) {
+                    typeId = 1;
+                    kind = StorageHostUI.CellEntry.KIND_FLUID;
+                } else if (keyTypes.stream().anyMatch(type -> "chemical".equals(type.getId().getPath()))) {
+                    typeId = 2;
+                    kind = StorageHostUI.CellEntry.KIND_GAS;
+                }
+            }
             entries.add(new StorageHostUI.CellEntry(
                     typeId,
                     cell.getTier().getTier(),
@@ -304,6 +331,11 @@ public class SimplifyStorageHostBlockEntity
         return new L1StorageTotals(usedTypes, totalTypes, usedBytes, totalBytes);
     }
 
+    private L1StorageTotals chemicalStorageTotals() {
+        ECOCellType chemical = getChemicalCellType();
+        return chemical == null ? new L1StorageTotals(0L, 0L, 0L, 0L) : storageTotals(chemical);
+    }
+
     private long getStoredEnergy() {
         double energy = 0.0D;
         SimplifyStorageCluster cluster = getCluster();
@@ -328,14 +360,18 @@ public class SimplifyStorageHostBlockEntity
 
     private long getMaxLoadUsedBytes() {
         return saturatingAdd(
-                storageTotals(SimplifyStorageCellItem.getItemCellType()).usedBytes(),
-                storageTotals(SimplifyStorageCellItem.getFluidCellType()).usedBytes());
+                saturatingAdd(
+                        storageTotals(SimplifyStorageCellItem.getItemCellType()).usedBytes(),
+                        storageTotals(SimplifyStorageCellItem.getFluidCellType()).usedBytes()),
+                chemicalStorageTotals().usedBytes());
     }
 
     private long getMaxLoadTotalBytes() {
         return saturatingAdd(
-                storageTotals(SimplifyStorageCellItem.getItemCellType()).totalBytes(),
-                storageTotals(SimplifyStorageCellItem.getFluidCellType()).totalBytes());
+                saturatingAdd(
+                        storageTotals(SimplifyStorageCellItem.getItemCellType()).totalBytes(),
+                        storageTotals(SimplifyStorageCellItem.getFluidCellType()).totalBytes()),
+                chemicalStorageTotals().totalBytes());
     }
 
     private int getIdleMatrixCount() {

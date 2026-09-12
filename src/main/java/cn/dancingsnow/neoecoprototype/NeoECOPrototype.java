@@ -3,8 +3,10 @@ package cn.dancingsnow.neoecoprototype;
 import appeng.api.AECapabilities;
 import appeng.api.networking.IInWorldGridNodeHost;
 import cn.dancingsnow.neoecoprototype.registration.ModRegistration;
+import cn.dancingsnow.neoecoprototype.integration.beyond.BeyondIntegration;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModContainer;
+import net.neoforged.fml.ModList;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
@@ -21,6 +23,12 @@ public class NeoECOPrototype {
 
         // Register blocks / items / block entity types / creative tab.
         ModRegistration.BLOCKS.register(modBus);
+        if (ModList.get().isLoaded("mekanism") && ModList.get().isLoaded("appmek")) {
+            cn.dancingsnow.neoecoprototype.integration.mekanism.MekanismIntegration.register(ModRegistration.ITEMS);
+        }
+        if (ModList.get().isLoaded("beyonddimensions")) {
+            BeyondIntegration.register(ModRegistration.ITEMS);
+        }
         ModRegistration.ITEMS.register(modBus);
         ModRegistration.BLOCK_ENTITIES.register(modBus);
         ModRegistration.CREATIVE_TABS.register(modBus);
@@ -71,5 +79,9 @@ public class NeoECOPrototype {
     private static void commonSetup(final FMLCommonSetupEvent event) {
         // Bind each block to its BlockEntityType (AE2's AEBaseEntityBlock#setBlockEntity).
         ModRegistration.linkBlockEntityTypes();
+        if (ModList.get().isLoaded("beyonddimensions")) {
+            // Hand eco's cell registry a handler for the network-bound cell.
+            event.enqueueWork(BeyondIntegration::registerCellHandler);
+        }
     }
 }

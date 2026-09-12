@@ -1,1 +1,28 @@
-{"variants":{"facing=west,has_cell=true":{"model":"neoecoprototype:block/eco_drive_full","y":270},"facing=east,has_cell=false":{"model":"neoecoprototype:block/eco_drive_empty","y":90},"facing=north,has_cell=false":{"model":"neoecoprototype:block/eco_drive_empty"},"facing=north,has_cell=true":{"model":"neoecoprototype:block/eco_drive_full"},"facing=west,has_cell=false":{"model":"neoecoprototype:block/eco_drive_empty","y":270},"facing=south,has_cell=true":{"model":"neoecoprototype:block/eco_drive_full","y":180},"facing=east,has_cell=true":{"model":"neoecoprototype:block/eco_drive_full","y":90},"facing=south,has_cell=false":{"model":"neoecoprototype:block/eco_drive_empty","y":180}}}
+{
+  "variants": {
+    "facing=north,has_cell=false,cell_kind=item": {"model":"neoecoprototype:block/eco_drive_empty"},
+    "facing=north,has_cell=false,cell_kind=fluid": {"model":"neoecoprototype:block/eco_drive_empty"},
+    "facing=north,has_cell=false,cell_kind=chemical": {"model":"neoecoprototype:block/eco_drive_empty"},
+    "facing=east,has_cell=false,cell_kind=item": {"model":"neoecoprototype:block/eco_drive_empty","y":90},
+    "facing=east,has_cell=false,cell_kind=fluid": {"model":"neoecoprototype:block/eco_drive_empty","y":90},
+    "facing=east,has_cell=false,cell_kind=chemical": {"model":"neoecoprototype:block/eco_drive_empty","y":90},
+    "facing=south,has_cell=false,cell_kind=item": {"model":"neoecoprototype:block/eco_drive_empty","y":180},
+    "facing=south,has_cell=false,cell_kind=fluid": {"model":"neoecoprototype:block/eco_drive_empty","y":180},
+    "facing=south,has_cell=false,cell_kind=chemical": {"model":"neoecoprototype:block/eco_drive_empty","y":180},
+    "facing=west,has_cell=false,cell_kind=item": {"model":"neoecoprototype:block/eco_drive_empty","y":270},
+    "facing=west,has_cell=false,cell_kind=fluid": {"model":"neoecoprototype:block/eco_drive_empty","y":270},
+    "facing=west,has_cell=false,cell_kind=chemical": {"model":"neoecoprototype:block/eco_drive_empty","y":270},
+    "facing=north,has_cell=true,cell_kind=item": {"model":"neoecoprototype:block/eco_drive_full"},
+    "facing=north,has_cell=true,cell_kind=fluid": {"model":"neoecoprototype:block/eco_drive_full"},
+    "facing=north,has_cell=true,cell_kind=chemical": {"model":"neoecoprototype:block/eco_drive_full_chemical"},
+    "facing=east,has_cell=true,cell_kind=item": {"model":"neoecoprototype:block/eco_drive_full","y":90},
+    "facing=east,has_cell=true,cell_kind=fluid": {"model":"neoecoprototype:block/eco_drive_full","y":90},
+    "facing=east,has_cell=true,cell_kind=chemical": {"model":"neoecoprototype:block/eco_drive_full_chemical","y":90},
+    "facing=south,has_cell=true,cell_kind=item": {"model":"neoecoprototype:block/eco_drive_full","y":180},
+    "facing=south,has_cell=true,cell_kind=fluid": {"model":"neoecoprototype:block/eco_drive_full","y":180},
+    "facing=south,has_cell=true,cell_kind=chemical": {"model":"neoecoprototype:block/eco_drive_full_chemical","y":180},
+    "facing=west,has_cell=true,cell_kind=item": {"model":"neoecoprototype:block/eco_drive_full","y":270},
+    "facing=west,has_cell=true,cell_kind=fluid": {"model":"neoecoprototype:block/eco_drive_full","y":270},
+    "facing=west,has_cell=true,cell_kind=chemical": {"model":"neoecoprototype:block/eco_drive_full_chemical","y":270}
+  }
+}

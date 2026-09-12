@@ -7,7 +7,7 @@ package cn.dancingsnow.neoecoprototype.api;
  * machine behavior but runs at one eighth of that idle rate.</p>
  */
 public enum SimplifyPowerProfile {
-    L1(1.0D / 8.0D, 16.0D, 64.0D, 256.0D, 258.0D, 16.0D, 64.0D);
+    L1(1.0D / 8.0D, 16.0D, 32.0D, 256.0D, 258.0D, 16.0D, 32.0D);
 
     private final double idlePowerMultiplier;
     private final double baseComponentIdlePower;

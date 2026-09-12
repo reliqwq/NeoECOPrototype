@@ -17,6 +17,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.BooleanProperty;
+import net.minecraft.world.level.block.state.properties.EnumProperty;
 import net.minecraft.world.phys.BlockHitResult;
 
 /**
@@ -27,19 +28,36 @@ import net.minecraft.world.phys.BlockHitResult;
 public class SimplifyDriveBlock extends NEBlock<SimplifyDriveBlockEntity> {
 
     public static final BooleanProperty HAS_CELL = BooleanProperty.create("has_cell");
+    public static final EnumProperty<CellKind> CELL_KIND = EnumProperty.create("cell_kind", CellKind.class);
+
+    public enum CellKind implements net.minecraft.util.StringRepresentable {
+        ITEM("item"), FLUID("fluid"), CHEMICAL("chemical");
+
+        private final String name;
+
+        CellKind(String name) {
+            this.name = name;
+        }
+
+        @Override
+        public String getSerializedName() {
+            return name;
+        }
+    }
 
     public SimplifyDriveBlock(Properties properties) {
         super(properties);
         registerDefaultState(getStateDefinition().any()
                 .setValue(FORMED, false)
                 .setValue(HAS_CELL, false)
+                .setValue(CELL_KIND, CellKind.ITEM)
                 .setValue(BlockStateProperties.HORIZONTAL_FACING, Direction.NORTH));
     }
 
     @Override
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
         super.createBlockStateDefinition(builder);
-        builder.add(HAS_CELL);
+        builder.add(HAS_CELL, CELL_KIND);
     }
 
     @Override

@@ -7,6 +7,8 @@ import cn.dancingsnow.neoecoprototype.integration.ae2.SimplifyGridFacade;
 import cn.dancingsnow.neoecoae.util.ServerTaskUtil;
 import cn.dancingsnow.neoecoae.blocks.entity.NEBlockEntity;
 import cn.dancingsnow.neoecoprototype.block.storage.SimplifyDriveBlock;
+import cn.dancingsnow.neoecoprototype.items.SimplifyStorageCellItem;
+import cn.dancingsnow.neoecoae.api.storage.IECOStorageCellItem;
 import cn.dancingsnow.neoecoprototype.multiblock.calculator.SimplifyStorageClusterCalculator;
 import cn.dancingsnow.neoecoprototype.multiblock.cluster.SimplifyStorageCluster;
 import appeng.api.networking.IGridNodeListener;
@@ -191,10 +193,25 @@ public class SimplifyDriveBlockEntity extends NEBlockEntity<SimplifyStorageClust
             return;
         }
         BlockState state = getBlockState();
-        BlockState newState = state.setValue(SimplifyDriveBlock.HAS_CELL, hasCell());
+        SimplifyDriveBlock.CellKind kind = getCellKind();
+        BlockState newState = state.setValue(SimplifyDriveBlock.HAS_CELL, hasCell())
+                .setValue(SimplifyDriveBlock.CELL_KIND, kind);
         if (newState != state) {
             level.setBlock(worldPosition, newState, Block.UPDATE_CLIENTS);
         }
+    }
+
+    private SimplifyDriveBlock.CellKind getCellKind() {
+        if (cellStack.isEmpty() || !(cellStack.getItem() instanceof IECOStorageCellItem cellItem)) {
+            return SimplifyDriveBlock.CellKind.ITEM;
+        }
+        if (cellItem.getKeyTypes().contains(appeng.api.stacks.AEKeyType.fluids())) {
+            return SimplifyDriveBlock.CellKind.FLUID;
+        }
+        if (cellItem.getKeyTypes().stream().anyMatch(type -> "chemical".equals(type.getId().getPath()))) {
+            return SimplifyDriveBlock.CellKind.CHEMICAL;
+        }
+        return SimplifyDriveBlock.CellKind.ITEM;
     }
 
     @Override

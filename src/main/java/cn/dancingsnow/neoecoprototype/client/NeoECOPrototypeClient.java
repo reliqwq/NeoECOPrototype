@@ -38,6 +38,17 @@ public final class NeoECOPrototypeClient {
         ECOCellModels.register(ModRegistration.SIMPLIFY_FLUID_CELL_64K.get(), fluidCellModel);
         ECOCellModels.register(ModRegistration.SIMPLIFY_FLUID_CELL_1M.get(), fluidCellModel);
         ECOCellModels.register(ModRegistration.SIMPLIFY_FLUID_CELL_4M.get(), fluidCellModel);
+        ResourceLocation pigcatCellModel = ResourceLocation.fromNamespaceAndPath(
+                NeoECOPrototype.MOD_ID, "block/cell/storage_cell_l1_pigcat");
+        ECOCellModels.register(ModRegistration.PIGCAT_STORAGE_CELL.get(), pigcatCellModel);
+        if (ModRegistration.OPTIONAL_CHEMICAL_CELL_1K != null) {
+            ResourceLocation chemicalCellModel = ResourceLocation.fromNamespaceAndPath(
+                    NeoECOPrototype.MOD_ID, "block/cell/storage_cell_l1_chemical");
+            ECOCellModels.register(ModRegistration.OPTIONAL_CHEMICAL_CELL_1K.get(), chemicalCellModel);
+            ECOCellModels.register(ModRegistration.OPTIONAL_CHEMICAL_CELL_16K.get(), chemicalCellModel);
+            ECOCellModels.register(ModRegistration.OPTIONAL_CHEMICAL_CELL_1M.get(), chemicalCellModel);
+            ECOCellModels.register(ModRegistration.OPTIONAL_CHEMICAL_CELL_4M.get(), chemicalCellModel);
+        }
         ECOCellModels.runDeferredRegistration();
 
         ECOComputationModels.registerCellModel(
@@ -66,6 +77,17 @@ public final class NeoECOPrototypeClient {
                 NeoECOPrototype.MOD_ID, "block/computation_cell/cell_l4")));
         event.register(ModelResourceLocation.standalone(ResourceLocation.fromNamespaceAndPath(
                 NeoECOPrototype.MOD_ID, "block/computation_cell/cell_l4_formed")));
+        // Cell models are only loaded when registered as additional models.
+        event.register(ModelResourceLocation.standalone(ResourceLocation.fromNamespaceAndPath(
+                NeoECOPrototype.MOD_ID, "block/cell/storage_cell_l1_item")));
+        event.register(ModelResourceLocation.standalone(ResourceLocation.fromNamespaceAndPath(
+                NeoECOPrototype.MOD_ID, "block/cell/storage_cell_l1_fluid")));
+        event.register(ModelResourceLocation.standalone(ResourceLocation.fromNamespaceAndPath(
+                NeoECOPrototype.MOD_ID, "block/cell/storage_cell_l1_pigcat")));
+        if (ModRegistration.OPTIONAL_CHEMICAL_CELL_1K != null) {
+            event.register(ModelResourceLocation.standalone(ResourceLocation.fromNamespaceAndPath(
+                    NeoECOPrototype.MOD_ID, "block/cell/storage_cell_l1_chemical")));
+        }
     }
 
     @SubscribeEvent
