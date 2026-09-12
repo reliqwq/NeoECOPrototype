@@ -21,6 +21,7 @@ import cn.dancingsnow.neoecoprototype.api.SimplifyPowerProfile;
 import cn.dancingsnow.neoecoprototype.api.SimplifyTier;
 import cn.dancingsnow.neoecoprototype.block.storage.SimplifyStorageControllerBlock;
 import cn.dancingsnow.neoecoprototype.integration.ae2.SimplifyGridFacade;
+import cn.dancingsnow.neoecoprototype.items.SimplifyConcreteStorageCellItem;
 import cn.dancingsnow.neoecoprototype.items.SimplifyStorageCellItem;
 import cn.dancingsnow.neoecoprototype.multiblock.calculator.SimplifyStorageClusterCalculator;
 import cn.dancingsnow.neoecoprototype.multiblock.cluster.SimplifyStorageCluster;
@@ -253,6 +254,9 @@ public class SimplifyStorageHostBlockEntity
         if (chemical != null) {
             lines.add(createStorageTypeLine(chemical, 2));
         }
+        // Dedicated row for the infinite concrete matrix, shown only while one
+        // is mounted (upstream's cell display interface gates visibility).
+        lines.add(createStorageTypeLine(SimplifyConcreteStorageCellItem.CELL_TYPE, 3));
         return lines;
     }
 
@@ -285,15 +289,20 @@ public class SimplifyStorageHostBlockEntity
             ECOCellType cellType = cell.getCellType();
             int typeId = 0;
             int kind = StorageHostUI.CellEntry.KIND_ITEM;
-            ItemStack cellStack = drive.getCellStack();
-            if (cellStack != null && cellStack.getItem() instanceof IECOStorageCellItem cellItem) {
-                java.util.Set<AEKeyType> keyTypes = cellItem.getKeyTypes();
-                if (keyTypes.contains(AEKeyType.fluids())) {
-                    typeId = 1;
-                    kind = StorageHostUI.CellEntry.KIND_FLUID;
-                } else if (keyTypes.stream().anyMatch(type -> "chemical".equals(type.getId().getPath()))) {
-                    typeId = 2;
-                    kind = StorageHostUI.CellEntry.KIND_GAS;
+            if (SimplifyConcreteStorageCellItem.CELL_TYPE.equals(cellType)) {
+                typeId = 3;
+                kind = StorageHostUI.CellEntry.KIND_ITEM;
+            } else {
+                ItemStack cellStack = drive.getCellStack();
+                if (cellStack != null && cellStack.getItem() instanceof IECOStorageCellItem cellItem) {
+                    java.util.Set<AEKeyType> keyTypes = cellItem.getKeyTypes();
+                    if (keyTypes.contains(AEKeyType.fluids())) {
+                        typeId = 1;
+                        kind = StorageHostUI.CellEntry.KIND_FLUID;
+                    } else if (keyTypes.stream().anyMatch(type -> "chemical".equals(type.getId().getPath()))) {
+                        typeId = 2;
+                        kind = StorageHostUI.CellEntry.KIND_GAS;
+                    }
                 }
             }
             entries.add(new StorageHostUI.CellEntry(

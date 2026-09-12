@@ -55,6 +55,7 @@ import cn.dancingsnow.neoecoprototype.blockentity.storage.SimplifyStorageInterfa
 import cn.dancingsnow.neoecoprototype.blockentity.storage.SimplifyStorageVentBlockEntity;
 import cn.dancingsnow.neoecoprototype.blockentity.computation.SimplifyComputationDriveBlockEntity;
 import cn.dancingsnow.neoecoprototype.items.SimplifyComputationCellItem;
+import cn.dancingsnow.neoecoprototype.items.SimplifyConcreteStorageCellItem;
 import cn.dancingsnow.neoecoprototype.items.SimplifyStorageCellItem;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
@@ -275,10 +276,16 @@ public class ModRegistration {
             ITEMS.register("simplify_fluid_output_hatch",
                     () -> new BlockItem(SIMPLIFY_FLUID_OUTPUT_HATCH_BLOCK.get(), new Item.Properties()));
 
-    public static final Supplier<Item> SIMPLIFY_GREEN_CRYSTAL_MATRIX =
+     public static final Supplier<Item> SIMPLIFY_GREEN_CRYSTAL_MATRIX =
              ITEMS.register("simplify_green_crystal_matrix", () -> new Item(new Item.Properties()));
 
      // ============================ Storage cells (L1) ============================
+
+     public static final Supplier<Item> SIMPLIFY_CONCRETE_STORAGE_MATRIX_HOUSING =
+             ITEMS.register("simplify_concrete_storage_matrix_housing", () -> new Item(new Item.Properties()));
+     public static final Supplier<SimplifyConcreteStorageCellItem> SIMPLIFY_CONCRETE_STORAGE_CELL =
+             ITEMS.register("simplify_concrete_storage_cell",
+                     () -> new SimplifyConcreteStorageCellItem(new Item.Properties().stacksTo(1)));
 
     public static final Supplier<Item> SIMPLIFY_ITEM_STORAGE_MATRIX_HOUSING =
              ITEMS.register("simplify_item_storage_matrix_housing", () -> new Item(new Item.Properties()));
@@ -652,6 +659,8 @@ public class ModRegistration {
                               output.accept(OPTIONAL_BEYOND_STORAGE_CELL.get());
                           }
                           output.accept(SIMPLIFY_CHEMICAL_STORAGE_MATRIX_HOUSING.get());
+                         output.accept(SIMPLIFY_CONCRETE_STORAGE_MATRIX_HOUSING.get());
+                         output.accept(SIMPLIFY_CONCRETE_STORAGE_CELL.get());
                          output.accept(SIMPLIFY_GREEN_CRYSTAL_MATRIX.get());
                          output.accept(SIMPLIFY_ITEM_STORAGE_MATRIX_HOUSING.get());
                          output.accept(PIGCAT_STORAGE_MATRIX_HOUSING.get());

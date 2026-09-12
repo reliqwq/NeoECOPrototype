@@ -41,6 +41,10 @@ public final class NeoECOPrototypeClient {
         ResourceLocation pigcatCellModel = ResourceLocation.fromNamespaceAndPath(
                 NeoECOPrototype.MOD_ID, "block/cell/storage_cell_l1_pigcat");
         ECOCellModels.register(ModRegistration.PIGCAT_STORAGE_CELL.get(), pigcatCellModel);
+        // Concrete matrix gets its own model with a gray type light.
+        ResourceLocation concreteCellModel = ResourceLocation.fromNamespaceAndPath(
+                NeoECOPrototype.MOD_ID, "block/cell/storage_cell_l1_concrete");
+        ECOCellModels.register(ModRegistration.SIMPLIFY_CONCRETE_STORAGE_CELL.get(), concreteCellModel);
         if (ModRegistration.OPTIONAL_CHEMICAL_CELL_1K != null) {
             ResourceLocation chemicalCellModel = ResourceLocation.fromNamespaceAndPath(
                     NeoECOPrototype.MOD_ID, "block/cell/storage_cell_l1_chemical");
@@ -84,6 +88,8 @@ public final class NeoECOPrototypeClient {
                 NeoECOPrototype.MOD_ID, "block/cell/storage_cell_l1_fluid")));
         event.register(ModelResourceLocation.standalone(ResourceLocation.fromNamespaceAndPath(
                 NeoECOPrototype.MOD_ID, "block/cell/storage_cell_l1_pigcat")));
+        event.register(ModelResourceLocation.standalone(ResourceLocation.fromNamespaceAndPath(
+                NeoECOPrototype.MOD_ID, "block/cell/storage_cell_l1_concrete")));
         if (ModRegistration.OPTIONAL_CHEMICAL_CELL_1K != null) {
             event.register(ModelResourceLocation.standalone(ResourceLocation.fromNamespaceAndPath(
                     NeoECOPrototype.MOD_ID, "block/cell/storage_cell_l1_chemical")));

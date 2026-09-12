@@ -24,6 +24,8 @@ public final class SimplifyTooltipHandler {
     private static final String PIGCAT_CELL_KEY = "item.neoecoprototype.pigcat_storage_cell.desc";
     private static final String PIGCAT_HOUSING_KEY =
             "item.neoecoprototype.pigcat_storage_matrix_housing.desc";
+    private static final String CONCRETE_CELL_KEY =
+            "item.neoecoprototype.simplify_concrete_storage_cell.desc";
     private static final String L4_COMPONENT_KEY =
             "item.neoecoprototype.simplify_storage_component_4m.desc";
 
@@ -42,6 +44,9 @@ public final class SimplifyTooltipHandler {
         }
         if (stack.is(ModRegistration.PIGCAT_STORAGE_MATRIX_HOUSING.get())) {
             return PIGCAT_HOUSING_KEY;
+        }
+        if (stack.is(ModRegistration.SIMPLIFY_CONCRETE_STORAGE_CELL.get())) {
+            return CONCRETE_CELL_KEY;
         }
         // "ECO - L4 存储组件" / "ECO - L4 Storage Component".
         if (stack.is(ModRegistration.SIMPLIFY_STORAGE_COMPONENT_4M.get())) {
