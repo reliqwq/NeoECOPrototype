@@ -62,5 +62,8 @@ bin/
 /_scan_drive.ps1
 /DESIGN.md
 /PROGRESS_SUMMARY.md
+# Local working documents (keep local, never commit)
+/DEV_LOG_*.md
+/docs/upstream-feedback-compat-mixin-crash.md
 *.ai
 /src/main/resources/assets/neoecoprototype/models/block/compute
