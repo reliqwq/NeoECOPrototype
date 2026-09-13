@@ -34,9 +34,11 @@ versionRange = "[19.2.17,)"
 ordering = "NONE"
 side = "BOTH"
 
+# Maven 版本序里 beta < preview（首字母序），preview 渠道号不能约束 beta 渠道；
+# 以正式发布渠道 21.2.0-beta1 作为下界。
 [[dependencies.neoecoprototype]]
 modId = "neoecoae"
 mandatory = true
-versionRange = "[21.2.0-preview14,)"
+versionRange = "[21.2.0-beta1,)"
 ordering = "NONE"
 side = "BOTH"

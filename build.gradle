@@ -38,9 +38,9 @@ dependencies {
     implementation files("libs/ae2-19.2.17.jar")               // AE2 (modId: ae2)
     implementation files("libs/guideme-21.1.1.jar")            // GuideME (AE2 强制依赖, modId: guideme)
     implementation files("libs/ldlib2-2.2.8.jar")              // LDLib2 (eco 预览运行依赖, modId: ldlib2)
-    // 从上游 commit 111a6fd6802ff44dc96e076feed3a854bb962582 构建
-    // （"添加cell接口"：ECOCellType 增加 visible 显示开关）。
-    implementation files("libs/neoecoae-21.2.0-111a6fd6-local.jar")
+    // 上游正式发布渠道 21.2.0-beta1（tag 21.2.0，含 111a6fd6 之后的大型集成
+    // 工作站、ECO 合成 CPU 集成 API、终端超大数量显示等 23 个提交）。
+    implementation files("libs/neoecoae-21.2.0-beta1.jar")
     // Temporary local runtime dependencies for client inspection; restore compileOnly after viewing.
     implementation files("libs/Mekanism-1.21.1-10.7.19.85.jar")
     implementation files("libs/Applied-Mekanistics-1.6.3.jar")
@@ -51,11 +51,16 @@ dependencies {
     // 可选参考依赖：ExtendedAE（非强制，仅编译期可见，用于对齐其无限元件的处理方式）。
     // 运行时不需要它；当前代码没有引用其类。
     compileOnly files("libs/extendedae-892005-7478960.jar") // ExtendedAE 1.21-2.2.28
-    // 上游 neoecoae(111a6fd6) 的 compat mixin 需要这些模组在运行时存在才不崩
-    // （AdvancedAeCraftingServiceMixin 的方法体直接引用 advanced_ae 的类）。
-    // 仅运行时加载，不进编译类路径，也不是本插件的依赖。
-    runtimeOnly files("libs/advancedae-1084104-7374386.jar")   // Advanced AE 1.6.9（自带 ae2addonlib）
-    runtimeOnly files("libs/geckolib-neoforge-1.21.1-4.8.3.jar") // Advanced AE 的必需前置
+    // 可选集成：KubeJS（compileOnly，非强制）。KJSPlugin 仅在 KubeJS 在场时被其自身
+    // 加载（kubejs.plugins.txt），本插件本体在无 KubeJS 环境下完全不受影响。
+    // Rhino 是 KubeJS 的配套库，编译期需要其注解类（ItemBuilder 继承链）。
+    compileOnly files("libs/kubejs-neoforge-2101.7.2-build.377.jar") // KubeJS 2101.7.2-build.377
+    compileOnly files("libs/rhino-2101.2.8-build.91.jar") // Rhino 2101.2.8-build.91
+    // 开发环境实测 KJS 链路用的运行时依赖；正式分发不需要。
+    runtimeOnly files("libs/kubejs-neoforge-2101.7.2-build.377.jar")
+    runtimeOnly files("libs/rhino-2101.2.8-build.91.jar")
+    // 上游 21.2.0-beta1 已用 requiredMods 条件加载 compat mixin
+    // （neoecoae.compat.advanced_ae.mixins.json），无需再为其保留运行时兜底。
     // 开发辅助 mod（与 eco 预览 neweco 同版本）：
     implementation files("libs/jei-1.21.1-neoforge-19.27.0.340.jar")  // JEI (mezz.jei, 19.27.0.340)
     implementation files("libs/jade-7428884.jar")                      // Jade 🔍 (curse jade-324717:7428884)
