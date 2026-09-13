@@ -54,15 +54,25 @@ import cn.dancingsnow.neoecoprototype.blockentity.storage.SimplifyStorageHostBlo
 import cn.dancingsnow.neoecoprototype.blockentity.storage.SimplifyStorageInterfaceBlockEntity;
 import cn.dancingsnow.neoecoprototype.blockentity.storage.SimplifyStorageVentBlockEntity;
 import cn.dancingsnow.neoecoprototype.blockentity.computation.SimplifyComputationDriveBlockEntity;
+import cn.dancingsnow.neoecoprototype.items.PigcatStorageMatrixHousingItem;
 import cn.dancingsnow.neoecoprototype.items.SimplifyComputationCellItem;
 import cn.dancingsnow.neoecoprototype.items.SimplifyConcreteStorageCellItem;
 import cn.dancingsnow.neoecoprototype.items.SimplifyStorageCellItem;
 import net.minecraft.core.registries.Registries;
+import net.minecraft.Util;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.Style;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.entity.EquipmentSlotGroup;
+import net.minecraft.world.entity.ai.attributes.AttributeModifier;
+import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.component.ItemAttributeModifiers;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.material.MapColor;
@@ -94,6 +104,9 @@ public class ModRegistration {
 
     public static final DeferredRegister<CreativeModeTab> CREATIVE_TABS =
             DeferredRegister.create(Registries.CREATIVE_MODE_TAB, NeoECOPrototype.MOD_ID);
+
+    /** 物品名主题绿：饱和度取贴图点缀色（#80FFAE 偏艳）与粉彩底色（#A8DCA8 偏淡）之间。 */
+    private static final int NAME_THEME_GREEN = 0xFF94EDAB;
 
     private static final BlockBehaviour.Properties MACHINE_PROPS =
             BlockBehaviour.Properties.of().mapColor(MapColor.METAL).strength(2.0F);
@@ -188,7 +201,8 @@ public class ModRegistration {
 
     public static final Supplier<BlockItem> SIMPLIFY_STORAGE_CONTROLLER_ITEM =
             ITEMS.register("simplify_storage_controller",
-                    () -> new BlockItem(SIMPLIFY_STORAGE_CONTROLLER_BLOCK.get(), new Item.Properties()));
+                    () -> new BlockItem(SIMPLIFY_STORAGE_CONTROLLER_BLOCK.get(),
+                            coloredName(SIMPLIFY_STORAGE_CONTROLLER_BLOCK, NAME_THEME_GREEN)));
 
     public static final Supplier<BlockItem> SIMPLIFY_DRIVE_ITEM =
             ITEMS.register("simplify_drive",
@@ -216,7 +230,8 @@ public class ModRegistration {
 
     public static final Supplier<BlockItem> SIMPLIFY_COMPUTATION_SYSTEM_ITEM =
             ITEMS.register("simplify_computation_system",
-                    () -> new BlockItem(SIMPLIFY_COMPUTATION_SYSTEM_BLOCK.get(), new Item.Properties()));
+                    () -> new BlockItem(SIMPLIFY_COMPUTATION_SYSTEM_BLOCK.get(),
+                            coloredName(SIMPLIFY_COMPUTATION_SYSTEM_BLOCK, NAME_THEME_GREEN)));
     public static final Supplier<BlockItem> SIMPLIFY_COMPUTATION_DRIVE_ITEM =
             ITEMS.register("simplify_computation_drive",
                     () -> new BlockItem(SIMPLIFY_COMPUTATION_DRIVE_BLOCK.get(), new Item.Properties()));
@@ -247,7 +262,8 @@ public class ModRegistration {
 
     public static final Supplier<BlockItem> SIMPLIFY_CRAFTING_SYSTEM_ITEM =
             ITEMS.register("simplify_crafting_system",
-                    () -> new BlockItem(SIMPLIFY_CRAFTING_SYSTEM_BLOCK.get(), new Item.Properties()));
+                    () -> new BlockItem(SIMPLIFY_CRAFTING_SYSTEM_BLOCK.get(),
+                            coloredName(SIMPLIFY_CRAFTING_SYSTEM_BLOCK, NAME_THEME_GREEN)));
     public static final Supplier<BlockItem> SIMPLIFY_CRAFTING_PATTERN_BUS_ITEM =
             ITEMS.register("simplify_crafting_pattern_bus",
                     () -> new BlockItem(SIMPLIFY_CRAFTING_PATTERN_BUS_BLOCK.get(), new Item.Properties()));
@@ -277,7 +293,8 @@ public class ModRegistration {
                     () -> new BlockItem(SIMPLIFY_FLUID_OUTPUT_HATCH_BLOCK.get(), new Item.Properties()));
 
      public static final Supplier<Item> SIMPLIFY_GREEN_CRYSTAL_MATRIX =
-             ITEMS.register("simplify_green_crystal_matrix", () -> new Item(new Item.Properties()));
+             ITEMS.register("simplify_green_crystal_matrix",
+                     () -> new Item(coloredItemName("simplify_green_crystal_matrix", NAME_THEME_GREEN)));
 
      // ============================ Storage cells (L1) ============================
 
@@ -291,8 +308,9 @@ public class ModRegistration {
              ITEMS.register("simplify_item_storage_matrix_housing", () -> new Item(new Item.Properties()));
      public static final Supplier<Item> SIMPLIFY_FLUID_STORAGE_MATRIX_HOUSING =
              ITEMS.register("simplify_fluid_storage_matrix_housing", () -> new Item(new Item.Properties()));
-     public static final Supplier<Item> PIGCAT_STORAGE_MATRIX_HOUSING =
-             ITEMS.register("pigcat_storage_matrix_housing", () -> new Item(new Item.Properties()));
+    public static final Supplier<Item> PIGCAT_STORAGE_MATRIX_HOUSING =
+            ITEMS.register("pigcat_storage_matrix_housing",
+                    () -> new PigcatStorageMatrixHousingItem(pigcatHousingProperties()));
      public static final Supplier<SimplifyStorageCellItem> PIGCAT_STORAGE_CELL =
              ITEMS.register("pigcat_storage_cell",
                      () -> storageCell(AEKeyType.items(), SimplifyStorageCellItem::getItemCellType,
@@ -353,6 +371,52 @@ public class ModRegistration {
                     () -> storageCell(AEKeyType.fluids(), SimplifyStorageCellItem::getFluidCellType,
                             SimplifyStorageCellItem.BYTES_4M, 1 << 14));
 
+    /**
+     * 物品名字着色。rarity 四档（白/黄/蓝/紫）覆盖不到的颜色用 ITEM_NAME 组件带
+     * 样式实现：组件里存翻译键（本地化安全），铁砧改名时仍会被 CUSTOM_NAME 覆盖。
+     */
+    private static Item.Properties coloredName(Supplier<? extends Block> block, int color) {
+        return coloredName(block.get().getDescriptionId(), color);
+    }
+
+    private static Item.Properties coloredName(String descriptionId, int color) {
+        return new Item.Properties()
+                .component(DataComponents.ITEM_NAME,
+                        Component.translatable(descriptionId).withStyle(Style.EMPTY.withColor(color)));
+    }
+
+    /** 普通物品便捷重载：注册自身时无法解析自身 Supplier，按注册路径构造翻译键。 */
+    private static Item.Properties coloredItemName(String itemPath, int color) {
+        return coloredName(
+                Util.makeDescriptionId("item", ResourceLocation.fromNamespaceAndPath(NeoECOPrototype.MOD_ID, itemPath)),
+                color);
+    }
+
+    /**
+     * 猪咪外壳彩蛋：6.6 攻击伤害、剑速、+2 实体交互距离、附魔光泽。
+     * 伤害/攻速的 modifier ID 与原版剑一致以便正确渲染提示；
+     * 攻击伤害修正量 5.6 + 玩家基础 1 = 面板显示 6.6。
+     */
+    private static Item.Properties pigcatHousingProperties() {
+        return new Item.Properties()
+                .attributes(ItemAttributeModifiers.builder()
+                        .add(Attributes.ATTACK_DAMAGE,
+                                new AttributeModifier(Item.BASE_ATTACK_DAMAGE_ID, 5.6,
+                                        AttributeModifier.Operation.ADD_VALUE),
+                                EquipmentSlotGroup.MAINHAND)
+                        .add(Attributes.ATTACK_SPEED,
+                                new AttributeModifier(Item.BASE_ATTACK_SPEED_ID, -2.4,
+                                        AttributeModifier.Operation.ADD_VALUE),
+                                EquipmentSlotGroup.MAINHAND)
+                        .add(Attributes.ENTITY_INTERACTION_RANGE,
+                                new AttributeModifier(
+                                        ResourceLocation.fromNamespaceAndPath(NeoECOPrototype.MOD_ID, "pigcat_reach"),
+                                        2.0, AttributeModifier.Operation.ADD_VALUE),
+                                EquipmentSlotGroup.MAINHAND)
+                        .build())
+                .component(DataComponents.ENCHANTMENT_GLINT_OVERRIDE, true);
+    }
+
     private static SimplifyStorageCellItem storageCell(
             AEKeyType keyType, Supplier<cn.dancingsnow.neoecoae.api.storage.ECOCellType> cellType,
             long bytes, int bytesPerType) {
@@ -362,7 +426,8 @@ public class ModRegistration {
 
     public static final Supplier<SimplifyComputationCellItem> SIMPLIFY_COMPUTATION_CELL_1M =
             ITEMS.register("simplify_computation_cell_1m",
-                    () -> new SimplifyComputationCellItem(new Item.Properties().stacksTo(8)));
+                    () -> new SimplifyComputationCellItem(
+                            coloredItemName("simplify_computation_cell_1m", NAME_THEME_GREEN).stacksTo(8)));
 
     // ============================ Block entity types ============================
     // The vanilla BlockEntitySupplier only passes (pos, state), so each factory
