@@ -67,3 +67,12 @@ bin/
 /docs/upstream-feedback-compat-mixin-crash.md
 *.ai
 /src/main/resources/assets/neoecoprototype/models/block/compute
+# Local working areas: upstream preview extracts, release-betas, analysis clones, texture scratch pads
+/beta/
+/_repro/
+/neoeco15/
+/neoeco16/
+/neoeco16hostfix/
+/贴图工作区/
+/超越维度/
+/超越维度学习笔记.md
