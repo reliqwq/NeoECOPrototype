@@ -2,7 +2,7 @@ package cn.dancingsnow.neoecoprototype.mixin;
 
 /*
  * Version lock: NeoForge 21.1.233, AE2 19.2.17, Eco 21.2.0-preview12.
- * Last verified: 2026-09-08. Upgrade check: getBuildDefinition/getCoolingRecipe/onReady.
+ * Last verified: 2026-09-13 (against neoecoae 21.2.0-beta1). Upgrade check: getBuildDefinition/getCoolingRecipe/onReady.
  */
 
 import cn.dancingsnow.neoecoae.blocks.entity.crafting.ECOCraftingSystemBlockEntity;

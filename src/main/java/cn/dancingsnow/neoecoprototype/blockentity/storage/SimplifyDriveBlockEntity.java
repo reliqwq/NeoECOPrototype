@@ -164,6 +164,11 @@ public class SimplifyDriveBlockEntity extends NEBlockEntity<SimplifyStorageClust
             invalidateCellInventoryCache();
             return null;
         }
+        // Reference-identity check on purpose: cellStack is only ever replaced
+        // wholesale (insertCell/removeCell/loadTag), never mutated in place, so an
+        // unchanged reference means unchanged cell contents. This is also the
+        // safety net if a future path forgets to call invalidateCellInventoryCache();
+        // any code that starts mutating cellStack in place must invalidate here too.
         if (cachedCellStack != cellStack) {
             cachedCellStack = cellStack;
             cachedCellInventory = ECOStorageCells.getCellInventory(cellStack, this);
