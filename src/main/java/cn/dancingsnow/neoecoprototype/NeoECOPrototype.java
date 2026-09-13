@@ -82,6 +82,10 @@ public class NeoECOPrototype {
         // The infinite concrete matrix is vanilla-only, so its handler needs no mod check.
         event.enqueueWork(
                 cn.dancingsnow.neoecoprototype.items.InfiniteConcreteCellHandler::register);
+        // KubeJS custom infinite matrices: the handler only reacts to
+        // CustomInfiniteCellItem instances, which exist only when scripts created them.
+        event.enqueueWork(
+                cn.dancingsnow.neoecoprototype.items.CustomInfiniteCellHandler::register);
         if (ModList.get().isLoaded("beyonddimensions")) {
             // Hand eco's cell registry a handler for the network-bound cell.
             event.enqueueWork(BeyondIntegration::registerCellHandler);

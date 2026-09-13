@@ -53,6 +53,8 @@ public final class NeoECOPrototypeClient {
             ECOCellModels.register(ModRegistration.OPTIONAL_CHEMICAL_CELL_1M.get(), chemicalCellModel);
             ECOCellModels.register(ModRegistration.OPTIONAL_CHEMICAL_CELL_4M.get(), chemicalCellModel);
         }
+        // 无限系列统一默认灰色类型灯；脚本可用 .cellModel(...) 覆盖。
+        registerCustomInfiniteCellModels(concreteCellModel);
         ECOCellModels.runDeferredRegistration();
 
         ECOComputationModels.registerCellModel(
@@ -90,9 +92,28 @@ public final class NeoECOPrototypeClient {
                 NeoECOPrototype.MOD_ID, "block/cell/storage_cell_l1_pigcat")));
         event.register(ModelResourceLocation.standalone(ResourceLocation.fromNamespaceAndPath(
                 NeoECOPrototype.MOD_ID, "block/cell/storage_cell_l1_concrete")));
+        // KubeJS custom matrices may override their drive model; register those as
+        // additional models so they get baked.
+        for (var item : BuiltInRegistries.ITEM) {
+            if (item instanceof cn.dancingsnow.neoecoprototype.items.CustomInfiniteCellItem custom
+                    && custom.getDriveModel() != null) {
+                event.register(ModelResourceLocation.standalone(custom.getDriveModel()));
+            }
+        }
         if (ModRegistration.OPTIONAL_CHEMICAL_CELL_1K != null) {
             event.register(ModelResourceLocation.standalone(ResourceLocation.fromNamespaceAndPath(
                     NeoECOPrototype.MOD_ID, "block/cell/storage_cell_l1_chemical")));
+        }
+    }
+
+    /** Map every KubeJS custom infinite matrix to its drive model (script override or the item default). */
+    private static void registerCustomInfiniteCellModels(ResourceLocation fallbackModel) {
+        for (var item : BuiltInRegistries.ITEM) {
+            if (item instanceof cn.dancingsnow.neoecoprototype.items.CustomInfiniteCellItem custom) {
+                ECOCellModels.register(custom, custom.getDriveModel() != null
+                        ? custom.getDriveModel()
+                        : fallbackModel);
+            }
         }
     }
 

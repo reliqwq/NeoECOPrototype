@@ -99,7 +99,7 @@ public class SimplifyStorageHostBlockEntity
         super.updateCluster(next);
         boolean isAttached = getCluster() != null;
         if (level != null && !level.isClientSide && wasAttached != isAttached) {
-            LOGGER.info("host @{} cluster attach={} (tick {})", worldPosition, isAttached,
+            LOGGER.debug("host @{} cluster attach={} (tick {})", worldPosition, isAttached,
                     level.getServer() != null ? level.getServer().getTickCount() : -1);
             if (getCluster() != null) {
                 SimplifyGridFacade.requestStorageUpdate(getMainNode());
@@ -119,7 +119,7 @@ public class SimplifyStorageHostBlockEntity
                         connectedDrives++;
                     }
                 }
-                LOGGER.info("L1 drives status @{}: total={}, online={}, powered={}, connected={}",
+                LOGGER.debug("L1 drives status @{}: total={}, online={}, powered={}, connected={}",
                         worldPosition, getCluster().getDrives().size(), onlineDrives, poweredDrives, connectedDrives);
                 if (getCluster().getTheInterface() != null) {
                     SimplifyGridFacade.requestStorageUpdate(getCluster().getTheInterface().getMainNode());
@@ -303,6 +303,10 @@ public class SimplifyStorageHostBlockEntity
                         typeId = 2;
                         kind = StorageHostUI.CellEntry.KIND_GAS;
                     }
+                } else if (SimplifyStorageCellItem.getFluidCellType().equals(cellType)) {
+                    // KubeJS custom matrix bound to a fluid: show it in the fluid row.
+                    typeId = 1;
+                    kind = StorageHostUI.CellEntry.KIND_FLUID;
                 }
             }
             entries.add(new StorageHostUI.CellEntry(
