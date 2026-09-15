@@ -1,5 +1,7 @@
 # Neo ECO Prototype
 
+English | [简体中文](./README_ZH.md)
+
 Neo ECO Prototype is an unofficial addon for Neo ECO AE Extension and Applied Energistics 2. It adds lower-tier L1 storage, computation, and crafting multiblocks for Minecraft 1.21.1 on NeoForge.
 
 本项目是 Neo ECO AE Extension 和 Applied Energistics 2 的非官方附属模组，为 Minecraft 1.21.1 / NeoForge 增加 L1 存储、计算和合成子系统。

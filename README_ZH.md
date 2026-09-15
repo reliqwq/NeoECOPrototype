@@ -1,6 +1,8 @@
 # Neo ECO Prototype
 
-Neo ECO Prototype 是 Neo ECO AE Extension 和 Applied Energistics 2 的非官方附属模组。它为 Minecraft 1.21.1 / NeoForge 增加更低层级的 L1 存储、计算和合成多方块结构。
+[English](./README.md) | 简体中文
+
+Neo ECO Prototype 是 Neo ECO AE Extension 和 Applied Energistics 2 的非官方附属模组。它为 Minecraft 1.21.1 / NeoForge 增加更低层级、更易制作的 L1 存储、计算和合成多方块结构。
 
 本项目是 Neo ECO AE Extension 和 Applied Energistics 2 的非官方附属模组，为 Minecraft 1.21.1 / NeoForge 增加 L1 存储、计算和合成子系统。
 
