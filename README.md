@@ -22,6 +22,10 @@ Neo ECO Prototype is an unofficial addon for Neo ECO AE Extension and Applied En
 | Neo ECO AE Extension | 21.2.0-beta2 or a compatible release |
 | Java | 21 |
 
+### Platform environment
+
+This mod requires both sides: CurseForge should be configured as `Client: Required` and `Server: Required` for the project and each uploaded file. The NeoForge metadata declares all required dependencies on `side = "BOTH"`; CurseForge environment labels are publishing-platform metadata and are not stored in `neoforge.mods.toml`.
+
 Neo ECO Prototype is not affiliated with or endorsed by Mojang, Microsoft, Applied Energistics 2, or Neo ECO AE Extension. Minecraft and related names are trademarks of their respective owners.
 
 ## Installation
