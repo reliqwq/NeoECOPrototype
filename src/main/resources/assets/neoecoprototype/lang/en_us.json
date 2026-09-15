@@ -1,4 +1,8 @@
 {
+    "block.neoecoprototype.simplify_trinity_controller": "ECO - Trinity Unified Controller",
+    "block.neoecoprototype.simplify_trinity_storage_module": "Trinity Storage Module",
+    "block.neoecoprototype.simplify_trinity_computation_module": "Trinity Computation Module",
+    "block.neoecoprototype.simplify_trinity_crafting_module": "Trinity Crafting Module",
     "block.neoecoprototype.simplify_storage_controller":  "ECO - L1 Extensible Storage Subsystem Controller",
     "block.neoecoprototype.simplify_drive":  "ECO - L1 Storage Matrix Drive",
     "block.neoecoprototype.simplify_energy_cell":  "ECO - LT1 Density Energy Cell",

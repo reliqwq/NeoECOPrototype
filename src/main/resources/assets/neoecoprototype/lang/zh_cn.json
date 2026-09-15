@@ -1,4 +1,8 @@
 {
+  "block.neoecoprototype.simplify_trinity_controller": "ECO - Trinity 三合一主控",
+  "block.neoecoprototype.simplify_trinity_storage_module": "Trinity 存储模块",
+  "block.neoecoprototype.simplify_trinity_computation_module": "Trinity 计算模块",
+  "block.neoecoprototype.simplify_trinity_crafting_module": "Trinity 合成模块",
   "block.neoecoprototype.simplify_storage_controller": "ECO - L1 可拓展存储子系统主机",
   "block.neoecoprototype.simplify_drive": "ECO - L1 存储矩阵驱动器",
   "block.neoecoprototype.simplify_energy_cell": "ECO - LT1 密度能量元件",

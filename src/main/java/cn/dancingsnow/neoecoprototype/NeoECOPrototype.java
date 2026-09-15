@@ -42,6 +42,7 @@ public class NeoECOPrototype {
     }
 
     private static void registerCapabilities(final RegisterCapabilitiesEvent event) {
+        registerNodeHost(event, ModRegistration.SIMPLIFY_TRINITY_CONTROLLER_BE.get());
         registerNodeHost(event, ModRegistration.SIMPLIFY_STORAGE_CONTROLLER_BE.get());
         registerNodeHost(event, ModRegistration.SIMPLIFY_DRIVE_BE.get());
         registerNodeHost(event, ModRegistration.SIMPLIFY_ENERGY_CELL_BE.get());

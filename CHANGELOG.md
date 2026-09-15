@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.1.1 (2026-09-15)
+
+### Dependencies
+
+- Follow Neo ECO AE Extension **21.2.0-beta2**.
+- This update follows the upstream beta2 FastPath, crafting recovery, storage responsibility, and UI compatibility changes.
+- FastPath task submission is not enabled in this release; Trinity remains hidden while its design is being researched.
+
 ## 1.1.0 (2026-09-13)
 
 ### 新增 / Added

@@ -47,6 +47,8 @@ import cn.dancingsnow.neoecoprototype.block.crafting.SimplifyCraftingVentBlock;
 import cn.dancingsnow.neoecoprototype.block.crafting.SimplifyCraftingWorkerBlock;
 import cn.dancingsnow.neoecoprototype.block.crafting.SimplifyFluidInputHatchBlock;
 import cn.dancingsnow.neoecoprototype.block.crafting.SimplifyFluidOutputHatchBlock;
+import cn.dancingsnow.neoecoprototype.block.trinity.SimplifyTrinityControllerBlock;
+import cn.dancingsnow.neoecoprototype.blockentity.trinity.SimplifyTrinityControllerBlockEntity;
 import cn.dancingsnow.neoecoprototype.blockentity.storage.SimplifyDriveBlockEntity;
 import cn.dancingsnow.neoecoprototype.blockentity.storage.SimplifyEnergyCellBlockEntity;
 import cn.dancingsnow.neoecoprototype.blockentity.storage.SimplifyStorageCasingBlockEntity;
@@ -197,8 +199,16 @@ public class ModRegistration {
     public static final Supplier<SimplifyFluidOutputHatchBlock> SIMPLIFY_FLUID_OUTPUT_HATCH_BLOCK =
             BLOCKS.register("simplify_fluid_output_hatch", () -> new SimplifyFluidOutputHatchBlock(COMPUTATION_PROPS));
 
+    // ============================ Trinity controller ============================
+
+    public static final Supplier<SimplifyTrinityControllerBlock> SIMPLIFY_TRINITY_CONTROLLER_BLOCK =
+            BLOCKS.register("simplify_trinity_controller", () -> new SimplifyTrinityControllerBlock(MACHINE_PROPS));
     // ============================ Block items ============================
 
+    public static final Supplier<BlockItem> SIMPLIFY_TRINITY_CONTROLLER_ITEM =
+            ITEMS.register("simplify_trinity_controller",
+                    () -> new BlockItem(SIMPLIFY_TRINITY_CONTROLLER_BLOCK.get(),
+                            coloredName(SIMPLIFY_TRINITY_CONTROLLER_BLOCK, NAME_THEME_GREEN)));
     public static final Supplier<BlockItem> SIMPLIFY_STORAGE_CONTROLLER_ITEM =
             ITEMS.register("simplify_storage_controller",
                     () -> new BlockItem(SIMPLIFY_STORAGE_CONTROLLER_BLOCK.get(),
@@ -430,6 +440,17 @@ public class ModRegistration {
                             coloredItemName("simplify_computation_cell_1m", NAME_THEME_GREEN).stacksTo(8)));
 
     // ============================ Block entity types ============================
+    public static final Supplier<BlockEntityType<SimplifyTrinityControllerBlockEntity>> SIMPLIFY_TRINITY_CONTROLLER_BE =
+            registerTrinityControllerBe();
+
+    private static Supplier<BlockEntityType<SimplifyTrinityControllerBlockEntity>> registerTrinityControllerBe() {
+        return (Supplier) BLOCK_ENTITIES.register("simplify_trinity_controller",
+                () -> BlockEntityType.Builder.of(
+                        (pos, state) -> new SimplifyTrinityControllerBlockEntity(
+                                SIMPLIFY_TRINITY_CONTROLLER_BE.get(), pos, state),
+                        SIMPLIFY_TRINITY_CONTROLLER_BLOCK.get()).build(null));
+    }
+
     // The vanilla BlockEntitySupplier only passes (pos, state), so each factory
     // closes over the not-yet-assigned Supplier and resolves it lazily when a
     // block entity is actually created in the world. The registrations happen
@@ -763,6 +784,11 @@ public class ModRegistration {
      */
     @SuppressWarnings({"unchecked", "rawtypes"})
     public static void linkBlockEntityTypes() {
+        ((AEBaseEntityBlock) SIMPLIFY_TRINITY_CONTROLLER_BLOCK.get()).setBlockEntity(
+                SimplifyTrinityControllerBlockEntity.class, SIMPLIFY_TRINITY_CONTROLLER_BE.get(), null, null);
+        AEBaseBlockEntity.registerBlockEntityItem(SIMPLIFY_TRINITY_CONTROLLER_BE.get(),
+                SIMPLIFY_TRINITY_CONTROLLER_ITEM.get().asItem());
+
         ((AEBaseEntityBlock) SIMPLIFY_STORAGE_CONTROLLER_BLOCK.get()).setBlockEntity(
                 SimplifyStorageHostBlockEntity.class, SIMPLIFY_STORAGE_CONTROLLER_BE.get(), null,
                 (level, pos, state, blockEntity) -> SimplifyStorageHostBlockEntity.tick(

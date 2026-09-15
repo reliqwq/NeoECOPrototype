@@ -69,6 +69,7 @@ bin/
 /src/main/resources/assets/neoecoprototype/models/block/compute
 # Local working areas: upstream preview extracts, release-betas, analysis clones, texture scratch pads
 /beta/
+/neoecobeta/
 /_repro/
 /neoeco15/
 /neoeco16/

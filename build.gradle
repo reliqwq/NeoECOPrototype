@@ -3,7 +3,7 @@ plugins {
     id 'net.neoforged.moddev' version '2.0.78'
 }
 
-version = '1.1.0'
+version = '1.1.1'
 group = 'cn.dancingsnow.neoecoprototype'
 
 base {
@@ -38,9 +38,10 @@ dependencies {
     implementation files("libs/ae2-19.2.17.jar")               // AE2 (modId: ae2)
     implementation files("libs/guideme-21.1.1.jar")            // GuideME (AE2 强制依赖, modId: guideme)
     implementation files("libs/ldlib2-2.2.8.jar")              // LDLib2 (eco 预览运行依赖, modId: ldlib2)
-    // 上游正式发布渠道 21.2.0-beta1（tag 21.2.0，含 111a6fd6 之后的大型集成
-    // 工作站、ECO 合成 CPU 集成 API、终端超大数量显示等 23 个提交）。
-    implementation files("libs/neoecoae-21.2.0-beta1.jar")
+    implementation "dev.vfyjxf:taffy:1.1.3"
+    implementation "org.appliedenergistics.yoga:yoga:1.0.0"
+    // 上游正式发布渠道 21.2.0-beta2；开发副本保存在 neoecobeta/，不替换 libs/ 中的 beta1。
+    implementation files("neoecobeta/neoecoae-21.2.0-beta2.jar")
     // Temporary local runtime dependencies for client inspection; restore compileOnly after viewing.
     implementation files("libs/Mekanism-1.21.1-10.7.19.85.jar")
     implementation files("libs/Applied-Mekanistics-1.6.3.jar")
@@ -59,8 +60,8 @@ dependencies {
     // 开发环境实测 KJS 链路用的运行时依赖；正式分发不需要。
     runtimeOnly files("libs/kubejs-neoforge-2101.7.2-build.377.jar")
     runtimeOnly files("libs/rhino-2101.2.8-build.91.jar")
-    // 上游 21.2.0-beta1 已用 requiredMods 条件加载 compat mixin
-    // （neoecoae.compat.advanced_ae.mixins.json），无需再为其保留运行时兜底。
+    // Upstream beta2 uses requiredMods for conditional compat mixin loading;
+    // no separate Advanced AE / GeckoLib runtime fallback is required.
     // 开发辅助 mod（与 eco 预览 neweco 同版本）：
     implementation files("libs/jei-1.21.1-neoforge-19.27.0.340.jar")  // JEI (mezz.jei, 19.27.0.340)
     implementation files("libs/jade-7428884.jar")                      // Jade 🔍 (curse jade-324717:7428884)

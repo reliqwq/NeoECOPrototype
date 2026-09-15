@@ -19,7 +19,7 @@ Neo ECO Prototype is an unofficial addon for Neo ECO AE Extension and Applied En
 | Minecraft | 1.21.1 |
 | NeoForge | 21.1.233 or compatible 21.1.x release |
 | Applied Energistics 2 | 19.2.17 or compatible 19.2.x release |
-| Neo ECO AE Extension | 21.2.0-preview14 or a compatible release |
+| Neo ECO AE Extension | 21.2.0-beta2 or a compatible release |
 | Java | 21 |
 
 Neo ECO Prototype is not affiliated with or endorsed by Mojang, Microsoft, Applied Energistics 2, or Neo ECO AE Extension. Minecraft and related names are trademarks of their respective owners.
@@ -39,7 +39,7 @@ KubeJS is optional. Use `ServerEvents.recipes` to add, remove, or replace addon 
 
 ## Development Build
 
-The current development setup uses a local Neo ECO AE Extension JAR under `libs/`, built from the upstream `111a6fd6` cell-display-interface commit (upstream version string `21.2.0-preview14`), because that build is not consumed from a public Maven coordinate in this project. The local development copy is intentionally excluded from GitHub. Neo ECO Prototype 1.0.5 is tested against that compatibility baseline.
+The current development setup uses the published Neo ECO AE Extension `21.2.0-beta2` JAR under `neoecobeta/` for offline compatibility testing. The local development copy is intentionally excluded from GitHub. The stable GitHub `v1.1.0` release remains a separate artifact from this development tree; this beta2-following development line is version `1.1.1`.
 
 Required local development files are listed in `build.gradle`. Place lawful copies of the exact compatible dependencies in `libs/`, then run:
 
@@ -47,7 +47,7 @@ Required local development files are listed in `build.gradle`. Place lawful copi
 .\gradlew.bat build --offline
 ```
 
-The output is written to `build/libs/neoecoprototype-1.0.5.jar`.
+The output is written to `build/libs/neoecoprototype-1.1.1.jar`.
 
 Do not commit `libs/`, `run/`, `build/`, reference checkouts, or local world data. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for dependency licensing information.
 
