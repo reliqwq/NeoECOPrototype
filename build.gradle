@@ -3,7 +3,7 @@ plugins {
     id 'net.neoforged.moddev' version '2.0.78'
 }
 
-version = '1.1.1'
+version = '1.2.0'
 group = 'cn.dancingsnow.neoecoprototype'
 
 base {
@@ -40,12 +40,18 @@ dependencies {
     implementation files("libs/ldlib2-2.2.8.jar")              // LDLib2 (eco 预览运行依赖, modId: ldlib2)
     implementation "dev.vfyjxf:taffy:1.1.3"
     implementation "org.appliedenergistics.yoga:yoga:1.0.0"
-    // 上游正式发布渠道 21.2.0-beta2；开发副本保存在 neoecobeta/，不替换 libs/ 中的 beta1。
-    implementation files("neoecobeta/neoecoae-21.2.0-beta2.jar")
+    // Trinity ABI target: beta4 only; do not infer APIs from other local/upstream jars.
+    implementation files("neoecobeta/neoecoae-21.2.0-beta4.jar")
+    // MegaCells 4.11.0 is eco beta4's minimum supported optional integration version.
+    implementation files("libs/megacells-4.11.0.jar")
     // Temporary local runtime dependencies for client inspection; restore compileOnly after viewing.
     implementation files("libs/Mekanism-1.21.1-10.7.19.85.jar")
     implementation files("libs/Applied-Mekanistics-1.6.3.jar")
     implementation files("libs/ae2jeiintegration-1.2.1.jar")
+    // Optional OmniCells API is needed by the eco-native Omni adapter.
+    compileOnly files("libs/ae2omnicells-1.1.6.jar")
+    compileOnly files("libs/Registrate-MC1.21.1-1.4.8.jar")
+    runtimeOnly files("libs/ae2omnicells-1.1.6.jar")
     // Optional integration: Beyond Dimensions. compileOnly so the addon still builds
     // and runs without it; the cell is registered only when the mod is present.
     compileOnly files("libs/beyonddimensions-1.21.1-neoforge-0.7.30.jar")
@@ -60,7 +66,7 @@ dependencies {
     // 开发环境实测 KJS 链路用的运行时依赖；正式分发不需要。
     runtimeOnly files("libs/kubejs-neoforge-2101.7.2-build.377.jar")
     runtimeOnly files("libs/rhino-2101.2.8-build.91.jar")
-    // Upstream beta2 uses requiredMods for conditional compat mixin loading;
+    // Upstream beta4 uses requiredMods for conditional compat mixin loading;
     // no separate Advanced AE / GeckoLib runtime fallback is required.
     // 开发辅助 mod（与 eco 预览 neweco 同版本）：
     implementation files("libs/jei-1.21.1-neoforge-19.27.0.340.jar")  // JEI (mezz.jei, 19.27.0.340)
@@ -92,6 +98,9 @@ neoForge {
             type = 'gameTestServer'
             systemProperty 'neoforge.enableGameTest', 'true'
             systemProperty 'neoforge.enabledGameTestNamespaces', 'neoecoprototype'
+            // 隔离运行目录：默认会复用 run/，与开发世界共用同一份 run/world，
+            // 被中断的运行会留下 .neoforge-tmp 残留并让后续运行互相争抢（表现为测试卡死）。
+            gameDirectory = file('run-gametest')
         }
     }
 

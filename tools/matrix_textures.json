@@ -1,0 +1,13 @@
+{
+  "textures": [
+    {
+      "source": "src/main/resources/assets/neoecoprototype/textures/item/storage_recolor/eco_fluid_cell_housing.png",
+      "output": "src/main/resources/assets/neoecoprototype/textures/item/storage_recolor/eco_chemical_cell_housing.png",
+      "source_colors": ["#2D69E1", "#2C85EA", "#3894FF", "#A4DCA4"],
+      "target_color": "#138950",
+      "hue_tolerance": 0.08,
+      "min_saturation": 0.18,
+      "brightness": 0.78
+    }
+  ]
+}

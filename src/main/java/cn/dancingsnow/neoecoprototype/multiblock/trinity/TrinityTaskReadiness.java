@@ -6,7 +6,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 
-/** Read-only preflight result for a future Trinity task submission. */
+/** Read-only request-validation hint; AE2 owns final task feasibility and planning. */
 public record TrinityTaskReadiness(boolean executable, List<String> reasons) {
     public TrinityTaskReadiness {
         reasons = List.copyOf(reasons);
@@ -27,6 +27,10 @@ public record TrinityTaskReadiness(boolean executable, List<String> reasons) {
                                              TrinityService computation,
                                              TrinityService crafting,
                                              TrinityEnergySnapshot energy) {
+        // This record is intentionally limited to request validation. Pattern selection, recursive
+        // material planning, CPU selection, and execution feasibility belong to AE2's planner.
+        // The other arguments remain part of the call shape for source compatibility with existing
+        // UI/readiness snapshots; they must not turn this read-only hint into a second planner.
         List<String> reasons = new ArrayList<>();
         if (request.quantity() <= 0) {
             reasons.add("Task quantity must be greater than zero.");
@@ -34,24 +38,6 @@ public record TrinityTaskReadiness(boolean executable, List<String> reasons) {
         if (BuiltInRegistries.ITEM.get(request.targetItem()) == net.minecraft.world.item.Items.AIR
                 && !request.targetItem().equals(net.minecraft.resources.ResourceLocation.withDefaultNamespace("air"))) {
             reasons.add("Target item is not registered: " + request.targetItem());
-        }
-        if (!resource.available()) {
-            reasons.addAll(resource.reasons());
-        }
-        if (!pattern.available()) {
-            reasons.addAll(pattern.reasons());
-        }
-        if (request.needsStorage() && !storage.online()) {
-            reasons.add("Storage service is offline.");
-        }
-        if (request.needsComputation() && !computation.online()) {
-            reasons.add("Computation service is offline.");
-        }
-        if (request.needsCrafting() && !crafting.online()) {
-            reasons.add("Crafting service is offline.");
-        }
-        if (!energy.available()) {
-            reasons.add("Trinity energy is not available.");
         }
         return reasons.isEmpty() ? ready() : blocked(uniqueReasons(reasons));
     }

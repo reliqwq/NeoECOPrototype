@@ -3,6 +3,7 @@ package cn.dancingsnow.neoecoprototype.client;
 import cn.dancingsnow.neoecoae.api.ECOCellModels;
 import cn.dancingsnow.neoecoae.api.ECOComputationModels;
 import cn.dancingsnow.neoecoae.client.rendering.FixedBlockEntityRenderers;
+import cn.dancingsnow.neoecoprototype.integration.kubejs.InfiniteMatrixClientModels;
 import cn.dancingsnow.neoecoprototype.NeoECOPrototype;
 import cn.dancingsnow.neoecoprototype.client.renderer.blockentity.SimplifyComputationDriveRenderer;
 import cn.dancingsnow.neoecoprototype.client.renderer.blockentity.SimplifyDriveRenderer;
@@ -38,23 +39,44 @@ public final class NeoECOPrototypeClient {
         ECOCellModels.register(ModRegistration.SIMPLIFY_FLUID_CELL_64K.get(), fluidCellModel);
         ECOCellModels.register(ModRegistration.SIMPLIFY_FLUID_CELL_1M.get(), fluidCellModel);
         ECOCellModels.register(ModRegistration.SIMPLIFY_FLUID_CELL_4M.get(), fluidCellModel);
+        ResourceLocation smallBulkCellModel = ResourceLocation.fromNamespaceAndPath(
+                NeoECOPrototype.MOD_ID, "block/cell/storage_cell_l1_small_bulk");
+        ECOCellModels.register(ModRegistration.SIMPLIFY_SMALL_BULK_CELL.get(), smallBulkCellModel);
+        ResourceLocation smallBulkExpandedCellModel = ResourceLocation.fromNamespaceAndPath(
+                NeoECOPrototype.MOD_ID, "block/cell/storage_cell_l1_small_bulk_expanded");
+        ECOCellModels.register(ModRegistration.SIMPLIFY_SMALL_BULK_CELL_EXPANDED.get(), smallBulkExpandedCellModel);
         ResourceLocation pigcatCellModel = ResourceLocation.fromNamespaceAndPath(
                 NeoECOPrototype.MOD_ID, "block/cell/storage_cell_l1_pigcat");
         ECOCellModels.register(ModRegistration.PIGCAT_STORAGE_CELL.get(), pigcatCellModel);
-        // Concrete matrix gets its own model with a gray type light.
         ResourceLocation concreteCellModel = ResourceLocation.fromNamespaceAndPath(
                 NeoECOPrototype.MOD_ID, "block/cell/storage_cell_l1_concrete");
         ECOCellModels.register(ModRegistration.SIMPLIFY_CONCRETE_STORAGE_CELL.get(), concreteCellModel);
+        if (ModRegistration.OPTIONAL_UNIVERSAL_CELL_1K != null) {
+            ResourceLocation omniCellModel = ResourceLocation.fromNamespaceAndPath(
+                    NeoECOPrototype.MOD_ID, "block/cell/storage_cell_l1_universal");
+            ECOCellModels.register(ModRegistration.OPTIONAL_UNIVERSAL_CELL_1K.get(), omniCellModel);
+            ECOCellModels.register(ModRegistration.OPTIONAL_UNIVERSAL_CELL_1M.get(), omniCellModel);
+        }
+        if (ModRegistration.OPTIONAL_QUANTUM_CELL_1K != null) {
+            ResourceLocation quantumCellModel = ResourceLocation.fromNamespaceAndPath(
+                    NeoECOPrototype.MOD_ID, "block/cell/storage_cell_l1_quantum");
+            ECOCellModels.register(ModRegistration.OPTIONAL_QUANTUM_CELL_1K.get(), quantumCellModel);
+            ECOCellModels.register(ModRegistration.OPTIONAL_QUANTUM_CELL_1M.get(), quantumCellModel);
+        }
         if (ModRegistration.OPTIONAL_CHEMICAL_CELL_1K != null) {
             ResourceLocation chemicalCellModel = ResourceLocation.fromNamespaceAndPath(
                     NeoECOPrototype.MOD_ID, "block/cell/storage_cell_l1_chemical");
             ECOCellModels.register(ModRegistration.OPTIONAL_CHEMICAL_CELL_1K.get(), chemicalCellModel);
+            ECOCellModels.register(ModRegistration.OPTIONAL_CHEMICAL_CELL_4K.get(), chemicalCellModel);
             ECOCellModels.register(ModRegistration.OPTIONAL_CHEMICAL_CELL_16K.get(), chemicalCellModel);
             ECOCellModels.register(ModRegistration.OPTIONAL_CHEMICAL_CELL_1M.get(), chemicalCellModel);
             ECOCellModels.register(ModRegistration.OPTIONAL_CHEMICAL_CELL_4M.get(), chemicalCellModel);
         }
-        // 无限系列统一默认灰色类型灯；脚本可用 .cellModel(...) 覆盖。
-        registerCustomInfiniteCellModels(concreteCellModel);
+        ResourceLocation infiniteItemCellModel =
+                cn.dancingsnow.neoecoprototype.integration.kubejs.InfiniteMatrixBuilder.DEFAULT_DRIVE_MODEL;
+        InfiniteMatrixClientModels.registerCellModels(infiniteItemCellModel);
+        // Script-created finite matrices are plain storage-cell items, so they are registered here.
+        InfiniteMatrixClientModels.registerScriptedCellModels();
         ECOCellModels.runDeferredRegistration();
 
         ECOComputationModels.registerCellModel(
@@ -92,28 +114,21 @@ public final class NeoECOPrototypeClient {
                 NeoECOPrototype.MOD_ID, "block/cell/storage_cell_l1_pigcat")));
         event.register(ModelResourceLocation.standalone(ResourceLocation.fromNamespaceAndPath(
                 NeoECOPrototype.MOD_ID, "block/cell/storage_cell_l1_concrete")));
-        // KubeJS custom matrices may override their drive model; register those as
-        // additional models so they get baked.
-        for (var item : BuiltInRegistries.ITEM) {
-            if (item instanceof cn.dancingsnow.neoecoprototype.items.CustomInfiniteCellItem custom
-                    && custom.getDriveModel() != null) {
-                event.register(ModelResourceLocation.standalone(custom.getDriveModel()));
-            }
-        }
+        event.register(ModelResourceLocation.standalone(ResourceLocation.fromNamespaceAndPath(
+                NeoECOPrototype.MOD_ID, "block/cell/storage_cell_l1_universal")));
+        event.register(ModelResourceLocation.standalone(ResourceLocation.fromNamespaceAndPath(
+                NeoECOPrototype.MOD_ID, "block/cell/storage_cell_l1_small_bulk")));
+        event.register(ModelResourceLocation.standalone(ResourceLocation.fromNamespaceAndPath(
+                NeoECOPrototype.MOD_ID, "block/cell/storage_cell_l1_small_bulk_expanded")));
+        event.register(ModelResourceLocation.standalone(ResourceLocation.fromNamespaceAndPath(
+                NeoECOPrototype.MOD_ID, "block/cell/storage_cell_l1_default")));
+        event.register(ModelResourceLocation.standalone(ResourceLocation.fromNamespaceAndPath(
+                NeoECOPrototype.MOD_ID, "block/cell/storage_cell_l1_custom")));
+        InfiniteMatrixClientModels.registerAdditionalModels(event);
+        InfiniteMatrixClientModels.registerScriptedAdditionalModels(event);
         if (ModRegistration.OPTIONAL_CHEMICAL_CELL_1K != null) {
             event.register(ModelResourceLocation.standalone(ResourceLocation.fromNamespaceAndPath(
                     NeoECOPrototype.MOD_ID, "block/cell/storage_cell_l1_chemical")));
-        }
-    }
-
-    /** Map every KubeJS custom infinite matrix to its drive model (script override or the item default). */
-    private static void registerCustomInfiniteCellModels(ResourceLocation fallbackModel) {
-        for (var item : BuiltInRegistries.ITEM) {
-            if (item instanceof cn.dancingsnow.neoecoprototype.items.CustomInfiniteCellItem custom) {
-                ECOCellModels.register(custom, custom.getDriveModel() != null
-                        ? custom.getDriveModel()
-                        : fallbackModel);
-            }
         }
     }
 
@@ -123,3 +138,4 @@ public final class NeoECOPrototypeClient {
         event.registerBlockEntityRenderer(ModRegistration.SIMPLIFY_COMPUTATION_DRIVE_BE.get(), SimplifyComputationDriveRenderer::new);
     }
 }
+

@@ -1,0 +1,8 @@
+{
+  "parent": "minecraft:item/generated",
+  "textures": {
+    "layer0": "neoecoprototype:item/storage_recolor/eco_quantum_omni_cell_housing",
+    "layer1": "neoecoprototype:item/storage_recolor/eco_quantum_omni_cell_layer"
+  }
+}
+

@@ -1,0 +1,15 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "A": { "item": "neoecoprototype:simplify_green_aluminum_casing" },
+    "B": { "item": "neoecoprototype:simplify_energy_cell" },
+    "C": { "item": "neoecoprototype:simplify_storage_casing" },
+    "D": { "item": "ae2:logic_processor" }
+  },
+  "pattern": ["ABA", "CDC", "ABA"],
+  "result": {
+    "count": 1,
+    "id": "neoecoprototype:simplify_trinity_storage_module"
+  }
+}

@@ -61,6 +61,11 @@ public class SimplifyStorageCellItem extends ECOStorageCellItem {
         return ecoCellType("fluids");
     }
 
+    /** ECO MEGA item type used by the small-bulk matrix family. */
+    public static ECOCellType getMegaItemCellType() {
+        return ecoCellType("mega_item");
+    }
+
     private static ECOCellType ecoCellType(String path) {
         ECOCellType type = NERegistries.CELL_TYPE.get(
                 ResourceLocation.fromNamespaceAndPath("neoecoae", path));

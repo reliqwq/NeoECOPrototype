@@ -45,6 +45,7 @@ bin/
 /.gradle/
 /build/
 /run/
+/run-gametest/
 /.eco-inspect/
 /.idea/
 /assets/
@@ -57,7 +58,7 @@ bin/
 /neoeco14/
 /neweco/
 /neweco8/
-/最新分支/
+/不新分支/
 /进度/
 /_scan_drive.ps1
 /DESIGN.md
@@ -65,6 +66,10 @@ bin/
 # Local working documents (keep local, never commit)
 /DEV_LOG_*.md
 /docs/upstream-feedback-compat-mixin-crash.md
+/docs/trinity-failure-analysis.md
+# Local inspection dumps and agent scratch state
+/audit-javap-*.txt
+/.workbuddy-ai/
 *.ai
 /src/main/resources/assets/neoecoprototype/models/block/compute
 # Local working areas: upstream preview extracts, release-betas, analysis clones, texture scratch pads

@@ -49,13 +49,21 @@ public final class CustomInfiniteCellItem extends Item implements IBasicECOCellI
     public static final long REPORTED_AMOUNT = (long) Integer.MAX_VALUE;
 
     private final Supplier<AEKey> record;
+    private final Supplier<ECOCellType> cellType;
     @Nullable
     private final ResourceLocation driveModel;
 
     public CustomInfiniteCellItem(Properties properties, Supplier<AEKey> record,
                                   @Nullable ResourceLocation driveModel) {
+        this(properties, record, () -> SimplifyStorageCellItem.getItemCellType(), driveModel);
+    }
+
+    public CustomInfiniteCellItem(Properties properties, Supplier<AEKey> record,
+                                  Supplier<ECOCellType> cellType,
+                                  @Nullable ResourceLocation driveModel) {
         super(properties);
         this.record = record;
+        this.cellType = cellType;
         this.driveModel = driveModel;
     }
 
@@ -108,10 +116,7 @@ public final class CustomInfiniteCellItem extends Item implements IBasicECOCellI
 
     @Override
     public ECOCellType getCellType() {
-        AEKeyType keyType = getKeyType();
-        return keyType == AEKeyType.fluids()
-                ? SimplifyStorageCellItem.getFluidCellType()
-                : SimplifyStorageCellItem.getItemCellType();
+        return this.cellType.get();
     }
 
     // 固定无限源：没有可编辑的分区，模糊模式保持无效。

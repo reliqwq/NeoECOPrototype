@@ -3,15 +3,21 @@ package cn.dancingsnow.neoecoprototype.blockentity.storage;
 import cn.dancingsnow.neoecoae.api.storage.ECOStorageCells;
 import cn.dancingsnow.neoecoae.api.storage.IECOStorageCell;
 import cn.dancingsnow.neoecoprototype.api.SimplifyPowerProfile;
+import cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig;
+import cn.dancingsnow.neoecoprototype.items.SimplifySmallBulkStorageCellItem;
 import cn.dancingsnow.neoecoprototype.integration.ae2.SimplifyGridFacade;
 import cn.dancingsnow.neoecoae.util.ServerTaskUtil;
 import cn.dancingsnow.neoecoae.blocks.entity.NEBlockEntity;
 import cn.dancingsnow.neoecoprototype.block.storage.SimplifyDriveBlock;
+import cn.dancingsnow.neoecoprototype.block.storage.SimplifyStorageControllerBlock;
 import cn.dancingsnow.neoecoprototype.items.SimplifyStorageCellItem;
 import cn.dancingsnow.neoecoae.api.storage.IECOStorageCellItem;
 import cn.dancingsnow.neoecoprototype.multiblock.calculator.SimplifyStorageClusterCalculator;
 import cn.dancingsnow.neoecoprototype.multiblock.cluster.SimplifyStorageCluster;
 import appeng.api.networking.IGridNodeListener;
+import appeng.api.stacks.AEItemKey;
+import appeng.api.stacks.GenericStack;
+import gripe._90.megacells.misc.CompressionService;
 import appeng.api.storage.IStorageMounts;
 import appeng.api.storage.IStorageProvider;
 import appeng.api.storage.cells.CellState;
@@ -19,11 +25,14 @@ import appeng.api.storage.cells.ISaveProvider;
 import com.lowdragmc.lowdraglib2.syncdata.annotation.DescSynced;
 import com.lowdragmc.lowdraglib2.syncdata.annotation.Persisted;
 import com.lowdragmc.lowdraglib2.syncdata.annotation.RequireRerender;
+import com.lowdragmc.lowdraglib2.syncdata.annotation.RPCMethod;
+import com.lowdragmc.lowdraglib2.syncdata.rpc.RPCSender;
 import com.lowdragmc.lowdraglib2.syncdata.holder.blockentity.ISyncPersistRPCBlockEntity;
 import com.lowdragmc.lowdraglib2.syncdata.storage.FieldManagedStorage;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
+import net.neoforged.fml.ModList;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
@@ -107,6 +116,55 @@ public class SimplifyDriveBlockEntity extends NEBlockEntity<SimplifyStorageClust
 
     public boolean hasCell() {
         return !cellStack.isEmpty();
+    }
+
+    public void setSmallBulkFilterFromClient(int slot, ItemStack stack) {
+        if (level != null && level.isClientSide) {
+            rpcToServer("setSmallBulkFilter", slot, stack == null ? ItemStack.EMPTY : stack.copyWithCount(1));
+            return;
+        }
+        setSmallBulkFilterDirect(slot, stack);
+    }
+
+    @RPCMethod
+    public void setSmallBulkFilter(RPCSender sender, int slot, ItemStack stack) {
+        if (sender.isServer() || !(level instanceof ServerLevel serverLevel)) {
+            return;
+        }
+        net.minecraft.server.level.ServerPlayer player = sender.asPlayer();
+        if (player == null || player.level() != serverLevel || !SimplifyStorageControllerBlock.isPlayerCloseEnough(
+                serverLevel, worldPosition, player)) {
+            return;
+        }
+        setSmallBulkFilterDirect(slot, stack);
+    }
+
+    private boolean setSmallBulkFilterDirect(int slot, ItemStack stack) {
+        if (!(cellStack.getItem() instanceof SimplifySmallBulkStorageCellItem cellItem)) {
+            return false;
+        }
+        var config = cellItem.getConfigInventory(cellStack);
+        if (slot < 0 || slot >= config.size()) {
+            return false;
+        }
+        AEItemKey key = stack == null || stack.isEmpty() ? null : AEItemKey.of(stack);
+        if (key != null && CompressionService.getChain(key).isEmpty()) {
+            return false;
+        }
+        if (key != null) {
+            for (int index = 0; index < config.size(); index++) {
+                if (index != slot && config.getKey(index) instanceof AEItemKey existing
+                        && !CompressionService.getChain(existing).isEmpty()
+                        && CompressionService.getChain(existing).equals(CompressionService.getChain(key))) {
+                    return false;
+                }
+            }
+        }
+        config.setStack(slot, key == null ? null : new GenericStack(key, 0L));
+        setChanged();
+        markForUpdate();
+        notifyClusterStorageChanged();
+        return true;
     }
 
     /** @return true when the cell was inserted. */
@@ -224,8 +282,7 @@ public class SimplifyDriveBlockEntity extends NEBlockEntity<SimplifyStorageClust
         SimplifyStorageCluster cluster = getCluster();
         SimplifyStorageHostBlockEntity controller = cluster == null ? null : cluster.getController();
         IECOStorageCell cell = getCellInventory();
-        if (controller != null && cell != null
-                && controller.getTier().compareTo(cell.getTier()) >= 0) {
+        if (controller != null && cell != null && isAcceptedByL1Host()) {
             storageMounts.mount(cell, controller.getStoragePriority());
             setMounted(true);
             updateCellState();
@@ -233,6 +290,33 @@ public class SimplifyDriveBlockEntity extends NEBlockEntity<SimplifyStorageClust
         }
         setMounted(false);
         updateCellState();
+    }
+
+    /** L1-native cells, the L1 small-bulk cells, and explicit server whitelist entries may mount. */
+    private boolean isAcceptedByL1Host() {
+        if (cellStack.getItem() instanceof SimplifySmallBulkStorageCellItem) {
+            return true;
+        }
+        IECOStorageCell cell = getCellInventory();
+        SimplifyStorageCluster cluster = getCluster();
+        SimplifyStorageHostBlockEntity controller = cluster == null ? null : cluster.getController();
+        if (cell == null || controller == null) {
+            return false;
+        }
+        if (controller.getTier().compareTo(cell.getTier()) >= 0) {
+            return true;
+        }
+        String itemId = net.minecraft.core.registries.BuiltInRegistries.ITEM
+                .getKey(cellStack.getItem()).toString();
+        if (isOmniCellsItem(itemId)) {
+            return true;
+        }
+        return NeoECOPrototypeServerConfig.L1_ADDITIONAL_STORAGE_CELLS.get().contains(itemId);
+    }
+
+    /** OmniCells is optional; use only its stable item namespace and never load its classes here. */
+    private static boolean isOmniCellsItem(String itemId) {
+        return ModList.get().isLoaded("ae2omnicells") && itemId.startsWith("ae2omnicells:");
     }
 
     @Override

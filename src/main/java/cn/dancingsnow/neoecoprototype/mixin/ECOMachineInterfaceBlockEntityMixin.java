@@ -12,7 +12,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(ECOMachineInterfaceBlockEntity.class)
 public abstract class ECOMachineInterfaceBlockEntityMixin {
-    @Inject(method = "createUI", at = @At("HEAD"), require = 1)
+    @Inject(method = "createUI",  at = @At("HEAD"), require = 1)
     private void neoecoprototype$begin(CallbackInfoReturnable<ModularUI> callback) {
         LocalGuiTitleContext.begin((ECOMachineInterfaceBlockEntity<?>) (Object) this);
     }

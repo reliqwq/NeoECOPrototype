@@ -1,0 +1,12 @@
+{
+  "variants": {
+    "facing=north,formed=false": { "model": "neoecoprototype:block/trinity_storage_module" },
+    "facing=east,formed=false":  { "model": "neoecoprototype:block/trinity_storage_module", "y": 90 },
+    "facing=south,formed=false": { "model": "neoecoprototype:block/trinity_storage_module", "y": 180 },
+    "facing=west,formed=false":  { "model": "neoecoprototype:block/trinity_storage_module", "y": 270 },
+    "facing=north,formed=true":  { "model": "neoecoprototype:block/trinity_storage_module" },
+    "facing=east,formed=true":   { "model": "neoecoprototype:block/trinity_storage_module", "y": 90 },
+    "facing=south,formed=true":  { "model": "neoecoprototype:block/trinity_storage_module", "y": 180 },
+    "facing=west,formed=true":   { "model": "neoecoprototype:block/trinity_storage_module", "y": 270 }
+  }
+}

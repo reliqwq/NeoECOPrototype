@@ -48,7 +48,13 @@ import cn.dancingsnow.neoecoprototype.block.crafting.SimplifyCraftingWorkerBlock
 import cn.dancingsnow.neoecoprototype.block.crafting.SimplifyFluidInputHatchBlock;
 import cn.dancingsnow.neoecoprototype.block.crafting.SimplifyFluidOutputHatchBlock;
 import cn.dancingsnow.neoecoprototype.block.trinity.SimplifyTrinityControllerBlock;
+import cn.dancingsnow.neoecoprototype.block.trinity.SimplifyTrinityStorageModuleBlock;
+import cn.dancingsnow.neoecoprototype.block.trinity.SimplifyTrinityComputationModuleBlock;
+import cn.dancingsnow.neoecoprototype.block.trinity.SimplifyTrinityCraftingModuleBlock;
 import cn.dancingsnow.neoecoprototype.blockentity.trinity.SimplifyTrinityControllerBlockEntity;
+import cn.dancingsnow.neoecoprototype.blockentity.trinity.SimplifyTrinityStorageModuleBlockEntity;
+import cn.dancingsnow.neoecoprototype.blockentity.trinity.SimplifyTrinityComputationModuleBlockEntity;
+import cn.dancingsnow.neoecoprototype.blockentity.trinity.SimplifyTrinityCraftingModuleBlockEntity;
 import cn.dancingsnow.neoecoprototype.blockentity.storage.SimplifyDriveBlockEntity;
 import cn.dancingsnow.neoecoprototype.blockentity.storage.SimplifyEnergyCellBlockEntity;
 import cn.dancingsnow.neoecoprototype.blockentity.storage.SimplifyStorageCasingBlockEntity;
@@ -60,6 +66,7 @@ import cn.dancingsnow.neoecoprototype.items.PigcatStorageMatrixHousingItem;
 import cn.dancingsnow.neoecoprototype.items.SimplifyComputationCellItem;
 import cn.dancingsnow.neoecoprototype.items.SimplifyConcreteStorageCellItem;
 import cn.dancingsnow.neoecoprototype.items.SimplifyStorageCellItem;
+import cn.dancingsnow.neoecoprototype.items.SimplifySmallBulkStorageCellItem;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.Util;
 import net.minecraft.core.component.DataComponents;
@@ -93,10 +100,21 @@ public class ModRegistration {
     public static final DeferredRegister<Item> ITEMS =
             DeferredRegister.create(Registries.ITEM, NeoECOPrototype.MOD_ID);
     public static Supplier<? extends Item> OPTIONAL_CHEMICAL_CELL_1K;
+    public static Supplier<? extends Item> OPTIONAL_CHEMICAL_CELL_4K;
     public static Supplier<? extends Item> OPTIONAL_CHEMICAL_CELL_16K;
     public static Supplier<? extends Item> OPTIONAL_CHEMICAL_CELL_1M;
     public static Supplier<? extends Item> OPTIONAL_CHEMICAL_CELL_4M;
     public static Supplier<? extends Item> OPTIONAL_BEYOND_STORAGE_CELL;
+    public static Supplier<? extends Item> OPTIONAL_UNIVERSAL_CELL_1K;
+    public static Supplier<? extends Item> OPTIONAL_UNIVERSAL_CELL_1M;
+    public static Supplier<? extends Item> OPTIONAL_QUANTUM_CELL_1K;
+    public static Supplier<? extends Item> OPTIONAL_QUANTUM_CELL_1M;
+    public static final Supplier<Item> SIMPLIFY_QUANTUM_STORAGE_MATRIX_HOUSING =
+            ITEMS.register("simplify_quantum_storage_matrix_housing", () -> new Item(new Item.Properties()));
+    public static final Supplier<Item> SIMPLIFY_SMALL_BULK_STORAGE_MATRIX_HOUSING =
+            ITEMS.register("simplify_small_bulk_storage_matrix_housing", () -> new Item(new Item.Properties()));
+    public static final Supplier<Item> SIMPLIFY_UNIVERSAL_STORAGE_MATRIX_HOUSING =
+            ITEMS.register("simplify_universal_storage_matrix_housing", () -> new Item(new Item.Properties()));
     public static final Supplier<Item> SIMPLIFY_CHEMICAL_STORAGE_MATRIX_HOUSING =
             ITEMS.register("simplify_chemical_storage_matrix_housing", () -> new Item(new Item.Properties()));
 
@@ -107,7 +125,7 @@ public class ModRegistration {
     public static final DeferredRegister<CreativeModeTab> CREATIVE_TABS =
             DeferredRegister.create(Registries.CREATIVE_MODE_TAB, NeoECOPrototype.MOD_ID);
 
-    /** 物品名主题绿：饱和度取贴图点缀色（#80FFAE 偏艳）与粉彩底色（#A8DCA8 偏淡）之间。 */
+    /** 鐗╁搧鍚嶄富棰樼豢锛氶ケ鍜屽害鍙栬创鍥剧偣缂€鑹诧紙#80FFAE 鍋忚壋锛変笌绮夊僵搴曡壊锛?A8DCA8 鍋忔贰锛変箣闂淬€?*/
     private static final int NAME_THEME_GREEN = 0xFF94EDAB;
 
     private static final BlockBehaviour.Properties MACHINE_PROPS =
@@ -203,12 +221,37 @@ public class ModRegistration {
 
     public static final Supplier<SimplifyTrinityControllerBlock> SIMPLIFY_TRINITY_CONTROLLER_BLOCK =
             BLOCKS.register("simplify_trinity_controller", () -> new SimplifyTrinityControllerBlock(MACHINE_PROPS));
+
+    // Trinity's dedicated modules. They exist because eco's stock parts bind themselves to their
+    // own subsystem cluster in their constructors and can never be adopted by Trinity.
+    public static final Supplier<SimplifyTrinityStorageModuleBlock> SIMPLIFY_TRINITY_STORAGE_MODULE_BLOCK =
+            BLOCKS.register("simplify_trinity_storage_module",
+                    () -> new SimplifyTrinityStorageModuleBlock(MACHINE_PROPS));
+    public static final Supplier<SimplifyTrinityComputationModuleBlock> SIMPLIFY_TRINITY_COMPUTATION_MODULE_BLOCK =
+            BLOCKS.register("simplify_trinity_computation_module",
+                    () -> new SimplifyTrinityComputationModuleBlock(MACHINE_PROPS));
+    public static final Supplier<SimplifyTrinityCraftingModuleBlock> SIMPLIFY_TRINITY_CRAFTING_MODULE_BLOCK =
+            BLOCKS.register("simplify_trinity_crafting_module",
+                    () -> new SimplifyTrinityCraftingModuleBlock(MACHINE_PROPS));
+
     // ============================ Block items ============================
 
     public static final Supplier<BlockItem> SIMPLIFY_TRINITY_CONTROLLER_ITEM =
             ITEMS.register("simplify_trinity_controller",
                     () -> new BlockItem(SIMPLIFY_TRINITY_CONTROLLER_BLOCK.get(),
                             coloredName(SIMPLIFY_TRINITY_CONTROLLER_BLOCK, NAME_THEME_GREEN)));
+    public static final Supplier<BlockItem> SIMPLIFY_TRINITY_STORAGE_MODULE_ITEM =
+            ITEMS.register("simplify_trinity_storage_module",
+                    () -> new BlockItem(SIMPLIFY_TRINITY_STORAGE_MODULE_BLOCK.get(),
+                            coloredName(SIMPLIFY_TRINITY_STORAGE_MODULE_BLOCK, NAME_THEME_GREEN)));
+    public static final Supplier<BlockItem> SIMPLIFY_TRINITY_COMPUTATION_MODULE_ITEM =
+            ITEMS.register("simplify_trinity_computation_module",
+                    () -> new BlockItem(SIMPLIFY_TRINITY_COMPUTATION_MODULE_BLOCK.get(),
+                            coloredName(SIMPLIFY_TRINITY_COMPUTATION_MODULE_BLOCK, NAME_THEME_GREEN)));
+    public static final Supplier<BlockItem> SIMPLIFY_TRINITY_CRAFTING_MODULE_ITEM =
+            ITEMS.register("simplify_trinity_crafting_module",
+                    () -> new BlockItem(SIMPLIFY_TRINITY_CRAFTING_MODULE_BLOCK.get(),
+                            coloredName(SIMPLIFY_TRINITY_CRAFTING_MODULE_BLOCK, NAME_THEME_GREEN)));
     public static final Supplier<BlockItem> SIMPLIFY_STORAGE_CONTROLLER_ITEM =
             ITEMS.register("simplify_storage_controller",
                     () -> new BlockItem(SIMPLIFY_STORAGE_CONTROLLER_BLOCK.get(),
@@ -326,7 +369,21 @@ public class ModRegistration {
                      () -> storageCell(AEKeyType.items(), SimplifyStorageCellItem::getItemCellType,
                              SimplifyStorageCellItem.BYTES_2K5, SimplifyStorageCellItem.BYTES_2K5_PER_TYPE));
 
-     public static final Supplier<Item> SIMPLIFY_STORAGE_COMPONENT_1M =
+     /** 3-type L1 long-capacity item cell. Upgrade through AE2's cell-upgrade recipe. */
+    public static final Supplier<SimplifySmallBulkStorageCellItem> SIMPLIFY_SMALL_BULK_CELL =
+            ITEMS.register("simplify_small_bulk_storage_cell",
+                    () -> new SimplifySmallBulkStorageCellItem(new Item.Properties().stacksTo(1),
+                            SimplifyStorageCellItem::getMegaItemCellType, 3));
+    /** 10-type expansion target for {@link #SIMPLIFY_SMALL_BULK_CELL}. */
+    public static final Supplier<SimplifySmallBulkStorageCellItem> SIMPLIFY_SMALL_BULK_CELL_EXPANDED =
+            ITEMS.register("simplify_small_bulk_storage_cell_expanded",
+                    () -> new SimplifySmallBulkStorageCellItem(new Item.Properties().stacksTo(1),
+                            SimplifyStorageCellItem::getMegaItemCellType, 10));
+    /** Consumed by the AE2 storage-cell upgrade recipe to expand 3 types to 10. */
+    public static final Supplier<Item> SIMPLIFY_SMALL_BULK_EXPANSION_CARD =
+            ITEMS.register("simplify_small_bulk_expansion_card", () -> new Item(new Item.Properties()));
+
+    public static final Supplier<Item> SIMPLIFY_STORAGE_COMPONENT_1M =
              ITEMS.register("simplify_storage_component_1m", () -> new Item(new Item.Properties()));
      public static final Supplier<Item> SIMPLIFY_STORAGE_COMPONENT_4M =
              ITEMS.register("simplify_storage_component_4m", () -> new Item(new Item.Properties()));
@@ -382,8 +439,8 @@ public class ModRegistration {
                             SimplifyStorageCellItem.BYTES_4M, 1 << 14));
 
     /**
-     * 物品名字着色。rarity 四档（白/黄/蓝/紫）覆盖不到的颜色用 ITEM_NAME 组件带
-     * 样式实现：组件里存翻译键（本地化安全），铁砧改名时仍会被 CUSTOM_NAME 覆盖。
+     * 鐗╁搧鍚嶅瓧鐫€鑹层€俽arity 鍥涙。锛堢櫧/榛?钃?绱級瑕嗙洊涓嶅埌鐨勯鑹茬敤 ITEM_NAME 缁勪欢甯?
+     * 鏍峰紡瀹炵幇锛氱粍浠堕噷瀛樼炕璇戦敭锛堟湰鍦板寲瀹夊叏锛夛紝閾佺牕鏀瑰悕鏃朵粛浼氳 CUSTOM_NAME 瑕嗙洊銆?
      */
     private static Item.Properties coloredName(Supplier<? extends Block> block, int color) {
         return coloredName(block.get().getDescriptionId(), color);
@@ -395,7 +452,7 @@ public class ModRegistration {
                         Component.translatable(descriptionId).withStyle(Style.EMPTY.withColor(color)));
     }
 
-    /** 普通物品便捷重载：注册自身时无法解析自身 Supplier，按注册路径构造翻译键。 */
+    /** 鏅€氱墿鍝佷究鎹烽噸杞斤細娉ㄥ唽鑷韩鏃舵棤娉曡В鏋愯嚜韬?Supplier锛屾寜娉ㄥ唽璺緞鏋勯€犵炕璇戦敭銆?*/
     private static Item.Properties coloredItemName(String itemPath, int color) {
         return coloredName(
                 Util.makeDescriptionId("item", ResourceLocation.fromNamespaceAndPath(NeoECOPrototype.MOD_ID, itemPath)),
@@ -403,9 +460,9 @@ public class ModRegistration {
     }
 
     /**
-     * 猪咪外壳彩蛋：6.6 攻击伤害、剑速、+2 实体交互距离、附魔光泽。
-     * 伤害/攻速的 modifier ID 与原版剑一致以便正确渲染提示；
-     * 攻击伤害修正量 5.6 + 玩家基础 1 = 面板显示 6.6。
+     * 鐚挭澶栧３褰╄泲锛?.6 鏀诲嚮浼ゅ銆佸墤閫熴€?2 瀹炰綋浜や簰璺濈銆侀檮榄斿厜娉姐€?
+     * 浼ゅ/鏀婚€熺殑 modifier ID 涓庡師鐗堝墤涓€鑷翠互渚挎纭覆鏌撴彁绀猴紱
+     * 鏀诲嚮浼ゅ淇閲?5.6 + 鐜╁鍩虹 1 = 闈㈡澘鏄剧ず 6.6銆?
      */
     private static Item.Properties pigcatHousingProperties() {
         return new Item.Properties()
@@ -449,6 +506,39 @@ public class ModRegistration {
                         (pos, state) -> new SimplifyTrinityControllerBlockEntity(
                                 SIMPLIFY_TRINITY_CONTROLLER_BE.get(), pos, state),
                         SIMPLIFY_TRINITY_CONTROLLER_BLOCK.get()).build(null));
+    }
+
+    public static final Supplier<BlockEntityType<SimplifyTrinityStorageModuleBlockEntity>> SIMPLIFY_TRINITY_STORAGE_MODULE_BE =
+            registerTrinityStorageModuleBe();
+
+    private static Supplier<BlockEntityType<SimplifyTrinityStorageModuleBlockEntity>> registerTrinityStorageModuleBe() {
+        return (Supplier) BLOCK_ENTITIES.register("simplify_trinity_storage_module",
+                () -> BlockEntityType.Builder.of(
+                        (pos, state) -> new SimplifyTrinityStorageModuleBlockEntity(
+                                SIMPLIFY_TRINITY_STORAGE_MODULE_BE.get(), pos, state),
+                        SIMPLIFY_TRINITY_STORAGE_MODULE_BLOCK.get()).build(null));
+    }
+
+    public static final Supplier<BlockEntityType<SimplifyTrinityComputationModuleBlockEntity>> SIMPLIFY_TRINITY_COMPUTATION_MODULE_BE =
+            registerTrinityComputationModuleBe();
+
+    private static Supplier<BlockEntityType<SimplifyTrinityComputationModuleBlockEntity>> registerTrinityComputationModuleBe() {
+        return (Supplier) BLOCK_ENTITIES.register("simplify_trinity_computation_module",
+                () -> BlockEntityType.Builder.of(
+                        (pos, state) -> new SimplifyTrinityComputationModuleBlockEntity(
+                                SIMPLIFY_TRINITY_COMPUTATION_MODULE_BE.get(), pos, state),
+                        SIMPLIFY_TRINITY_COMPUTATION_MODULE_BLOCK.get()).build(null));
+    }
+
+    public static final Supplier<BlockEntityType<SimplifyTrinityCraftingModuleBlockEntity>> SIMPLIFY_TRINITY_CRAFTING_MODULE_BE =
+            registerTrinityCraftingModuleBe();
+
+    private static Supplier<BlockEntityType<SimplifyTrinityCraftingModuleBlockEntity>> registerTrinityCraftingModuleBe() {
+        return (Supplier) BLOCK_ENTITIES.register("simplify_trinity_crafting_module",
+                () -> BlockEntityType.Builder.of(
+                        (pos, state) -> new SimplifyTrinityCraftingModuleBlockEntity(
+                                SIMPLIFY_TRINITY_CRAFTING_MODULE_BE.get(), pos, state),
+                        SIMPLIFY_TRINITY_CRAFTING_MODULE_BLOCK.get()).build(null));
     }
 
     // The vanilla BlockEntitySupplier only passes (pos, state), so each factory
@@ -726,6 +816,9 @@ public class ModRegistration {
                         output.accept(SIMPLIFY_ITEM_CELL_1K.get());
                          output.accept(SIMPLIFY_ITEM_CELL_16K.get());
                          output.accept(SIMPLIFY_ITEM_CELL_64K.get());
+                         output.accept(SIMPLIFY_SMALL_BULK_CELL.get());
+                         output.accept(SIMPLIFY_SMALL_BULK_CELL_EXPANDED.get());
+                         output.accept(SIMPLIFY_SMALL_BULK_EXPANSION_CARD.get());
                          output.accept(SIMPLIFY_STORAGE_COMPONENT_1M.get());
                          output.accept(SIMPLIFY_STORAGE_COMPONENT_4M.get());
                          output.accept(SIMPLIFY_ITEM_CELL_1M.get());
@@ -745,8 +838,19 @@ public class ModRegistration {
                               output.accept(OPTIONAL_BEYOND_STORAGE_CELL.get());
                           }
                           output.accept(SIMPLIFY_CHEMICAL_STORAGE_MATRIX_HOUSING.get());
-                         output.accept(SIMPLIFY_CONCRETE_STORAGE_MATRIX_HOUSING.get());
-                         output.accept(SIMPLIFY_CONCRETE_STORAGE_CELL.get());
+                          output.accept(SIMPLIFY_SMALL_BULK_STORAGE_MATRIX_HOUSING.get());
+                         if (OPTIONAL_UNIVERSAL_CELL_1K != null) {
+                              output.accept(SIMPLIFY_UNIVERSAL_STORAGE_MATRIX_HOUSING.get());
+                              output.accept(OPTIONAL_UNIVERSAL_CELL_1K.get());
+                              output.accept(OPTIONAL_UNIVERSAL_CELL_1M.get());
+                          }
+                          if (OPTIONAL_QUANTUM_CELL_1K != null) {
+                              output.accept(SIMPLIFY_QUANTUM_STORAGE_MATRIX_HOUSING.get());
+                              output.accept(OPTIONAL_QUANTUM_CELL_1K.get());
+                              output.accept(OPTIONAL_QUANTUM_CELL_1M.get());
+                          }
+                          output.accept(SIMPLIFY_CONCRETE_STORAGE_MATRIX_HOUSING.get());
+                          output.accept(SIMPLIFY_CONCRETE_STORAGE_CELL.get());
                          output.accept(SIMPLIFY_GREEN_CRYSTAL_MATRIX.get());
                          output.accept(SIMPLIFY_ITEM_STORAGE_MATRIX_HOUSING.get());
                          output.accept(PIGCAT_STORAGE_MATRIX_HOUSING.get());
@@ -772,6 +876,10 @@ public class ModRegistration {
                          output.accept(SIMPLIFY_CRAFTING_CASING_ITEM.get());
                          output.accept(SIMPLIFY_FLUID_INPUT_HATCH_ITEM.get());
                          output.accept(SIMPLIFY_FLUID_OUTPUT_HATCH_ITEM.get());
+                         output.accept(SIMPLIFY_TRINITY_CONTROLLER_ITEM.get());
+                         output.accept(SIMPLIFY_TRINITY_STORAGE_MODULE_ITEM.get());
+                         output.accept(SIMPLIFY_TRINITY_COMPUTATION_MODULE_ITEM.get());
+                         output.accept(SIMPLIFY_TRINITY_CRAFTING_MODULE_ITEM.get());
                     })
                     .build());
 
@@ -785,9 +893,17 @@ public class ModRegistration {
     @SuppressWarnings({"unchecked", "rawtypes"})
     public static void linkBlockEntityTypes() {
         ((AEBaseEntityBlock) SIMPLIFY_TRINITY_CONTROLLER_BLOCK.get()).setBlockEntity(
-                SimplifyTrinityControllerBlockEntity.class, SIMPLIFY_TRINITY_CONTROLLER_BE.get(), null, null);
+                SimplifyTrinityControllerBlockEntity.class, SIMPLIFY_TRINITY_CONTROLLER_BE.get(), null,
+                (level, pos, state, blockEntity) -> SimplifyTrinityControllerBlockEntity.tick(
+                        level, pos, state, (SimplifyTrinityControllerBlockEntity) blockEntity));
         AEBaseBlockEntity.registerBlockEntityItem(SIMPLIFY_TRINITY_CONTROLLER_BE.get(),
                 SIMPLIFY_TRINITY_CONTROLLER_ITEM.get().asItem());
+        ((AEBaseEntityBlock) SIMPLIFY_TRINITY_STORAGE_MODULE_BLOCK.get()).setBlockEntity(
+                SimplifyTrinityStorageModuleBlockEntity.class, SIMPLIFY_TRINITY_STORAGE_MODULE_BE.get(), null, null);
+        ((AEBaseEntityBlock) SIMPLIFY_TRINITY_COMPUTATION_MODULE_BLOCK.get()).setBlockEntity(
+                SimplifyTrinityComputationModuleBlockEntity.class, SIMPLIFY_TRINITY_COMPUTATION_MODULE_BE.get(), null, null);
+        ((AEBaseEntityBlock) SIMPLIFY_TRINITY_CRAFTING_MODULE_BLOCK.get()).setBlockEntity(
+                SimplifyTrinityCraftingModuleBlockEntity.class, SIMPLIFY_TRINITY_CRAFTING_MODULE_BE.get(), null, null);
 
         ((AEBaseEntityBlock) SIMPLIFY_STORAGE_CONTROLLER_BLOCK.get()).setBlockEntity(
                 SimplifyStorageHostBlockEntity.class, SIMPLIFY_STORAGE_CONTROLLER_BE.get(), null,
@@ -845,7 +961,8 @@ public class ModRegistration {
                 ECOMachineInterfaceBlockEntity.class, SIMPLIFY_CRAFTING_INTERFACE_BE.get(), null,
                 (level, pos, state, blockEntity) -> ((ECOMachineInterfaceBlockEntity<?>) blockEntity).tick());
         ((AEBaseEntityBlock) SIMPLIFY_CRAFTING_NETWORK_INTERFACE_BLOCK.get()).setBlockEntity(
-                ECOMachineInterfaceBlockEntity.class, SIMPLIFY_CRAFTING_INTERFACE_BE.get(), null, null);
+                ECOMachineInterfaceBlockEntity.class, SIMPLIFY_CRAFTING_INTERFACE_BE.get(), null,
+                 (level, pos, state, blockEntity) -> ((ECOMachineInterfaceBlockEntity<?>) blockEntity).tick());
         ((AEBaseEntityBlock) SIMPLIFY_CRAFTING_CASING_BLOCK.get()).setBlockEntity(
                 ECOMachineCasingBlockEntity.class, SIMPLIFY_CRAFTING_CASING_BE.get(), null, null);
 
@@ -899,3 +1016,4 @@ public class ModRegistration {
                 SIMPLIFY_CRAFTING_CASING_ITEM.get().asItem());
     }
 }
+

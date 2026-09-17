@@ -2,6 +2,9 @@ package cn.dancingsnow.neoecoprototype.blockentity.storage;
 
 import appeng.api.networking.IGridNodeListener;
 import appeng.api.stacks.AEKeyType;
+import appeng.api.stacks.AEItemKey;
+import gripe._90.megacells.misc.CompressionChain;
+import gripe._90.megacells.misc.CompressionService;
 import appeng.api.storage.IStorageMounts;
 import appeng.api.storage.IStorageProvider;
 import cn.dancingsnow.neoecoae.all.NERegistries;
@@ -18,11 +21,17 @@ import cn.dancingsnow.neoecoae.multiblock.placement.MultiBlockBuildController;
 import cn.dancingsnow.neoecoae.multiblock.placement.MultiBlockPlacementPlan;
 import cn.dancingsnow.neoecoae.multiblock.placement.MultiBlockPlacementService;
 import cn.dancingsnow.neoecoprototype.api.SimplifyPowerProfile;
+import cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig;
 import cn.dancingsnow.neoecoprototype.api.SimplifyTier;
 import cn.dancingsnow.neoecoprototype.block.storage.SimplifyStorageControllerBlock;
 import cn.dancingsnow.neoecoprototype.integration.ae2.SimplifyGridFacade;
+import cn.dancingsnow.neoecoprototype.gui.SimplifyStorageMegaPanelUI;
 import cn.dancingsnow.neoecoprototype.items.SimplifyConcreteStorageCellItem;
 import cn.dancingsnow.neoecoprototype.items.SimplifyStorageCellItem;
+import cn.dancingsnow.neoecoprototype.items.SimplifySmallBulkStorageCellItem;
+import cn.dancingsnow.neoecoprototype.integration.omni.SimplifyUniversalStorageCellItem;
+import cn.dancingsnow.neoecoprototype.integration.omni.SimplifyQuantumStorageCellItem;
+import net.neoforged.fml.ModList;
 import cn.dancingsnow.neoecoprototype.multiblock.calculator.SimplifyStorageClusterCalculator;
 import cn.dancingsnow.neoecoprototype.multiblock.cluster.SimplifyStorageCluster;
 import cn.dancingsnow.neoecoprototype.multiblock.definition.SimplifyStorageDefinition;
@@ -51,6 +60,9 @@ import net.neoforged.neoforge.items.ItemStackHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /** L1 storage controller state and host for the reusable eco builder UI. */
 public class SimplifyStorageHostBlockEntity
         extends NEBlockEntity<SimplifyStorageCluster, SimplifyStorageHostBlockEntity>
@@ -77,6 +89,14 @@ public class SimplifyStorageHostBlockEntity
     @Persisted
     @DescSynced
     private int storagePriority;
+
+    @Persisted
+    @DescSynced
+    private int selectedSmallBulkDrive;
+
+    @Persisted
+    @DescSynced
+    private int selectedSmallBulkPage;
 
     @DescSynced
     private boolean buildInProgress;
@@ -223,12 +243,154 @@ public class SimplifyStorageHostBlockEntity
                     }
                 },
                 delta -> changeStoragePriority(holder.player, delta),
-                 () -> false,
-                 () -> 0L,
-                 () -> { }));
+                 this::bulkMarkingAvailable,
+                 this::bulkMarkingThreshold,
+                 () -> autoMarkBulkCells(holder.player)));
         actionUI.addTo(root);
+        if (bulkMarkingAvailable()) {
+            root.addChild(SimplifyStorageMegaPanelUI.create(this));
+        }
         return new ModularUI(UI.of(root,
                 java.util.List.of(StylesheetManager.INSTANCE.getStylesheetSafe(NEStyleSheets.ECO))), holder.player);
+    }
+
+    private boolean bulkMarkingAvailable() {
+        return !smallBulkDrives().isEmpty();
+    }
+
+    private long bulkMarkingThreshold() {
+        return NeoECOPrototypeServerConfig.MEGA_BULK_AUTO_MARK_THRESHOLD.get();
+    }
+
+    private void autoMarkBulkCells(Player player) {
+        if (!canPlayerInteract(player) || level == null || level.isClientSide) {
+            return;
+        }
+        long threshold = bulkMarkingThreshold();
+        int added = 0;
+        int alreadyMarked = 0;
+        List<AEItemKey> markedKeys = new ArrayList<>();
+        for (SimplifyDriveBlockEntity target : smallBulkDrives()) {
+            ItemStack targetStack = target.getCellStack();
+            if (!(targetStack.getItem() instanceof SimplifySmallBulkStorageCellItem item)) {
+                continue;
+            }
+            var config = item.getConfigInventory(targetStack);
+            for (SimplifyDriveBlockEntity source : getCluster().getDrives()) {
+                IECOStorageCell inventory = source.getCellInventory();
+                if (inventory == null || source == target) {
+                    continue;
+                }
+                appeng.api.stacks.KeyCounter available = new appeng.api.stacks.KeyCounter();
+                inventory.getAvailableStacks(available);
+                for (var entry : available) {
+                    if (entry.getLongValue() <= threshold || !(entry.getKey() instanceof AEItemKey key)) {
+                        continue;
+                    }
+                    CompressionChain chain = CompressionService.getChain(key);
+                    if (chain.isEmpty()) {
+                        continue;
+                    }
+                    boolean exists = markedKeys.stream().anyMatch(existing -> sameCompressionChain(existing, key));
+                    for (int slot = 0; slot < config.size() && !exists; slot++) {
+                        if (config.getKey(slot) instanceof AEItemKey existing
+                                && sameCompressionChain(existing, key)) {
+                            exists = true;
+                        }
+                    }
+                    if (exists) {
+                        alreadyMarked++;
+                        continue;
+                    }
+                    for (int slot = 0; slot < config.size(); slot++) {
+                        if (config.getKey(slot) == null) {
+                            config.setStack(slot, new appeng.api.stacks.GenericStack(key, 0L));
+                            markedKeys.add(key);
+                            added++;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        refreshDriveStorageProviders();
+        player.displayClientMessage(Component.translatable(
+                "gui.neoecoprototype.storage.bulk_mark.result", added, alreadyMarked), true);
+    }
+
+    private static boolean sameCompressionChain(AEItemKey left, AEItemKey right) {
+        CompressionChain first = CompressionService.getChain(left);
+        return !first.isEmpty() && first.equals(CompressionService.getChain(right));
+    }
+
+    public List<SimplifyDriveBlockEntity> smallBulkDrives() {
+        SimplifyStorageCluster cluster = getCluster();
+        if (cluster == null) {
+            return List.of();
+        }
+        return cluster.getDrives().stream()
+                .filter(drive -> drive.getCellStack() != null
+                        && drive.getCellStack().getItem() instanceof SimplifySmallBulkStorageCellItem)
+                .toList();
+    }
+
+    public int getSelectedSmallBulkDrive() {
+        int count = smallBulkDrives().size();
+        selectedSmallBulkDrive = count == 0 ? 0 : Math.clamp(selectedSmallBulkDrive, 0, count - 1);
+        return selectedSmallBulkDrive;
+    }
+
+    public void changeSelectedSmallBulkDrive(int delta) {
+        int count = smallBulkDrives().size();
+        selectedSmallBulkDrive = count == 0 ? 0 : Math.floorMod(selectedSmallBulkDrive + delta, count);
+        selectedSmallBulkPage = 0;
+        setChanged();
+        markForUpdate();
+    }
+
+    public int getSelectedSmallBulkPage() {
+        return selectedSmallBulkPage;
+    }
+
+    public int getSelectedSmallBulkTypeLimit() {
+        List<SimplifyDriveBlockEntity> drives = smallBulkDrives();
+        int index = getSelectedSmallBulkDrive();
+        if (index < 0 || index >= drives.size()) {
+            return 0;
+        }
+        ItemStack stack = drives.get(index).getCellStack();
+        return stack != null && stack.getItem() instanceof SimplifySmallBulkStorageCellItem item
+                ? item.getTotalTypes() : 0;
+    }
+
+    public ItemStack getSmallBulkFilter(int slot) {
+        List<SimplifyDriveBlockEntity> drives = smallBulkDrives();
+        int index = getSelectedSmallBulkDrive();
+        if (index < 0 || index >= drives.size()) {
+            return ItemStack.EMPTY;
+        }
+        ItemStack stack = drives.get(index).getCellStack();
+        if (stack == null || !(stack.getItem() instanceof SimplifySmallBulkStorageCellItem item)) {
+            return ItemStack.EMPTY;
+        }
+        var config = item.getConfigInventory(stack);
+        return slot < 0 || slot >= config.size() || config.getKey(slot) == null
+                ? ItemStack.EMPTY
+                : ((appeng.api.stacks.AEItemKey) config.getKey(slot)).toStack(1);
+    }
+
+    public void setSmallBulkFilterFromClient(int slot, ItemStack stack) {
+        List<SimplifyDriveBlockEntity> drives = smallBulkDrives();
+        int index = getSelectedSmallBulkDrive();
+        if (index >= 0 && index < drives.size()) {
+            drives.get(index).setSmallBulkFilterFromClient(slot, stack);
+        }
+    }
+
+    public void changeSelectedSmallBulkPage(int delta) {
+        selectedSmallBulkPage = Math.clamp(selectedSmallBulkPage + delta, 0, 1);
+        setChanged();
+        markForUpdate();
     }
 
     private StorageHostUI.Config createStoragePanelConfig() {
@@ -243,20 +405,26 @@ public class SimplifyStorageHostBlockEntity
                 () -> false,
                 () -> false,
                 () -> false,
+                () -> "",
+                () -> 0,
                 createReadOnlyEmptyComponentInventory());
     }
 
     private java.util.List<StorageHostUI.StorageTypeLine> createStorageTypeLines() {
         java.util.List<StorageHostUI.StorageTypeLine> lines = new java.util.ArrayList<>();
         lines.add(createStorageTypeLine(SimplifyStorageCellItem.getItemCellType(), 0));
-        lines.add(createStorageTypeLine(SimplifyStorageCellItem.getFluidCellType(), 1));
+        lines.add(createStorageTypeLine(SimplifyStorageCellItem.getMegaItemCellType(), 1));
+        lines.add(createStorageTypeLine(SimplifyStorageCellItem.getFluidCellType(), 2));
         ECOCellType chemical = getChemicalCellType();
         if (chemical != null) {
-            lines.add(createStorageTypeLine(chemical, 2));
+            lines.add(createStorageTypeLine(chemical, 3));
         }
-        // Dedicated row for the infinite concrete matrix, shown only while one
-        // is mounted (upstream's cell display interface gates visibility).
-        lines.add(createStorageTypeLine(SimplifyConcreteStorageCellItem.CELL_TYPE, 3));
+        if (ModList.get().isLoaded("ae2omnicells")) {
+            lines.add(createStorageTypeLine(SimplifyUniversalStorageCellItem.getUniversalCellType(), 4));
+            lines.add(createStorageTypeLine(SimplifyQuantumStorageCellItem.getQuantumCellType(), 5));
+        }
+        // Dedicated row for the infinite concrete matrix.
+        lines.add(createStorageTypeLine(SimplifyConcreteStorageCellItem.CELL_TYPE, 6));
         return lines;
     }
 
@@ -289,18 +457,27 @@ public class SimplifyStorageHostBlockEntity
             ECOCellType cellType = cell.getCellType();
             int typeId = 0;
             int kind = StorageHostUI.CellEntry.KIND_ITEM;
+            if (SimplifyStorageCellItem.getMegaItemCellType().equals(cellType)) {
+                typeId = 1;
+            }
+            if (SimplifyUniversalStorageCellItem.getUniversalCellType().equals(cellType)) {
+                typeId = 4;
+            } else if (SimplifyQuantumStorageCellItem.getQuantumCellType().equals(cellType)) {
+                typeId = 5;
+            }
             if (SimplifyConcreteStorageCellItem.CELL_TYPE.equals(cellType)) {
-                typeId = 3;
+                typeId = 6;
                 kind = StorageHostUI.CellEntry.KIND_ITEM;
-            } else {
+            } else if (!SimplifyUniversalStorageCellItem.getUniversalCellType().equals(cellType)
+                    && !SimplifyQuantumStorageCellItem.getQuantumCellType().equals(cellType)) {
                 ItemStack cellStack = drive.getCellStack();
                 if (cellStack != null && cellStack.getItem() instanceof IECOStorageCellItem cellItem) {
                     java.util.Set<AEKeyType> keyTypes = cellItem.getKeyTypes();
                     if (keyTypes.contains(AEKeyType.fluids())) {
-                        typeId = 1;
+                        typeId = 2;
                         kind = StorageHostUI.CellEntry.KIND_FLUID;
                     } else if (keyTypes.stream().anyMatch(type -> "chemical".equals(type.getId().getPath()))) {
-                        typeId = 2;
+                        typeId = 3;
                         kind = StorageHostUI.CellEntry.KIND_GAS;
                     }
                 } else if (SimplifyStorageCellItem.getFluidCellType().equals(cellType)) {

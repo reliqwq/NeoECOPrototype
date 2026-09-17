@@ -2,7 +2,11 @@ package cn.dancingsnow.neoecoprototype.integration.mekanism;
 
 import cn.dancingsnow.neoecoae.integration.appmek.item.ECOChemicalStorageCellItem;
 import cn.dancingsnow.neoecoprototype.api.SimplifyTier;
+import me.ramidzkh.mekae2.ae2.MekanismKey;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import appeng.api.stacks.AEKey;
 
 /** A small L1 Mekanism chemical cell backed by Neo ECO's chemical cell handler. */
 public final class SimplifyChemicalStorageCellItem extends ECOChemicalStorageCellItem {
@@ -14,11 +18,27 @@ public final class SimplifyChemicalStorageCellItem extends ECOChemicalStorageCel
 
     private final long bytes;
     private final int bytesPerType;
+    private final ResourceLocation boundChemical;
 
     public SimplifyChemicalStorageCellItem(Item.Properties properties, long bytes, int bytesPerType) {
+        this(properties, bytes, bytesPerType, null);
+    }
+
+    public SimplifyChemicalStorageCellItem(Item.Properties properties, long bytes, int bytesPerType,
+                                           ResourceLocation boundChemical) {
         super(properties, SimplifyTier.L1);
         this.bytes = bytes;
         this.bytesPerType = bytesPerType;
+        this.boundChemical = boundChemical;
+    }
+
+    @Override
+    public boolean isBlackListed(ItemStack stack, AEKey key) {
+        if (boundChemical != null && key instanceof MekanismKey chemicalKey
+                && !boundChemical.equals(chemicalKey.getId())) {
+            return true;
+        }
+        return super.isBlackListed(stack, key);
     }
 
     @Override

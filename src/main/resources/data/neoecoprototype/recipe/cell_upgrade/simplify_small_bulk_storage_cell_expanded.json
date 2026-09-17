@@ -1,0 +1,7 @@
+{
+  "type": "ae2:storage_cell_upgrade",
+  "input_cell": "neoecoprototype:simplify_small_bulk_storage_cell",
+  "input_component": "neoecoprototype:simplify_small_bulk_expansion_card",
+  "result_cell": "neoecoprototype:simplify_small_bulk_storage_cell_expanded",
+  "result_component": "neoecoprototype:simplify_item_storage_matrix_housing"
+}

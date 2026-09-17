@@ -5,14 +5,21 @@ Neo ECO Prototype is an addon. It does not include the dependency JARs in this r
 ## Neo ECO AE Extension
 
 - Mod ID: `neoecoae`
-- Current development compatibility baseline: published `21.2.0-beta2` (local JAR under `neoecobeta/`)
-- Previous published compatibility baseline: `21.2.0-beta1`
+- Current development compatibility baseline: published `21.2.0-beta4` (local JAR under `neoecobeta/`)
+- Previous published compatibility baseline: `21.2.0-beta2`
 - License declared by the upstream mod: GNU GPLv3
 - Upstream authors listed by the upstream metadata: DancingSnow, ZhuRuoLing, and Yang120231
 
 Neo ECO Prototype is an independent addon and is not the Neo ECO AE Extension project. The local development JAR used during testing is intentionally not redistributed by this repository.
 
 Special thanks to `Yang120` for substantial help from the original Neo ECO AE Extension team.
+
+## MegaCells (optional runtime compatibility)
+
+- Mod ID: `megacells`
+- Verified development baseline: `4.11.0` for NeoForge 1.21.1
+- Required by Neo ECO AE Extension beta4 only when its MegaCells integration is used; it is not bundled or required by this addon.
+- License declared by the MegaCells metadata: LGPLv3.0.
 
 ## Advanced AE / GeckoLib (local development runtime only)
 

@@ -1,0 +1,12 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "A": { "item": "minecraft:iron_ingot" },
+    "B": { "item": "ae2omnicells:quantum_omni_cell_component_1m" },
+    "C": { "item": "neoecoprototype:simplify_quantum_storage_matrix_housing" },
+    "D": { "item": "ae2omnicells:multidimensional_expansion_processor" }
+  },
+  "pattern": ["ABA", "CDC", "ABA"],
+  "result": { "count": 1, "id": "neoecoprototype:simplify_quantum_storage_cell_1m" }
+}

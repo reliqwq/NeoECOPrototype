@@ -1,0 +1,15 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "A": { "item": "neoecoprototype:simplify_green_crystal_matrix" },
+    "B": { "item": "minecraft:redstone" },
+    "C": { "item": "ae2omnicells:omni_cell_housing" }
+  },
+  "pattern": ["ABA", "B B", "CCC"],
+  "result": {
+    "count": 1,
+    "id": "neoecoprototype:simplify_universal_storage_matrix_housing"
+  }
+}
+

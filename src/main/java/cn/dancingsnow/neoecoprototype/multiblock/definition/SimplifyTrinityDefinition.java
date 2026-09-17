@@ -1,7 +1,8 @@
 package cn.dancingsnow.neoecoprototype.multiblock.definition;
 
 import cn.dancingsnow.neoecoae.multiblock.definition.MultiBlockDefinition;
-import cn.dancingsnow.neoecoprototype.block.trinity.SimplifyTrinityControllerBlock;
+import cn.dancingsnow.neoecoae.multiblock.placement.MultiBlockRotation;
+import cn.dancingsnow.neoecoprototype.multiblock.calculator.SimplifyTrinityClusterCalculator;
 import cn.dancingsnow.neoecoprototype.registration.ModRegistration;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -11,7 +12,12 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 
-/** Fixed 7x3x7 cross-shaped Trinity placement preview. */
+/**
+ * Placement preview for the Trinity shell.
+ *
+ * <p>All slot offsets come from {@link SimplifyTrinityClusterCalculator}, so this preview and the
+ * runtime validator can never disagree about the layout.
+ */
 public final class SimplifyTrinityDefinition {
     public static final MultiBlockDefinition L1 = create();
 
@@ -25,45 +31,47 @@ public final class SimplifyTrinityDefinition {
         BlockState controller = ModRegistration.SIMPLIFY_TRINITY_CONTROLLER_BLOCK.get().defaultBlockState()
                 .setValue(BlockStateProperties.HORIZONTAL_FACING, Direction.NORTH);
         MultiBlockDefinition.Builder builder = MultiBlockDefinition.builder(owner)
-                .setBlock(pos(3, 1, 3), controller);
+                .setBlock(toDefinitionPos(SimplifyTrinityClusterCalculator.CONTROLLER_OFFSET), controller)
+                .setBlock(toDefinitionPos(SimplifyTrinityClusterCalculator.STORAGE_MODULE_OFFSET),
+                        ModRegistration.SIMPLIFY_TRINITY_STORAGE_MODULE_BLOCK.get().defaultBlockState())
+                .setBlock(toDefinitionPos(SimplifyTrinityClusterCalculator.COMPUTATION_MODULE_OFFSET),
+                        ModRegistration.SIMPLIFY_TRINITY_COMPUTATION_MODULE_BLOCK.get().defaultBlockState())
+                .setBlock(toDefinitionPos(SimplifyTrinityClusterCalculator.CRAFTING_MODULE_OFFSET),
+                        ModRegistration.SIMPLIFY_TRINITY_CRAFTING_MODULE_BLOCK.get().defaultBlockState());
 
-        // Three-wide central core, with empty corners to make the cross silhouette explicit.
-        for (int x = 2; x <= 4; x++) {
-            for (int z = 2; z <= 4; z++) {
-                for (int y : new int[] {0, 2}) {
-                    builder.setBlock(pos(x, y, z), casing);
+        int last = SimplifyTrinityClusterCalculator.SHELL_SIZE - 1;
+        for (int x = 0; x <= last; x++) {
+            for (int y = 0; y <= last; y++) {
+                for (int z = 0; z <= last; z++) {
+                    BlockPos offset = new BlockPos(x, y, z);
+                    if (SimplifyTrinityClusterCalculator.isFunctionalSlot(offset)) {
+                        continue;
+                    }
+                    builder.setBlock(toDefinitionPos(offset), casing);
                 }
             }
         }
-        // West: storage wing.
-        builder.setBlock(pos(2, 1, 3), casing);
-        builder.setBlock(pos(1, 0, 3), ModRegistration.SIMPLIFY_ENERGY_CELL_BLOCK.get().defaultBlockState());
-        builder.setBlock(pos(1, 1, 3), ModRegistration.SIMPLIFY_STORAGE_VENT_BLOCK.get().defaultBlockState());
-        builder.setBlock(pos(1, 2, 3), ModRegistration.SIMPLIFY_ENERGY_CELL_BLOCK.get().defaultBlockState());
-        for (int y = 0; y < 3; y++) {
-            builder.setBlock(pos(0, y, 3), ModRegistration.SIMPLIFY_DRIVE_BLOCK.get().defaultBlockState());
-        }
-        // North: computation wing.
-        builder.setBlock(pos(3, 0, 1), ModRegistration.SIMPLIFY_COMPUTATION_DRIVE_BLOCK.get().defaultBlockState());
-        builder.setBlock(pos(3, 1, 1), ModRegistration.SIMPLIFY_COMPUTATION_THREADING_CORE_BLOCK.get().defaultBlockState());
-        builder.setBlock(pos(3, 2, 1), ModRegistration.SIMPLIFY_COMPUTATION_PARALLEL_CORE_BLOCK.get().defaultBlockState());
-        builder.setBlock(pos(3, 1, 0), ModRegistration.SIMPLIFY_COMPUTATION_COOLING_CONTROLLER_BLOCK.get().defaultBlockState());
-        // East: complete crafting wing, including worker, cores, bus, interface and hatches.
-        builder.setBlock(pos(4, 1, 3), casing);
-        builder.setBlock(pos(4, 0, 2), ModRegistration.SIMPLIFY_FLUID_OUTPUT_HATCH_BLOCK.get().defaultBlockState());
-        builder.setBlock(pos(4, 1, 2), ModRegistration.SIMPLIFY_CRAFTING_INTERFACE_BLOCK.get().defaultBlockState());
-        builder.setBlock(pos(4, 2, 2), ModRegistration.SIMPLIFY_FLUID_INPUT_HATCH_BLOCK.get().defaultBlockState());
-        builder.setBlock(pos(5, 0, 3), ModRegistration.SIMPLIFY_CRAFTING_PARALLEL_CORE_BLOCK.get().defaultBlockState());
-        builder.setBlock(pos(5, 1, 3), ModRegistration.SIMPLIFY_CRAFTING_WORKER_BLOCK.get().defaultBlockState());
-        builder.setBlock(pos(5, 2, 3), ModRegistration.SIMPLIFY_CRAFTING_PARALLEL_CORE_BLOCK.get().defaultBlockState());
-        builder.setBlock(pos(5, 1, 2), ModRegistration.SIMPLIFY_CRAFTING_VENT_BLOCK.get().defaultBlockState());
-        builder.setBlock(pos(6, 0, 3), ModRegistration.SIMPLIFY_CRAFTING_PATTERN_BUS_BLOCK.get().defaultBlockState());
-        builder.setBlock(pos(6, 2, 3), ModRegistration.SIMPLIFY_CRAFTING_PATTERN_BUS_BLOCK.get().defaultBlockState());
-        return builder.create(definition -> {
-        });
+        // Trinity is a fixed-size machine: no repeatable blocks, so pin the build length to 1 and
+        // the builder UI's length controls become inert instead of offering meaningless values.
+        return builder
+                .expandMin(1)
+                .expandMax(1)
+                .create(definition -> {
+                });
     }
 
-    private static BlockPos pos(int x, int y, int z) {
-        return new BlockPos(x, y, z);
+    /**
+     * Converts a validator offset (relative to the shell's low corner, as used by
+     * {@link SimplifyTrinityClusterCalculator}) into this definition's coordinate space.
+     *
+     * <p>eco's placement service anchors every definition at
+     * {@code MultiBlockRotation.CONTROLLER_ANCHOR = (1, 1, 0)} and <b>skips that exact position</b>
+     * when building a plan. The controller must therefore sit at that anchor; putting it anywhere
+     * else makes the service drop whatever block really occupies the anchor -- which silently
+     * produced a plan that never placed the crafting module.
+     */
+    private static BlockPos toDefinitionPos(BlockPos validatorOffset) {
+        return validatorOffset.subtract(SimplifyTrinityClusterCalculator.CONTROLLER_OFFSET)
+                .offset(MultiBlockRotation.CONTROLLER_ANCHOR);
     }
 }

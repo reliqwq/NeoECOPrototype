@@ -10,6 +10,9 @@ public final class MekanismIntegration {
         ModRegistration.OPTIONAL_CHEMICAL_CELL_1K = items.register("simplify_chemical_storage_cell_1k",
                 () -> new SimplifyChemicalStorageCellItem(new Item.Properties().stacksTo(1),
                         SimplifyChemicalStorageCellItem.BYTES_1K, 1 << 2));
+        ModRegistration.OPTIONAL_CHEMICAL_CELL_4K = items.register("simplify_chemical_storage_cell_4k",
+                () -> new SimplifyChemicalStorageCellItem(new Item.Properties().stacksTo(1),
+                        1L << 12, 1 << 4));
         ModRegistration.OPTIONAL_CHEMICAL_CELL_16K = items.register("simplify_chemical_storage_cell_16k",
                 () -> new SimplifyChemicalStorageCellItem(new Item.Properties().stacksTo(1),
                         SimplifyChemicalStorageCellItem.BYTES_16K, 1 << 6));

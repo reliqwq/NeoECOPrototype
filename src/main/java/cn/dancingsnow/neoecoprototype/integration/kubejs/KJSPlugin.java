@@ -25,7 +25,10 @@ public class KJSPlugin implements KubeJSPlugin {
     public void registerBuilderTypes(BuilderTypeRegistry registry) {
         registry.of(
                 Registries.ITEM,
-                r -> r.add("infinite_storage_matrix", InfiniteMatrixBuilder.class, InfiniteMatrixBuilder::new)
+                r -> {
+                    r.add("infinite_storage_matrix", InfiniteMatrixBuilder.class, InfiniteMatrixBuilder::new);
+                    r.add("storage_matrix", StorageMatrixBuilder.class, StorageMatrixBuilder::new);
+                }
         );
     }
 }

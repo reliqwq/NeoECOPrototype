@@ -1,0 +1,16 @@
+﻿{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "A": { "item": "minecraft:iron_ingot" },
+    "B": { "item": "ae2omnicells:omni_cell_component_1k" },
+    "C": { "item": "neoecoprototype:simplify_universal_storage_matrix_housing" },
+    "D": { "item": "ae2omnicells:omni_link_processor" }
+  },
+  "pattern": ["ABA", "CDC", "ABA"],
+  "result": {
+    "count": 1,
+    "id": "neoecoprototype:simplify_universal_storage_cell_1k"
+  }
+}
+
