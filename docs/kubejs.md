@@ -1,5 +1,7 @@
 # KubeJS support
 
+Ready-to-copy script: [`docs/kubejs-example.js`](kubejs-example.js). It covers the startup matrix builders, recipe changes, and a debug command.
+
 ## Offline matrix texture recoloring
 
 矩阵材质改色使用仓库内的离线工具，不在 Minecraft 运行时处理 PNG。工具只匹配配置中的源颜色及其色相邻近色，保留灰白外壳、黑色边框、透明像素和原始明暗关系。

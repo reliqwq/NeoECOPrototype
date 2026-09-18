@@ -3,7 +3,7 @@ plugins {
     id 'net.neoforged.moddev' version '2.0.78'
 }
 
-version = '1.2.0'
+version = '1.2.1'
 group = 'cn.dancingsnow.neoecoprototype'
 
 base {
@@ -40,9 +40,9 @@ dependencies {
     implementation files("libs/ldlib2-2.2.8.jar")              // LDLib2 (eco 预览运行依赖, modId: ldlib2)
     implementation "dev.vfyjxf:taffy:1.1.3"
     implementation "org.appliedenergistics.yoga:yoga:1.0.0"
-    // Trinity ABI target: beta4 only; do not infer APIs from other local/upstream jars.
-    implementation files("neoecobeta/neoecoae-21.2.0-beta4.jar")
-    // MegaCells 4.11.0 is eco beta4's minimum supported optional integration version.
+    // Trinity ABI target: beta3, the current local/published release baseline.
+    implementation files("neoecobeta/neoecoae-21.2.0-beta3.jar")
+    // MegaCells 4.11.0 is the supported optional integration version.
     implementation files("libs/megacells-4.11.0.jar")
     // Temporary local runtime dependencies for client inspection; restore compileOnly after viewing.
     implementation files("libs/Mekanism-1.21.1-10.7.19.85.jar")
@@ -66,7 +66,7 @@ dependencies {
     // 开发环境实测 KJS 链路用的运行时依赖；正式分发不需要。
     runtimeOnly files("libs/kubejs-neoforge-2101.7.2-build.377.jar")
     runtimeOnly files("libs/rhino-2101.2.8-build.91.jar")
-    // Upstream beta4 uses requiredMods for conditional compat mixin loading;
+    // Upstream beta3 uses requiredMods for conditional compat mixin loading;
     // no separate Advanced AE / GeckoLib runtime fallback is required.
     // 开发辅助 mod（与 eco 预览 neweco 同版本）：
     implementation files("libs/jei-1.21.1-neoforge-19.27.0.340.jar")  // JEI (mezz.jei, 19.27.0.340)

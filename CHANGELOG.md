@@ -1,5 +1,28 @@
 # Changelog
 
+## 1.2.1 (2026-09-18)
+
+### 修复 / Fixed
+
+- **依赖区间失守导致 NoSuchMethodError**：有玩家反馈
+  `NoSuchMethodError: cn.dancingsnow.neoecoae.gui.storage.StorageHostUI$Config.<init>(...)`。
+  根因是 Maven 把未知限定符 `preview` 排在 `beta` 之后，原先的 `[21.2.0-beta3,)` 会放行
+  `21.2.0-preview10` 直到 `21.2.0-preview16-hotfix1`，而这些构建的 `StorageHostUI.Config`
+  仍是 11 参数旧签名（只有 beta3 / beta4 是 13 参数）。区间改为
+  `[21.2.0-beta3,21.2.0-preview)`：preview 整条线被拒绝，不兼容版本会在加载阶段明确报错，
+  而不是进游戏后崩溃。
+- **KubeJS 可选加载**：客户端此前无条件读取 `InfiniteMatrixBuilder.DEFAULT_DRIVE_MODEL`，
+  未安装 KubeJS 时会触发该 builder 类加载。现改用普通 `ResourceLocation`，并只在
+  `ModList.isLoaded("kubejs")` 为真时扫描脚本矩阵，与「KubeJS 可选」的承诺一致。
+- 移除两个配方文件的 UTF-8 BOM（`simplify_universal_storage_cell_1k` / `_1m`）。
+- 删除从未注册进 `KJSPlugin` 的 `ChemicalMatrixBuilder`；其能力已由统一的
+  `StorageMatrixBuilder.type('chemical')` 覆盖，保留两套 API 只会误导脚本作者。
+
+### 依赖 / Dependencies
+
+- 兼容基线改为 Neo ECO AE Extension **21.2.0-beta3**（本地最新），
+  `build.gradle`、`neoforge.mods.toml`、README 与 CHANGELOG 同步。
+
 ## 1.2.0 (2026-09-17)
 
 ### 新增 / Added
@@ -83,8 +106,8 @@
 
 ### Dependencies
 
-- Follow Neo ECO AE Extension **21.2.0-beta4**.
-- This update follows the upstream beta4 FastPath, batch crafting, storage responsibility, and UI compatibility changes.
+- Follow Neo ECO AE Extension **21.2.0-beta3**.
+- This release targets the beta3 storage, UI, and compatibility baseline.
 - FastPath task submission is not enabled in this release; Trinity remains hidden while its design is being researched.
 
 ## 1.1.0 (2026-09-13)

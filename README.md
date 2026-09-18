@@ -10,7 +10,7 @@ Neo ECO Prototype is an unofficial addon for Neo ECO AE Extension and Applied En
 - AE2/eco network crafting entry with unified task state, cancellation, timeout, and stale-output protection.
 - Advisory inventory and pattern observations; recursive material planning, alternatives, CPU selection, and execution remain owned by AE2/eco.
 - JEI multiblock build previews plus addon-owned storage cells, drives, energy cells, interfaces, and supporting blocks.
-- Dedicated-server-safe crafting interface fallback for the Neo ECO AE Extension beta4 runtime.
+- Dedicated-server-safe crafting interface fallback for the Neo ECO AE Extension beta3 runtime.
 - L1 small bulk storage cells: `3` item types by default or `10` after AE2's NBT-preserving cell-upgrade recipe, each with long-integer capacity and eco's standard storage backend.
 - L1 drives accept native L1 cells and small bulk cells by default; pack makers may explicitly whitelist extra eco cells, including eco's MegaCells bulk cell.
 - Addon-owned model, texture, translation, and recipe files organized under the `neoecoprototype` namespace; some visual resources are adapted from upstream Neo ECO AE Extension assets and retain their upstream licensing.
@@ -22,7 +22,7 @@ Neo ECO Prototype is an unofficial addon for Neo ECO AE Extension and Applied En
 | Minecraft | 1.21.1 |
 | NeoForge | 21.1.233 or compatible 21.1.x release |
 | Applied Energistics 2 | 19.2.17 or compatible 19.2.x release |
-| Neo ECO AE Extension | 21.2.0-beta4 or a compatible release |
+| Neo ECO AE Extension | 21.2.0-beta3 or a compatible release |
 | MegaCells (optional; eco bulk compatibility) | 4.11.0 or later |
 | Java | 21 |
 
@@ -58,7 +58,7 @@ KubeJS is optional. Matrix texture recoloring is handled offline by `tools/gener
 
 ## Development Build
 
-The current development setup uses the published Neo ECO AE Extension `21.2.0-beta4` JAR under `neoecobeta/` for offline compatibility testing. The local development copy is intentionally excluded from GitHub. The stable GitHub `v1.1.0` release remains a separate artifact from this development tree; this beta4-following development line is version `1.1.1`.
+The current development setup uses the published Neo ECO AE Extension `21.2.0-beta3` JAR under `neoecobeta/` for offline compatibility testing. The local development copy is intentionally excluded from GitHub. The stable GitHub `v1.1.0` release remains a separate artifact from this development tree; this beta3-following development line is version `1.2.1`.
 
 Required local development files are listed in `build.gradle`. Place lawful copies of the exact compatible dependencies in `libs/`, then run:
 

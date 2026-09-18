@@ -4,7 +4,7 @@ license = "GPL-3.0-only"
 
 [[mods]]
 modId = "neoecoprototype"
-version = "1.2.0"
+version = "1.2.1"
 displayName = "Neo ECO Prototype"
 authors = "reliqwq"
 description = "A unified Trinity addon for Neo ECO AE Extension and AE2: multiblock storage, network crafting entry, task diagnostics, and UI below eco's L4 tier."
@@ -34,10 +34,13 @@ versionRange = "[19.2.17,)"
 ordering = "NONE"
 side = "BOTH"
 
-# Require the current published Neo ECO AE Extension beta baseline.
+# Require the beta line: every preview build carries the older StorageHostUI ABI.
+# Maven compares the unknown qualifier "preview" above "beta", so a plain [21.2.0-beta3,)
+# range would admit preview10..preview16-hotfix1, which lack the 13-argument
+# StorageHostUI.Config constructor and fail at runtime with NoSuchMethodError.
 [[dependencies.neoecoprototype]]
 modId = "neoecoae"
 mandatory = true
-versionRange = "[21.2.0-beta4,)"
+versionRange = "[21.2.0-beta3,21.2.0-preview)"
 ordering = "NONE"
 side = "BOTH"

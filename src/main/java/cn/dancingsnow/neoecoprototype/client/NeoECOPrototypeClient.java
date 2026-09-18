@@ -13,6 +13,7 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.ModList;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
 import net.neoforged.neoforge.client.event.EntityRenderersEvent;
@@ -72,11 +73,13 @@ public final class NeoECOPrototypeClient {
             ECOCellModels.register(ModRegistration.OPTIONAL_CHEMICAL_CELL_1M.get(), chemicalCellModel);
             ECOCellModels.register(ModRegistration.OPTIONAL_CHEMICAL_CELL_4M.get(), chemicalCellModel);
         }
-        ResourceLocation infiniteItemCellModel =
-                cn.dancingsnow.neoecoprototype.integration.kubejs.InfiniteMatrixBuilder.DEFAULT_DRIVE_MODEL;
-        InfiniteMatrixClientModels.registerCellModels(infiniteItemCellModel);
-        // Script-created finite matrices are plain storage-cell items, so they are registered here.
-        InfiniteMatrixClientModels.registerScriptedCellModels();
+        if (ModList.get().isLoaded("kubejs")) {
+            ResourceLocation infiniteItemCellModel = ResourceLocation.fromNamespaceAndPath(
+                    NeoECOPrototype.MOD_ID, "block/cell/storage_cell_l1_concrete");
+            InfiniteMatrixClientModels.registerCellModels(infiniteItemCellModel);
+            // Script-created finite matrices are plain storage-cell items, so they are registered here.
+            InfiniteMatrixClientModels.registerScriptedCellModels();
+        }
         ECOCellModels.runDeferredRegistration();
 
         ECOComputationModels.registerCellModel(
