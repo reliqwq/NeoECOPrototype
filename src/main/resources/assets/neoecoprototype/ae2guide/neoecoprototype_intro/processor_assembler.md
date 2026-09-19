@@ -4,11 +4,14 @@ navigation:
   icon: neoecoprototype:simplify_stonecutting_assembler
   position: 30
   parent: neoecoprototype_intro/index.md
+item_ids:
+  - neoecoprototype:simplify_stonecutting_assembler
+  - neoecoprototype:simplify_pattern_provider
 ---
 
 # L1 Processor Assembler
 
-The L1 Processor Assembler (shown in game as the **L1 Processor Assembler Room**) is a green variant of AE2's molecular assembler that crafts processors from AE2 processing patterns. Pair it with a green pattern provider and request processors from your network as usual.
+The L1 Processor Assembler (shown in game as the **L1 Processor Assembler Room**) is a green variant of AE2's molecular assembler that crafts processors from AE2 processing patterns. Pair it with a <ItemLink id="neoecoprototype:simplify_pattern_provider" /> and request processors from your network as usual.
 
 ## Recipes
 

@@ -4,6 +4,17 @@ navigation:
   icon: neoecoprototype:simplify_small_bulk_storage_cell
   position: 20
   parent: neoecoprototype_intro/storage_system.md
+item_ids:
+  - neoecoprototype:simplify_small_bulk_storage_cell
+  - neoecoprototype:simplify_small_bulk_storage_cell_expanded
+  - neoecoprototype:simplify_small_bulk_fluid_storage_cell
+  - neoecoprototype:simplify_small_bulk_fluid_storage_cell_expanded
+  - neoecoprototype:simplify_small_bulk_chemical_storage_cell
+  - neoecoprototype:simplify_small_bulk_chemical_storage_cell_expanded
+  - neoecoprototype:simplify_small_bulk_expansion_card
+  - neoecoprototype:simplify_small_bulk_storage_matrix_housing
+  - neoecoprototype:simplify_small_bulk_fluid_storage_matrix_housing
+  - neoecoprototype:simplify_small_bulk_chemical_storage_matrix_housing
 ---
 
 # 小宗存储矩阵

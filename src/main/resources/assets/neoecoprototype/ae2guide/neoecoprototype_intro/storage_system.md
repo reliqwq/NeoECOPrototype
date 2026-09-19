@@ -4,11 +4,29 @@ navigation:
   icon: neoecoprototype:simplify_storage_controller
   position: 10
   parent: neoecoprototype_intro/index.md
+item_ids:
+  - neoecoprototype:simplify_storage_controller
+  - neoecoprototype:simplify_drive
+  - neoecoprototype:simplify_energy_cell
+  - neoecoprototype:simplify_item_storage_cell_1k
+  - neoecoprototype:simplify_item_storage_cell_16k
+  - neoecoprototype:simplify_item_storage_cell_64k
+  - neoecoprototype:simplify_item_storage_cell_1m
+  - neoecoprototype:simplify_item_storage_cell_4m
+  - neoecoprototype:simplify_fluid_storage_cell_1k
+  - neoecoprototype:simplify_fluid_storage_cell_16k
+  - neoecoprototype:simplify_fluid_storage_cell_64k
+  - neoecoprototype:simplify_fluid_storage_cell_1m
+  - neoecoprototype:simplify_fluid_storage_cell_4m
+  - neoecoprototype:simplify_chemical_storage_cell_1k
+  - neoecoprototype:simplify_chemical_storage_cell_16k
+  - neoecoprototype:simplify_chemical_storage_cell_1m
+  - neoecoprototype:simplify_chemical_storage_cell_4m
 ---
 
 # L1 Storage System
 
-The L1 storage system is a compact multiblock: a storage controller plus any number of storage drives and energy cells. Drives hold your storage matrices and mount them into the ME network.
+The L1 storage system is a compact multiblock: a <ItemLink id="neoecoprototype:simplify_storage_controller" /> plus any number of <ItemLink id="neoecoprototype:simplify_drive" /> drives and <ItemLink id="neoecoprototype:simplify_energy_cell" /> energy cells. Drives hold your storage matrices and mount them into the ME network.
 
 ## Choosing a matrix
 

@@ -4,11 +4,29 @@ navigation:
   icon: neoecoprototype:simplify_storage_controller
   position: 10
   parent: neoecoprototype_intro/index.md
+item_ids:
+  - neoecoprototype:simplify_storage_controller
+  - neoecoprototype:simplify_drive
+  - neoecoprototype:simplify_energy_cell
+  - neoecoprototype:simplify_item_storage_cell_1k
+  - neoecoprototype:simplify_item_storage_cell_16k
+  - neoecoprototype:simplify_item_storage_cell_64k
+  - neoecoprototype:simplify_item_storage_cell_1m
+  - neoecoprototype:simplify_item_storage_cell_4m
+  - neoecoprototype:simplify_fluid_storage_cell_1k
+  - neoecoprototype:simplify_fluid_storage_cell_16k
+  - neoecoprototype:simplify_fluid_storage_cell_64k
+  - neoecoprototype:simplify_fluid_storage_cell_1m
+  - neoecoprototype:simplify_fluid_storage_cell_4m
+  - neoecoprototype:simplify_chemical_storage_cell_1k
+  - neoecoprototype:simplify_chemical_storage_cell_16k
+  - neoecoprototype:simplify_chemical_storage_cell_1m
+  - neoecoprototype:simplify_chemical_storage_cell_4m
 ---
 
 # L1 存储系统
 
-L1 存储系统是一个紧凑多方块：一台 L1 可拓展存储子系统主机，加上任意数量的存储矩阵驱动器与能量仓。驱动器装载存储矩阵并挂载进 ME 网络。
+L1 存储系统是一个紧凑多方块：一台 <ItemLink id="neoecoprototype:simplify_storage_controller" /> 主机，加上任意数量的 <ItemLink id="neoecoprototype:simplify_drive" /> 驱动器与 <ItemLink id="neoecoprototype:simplify_energy_cell" /> 能量仓。驱动器装载存储矩阵并挂载进 ME 网络。
 
 ## 选择矩阵
 

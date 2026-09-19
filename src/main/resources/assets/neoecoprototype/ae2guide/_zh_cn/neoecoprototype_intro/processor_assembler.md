@@ -4,11 +4,14 @@ navigation:
   icon: neoecoprototype:simplify_stonecutting_assembler
   position: 30
   parent: neoecoprototype_intro/index.md
+item_ids:
+  - neoecoprototype:simplify_stonecutting_assembler
+  - neoecoprototype:simplify_pattern_provider
 ---
 
 # L1 处理器装配室
 
-L1 处理器装配室是 AE2 分子装配室的绿色变体，用 AE2 处理样板合成处理器。搭配一台绿色样板供应器，即可像平常一样向网络请求处理器。
+L1 处理器装配室是 AE2 分子装配室的绿色变体，用 AE2 处理样板合成处理器。搭配一台 <ItemLink id="neoecoprototype:simplify_pattern_provider" />，即可像平常一样向网络请求处理器。
 
 ## 配方
 
