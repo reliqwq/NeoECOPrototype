@@ -19,7 +19,7 @@ public final class NeoECOPrototypeServerConfig {
     public static final ModConfigSpec.BooleanValue DERIVE_PROCESSOR_RECIPES_FROM_INSCRIBER;
     /** Processor outputs the assembler must refuse, from either the JSON recipes or the derivation. */
     public static final ModConfigSpec.ConfigValue<List<? extends String>> DISABLED_PROCESSOR_RECIPES;
-    /** Whether the /prototypefumo command is registered at all. */
+    /** Whether /prototypefumo may be used. */
     public static final ModConfigSpec.BooleanValue FUMO_COMMAND_ENABLED;
 
     static {
@@ -35,8 +35,8 @@ public final class NeoECOPrototypeServerConfig {
                 .comment("Minimum stored item count for automatic MEGA marker selection; compression still requires the MEGA compression upgrade.")
                 .defineInRange("mega_bulk_auto_mark_threshold", 20_000L, 0L, Long.MAX_VALUE);
         FUMO_COMMAND_ENABLED = builder
-                .comment("Register the /prototypefumo command, which hands out a plushie wearing any player's skin.",
-                        "The command still needs OP level 2 or creative mode; turn this off to remove it entirely.")
+                .comment("Enable the /prototypefumo command, which hands out a plushie wearing any player's skin.",
+                        "The command still needs OP level 2 or creative mode; turn this off and it refuses every use.")
                 .define("fumo_command_enabled", true);
         GREEN_PATTERN_PROVIDER_SLOTS = builder
                 .comment("Number of pattern slots in the green pattern provider. Default: 9.")

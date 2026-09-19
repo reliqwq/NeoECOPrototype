@@ -38,7 +38,7 @@ The name is resolved through the same profile lookup vanilla player heads use, s
 
 An unknown name falls back to the placeholder skin instead of failing.
 
-The command itself can be switched off entirely with the server config option `fumo_command_enabled`, which defaults to true.
+The command can be switched off with the server config option `fumo_command_enabled`, which defaults to true.
 
 ## Wearing it
 

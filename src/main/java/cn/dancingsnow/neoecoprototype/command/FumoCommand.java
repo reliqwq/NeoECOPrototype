@@ -37,11 +37,13 @@ public final class FumoCommand {
     }
 
     private static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
-        if (!NeoECOPrototypeServerConfig.FUMO_COMMAND_ENABLED.get()) return;
         // Shipped in the jar, so the name is namespaced and the gate is OP-or-creative.
+        // The config is read per use, not here: this event fires from the Commands constructor
+        // during datapack reload, before NeoForge has loaded the server configs.
         dispatcher.register(Commands.literal("prototypefumo")
-                .requires(source -> source.hasPermission(2)
-                        || (source.getEntity() instanceof ServerPlayer player && player.isCreative()))
+                .requires(source -> NeoECOPrototypeServerConfig.FUMO_COMMAND_ENABLED.get()
+                        && (source.hasPermission(2)
+                        || (source.getEntity() instanceof ServerPlayer player && player.isCreative())))
                 .then(Commands.argument("player", StringArgumentType.word())
                         .executes(FumoCommand::request)));
     }
