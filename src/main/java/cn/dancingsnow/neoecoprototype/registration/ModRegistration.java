@@ -45,6 +45,10 @@ import cn.dancingsnow.neoecoprototype.block.crafting.SimplifyCraftingPatternBusB
 import cn.dancingsnow.neoecoprototype.block.crafting.SimplifyCraftingSystemBlock;
 import cn.dancingsnow.neoecoprototype.block.crafting.SimplifyCraftingVentBlock;
 import cn.dancingsnow.neoecoprototype.block.crafting.SimplifyCraftingWorkerBlock;
+import cn.dancingsnow.neoecoprototype.block.crafting.SimplifyStonecuttingAssemblerBlock;
+import cn.dancingsnow.neoecoprototype.block.crafting.SimplifyPatternProviderBlock;
+import cn.dancingsnow.neoecoprototype.blockentity.crafting.SimplifyStonecuttingAssemblerBlockEntity;
+import cn.dancingsnow.neoecoprototype.blockentity.crafting.SimplifyPatternProviderBlockEntity;
 import cn.dancingsnow.neoecoprototype.block.crafting.SimplifyFluidInputHatchBlock;
 import cn.dancingsnow.neoecoprototype.block.crafting.SimplifyFluidOutputHatchBlock;
 import cn.dancingsnow.neoecoprototype.block.trinity.SimplifyTrinityControllerBlock;
@@ -66,8 +70,12 @@ import cn.dancingsnow.neoecoprototype.items.PigcatStorageMatrixHousingItem;
 import cn.dancingsnow.neoecoprototype.items.SimplifyComputationCellItem;
 import cn.dancingsnow.neoecoprototype.items.SimplifyConcreteStorageCellItem;
 import cn.dancingsnow.neoecoprototype.items.SimplifyStorageCellItem;
+import cn.dancingsnow.neoecoprototype.items.SimplifySmallBulkFluidStorageCellItem;
 import cn.dancingsnow.neoecoprototype.items.SimplifySmallBulkStorageCellItem;
 import net.minecraft.core.registries.Registries;
+import cn.dancingsnow.neoecoprototype.recipe.ProcessorAssemblerRecipe;
+import net.minecraft.world.item.crafting.RecipeSerializer;
+import net.minecraft.world.item.crafting.RecipeType;
 import net.minecraft.Util;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.Component;
@@ -85,6 +93,7 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.material.MapColor;
+import net.neoforged.fml.ModList;
 import net.neoforged.neoforge.registries.DeferredRegister;
 
 import java.util.function.Supplier;
@@ -104,6 +113,8 @@ public class ModRegistration {
     public static Supplier<? extends Item> OPTIONAL_CHEMICAL_CELL_16K;
     public static Supplier<? extends Item> OPTIONAL_CHEMICAL_CELL_1M;
     public static Supplier<? extends Item> OPTIONAL_CHEMICAL_CELL_4M;
+    public static Supplier<? extends Item> OPTIONAL_SMALL_BULK_CHEMICAL_CELL;
+    public static Supplier<? extends Item> OPTIONAL_SMALL_BULK_CHEMICAL_CELL_EXPANDED;
     public static Supplier<? extends Item> OPTIONAL_BEYOND_STORAGE_CELL;
     public static Supplier<? extends Item> OPTIONAL_UNIVERSAL_CELL_1K;
     public static Supplier<? extends Item> OPTIONAL_UNIVERSAL_CELL_1M;
@@ -111,8 +122,6 @@ public class ModRegistration {
     public static Supplier<? extends Item> OPTIONAL_QUANTUM_CELL_1M;
     public static final Supplier<Item> SIMPLIFY_QUANTUM_STORAGE_MATRIX_HOUSING =
             ITEMS.register("simplify_quantum_storage_matrix_housing", () -> new Item(new Item.Properties()));
-    public static final Supplier<Item> SIMPLIFY_SMALL_BULK_STORAGE_MATRIX_HOUSING =
-            ITEMS.register("simplify_small_bulk_storage_matrix_housing", () -> new Item(new Item.Properties()));
     public static final Supplier<Item> SIMPLIFY_UNIVERSAL_STORAGE_MATRIX_HOUSING =
             ITEMS.register("simplify_universal_storage_matrix_housing", () -> new Item(new Item.Properties()));
     public static final Supplier<Item> SIMPLIFY_CHEMICAL_STORAGE_MATRIX_HOUSING =
@@ -124,6 +133,23 @@ public class ModRegistration {
 
     public static final DeferredRegister<CreativeModeTab> CREATIVE_TABS =
             DeferredRegister.create(Registries.CREATIVE_MODE_TAB, NeoECOPrototype.MOD_ID);
+    public static final DeferredRegister<RecipeType<?>> RECIPE_TYPES =
+            DeferredRegister.create(Registries.RECIPE_TYPE, NeoECOPrototype.MOD_ID);
+    public static final DeferredRegister<RecipeSerializer<?>> RECIPE_SERIALIZERS =
+            DeferredRegister.create(Registries.RECIPE_SERIALIZER, NeoECOPrototype.MOD_ID);
+    /**
+     * AE2's MenuTypeBuilder.build() queues into its own InitMenuTypes, whose queue is already drained
+     * because AE2 loads first, so the type has to go through this mod's register.
+     */
+    public static final DeferredRegister<net.minecraft.world.inventory.MenuType<?>> MENU_TYPES =
+            DeferredRegister.create(Registries.MENU, NeoECOPrototype.MOD_ID);
+    public static final Supplier<net.minecraft.world.inventory.MenuType<cn.dancingsnow.neoecoprototype.menu.ProcessorAssemblerMenu>>
+            PROCESSOR_ASSEMBLER_MENU = MENU_TYPES.register("processor_assembler",
+            cn.dancingsnow.neoecoprototype.menu.ProcessorAssemblerMenu::buildType);
+    public static final Supplier<RecipeType<ProcessorAssemblerRecipe>> PROCESSOR_ASSEMBLER_RECIPE_TYPE =
+            RECIPE_TYPES.register("processor_assembler", () -> ProcessorAssemblerRecipe.TYPE);
+    public static final Supplier<RecipeSerializer<ProcessorAssemblerRecipe>> PROCESSOR_ASSEMBLER_RECIPE_SERIALIZER =
+            RECIPE_SERIALIZERS.register("processor_assembler", ProcessorAssemblerRecipe.Serializer::new);
 
     /** 鐗╁搧鍚嶄富棰樼豢锛氶ケ鍜屽害鍙栬创鍥剧偣缂€鑹诧紙#80FFAE 鍋忚壋锛変笌绮夊僵搴曡壊锛?A8DCA8 鍋忔贰锛変箣闂淬€?*/
     private static final int NAME_THEME_GREEN = 0xFF94EDAB;
@@ -138,6 +164,7 @@ public class ModRegistration {
             BlockBehaviour.Properties.of().mapColor(MapColor.METAL).strength(2.0F).noOcclusion();
     private static final BlockBehaviour.Properties GREEN_CASING_PROPS =
             BlockBehaviour.Properties.of().mapColor(MapColor.METAL).strength(2.0F).noOcclusion();
+     private static final BlockBehaviour.Properties AE2_MACHINE_PROPS = BlockBehaviour.Properties.of().mapColor(MapColor.METAL).strength(2.0F).noOcclusion();
 
     // ============================ Blocks ============================
 
@@ -197,6 +224,8 @@ public class ModRegistration {
 
     public static final Supplier<SimplifyCraftingSystemBlock> SIMPLIFY_CRAFTING_SYSTEM_BLOCK =
             BLOCKS.register("simplify_crafting_system", () -> new SimplifyCraftingSystemBlock(COMPUTATION_PROPS));
+     public static final Supplier<SimplifyStonecuttingAssemblerBlock> SIMPLIFY_STONECUTTING_ASSEMBLER_BLOCK = BLOCKS.register("simplify_stonecutting_assembler", () -> new SimplifyStonecuttingAssemblerBlock(AE2_MACHINE_PROPS));
+     public static final Supplier<SimplifyPatternProviderBlock> SIMPLIFY_PATTERN_PROVIDER_BLOCK = BLOCKS.register("simplify_pattern_provider", SimplifyPatternProviderBlock::new);
     public static final Supplier<SimplifyCraftingPatternBusBlock> SIMPLIFY_CRAFTING_PATTERN_BUS_BLOCK =
             BLOCKS.register("simplify_crafting_pattern_bus", () -> new SimplifyCraftingPatternBusBlock(COMPUTATION_PROPS));
     public static final Supplier<SimplifyCraftingWorkerBlock> SIMPLIFY_CRAFTING_WORKER_BLOCK =
@@ -313,7 +342,9 @@ public class ModRegistration {
              ITEMS.register("simplify_green_aluminum_casing",
                      () -> new BlockItem(SIMPLIFY_GREEN_ALUMINUM_CASING_BLOCK.get(), new Item.Properties()));
 
-    public static final Supplier<BlockItem> SIMPLIFY_CRAFTING_SYSTEM_ITEM =
+    public static final Supplier<BlockItem> SIMPLIFY_STONECUTTING_ASSEMBLER_ITEM = ITEMS.register("simplify_stonecutting_assembler", () -> new BlockItem(SIMPLIFY_STONECUTTING_ASSEMBLER_BLOCK.get(), coloredName(SIMPLIFY_STONECUTTING_ASSEMBLER_BLOCK, NAME_THEME_GREEN)));
+     public static final Supplier<BlockItem> SIMPLIFY_PATTERN_PROVIDER_ITEM = ITEMS.register("simplify_pattern_provider", () -> new BlockItem(SIMPLIFY_PATTERN_PROVIDER_BLOCK.get(), coloredName(SIMPLIFY_PATTERN_PROVIDER_BLOCK, NAME_THEME_GREEN)));
+     public static final Supplier<BlockItem> SIMPLIFY_CRAFTING_SYSTEM_ITEM =
             ITEMS.register("simplify_crafting_system",
                     () -> new BlockItem(SIMPLIFY_CRAFTING_SYSTEM_BLOCK.get(),
                             coloredName(SIMPLIFY_CRAFTING_SYSTEM_BLOCK, NAME_THEME_GREEN)));
@@ -369,19 +400,58 @@ public class ModRegistration {
                      () -> storageCell(AEKeyType.items(), SimplifyStorageCellItem::getItemCellType,
                              SimplifyStorageCellItem.BYTES_2K5, SimplifyStorageCellItem.BYTES_2K5_PER_TYPE));
 
-     /** 3-type L1 long-capacity item cell. Upgrade through AE2's cell-upgrade recipe. */
-    public static final Supplier<SimplifySmallBulkStorageCellItem> SIMPLIFY_SMALL_BULK_CELL =
-            ITEMS.register("simplify_small_bulk_storage_cell",
+    /**
+     * 3-type L1 long-capacity item cell. Upgrade through AE2's cell-upgrade recipe.
+     * Registered only with MegaCells present (needs eco's mega_item cell type); null otherwise.
+     */
+    public static Supplier<? extends Item> SIMPLIFY_SMALL_BULK_CELL;
+    /** 10-type expansion target for {@link #SIMPLIFY_SMALL_BULK_CELL}; null without MegaCells. */
+    public static Supplier<? extends Item> SIMPLIFY_SMALL_BULK_CELL_EXPANDED;
+    /** Expansion card consumed by the small bulk upgrade recipe; null without MegaCells. */
+    public static Supplier<? extends Item> SIMPLIFY_SMALL_BULK_EXPANSION_CARD;
+    /** Housing for the L1 small-bulk item matrix; null without MegaCells. */
+    public static Supplier<? extends Item> SIMPLIFY_SMALL_BULK_STORAGE_MATRIX_HOUSING;
+    /** Housing for the L1 small-bulk fluid matrix; null without MegaCells. */
+    public static Supplier<? extends Item> SIMPLIFY_SMALL_BULK_FLUID_STORAGE_MATRIX_HOUSING;
+    /** Housing for the L1 small-bulk chemical matrix; null without MegaCells. */
+    public static Supplier<? extends Item> SIMPLIFY_SMALL_BULK_CHEMICAL_STORAGE_MATRIX_HOUSING;
+
+    /**
+     * 3-type L1 long-capacity fluid cell. Upgrade through AE2's cell-upgrade recipe.
+     * Registered only with MegaCells present (needs eco's mega_fluid cell type); null otherwise.
+     */
+    public static Supplier<? extends Item> SIMPLIFY_SMALL_BULK_FLUID_CELL;
+    /** 10-type expansion target for {@link #SIMPLIFY_SMALL_BULK_FLUID_CELL}; null without MegaCells. */
+    public static Supplier<? extends Item> SIMPLIFY_SMALL_BULK_FLUID_CELL_EXPANDED;
+
+    // The small-bulk family needs the mega cell types and the long-bulk storage backend
+    // from neoecoae's MEGA Cells integration; without MegaCells the whole family stays
+    // unregistered instead of failing startup.
+    static {
+        if (ModList.get().isLoaded("megacells")) {
+            SIMPLIFY_SMALL_BULK_CELL = ITEMS.register("simplify_small_bulk_storage_cell",
                     () -> new SimplifySmallBulkStorageCellItem(new Item.Properties().stacksTo(1),
                             SimplifyStorageCellItem::getMegaItemCellType, 3));
-    /** 10-type expansion target for {@link #SIMPLIFY_SMALL_BULK_CELL}. */
-    public static final Supplier<SimplifySmallBulkStorageCellItem> SIMPLIFY_SMALL_BULK_CELL_EXPANDED =
-            ITEMS.register("simplify_small_bulk_storage_cell_expanded",
+            SIMPLIFY_SMALL_BULK_CELL_EXPANDED = ITEMS.register("simplify_small_bulk_storage_cell_expanded",
                     () -> new SimplifySmallBulkStorageCellItem(new Item.Properties().stacksTo(1),
                             SimplifyStorageCellItem::getMegaItemCellType, 10));
-    /** Consumed by the AE2 storage-cell upgrade recipe to expand 3 types to 10. */
-    public static final Supplier<Item> SIMPLIFY_SMALL_BULK_EXPANSION_CARD =
-            ITEMS.register("simplify_small_bulk_expansion_card", () -> new Item(new Item.Properties()));
+            SIMPLIFY_SMALL_BULK_FLUID_CELL = ITEMS.register("simplify_small_bulk_fluid_storage_cell",
+                    () -> new SimplifySmallBulkFluidStorageCellItem(new Item.Properties().stacksTo(1),
+                            SimplifySmallBulkFluidStorageCellItem::getMegaFluidCellType, 3));
+            SIMPLIFY_SMALL_BULK_FLUID_CELL_EXPANDED =
+                    ITEMS.register("simplify_small_bulk_fluid_storage_cell_expanded",
+                            () -> new SimplifySmallBulkFluidStorageCellItem(new Item.Properties().stacksTo(1),
+                                    SimplifySmallBulkFluidStorageCellItem::getMegaFluidCellType, 10));
+            SIMPLIFY_SMALL_BULK_EXPANSION_CARD =
+                    ITEMS.register("simplify_small_bulk_expansion_card", () -> new Item(new Item.Properties()));
+            SIMPLIFY_SMALL_BULK_STORAGE_MATRIX_HOUSING =
+                    ITEMS.register("simplify_small_bulk_storage_matrix_housing", () -> new Item(new Item.Properties()));
+            SIMPLIFY_SMALL_BULK_FLUID_STORAGE_MATRIX_HOUSING =
+                    ITEMS.register("simplify_small_bulk_fluid_storage_matrix_housing", () -> new Item(new Item.Properties()));
+            SIMPLIFY_SMALL_BULK_CHEMICAL_STORAGE_MATRIX_HOUSING =
+                    ITEMS.register("simplify_small_bulk_chemical_storage_matrix_housing", () -> new Item(new Item.Properties()));
+        }
+    }
 
     public static final Supplier<Item> SIMPLIFY_STORAGE_COMPONENT_1M =
              ITEMS.register("simplify_storage_component_1m", () -> new Item(new Item.Properties()));
@@ -630,7 +700,9 @@ public class ModRegistration {
     public static final Supplier<BlockEntityType<ECOMachineCasingBlockEntity<NEComputationCluster>>>
             SIMPLIFY_COMPUTATION_CASING_BE = registerComputationCasingBe();
 
-    public static final Supplier<BlockEntityType<ECOCraftingSystemBlockEntity>> SIMPLIFY_CRAFTING_SYSTEM_BE =
+    public static final Supplier<BlockEntityType<SimplifyStonecuttingAssemblerBlockEntity>> SIMPLIFY_STONECUTTING_ASSEMBLER_BE = registerStonecuttingAssemblerBe();
+     public static final Supplier<BlockEntityType<SimplifyPatternProviderBlockEntity>> SIMPLIFY_PATTERN_PROVIDER_BE = registerPatternProviderBe();
+     public static final Supplier<BlockEntityType<ECOCraftingSystemBlockEntity>> SIMPLIFY_CRAFTING_SYSTEM_BE =
             registerCraftingSystemBe();
     public static final Supplier<BlockEntityType<ECOCraftingPatternBusBlockEntity>> SIMPLIFY_CRAFTING_PATTERN_BUS_BE =
             registerCraftingPatternBusBe();
@@ -648,6 +720,13 @@ public class ModRegistration {
             SIMPLIFY_CRAFTING_INTERFACE_BE = registerCraftingInterfaceBe();
     public static final Supplier<BlockEntityType<ECOMachineCasingBlockEntity<cn.dancingsnow.neoecoae.multiblock.cluster.NECraftingCluster>>>
             SIMPLIFY_CRAFTING_CASING_BE = registerCraftingCasingBe();
+
+    private static Supplier<BlockEntityType<SimplifyStonecuttingAssemblerBlockEntity>> registerStonecuttingAssemblerBe() {
+        return (Supplier) BLOCK_ENTITIES.register("simplify_stonecutting_assembler", () -> BlockEntityType.Builder.of((pos, state) -> new SimplifyStonecuttingAssemblerBlockEntity(SIMPLIFY_STONECUTTING_ASSEMBLER_BE.get(), pos, state), SIMPLIFY_STONECUTTING_ASSEMBLER_BLOCK.get()).build(null));
+    }
+    private static Supplier<BlockEntityType<SimplifyPatternProviderBlockEntity>> registerPatternProviderBe() {
+        return (Supplier) BLOCK_ENTITIES.register("simplify_pattern_provider", () -> BlockEntityType.Builder.of((pos, state) -> new SimplifyPatternProviderBlockEntity(SIMPLIFY_PATTERN_PROVIDER_BE.get(), pos, state), SIMPLIFY_PATTERN_PROVIDER_BLOCK.get()).build(null));
+    }
 
     private static Supplier<BlockEntityType<ECOCraftingSystemBlockEntity>> registerCraftingSystemBe() {
         return (Supplier) BLOCK_ENTITIES.register("simplify_crafting_system",
@@ -816,9 +895,20 @@ public class ModRegistration {
                         output.accept(SIMPLIFY_ITEM_CELL_1K.get());
                          output.accept(SIMPLIFY_ITEM_CELL_16K.get());
                          output.accept(SIMPLIFY_ITEM_CELL_64K.get());
-                         output.accept(SIMPLIFY_SMALL_BULK_CELL.get());
-                         output.accept(SIMPLIFY_SMALL_BULK_CELL_EXPANDED.get());
-                         output.accept(SIMPLIFY_SMALL_BULK_EXPANSION_CARD.get());
+                         if (SIMPLIFY_SMALL_BULK_CELL != null) {
+                             output.accept(SIMPLIFY_SMALL_BULK_CELL.get());
+                             output.accept(SIMPLIFY_SMALL_BULK_CELL_EXPANDED.get());
+                             output.accept(SIMPLIFY_SMALL_BULK_EXPANSION_CARD.get());
+                             output.accept(SIMPLIFY_SMALL_BULK_STORAGE_MATRIX_HOUSING.get());
+                             output.accept(SIMPLIFY_SMALL_BULK_FLUID_STORAGE_MATRIX_HOUSING.get());
+                             output.accept(SIMPLIFY_SMALL_BULK_CHEMICAL_STORAGE_MATRIX_HOUSING.get());
+                             output.accept(SIMPLIFY_SMALL_BULK_FLUID_CELL.get());
+                             output.accept(SIMPLIFY_SMALL_BULK_FLUID_CELL_EXPANDED.get());
+                         }
+                         if (OPTIONAL_SMALL_BULK_CHEMICAL_CELL != null) {
+                             output.accept(OPTIONAL_SMALL_BULK_CHEMICAL_CELL.get());
+                             output.accept(OPTIONAL_SMALL_BULK_CHEMICAL_CELL_EXPANDED.get());
+                         }
                          output.accept(SIMPLIFY_STORAGE_COMPONENT_1M.get());
                          output.accept(SIMPLIFY_STORAGE_COMPONENT_4M.get());
                          output.accept(SIMPLIFY_ITEM_CELL_1M.get());
@@ -838,7 +928,6 @@ public class ModRegistration {
                               output.accept(OPTIONAL_BEYOND_STORAGE_CELL.get());
                           }
                           output.accept(SIMPLIFY_CHEMICAL_STORAGE_MATRIX_HOUSING.get());
-                          output.accept(SIMPLIFY_SMALL_BULK_STORAGE_MATRIX_HOUSING.get());
                          if (OPTIONAL_UNIVERSAL_CELL_1K != null) {
                               output.accept(SIMPLIFY_UNIVERSAL_STORAGE_MATRIX_HOUSING.get());
                               output.accept(OPTIONAL_UNIVERSAL_CELL_1K.get());
@@ -867,6 +956,8 @@ public class ModRegistration {
                         output.accept(SIMPLIFY_COMPUTATION_CASING_ITEM.get());
                         output.accept(SIMPLIFY_COMPUTATION_CELL_1M.get());
                          output.accept(SIMPLIFY_CRAFTING_SYSTEM_ITEM.get());
+                         output.accept(SIMPLIFY_STONECUTTING_ASSEMBLER_ITEM.get());
+                         output.accept(SIMPLIFY_PATTERN_PROVIDER_ITEM.get());
                          output.accept(SIMPLIFY_CRAFTING_PATTERN_BUS_ITEM.get());
                          output.accept(SIMPLIFY_CRAFTING_WORKER_ITEM.get());
                          output.accept(SIMPLIFY_CRAFTING_PARALLEL_CORE_ITEM.get());
@@ -940,6 +1031,8 @@ public class ModRegistration {
                  ECOMachineInterfaceBlockEntity.class, SIMPLIFY_COMPUTATION_INTERFACE_BE.get(), null, null);
         ((AEBaseEntityBlock) SIMPLIFY_COMPUTATION_CASING_BLOCK.get()).setBlockEntity(
                 ECOMachineCasingBlockEntity.class, SIMPLIFY_COMPUTATION_CASING_BE.get(), null, null);
+        ((AEBaseEntityBlock) SIMPLIFY_STONECUTTING_ASSEMBLER_BLOCK.get()).setBlockEntity(SimplifyStonecuttingAssemblerBlockEntity.class, SIMPLIFY_STONECUTTING_ASSEMBLER_BE.get(), null, null);
+        ((AEBaseEntityBlock) SIMPLIFY_PATTERN_PROVIDER_BLOCK.get()).setBlockEntity(SimplifyPatternProviderBlockEntity.class, SIMPLIFY_PATTERN_PROVIDER_BE.get(), null, null);
         ((AEBaseEntityBlock) SIMPLIFY_CRAFTING_SYSTEM_BLOCK.get()).setBlockEntity(
                 ECOCraftingSystemBlockEntity.class, SIMPLIFY_CRAFTING_SYSTEM_BE.get(), null,
                 (level, pos, state, blockEntity) -> ((ECOCraftingSystemBlockEntity) blockEntity).tick(level, pos, state));
@@ -996,6 +1089,8 @@ public class ModRegistration {
                 SIMPLIFY_COMPUTATION_INTERFACE_ITEM.get().asItem());
         AEBaseBlockEntity.registerBlockEntityItem(SIMPLIFY_COMPUTATION_CASING_BE.get(),
                 SIMPLIFY_COMPUTATION_CASING_ITEM.get().asItem());
+        AEBaseBlockEntity.registerBlockEntityItem(SIMPLIFY_STONECUTTING_ASSEMBLER_BE.get(), SIMPLIFY_STONECUTTING_ASSEMBLER_ITEM.get().asItem());
+        AEBaseBlockEntity.registerBlockEntityItem(SIMPLIFY_PATTERN_PROVIDER_BE.get(), SIMPLIFY_PATTERN_PROVIDER_ITEM.get().asItem());
         AEBaseBlockEntity.registerBlockEntityItem(SIMPLIFY_CRAFTING_SYSTEM_BE.get(),
                 SIMPLIFY_CRAFTING_SYSTEM_ITEM.get().asItem());
         AEBaseBlockEntity.registerBlockEntityItem(SIMPLIFY_CRAFTING_PATTERN_BUS_BE.get(),

@@ -1,5 +1,6 @@
 package cn.dancingsnow.neoecoprototype.client;
 
+import appeng.client.render.crafting.MolecularAssemblerRenderer;
 import cn.dancingsnow.neoecoae.api.ECOCellModels;
 import cn.dancingsnow.neoecoae.api.ECOComputationModels;
 import cn.dancingsnow.neoecoae.client.rendering.FixedBlockEntityRenderers;
@@ -7,6 +8,7 @@ import cn.dancingsnow.neoecoprototype.integration.kubejs.InfiniteMatrixClientMod
 import cn.dancingsnow.neoecoprototype.NeoECOPrototype;
 import cn.dancingsnow.neoecoprototype.client.renderer.blockentity.SimplifyComputationDriveRenderer;
 import cn.dancingsnow.neoecoprototype.client.renderer.blockentity.SimplifyDriveRenderer;
+import cn.dancingsnow.neoecoprototype.menu.ProcessorAssemblerMenu;
 import cn.dancingsnow.neoecoprototype.registration.ModRegistration;
 import net.minecraft.client.resources.model.ModelResourceLocation;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -40,12 +42,27 @@ public final class NeoECOPrototypeClient {
         ECOCellModels.register(ModRegistration.SIMPLIFY_FLUID_CELL_64K.get(), fluidCellModel);
         ECOCellModels.register(ModRegistration.SIMPLIFY_FLUID_CELL_1M.get(), fluidCellModel);
         ECOCellModels.register(ModRegistration.SIMPLIFY_FLUID_CELL_4M.get(), fluidCellModel);
+        // 小宗流体/化学品盘：复用 eco 的 MEGA 外壳贴图 + 我们的 L1 等级灯（浅绿）。
+        ResourceLocation megaFluidCellModel = ResourceLocation.fromNamespaceAndPath(
+                NeoECOPrototype.MOD_ID, "block/cell/storage_cell_l1_small_bulk_fluid");
+        ResourceLocation megaChemicalCellModel = ResourceLocation.fromNamespaceAndPath(
+                NeoECOPrototype.MOD_ID, "block/cell/storage_cell_l1_small_bulk_chemical");
+        if (ModRegistration.SIMPLIFY_SMALL_BULK_FLUID_CELL != null) {
+            ECOCellModels.register(ModRegistration.SIMPLIFY_SMALL_BULK_FLUID_CELL.get(), megaFluidCellModel);
+            ECOCellModels.register(ModRegistration.SIMPLIFY_SMALL_BULK_FLUID_CELL_EXPANDED.get(), megaFluidCellModel);
+        }
+        if (ModRegistration.OPTIONAL_SMALL_BULK_CHEMICAL_CELL != null) {
+            ECOCellModels.register(ModRegistration.OPTIONAL_SMALL_BULK_CHEMICAL_CELL.get(), megaChemicalCellModel);
+            ECOCellModels.register(ModRegistration.OPTIONAL_SMALL_BULK_CHEMICAL_CELL_EXPANDED.get(), megaChemicalCellModel);
+        }
         ResourceLocation smallBulkCellModel = ResourceLocation.fromNamespaceAndPath(
                 NeoECOPrototype.MOD_ID, "block/cell/storage_cell_l1_small_bulk");
-        ECOCellModels.register(ModRegistration.SIMPLIFY_SMALL_BULK_CELL.get(), smallBulkCellModel);
-        ResourceLocation smallBulkExpandedCellModel = ResourceLocation.fromNamespaceAndPath(
-                NeoECOPrototype.MOD_ID, "block/cell/storage_cell_l1_small_bulk_expanded");
-        ECOCellModels.register(ModRegistration.SIMPLIFY_SMALL_BULK_CELL_EXPANDED.get(), smallBulkExpandedCellModel);
+        if (ModRegistration.SIMPLIFY_SMALL_BULK_CELL != null) {
+            ECOCellModels.register(ModRegistration.SIMPLIFY_SMALL_BULK_CELL.get(), smallBulkCellModel);
+            ResourceLocation smallBulkExpandedCellModel = ResourceLocation.fromNamespaceAndPath(
+                    NeoECOPrototype.MOD_ID, "block/cell/storage_cell_l1_small_bulk_expanded");
+            ECOCellModels.register(ModRegistration.SIMPLIFY_SMALL_BULK_CELL_EXPANDED.get(), smallBulkExpandedCellModel);
+        }
         ResourceLocation pigcatCellModel = ResourceLocation.fromNamespaceAndPath(
                 NeoECOPrototype.MOD_ID, "block/cell/storage_cell_l1_pigcat");
         ECOCellModels.register(ModRegistration.PIGCAT_STORAGE_CELL.get(), pigcatCellModel);
@@ -136,9 +153,17 @@ public final class NeoECOPrototypeClient {
     }
 
     @SubscribeEvent
+    public static void onRegisterMenuScreens(net.neoforged.neoforge.client.event.RegisterMenuScreensEvent event) {
+        event.<ProcessorAssemblerMenu, ProcessorAssemblerScreen>register(
+                ProcessorAssemblerMenu.type(), ProcessorAssemblerScreen::new);
+    }
+
+    @SubscribeEvent
     public static void onRegisterRenderers(EntityRenderersEvent.RegisterRenderers event) {
         event.registerBlockEntityRenderer(ModRegistration.SIMPLIFY_DRIVE_BE.get(), SimplifyDriveRenderer::new);
         event.registerBlockEntityRenderer(ModRegistration.SIMPLIFY_COMPUTATION_DRIVE_BE.get(), SimplifyComputationDriveRenderer::new);
+        event.registerBlockEntityRenderer(ModRegistration.SIMPLIFY_STONECUTTING_ASSEMBLER_BE.get(),
+                MolecularAssemblerRenderer::new);
     }
 }
 

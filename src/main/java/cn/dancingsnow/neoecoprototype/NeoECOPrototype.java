@@ -1,6 +1,7 @@
 package cn.dancingsnow.neoecoprototype;
 
 import appeng.api.AECapabilities;
+import appeng.api.implementations.blockentities.ICraftingMachine;
 import appeng.api.networking.IInWorldGridNodeHost;
 import cn.dancingsnow.neoecoprototype.blockentity.trinity.SimplifyTrinityCraftingModuleBlockEntity;
 import cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig;
@@ -20,6 +21,9 @@ import org.slf4j.LoggerFactory;
 public class NeoECOPrototype {
     public static final String MOD_ID = "neoecoprototype";
     public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
+    public static net.minecraft.resources.ResourceLocation id(String path) {
+        return net.minecraft.resources.ResourceLocation.fromNamespaceAndPath(MOD_ID, path);
+    }
 
     public NeoECOPrototype(IEventBus modBus, ModContainer container) {
         LOGGER.info("Loading {}...", MOD_ID);
@@ -39,7 +43,10 @@ public class NeoECOPrototype {
         }
         ModRegistration.ITEMS.register(modBus);
         ModRegistration.BLOCK_ENTITIES.register(modBus);
+        ModRegistration.RECIPE_TYPES.register(modBus);
+        ModRegistration.RECIPE_SERIALIZERS.register(modBus);
         ModRegistration.CREATIVE_TABS.register(modBus);
+        ModRegistration.MENU_TYPES.register(modBus);
 
         // eco registers its ECO cell handler during its own construction; since we are a
         // mandatory dependency of nothing, but eco is our mandatory dependency, its
@@ -61,6 +68,9 @@ public class NeoECOPrototype {
         registerNodeHost(event, ModRegistration.SIMPLIFY_TRINITY_STORAGE_MODULE_BE.get());
         registerNodeHost(event, ModRegistration.SIMPLIFY_TRINITY_COMPUTATION_MODULE_BE.get());
         registerNodeHost(event, ModRegistration.SIMPLIFY_TRINITY_CRAFTING_MODULE_BE.get());
+        event.registerBlockEntity(AECapabilities.CRAFTING_MACHINE,
+                ModRegistration.SIMPLIFY_STONECUTTING_ASSEMBLER_BE.get(),
+                (blockEntity, side) -> (ICraftingMachine) blockEntity);
         registerNodeHost(event, ModRegistration.SIMPLIFY_STORAGE_CONTROLLER_BE.get());
         registerNodeHost(event, ModRegistration.SIMPLIFY_DRIVE_BE.get());
         registerNodeHost(event, ModRegistration.SIMPLIFY_ENERGY_CELL_BE.get());
@@ -104,6 +114,35 @@ public class NeoECOPrototype {
     private static void commonSetup(final FMLCommonSetupEvent event) {
         // Bind each block to its BlockEntityType (AE2's AEBaseEntityBlock#setBlockEntity).
         ModRegistration.linkBlockEntityTypes();
+        // AE2 only lets a card into a machine when the card is associated with that machine's item,
+        // and the machine tooltip is generated from the same association. The slot count mirrors the
+        // inherited molecular assembler, which allows five cards.
+        var assembler = ModRegistration.SIMPLIFY_STONECUTTING_ASSEMBLER_ITEM.get();
+        appeng.api.upgrades.Upgrades.add(appeng.core.definitions.AEItems.SPEED_CARD.asItem(), assembler, 5);
+        appeng.api.upgrades.Upgrades.add(appeng.core.definitions.AEItems.ENERGY_CARD.asItem(), assembler, 5);
+        // AE2 的卡↔元件关联表决定：卡片 tooltip 的"可用于"清单、元件工作台升级槽放行
+        // （查无登记即拒绝，界面标红"与单元格不兼容"）。按命名空间扫描以同时覆盖
+        // KubeJS 脚本创建的矩阵；getConfigInventory 返回 null 的固定无限源没有分区，
+        // 跳过（其 isEditable=false，工作台本就拒收）。关联带同一分组翻译键，
+        // 卡片清单里我们的几十个矩阵合并为一行"L1 存储元件"，与 AE2/eco 的分组展示一致。
+        var storageCellGroup = "gui.neoecoprototype.l1_storage_cells";
+        for (var entry : net.minecraft.core.registries.BuiltInRegistries.ITEM.entrySet()) {
+            var item = entry.getValue();
+            var namespace = entry.getKey().location().getNamespace();
+            boolean ourNamespace = namespace.equals(MOD_ID) || namespace.equals("kubejs");
+            if (!ourNamespace
+                    || !(item instanceof cn.dancingsnow.neoecoae.api.storage.IBasicECOCellItem cell)
+                    || cell.getConfigInventory(net.minecraft.world.item.ItemStack.EMPTY) == null) {
+                continue;
+            }
+            appeng.api.upgrades.Upgrades.add(appeng.core.definitions.AEItems.FUZZY_CARD.asItem(), item, 1, storageCellGroup);
+            appeng.api.upgrades.Upgrades.add(appeng.core.definitions.AEItems.INVERTER_CARD.asItem(), item, 1, storageCellGroup);
+            if (item instanceof cn.dancingsnow.neoecoprototype.items.SimplifySmallBulkStorageCellItem
+                    && ModList.get().isLoaded("megacells")) {
+                appeng.api.upgrades.Upgrades.add(
+                        gripe._90.megacells.definition.MEGAItems.COMPRESSION_CARD.asItem(), item, 1, storageCellGroup);
+            }
+        }
         // eco's storage hosts enumerate neoecoae:cell_type, so a failed cross-mod registration would
         // silently hide our matrices' rows on eco's own storage systems.
         if (ModList.get().isLoaded("ae2omnicells")) {
