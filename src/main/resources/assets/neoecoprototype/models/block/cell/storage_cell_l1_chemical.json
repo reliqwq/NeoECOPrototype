@@ -4,9 +4,9 @@
   "render_type": "cutout",
   "textures": {
     "level": "neoecoprototype:block/storage_recolor/drive/cell_level",
-    "type": "neoecoprototype:block/storage/drive/cell_type",
-    "particle": "neoecoprototype:block/storage/drive/cell_housing",
-    "base": "neoecoprototype:block/storage/drive/cell_housing"
+    "type": "neoecoprototype:block/storage_recolor/drive/cell_type",
+    "particle": "neoecoprototype:block/storage_recolor/drive/cell_housing",
+    "base": "neoecoprototype:block/storage_recolor/drive/cell_housing"
   },
   "elements": [
     {
