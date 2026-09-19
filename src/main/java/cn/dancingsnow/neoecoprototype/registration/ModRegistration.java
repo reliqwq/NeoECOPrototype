@@ -46,6 +46,7 @@ import cn.dancingsnow.neoecoprototype.block.crafting.SimplifyCraftingSystemBlock
 import cn.dancingsnow.neoecoprototype.block.crafting.SimplifyCraftingVentBlock;
 import cn.dancingsnow.neoecoprototype.block.crafting.SimplifyCraftingWorkerBlock;
 import cn.dancingsnow.neoecoprototype.block.crafting.SimplifyStonecuttingAssemblerBlock;
+import cn.dancingsnow.neoecoprototype.block.decoration.FumoBlock;
 import cn.dancingsnow.neoecoprototype.block.crafting.SimplifyPatternProviderBlock;
 import cn.dancingsnow.neoecoprototype.blockentity.crafting.SimplifyStonecuttingAssemblerBlockEntity;
 import cn.dancingsnow.neoecoprototype.blockentity.crafting.SimplifyPatternProviderBlockEntity;
@@ -452,6 +453,13 @@ public class ModRegistration {
                     ITEMS.register("simplify_small_bulk_chemical_storage_matrix_housing", () -> new Item(new Item.Properties()));
         }
     }
+
+    /** reliqwq's fumo plushie, textured after the player skin. */
+    public static final Supplier<FumoBlock> FUMO_BLOCK =
+            BLOCKS.register("fumo_reliqwq", () -> new FumoBlock(net.minecraft.world.level.block.state.BlockBehaviour.Properties
+                    .of().strength(0.8f).sound(net.minecraft.world.level.block.SoundType.WOOL).noOcclusion()));
+    public static final Supplier<BlockItem> FUMO_RELIQWQ_ITEM =
+            ITEMS.register("fumo_reliqwq", () -> new BlockItem(FUMO_BLOCK.get(), new Item.Properties().stacksTo(1)));
 
     public static final Supplier<Item> SIMPLIFY_STORAGE_COMPONENT_1M =
              ITEMS.register("simplify_storage_component_1m", () -> new Item(new Item.Properties()));
@@ -905,6 +913,7 @@ public class ModRegistration {
                              output.accept(SIMPLIFY_SMALL_BULK_FLUID_CELL.get());
                              output.accept(SIMPLIFY_SMALL_BULK_FLUID_CELL_EXPANDED.get());
                          }
+                         output.accept(FUMO_RELIQWQ_ITEM.get());
                          if (OPTIONAL_SMALL_BULK_CHEMICAL_CELL != null) {
                              output.accept(OPTIONAL_SMALL_BULK_CHEMICAL_CELL.get());
                              output.accept(OPTIONAL_SMALL_BULK_CHEMICAL_CELL_EXPANDED.get());

@@ -106,6 +106,7 @@
   "item.neoecoprototype.simplify_small_bulk_storage_matrix_housing": "ECO - L1 小宗存储矩阵外壳",
   "item.neoecoprototype.simplify_small_bulk_fluid_storage_matrix_housing": "ECO - L1 小宗流体存储矩阵外壳",
   "item.neoecoprototype.simplify_small_bulk_chemical_storage_matrix_housing": "ECO - L1 小宗化学品存储矩阵外壳",
+  "block.neoecoprototype.fumo_reliqwq": "reliqwq 的 Fumo 玩偶",
   "item.neoecoprototype.simplify_universal_storage_cell_1k": "ECO - L1 全能 1K 存储矩阵",
   "item.neoecoprototype.simplify_quantum_storage_cell_1m": "ECO - L1 量子 1M 存储矩阵",
   "jei.neoecoprototype.processor_assembler.encode_hint": "直接制作处理器，与分子装配室逻辑类似。"
