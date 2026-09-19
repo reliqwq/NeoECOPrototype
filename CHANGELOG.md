@@ -1,5 +1,35 @@
 # Changelog
 
+## 1.2.4 (2026-09-20)
+
+### 新增 / Added
+
+- **玩家皮肤玩偶**：`fumo_reliqwq` 升级为通用玩偶，脸、衣服、袖子取自指定玩家的皮肤档案
+  （复用原版头颅的 `ResolvableProfile` 解析，无自定义网络），坐姿几何由 `ModelPart` + BER 渲染，
+  自动匹配经典 / slim 两种臂宽；放置朝向决定面朝方向，方块自带 15 级亮度。
+- **`/prototypefumo <玩家名>`**：创造模式或 OP 直接取任意玩家的玩偶，对方不要求在线，
+  查不到时退回占位皮肤不报错；服务端配置 `fumo_command_enabled`（默认开启）关掉后该指令拒绝一切使用。
+- **三条装配室配方**：reliqwq 玩偶（3 台 L1 子系统主机）、Yang120 玩偶（3 台 L4 子系统主机）、
+  kouooki 玩偶（粉色染料 + 干海带 + 棕色蘑菇）。
+- **佩戴效果**：所有玩偶放进头盔栏给 30 秒夜视并自动续期；三个具名玩偶额外护甲
+  （reliqwq 与 Yang120 为 +4 护甲值 / +2 韧性，kouooki 为 +1 护甲值 / +5 韧性），名字以本模组绿色显示。
+- **皮肤覆盖口子**：资源包放 `textures/block/fumo/skins/<玩家名小写>.png` 即可替换某位玩家的玩偶皮肤，
+  本模组不再内置任何别人的皮肤。
+
+### 清理 / Housekeeping
+
+- 删除一次性脚本 `bump_version.py`、`inspect_eco_housing.py`、`generate_small_bulk_housing.py`、
+  `generate_script_matrix_housing.py`、`import_eco_cell_textures.py`（产物已入库，脚本已用完），
+  以及过期审计文档 `docs/asset-index-audit.md`、`docs/quality-review.md`（1.2.0/1.2.1 的快照）。
+- `参考模组/` 下的第三方 jar 取消 git 跟踪，`.gitignore` 补 `/参考模组/`、`__pycache__/`、`*.pyc`。
+- 内置默认玩偶皮肤换成原创占位图 `block/fumo/placeholder_skin.png`，
+  不再随 jar 分发别人的玩家皮肤（原 `mita_skin.png` 移除）。
+
+### 指南 / Guide
+
+- 新增中英文「玩偶」页：三件套主机与 kouooki 材料配方、`/prototypefumo` 取玩偶、
+  佩戴加成与 `fumo_command_enabled` 开关说明。
+
 ## 1.2.3 (2026-09-19)
 
 ### 修复 / Fixed
