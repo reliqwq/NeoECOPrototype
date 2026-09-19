@@ -19,7 +19,23 @@ item_ids:
 
 # Small Bulk Matrices
 
-Small bulk matrices store a few marked resources with effectively unlimited capacity: three types by default, ten after upgrading with the expansion card. The family has item, fluid, and chemical variants (the chemical variant needs Mekanism and Applied Mekanistics). The whole family requires MegaCells.
+Small bulk matrices store a few marked resources with effectively unlimited capacity: three types by default, ten after upgrading with the expansion card. The family has item, fluid, and chemical variants (the chemical variant needs Mekanism and Applied Mekanistics).
+
+## Components
+
+<ItemGrid>
+  <ItemIcon id="neoecoprototype:simplify_small_bulk_storage_cell" />
+  <ItemIcon id="neoecoprototype:simplify_small_bulk_storage_cell_expanded" />
+  <ItemIcon id="neoecoprototype:simplify_small_bulk_fluid_storage_cell" />
+  <ItemIcon id="neoecoprototype:simplify_small_bulk_fluid_storage_cell_expanded" />
+  <ItemIcon id="neoecoprototype:simplify_small_bulk_chemical_storage_cell" />
+  <ItemIcon id="neoecoprototype:simplify_small_bulk_chemical_storage_cell_expanded" />
+  <ItemIcon id="neoecoprototype:simplify_small_bulk_expansion_card" />
+  <ItemIcon id="neoecoprototype:simplify_small_bulk_storage_matrix_housing" />
+  <ItemIcon id="neoecoprototype:simplify_small_bulk_fluid_storage_matrix_housing" />
+  <ItemIcon id="neoecoprototype:simplify_small_bulk_chemical_storage_matrix_housing" />
+</ItemGrid>
+ The whole family requires MegaCells.
 
 ## Marking
 

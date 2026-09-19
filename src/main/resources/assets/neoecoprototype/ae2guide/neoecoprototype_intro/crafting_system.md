@@ -24,6 +24,20 @@ The L1 Crafting System is the early-game version of eco's Crafting System: a mul
   <IsometricCamera yaw="45" pitch="30" />
 </GameScene>
 
+## Components
+
+<ItemGrid>
+  <ItemIcon id="neoecoprototype:simplify_crafting_system" />
+  <ItemIcon id="neoecoprototype:simplify_crafting_casing" />
+  <ItemIcon id="neoecoprototype:simplify_crafting_parallel_core" />
+  <ItemIcon id="neoecoprototype:simplify_crafting_pattern_bus" />
+  <ItemIcon id="neoecoprototype:simplify_crafting_worker" />
+  <ItemIcon id="neoecoprototype:simplify_crafting_vent" />
+  <ItemIcon id="neoecoprototype:simplify_crafting_interface" />
+  <ItemIcon id="neoecoprototype:simplify_crafting_network_interface" />
+</ItemGrid>
+
+
 The concept matches eco's Crafting System - see eco's guidebook for the full mechanics. The L1 variant above is the minimal working structure.
 
 Proofread note: confirm the intended throughput/worker behavior for the L1 variant before wide release.

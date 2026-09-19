@@ -33,6 +33,33 @@ L1 存储系统是一个紧凑多方块：一台 <ItemLink id="neoecoprototype:s
   <IsometricCamera yaw="45" pitch="30" />
 </GameScene>
 
+## 先把结构搭起来
+
+<ItemGrid>
+  <ItemIcon id="neoecoprototype:simplify_storage_controller" />
+  <ItemIcon id="neoecoprototype:simplify_drive" />
+  <ItemIcon id="neoecoprototype:simplify_energy_cell" />
+  <ItemIcon id="neoecoprototype:simplify_storage_interface" />
+  <ItemIcon id="neoecoprototype:simplify_storage_network_interface" />
+  <ItemIcon id="neoecoprototype:simplify_storage_vent" />
+  <ItemIcon id="neoecoprototype:simplify_storage_casing" />
+</ItemGrid>
+
+存储主机决定整套结构的等级与操作面；存储矩阵驱动器用于放置存储矩阵；能量仓提供能量缓冲；存储接口负责盘内资源的对外供给；存储网络接口负责接入 ME 网络；存储通风口负责热量管理；存储外壳补齐结构框架。
+
+## 搭建步骤
+
+1. 放置存储主机，正面朝外（这一面是操作面）。
+2. 放置存储网络接口，接入 ME 网络。
+3. 驱动器沿主机侧面水平排列。
+4. 存储接口与通风口按结构位置安放。
+5. 用存储外壳补齐整个框架。
+
+逐块摆放容易出错，直接用主机界面里的**自动搭建面板**：先预览结构，再一键补齐。
+
+校对待办：各部件方位描述未经逐块验证，以自动搭建预览为准。
+
+
 ## 选择矩阵
 
 | 要存什么 | 矩阵家族 | 需要的模组 |

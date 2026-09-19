@@ -13,6 +13,14 @@ item_ids:
 
 The L1 Processor Assembler (shown in game as the **L1 Processor Assembler Room**) is a green variant of AE2's molecular assembler that crafts processors from AE2 processing patterns. Pair it with a <ItemLink id="neoecoprototype:simplify_pattern_provider" /> and request processors from your network as usual.
 
+## Components
+
+<ItemGrid>
+  <ItemIcon id="neoecoprototype:simplify_stonecutting_assembler" />
+  <ItemIcon id="neoecoprototype:simplify_pattern_provider" />
+</ItemGrid>
+
+
 ## Recipes
 
 Three built-in recipes cover the AE2 processors:

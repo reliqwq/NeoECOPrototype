@@ -24,6 +24,20 @@ L1 计算系统是 eco 计算系统的前期版本：一个为 ME 网络提供�
   <IsometricCamera yaw="45" pitch="30" />
 </GameScene>
 
+## 所需组件
+
+<ItemGrid>
+  <ItemIcon id="neoecoprototype:simplify_computation_system" />
+  <ItemIcon id="neoecoprototype:simplify_computation_casing" />
+  <ItemIcon id="neoecoprototype:simplify_computation_parallel_core" />
+  <ItemIcon id="neoecoprototype:simplify_computation_threading_core" />
+  <ItemIcon id="neoecoprototype:simplify_computation_cooling_controller" />
+  <ItemIcon id="neoecoprototype:simplify_computation_drive" />
+  <ItemIcon id="neoecoprototype:simplify_computation_interface" />
+  <ItemIcon id="neoecoprototype:simplify_computation_network_interface" />
+</ItemGrid>
+
+
 概念与 eco 计算系统一致，完整机制见 eco 的指南书。上图即最小可运行结构。
 
 校对待办：L1 变体的线程数与加速行为请在正式广泛发布前确认。

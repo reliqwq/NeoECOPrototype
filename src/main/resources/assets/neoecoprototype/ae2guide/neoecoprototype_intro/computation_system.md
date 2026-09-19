@@ -24,6 +24,20 @@ The L1 Computation System is the early-game version of eco's Computation System:
   <IsometricCamera yaw="45" pitch="30" />
 </GameScene>
 
+## Components
+
+<ItemGrid>
+  <ItemIcon id="neoecoprototype:simplify_computation_system" />
+  <ItemIcon id="neoecoprototype:simplify_computation_casing" />
+  <ItemIcon id="neoecoprototype:simplify_computation_parallel_core" />
+  <ItemIcon id="neoecoprototype:simplify_computation_threading_core" />
+  <ItemIcon id="neoecoprototype:simplify_computation_cooling_controller" />
+  <ItemIcon id="neoecoprototype:simplify_computation_drive" />
+  <ItemIcon id="neoecoprototype:simplify_computation_interface" />
+  <ItemIcon id="neoecoprototype:simplify_computation_network_interface" />
+</ItemGrid>
+
+
 The concept matches eco's Computation System - see eco's guidebook for the full mechanics. The L1 variant above is the minimal working structure.
 
 Proofread note: confirm the intended thread/acceleration behavior for the L1 variant before wide release.

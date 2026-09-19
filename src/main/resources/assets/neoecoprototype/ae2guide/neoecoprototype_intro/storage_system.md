@@ -33,6 +33,33 @@ The L1 storage system is a compact multiblock: a <ItemLink id="neoecoprototype:s
   <IsometricCamera yaw="45" pitch="30" />
 </GameScene>
 
+## Build the structure
+
+<ItemGrid>
+  <ItemIcon id="neoecoprototype:simplify_storage_controller" />
+  <ItemIcon id="neoecoprototype:simplify_drive" />
+  <ItemIcon id="neoecoprototype:simplify_energy_cell" />
+  <ItemIcon id="neoecoprototype:simplify_storage_interface" />
+  <ItemIcon id="neoecoprototype:simplify_storage_network_interface" />
+  <ItemIcon id="neoecoprototype:simplify_storage_vent" />
+  <ItemIcon id="neoecoprototype:simplify_storage_casing" />
+</ItemGrid>
+
+The storage controller sets the tier and the interaction face; storage matrix drives hold your storage matrices; energy cells buffer power; the storage interface supplies cell content outward; the storage network interface connects the system to the ME network; the storage vent handles heat; storage casings fill the frame.
+
+## Build order
+
+1. Place the storage controller, front facing outward (this is the interaction face).
+2. Place the storage network interface to join the ME network.
+3. Line the drives along the controller's side.
+4. Fit the storage interface and vents where the shell calls for them.
+5. Fill the remaining frame with storage casings.
+
+Placing block by block is error-prone - use the **auto-build panel** in the host UI: preview the structure first, then fill it in one click.
+
+Proofread note: the placement order is written from the block set, not verified block by block - the auto-build preview is authoritative.
+
+
 ## Choosing a matrix
 
 | What you store | Matrix family | Requires |

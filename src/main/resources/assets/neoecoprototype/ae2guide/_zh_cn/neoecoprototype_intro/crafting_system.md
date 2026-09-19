@@ -24,6 +24,20 @@ L1 合成系统是 eco 合成系统的前期版本：一个并行执行样板的
   <IsometricCamera yaw="45" pitch="30" />
 </GameScene>
 
+## 所需组件
+
+<ItemGrid>
+  <ItemIcon id="neoecoprototype:simplify_crafting_system" />
+  <ItemIcon id="neoecoprototype:simplify_crafting_casing" />
+  <ItemIcon id="neoecoprototype:simplify_crafting_parallel_core" />
+  <ItemIcon id="neoecoprototype:simplify_crafting_pattern_bus" />
+  <ItemIcon id="neoecoprototype:simplify_crafting_worker" />
+  <ItemIcon id="neoecoprototype:simplify_crafting_vent" />
+  <ItemIcon id="neoecoprototype:simplify_crafting_interface" />
+  <ItemIcon id="neoecoprototype:simplify_crafting_network_interface" />
+</ItemGrid>
+
+
 概念与 eco 合成系统一致，完整机制见 eco 的指南书。上图即最小可运行结构。
 
 校对待办：L1 变体的吞吐与工人行为请在正式广泛发布前确认。

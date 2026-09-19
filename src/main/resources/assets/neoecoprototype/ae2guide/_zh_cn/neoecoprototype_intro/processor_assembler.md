@@ -13,6 +13,14 @@ item_ids:
 
 L1 处理器装配室是 AE2 分子装配室的绿色变体，用 AE2 处理样板合成处理器。搭配一台 <ItemLink id="neoecoprototype:simplify_pattern_provider" />，即可像平常一样向网络请求处理器。
 
+## Components
+
+<ItemGrid>
+  <ItemIcon id="neoecoprototype:simplify_stonecutting_assembler" />
+  <ItemIcon id="neoecoprototype:simplify_pattern_provider" />
+</ItemGrid>
+
+
 ## 配方
 
 三条内置配方覆盖 AE2 处理器：
