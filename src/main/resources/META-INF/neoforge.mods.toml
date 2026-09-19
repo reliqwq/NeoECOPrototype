@@ -4,7 +4,7 @@ license = "GPL-3.0-only"
 
 [[mods]]
 modId = "neoecoprototype"
-version = "1.2.1"
+version = "1.2.2"
 displayName = "Neo ECO Prototype"
 authors = "reliqwq"
 description = "A unified Trinity addon for Neo ECO AE Extension and AE2: multiblock storage, network crafting entry, task diagnostics, and UI below eco's L4 tier."
@@ -35,12 +35,23 @@ ordering = "NONE"
 side = "BOTH"
 
 # Require the beta line: every preview build carries the older StorageHostUI ABI.
-# Maven compares the unknown qualifier "preview" above "beta", so a plain [21.2.0-beta3,)
+# Maven compares the unknown qualifier "preview" above "beta", so a plain [21.2.0-beta4,)
 # range would admit preview10..preview16-hotfix1, which lack the 13-argument
 # StorageHostUI.Config constructor and fail at runtime with NoSuchMethodError.
+# beta4 is the first build exposing IECOBulkMarkableCellItem used by the small-bulk cells.
 [[dependencies.neoecoprototype]]
 modId = "neoecoae"
 mandatory = true
-versionRange = "[21.2.0-beta3,21.2.0-preview)"
+versionRange = "[21.2.0-beta4,21.2.0-preview)"
 ordering = "NONE"
+side = "BOTH"
+
+# The L1 small-bulk matrix family (item/fluid/chemical) is built on the mega cell
+# types and the long-bulk storage backend from neoecoae's MEGA Cells integration;
+# without MegaCells the family stays unregistered and the rest of the mod works.
+[[dependencies.neoecoprototype]]
+modId = "megacells"
+type = "optional"
+versionRange = "[4.11.0,)"
+ordering = "AFTER"
 side = "BOTH"

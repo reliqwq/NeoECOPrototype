@@ -3,7 +3,7 @@ plugins {
     id 'net.neoforged.moddev' version '2.0.78'
 }
 
-version = '1.2.1'
+version = '1.2.2'
 group = 'cn.dancingsnow.neoecoprototype'
 
 base {
@@ -40,8 +40,8 @@ dependencies {
     implementation files("libs/ldlib2-2.2.8.jar")              // LDLib2 (eco 预览运行依赖, modId: ldlib2)
     implementation "dev.vfyjxf:taffy:1.1.3"
     implementation "org.appliedenergistics.yoga:yoga:1.0.0"
-    // Trinity ABI target: beta3, the current local/published release baseline.
-    implementation files("neoecobeta/neoecoae-21.2.0-beta3.jar")
+    // Trinity ABI target: beta4 (adds IECOBulkMarkableCellItem for the host marking page).
+    implementation files("neoecobeta/neoecoae-21.2.0-beta4.jar")
     // MegaCells 4.11.0 is the supported optional integration version.
     implementation files("libs/megacells-4.11.0.jar")
     // Temporary local runtime dependencies for client inspection; restore compileOnly after viewing.
