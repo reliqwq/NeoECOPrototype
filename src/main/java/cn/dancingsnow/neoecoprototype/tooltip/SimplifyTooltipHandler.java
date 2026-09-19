@@ -31,7 +31,7 @@ public final class SimplifyTooltipHandler {
     /** The 3-type small bulk matrix is upgraded to 10 types with a crafting-table recipe. */
     private static final String SMALL_BULK_CELL_KEY =
             "item.neoecoprototype.simplify_small_bulk_storage_cell.desc";
-    /** Trinity is still a work in progress; every one of its parts says so in red. */
+    /** Trinity is implemented but withheld from players; every one of its parts says so in red. */
     private static final String NOT_IMPLEMENTED_KEY = "item.neoecoprototype.not_implemented";
 
     @SubscribeEvent
@@ -46,7 +46,7 @@ public final class SimplifyTooltipHandler {
         }
     }
 
-    /** Trinity controller and its three modules are registered but not functional yet. */
+    /** Trinity controller and its three modules work, but are unreleased; see the JEI gate. */
     private static boolean isNotImplemented(ItemStack stack) {
         return stack.is(ModRegistration.SIMPLIFY_TRINITY_CONTROLLER_ITEM.get())
                 || stack.is(ModRegistration.SIMPLIFY_TRINITY_STORAGE_MODULE_ITEM.get())

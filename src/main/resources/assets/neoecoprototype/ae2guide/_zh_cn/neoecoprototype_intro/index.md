@@ -13,6 +13,8 @@ Neo ECO Prototype 把 Neo ECO AE Extension 的后期内容带到 **L1 前期**�
 
 需要更多合成吞吐时，[L1 计算系统](computation_system.md)与[合成系统](crafting_system.md)同样把 eco 的多方块机器带到了 L1。
 
+想给网络里的人留个纪念，[玩偶](fumo_doll.md) 能用三件套主机在装配室里合成，也可以用 `/prototypefumo <玩家名>` 取任何人的皮肤。
+
 整合包作者可以用 [KubeJS](kubejs.md) 脚本注册矩阵与配方，无需写 Java。
 
 三合一联合体仍在开发中，暂未包含在本指南里。

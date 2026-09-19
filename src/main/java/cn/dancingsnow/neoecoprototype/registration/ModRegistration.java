@@ -47,9 +47,10 @@ import cn.dancingsnow.neoecoprototype.block.crafting.SimplifyCraftingVentBlock;
 import cn.dancingsnow.neoecoprototype.block.crafting.SimplifyCraftingWorkerBlock;
 import cn.dancingsnow.neoecoprototype.block.crafting.SimplifyStonecuttingAssemblerBlock;
 import cn.dancingsnow.neoecoprototype.block.decoration.FumoBlock;
+import cn.dancingsnow.neoecoprototype.blockentity.decoration.FumoBlockEntity;
+import cn.dancingsnow.neoecoprototype.item.decoration.FumoItem;
 import cn.dancingsnow.neoecoprototype.block.crafting.SimplifyPatternProviderBlock;
 import cn.dancingsnow.neoecoprototype.blockentity.crafting.SimplifyStonecuttingAssemblerBlockEntity;
-import cn.dancingsnow.neoecoprototype.blockentity.decoration.FumoBlockEntity;
 import cn.dancingsnow.neoecoprototype.blockentity.crafting.SimplifyPatternProviderBlockEntity;
 import cn.dancingsnow.neoecoprototype.block.crafting.SimplifyFluidInputHatchBlock;
 import cn.dancingsnow.neoecoprototype.block.crafting.SimplifyFluidOutputHatchBlock;
@@ -74,6 +75,7 @@ import cn.dancingsnow.neoecoprototype.items.SimplifyConcreteStorageCellItem;
 import cn.dancingsnow.neoecoprototype.items.SimplifyStorageCellItem;
 import cn.dancingsnow.neoecoprototype.items.SimplifySmallBulkFluidStorageCellItem;
 import cn.dancingsnow.neoecoprototype.items.SimplifySmallBulkStorageCellItem;
+import net.minecraft.core.component.DataComponentType;
 import net.minecraft.core.registries.Registries;
 import cn.dancingsnow.neoecoprototype.recipe.ProcessorAssemblerRecipe;
 import net.minecraft.world.item.crafting.RecipeSerializer;
@@ -87,6 +89,7 @@ import net.minecraft.world.entity.EquipmentSlotGroup;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.item.BlockItem;
+import net.minecraft.world.item.component.ResolvableProfile;
 import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -135,6 +138,12 @@ public class ModRegistration {
 
     public static final DeferredRegister<CreativeModeTab> CREATIVE_TABS =
             DeferredRegister.create(Registries.CREATIVE_MODE_TAB, NeoECOPrototype.MOD_ID);
+    /** The plushie stores whose skin to wear, exactly like a vanilla player head does. */
+    public static final DeferredRegister<DataComponentType<?>> DATA_COMPONENTS =
+            DeferredRegister.create(Registries.DATA_COMPONENT_TYPE, NeoECOPrototype.MOD_ID);
+    public static final Supplier<DataComponentType<ResolvableProfile>> FUMO_OWNER =
+            DATA_COMPONENTS.register("fumo_owner", () -> DataComponentType.<ResolvableProfile>builder()
+                    .persistent(ResolvableProfile.CODEC).networkSynchronized(ResolvableProfile.STREAM_CODEC).build());
     public static final DeferredRegister<RecipeType<?>> RECIPE_TYPES =
             DeferredRegister.create(Registries.RECIPE_TYPE, NeoECOPrototype.MOD_ID);
     public static final DeferredRegister<RecipeSerializer<?>> RECIPE_SERIALIZERS =
@@ -455,12 +464,13 @@ public class ModRegistration {
         }
     }
 
-    /** reliqwq's fumo plushie, textured after the player skin. */
+    /** reliqwq's fumo plushie, textured after the owner's player skin. */
     public static final Supplier<FumoBlock> FUMO_BLOCK =
             BLOCKS.register("fumo_reliqwq", () -> new FumoBlock(net.minecraft.world.level.block.state.BlockBehaviour.Properties
-                    .of().strength(0.8f).sound(net.minecraft.world.level.block.SoundType.WOOL).noOcclusion()));
-    public static final Supplier<BlockItem> FUMO_RELIQWQ_ITEM =
-            ITEMS.register("fumo_reliqwq", () -> new BlockItem(FUMO_BLOCK.get(), new Item.Properties().stacksTo(1)));
+                    .of().strength(0.8f).sound(net.minecraft.world.level.block.SoundType.WOOL).noOcclusion()
+                    .lightLevel(state -> 15)));
+    public static final Supplier<FumoItem> FUMO_RELIQWQ_ITEM =
+            ITEMS.register("fumo_reliqwq", () -> new FumoItem(FUMO_BLOCK.get(), new Item.Properties().stacksTo(1)));
     public static final Supplier<BlockEntityType<FumoBlockEntity>> FUMO_BE =
             BLOCK_ENTITIES.register("fumo_reliqwq", () -> BlockEntityType.Builder
                     .of(FumoBlockEntity::new, FUMO_BLOCK.get()).build(null));
@@ -917,7 +927,9 @@ public class ModRegistration {
                              output.accept(SIMPLIFY_SMALL_BULK_FLUID_CELL.get());
                              output.accept(SIMPLIFY_SMALL_BULK_FLUID_CELL_EXPANDED.get());
                          }
-                         output.accept(FUMO_RELIQWQ_ITEM.get());
+                         output.accept(FumoItem.ownedBy("reliqwq"));
+                         output.accept(FumoItem.ownedBy("Yang120"));
+                         output.accept(FumoItem.ownedBy("kouooki"));
                          if (OPTIONAL_SMALL_BULK_CHEMICAL_CELL != null) {
                              output.accept(OPTIONAL_SMALL_BULK_CHEMICAL_CELL.get());
                              output.accept(OPTIONAL_SMALL_BULK_CHEMICAL_CELL_EXPANDED.get());

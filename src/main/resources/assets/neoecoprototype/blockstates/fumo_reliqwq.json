@@ -1,0 +1,8 @@
+{
+	"variants": {
+		"facing=north": { "model": "neoecoprototype:block/fumo_reliqwq" },
+		"facing=east": { "model": "neoecoprototype:block/fumo_reliqwq", "y": 90 },
+		"facing=south": { "model": "neoecoprototype:block/fumo_reliqwq", "y": 180 },
+		"facing=west": { "model": "neoecoprototype:block/fumo_reliqwq", "y": 270 }
+	}
+}

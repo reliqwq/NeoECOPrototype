@@ -28,8 +28,11 @@ import java.util.List;
 @JeiPlugin
 public final class NeoECOPrototypeJeiPlugin implements IModPlugin {
     /**
-     * Trinity remains experimental and is intentionally absent from player-facing JEI until its
-     * complete release design is ready. Keep registrations intact for worlds and GameTests.
+     * Trinity is deliberately not offered to players yet: it stays out of JEI until its release
+     * design is finished, and its items carry the red "not implemented" line from
+     * {@link cn.dancingsnow.neoecoprototype.tooltip.SimplifyTooltipHandler}. Both halves are
+     * intentional markers, not leftovers — flip this to true when Trinity ships, and keep the
+     * registrations alive for worlds and GameTests meanwhile.
      */
     private static final boolean TRINITY_VISIBLE_IN_JEI = false;
 

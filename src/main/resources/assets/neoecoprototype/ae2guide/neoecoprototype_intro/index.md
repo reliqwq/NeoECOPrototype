@@ -11,6 +11,8 @@ The three L1 systems (storage/computation/crafting) draw one eighth of the power
 
 Start by building the [L1 Storage System](storage_system.md): one <ItemLink id="neoecoprototype:simplify_storage_controller" /> hosts your drives and grows with your matrices. When you are ready to automate processors, add the [L1 Processor Assembler](processor_assembler.md). For bulk storage of a few carefully chosen resources, add the [Small Bulk Matrices](small_bulk_matrices.md).
 
+For a keepsake of the people on your network, the [Plushie Doll](fumo_doll.md) is crafted from a set of three subsystem hosts, or taken for any player with `/prototypefumo <name>`.
+
 Pack makers can script matrices and recipes with [KubeJS](kubejs.md) - no Java required.
 
 The Trinity unified storage/crafting system is still in development and is not covered in this guide yet.

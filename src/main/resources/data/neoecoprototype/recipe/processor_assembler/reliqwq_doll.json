@@ -1,0 +1,15 @@
+{
+  "type": "neoecoprototype:processor_assembler",
+  "ingredients": [
+    { "item": "neoecoprototype:simplify_storage_controller" },
+    { "item": "neoecoprototype:simplify_computation_system" },
+    { "item": "neoecoprototype:simplify_crafting_system" }
+  ],
+  "result": {
+    "count": 1,
+    "id": "neoecoprototype:fumo_reliqwq",
+    "components": {
+      "neoecoprototype:fumo_owner": "reliqwq"
+    }
+  }
+}

@@ -6,7 +6,6 @@ import cn.dancingsnow.neoecoae.api.ECOComputationModels;
 import cn.dancingsnow.neoecoae.client.rendering.FixedBlockEntityRenderers;
 import cn.dancingsnow.neoecoprototype.integration.kubejs.InfiniteMatrixClientModels;
 import cn.dancingsnow.neoecoprototype.NeoECOPrototype;
-import cn.dancingsnow.neoecoprototype.client.render.FumoItemRenderer;
 import cn.dancingsnow.neoecoprototype.client.render.FumoModel;
 import cn.dancingsnow.neoecoprototype.client.render.FumoRenderer;
 import cn.dancingsnow.neoecoprototype.client.renderer.blockentity.SimplifyComputationDriveRenderer;
@@ -14,8 +13,11 @@ import cn.dancingsnow.neoecoprototype.client.renderer.blockentity.SimplifyDriveR
 import cn.dancingsnow.neoecoprototype.menu.ProcessorAssemblerMenu;
 import cn.dancingsnow.neoecoprototype.registration.ModRegistration;
 import net.minecraft.client.resources.model.ModelResourceLocation;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.ModList;
@@ -23,9 +25,8 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
 import net.neoforged.neoforge.client.event.EntityRenderersEvent;
 import net.neoforged.neoforge.client.event.ModelEvent;
+import net.neoforged.neoforge.client.extensions.common.IClientBlockExtensions;
 import net.neoforged.neoforge.client.extensions.common.RegisterClientExtensionsEvent;
-import net.neoforged.neoforge.client.extensions.common.IClientItemExtensions;
-import net.minecraft.client.renderer.BlockEntityWithoutLevelRenderer;
 
 @EventBusSubscriber(modid = NeoECOPrototype.MOD_ID, bus = EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)
 public final class NeoECOPrototypeClient {
@@ -174,18 +175,32 @@ public final class NeoECOPrototypeClient {
     }
 
     @SubscribeEvent
-    public static void onRegisterClientExtensions(RegisterClientExtensionsEvent event) {
-        event.registerItem(new IClientItemExtensions() {
-            @Override
-            public BlockEntityWithoutLevelRenderer getCustomRenderer() {
-                return FumoItemRenderer.getInstance();
-            }
-        }, ModRegistration.FUMO_RELIQWQ_ITEM.get());
-    }
-
-    @SubscribeEvent
     public static void onRegisterLayerDefinitions(EntityRenderersEvent.RegisterLayerDefinitions event) {
         event.registerLayerDefinition(FumoModel.LAYER_LOCATION, FumoModel::createBodyLayer);
+        event.registerLayerDefinition(FumoModel.SLIM_LAYER_LOCATION, FumoModel::createSlimBodyLayer);
+    }
+
+    /**
+     * Break particles come from the block atlas, and only the bundled skin is stitched into it, so a
+     * downloaded player skin has no sprite there and every doll would crumble into Mita confetti.
+     * Suppressing them is honest; the block still breaks with its sound and drops the right doll.
+     */
+    @SubscribeEvent
+    public static void onRegisterClientExtensions(RegisterClientExtensionsEvent event) {
+        event.registerBlock(new IClientBlockExtensions() {
+            @Override
+            public boolean addDestroyEffects(BlockState state, Level level, BlockPos pos,
+                                             net.minecraft.client.particle.ParticleEngine engine) {
+                return true;
+            }
+
+            @Override
+            public boolean addHitEffects(BlockState state, Level level,
+                                         net.minecraft.world.phys.HitResult target,
+                                         net.minecraft.client.particle.ParticleEngine engine) {
+                return true;
+            }
+        }, ModRegistration.FUMO_BLOCK.get());
     }
 }
 
