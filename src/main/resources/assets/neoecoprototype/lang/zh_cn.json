@@ -21,6 +21,8 @@
   "block.neoecoprototype.simplify_computation_network_interface": "C1 计算子系统接口",
   "block.neoecoprototype.simplify_computation_casing": "ECO - C1 计算子结构外壳",
   "block.neoecoprototype.simplify_crafting_system": "ECO - F1可扩展合成子系统主机",
+  "block.neoecoprototype.simplify_stonecutting_assembler": "L1 处理器装配室",
+  "block.neoecoprototype.simplify_pattern_provider": "L1 样板供应器",
   "block.neoecoprototype.simplify_crafting_pattern_bus": "F1 智能样板总线",
   "block.neoecoprototype.simplify_crafting_worker": "F1 工作核心",
   "block.neoecoprototype.simplify_crafting_parallel_core": "F1 并行核心",
@@ -88,6 +90,11 @@
   "gui.neoecoprototype.multiblock.missing_items": "无法搭建：背包中缺少所需方块。",
   "gui.neoecoprototype.storage.bulk_mark.result": "MEGA 标记：新增 %s，已存在 %s；实际自动压缩需要安装 MEGA 压缩升级卡",
   "gui.neoecoprototype.storage.bulk_mark.unavailable": "小宗自动标记不可用；压缩需要 MEGA 压缩升级卡",
+  "gui.neoecoprototype.l1_storage_cells": "L1 存储元件",
+  "item.neoecoprototype.simplify_small_bulk_fluid_storage_cell": "ECO - L1 小宗流体存储矩阵（3种类型）",
+  "item.neoecoprototype.simplify_small_bulk_fluid_storage_cell_expanded": "ECO - L1 小宗流体扩展存储矩阵（10种类型）",
+  "item.neoecoprototype.simplify_small_bulk_chemical_storage_cell": "ECO - L1 小宗化学品存储矩阵（3种类型）",
+  "item.neoecoprototype.simplify_small_bulk_chemical_storage_cell_expanded": "ECO - L1 小宗化学品扩展存储矩阵（10种类型）",
   "item.neoecoprototype.simplify_small_bulk_expansion_card": "L1 小宗扩展卡",
   "item.neoecoprototype.simplify_small_bulk_storage_cell_expanded": "ECO - L1 小宗扩展存储矩阵（10种类型）",
   "item.neoecoprototype.simplify_universal_storage_cell_1m": "ECO - L1 全能 1M 存储矩阵",
@@ -97,6 +104,9 @@
   "item.neoecoprototype.simplify_small_bulk_storage_cell.desc": "在工作台与扩展卡合成可升级为 10 类型",
   "item.neoecoprototype.simplify_quantum_storage_matrix_housing": "ECO - L1 量子存储矩阵外壳",
   "item.neoecoprototype.simplify_small_bulk_storage_matrix_housing": "ECO - L1 小宗存储矩阵外壳",
+  "item.neoecoprototype.simplify_small_bulk_fluid_storage_matrix_housing": "ECO - L1 小宗流体存储矩阵外壳",
+  "item.neoecoprototype.simplify_small_bulk_chemical_storage_matrix_housing": "ECO - L1 小宗化学品存储矩阵外壳",
   "item.neoecoprototype.simplify_universal_storage_cell_1k": "ECO - L1 全能 1K 存储矩阵",
-  "item.neoecoprototype.simplify_quantum_storage_cell_1m": "ECO - L1 量子 1M 存储矩阵"
+  "item.neoecoprototype.simplify_quantum_storage_cell_1m": "ECO - L1 量子 1M 存储矩阵",
+  "jei.neoecoprototype.processor_assembler.encode_hint": "直接制作处理器，与分子装配室逻辑类似。"
 }

@@ -1,0 +1,9 @@
+{
+  "type": "ae2:storage_cell_disassembly",
+  "cell": "neoecoprototype:simplify_quantum_storage_cell_1m",
+  "cell_disassembly_items": [
+    { "id": "neoecoprototype:simplify_quantum_storage_matrix_housing", "count": 2 },
+    { "id": "ae2omnicells:quantum_omni_cell_component_1m", "count": 2 },
+    { "id": "ae2omnicells:multidimensional_expansion_processor", "count": 1 }
+  ]
+}

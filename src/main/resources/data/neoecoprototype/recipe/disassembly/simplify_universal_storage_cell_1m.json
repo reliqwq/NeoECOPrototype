@@ -1,0 +1,9 @@
+{
+  "type": "ae2:storage_cell_disassembly",
+  "cell": "neoecoprototype:simplify_universal_storage_cell_1m",
+  "cell_disassembly_items": [
+    { "id": "neoecoprototype:simplify_universal_storage_matrix_housing", "count": 2 },
+    { "id": "ae2omnicells:omni_cell_component_1m", "count": 2 },
+    { "id": "ae2omnicells:omni_link_processor", "count": 1 }
+  ]
+}

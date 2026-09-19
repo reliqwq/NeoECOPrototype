@@ -11,6 +11,11 @@ import appeng.api.networking.security.IActionSource;
 import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.GenericStack;
 import appeng.api.stacks.KeyCounter;
+import appeng.api.storage.cells.ISaveProvider;
+import appeng.api.upgrades.Upgrades;
+import appeng.core.definitions.AEItems;
+import cn.dancingsnow.neoecoae.api.storage.ECOStorageCells;
+import cn.dancingsnow.neoecoae.integration.megacells.backend.ECOMegaLongBulkStorageCell;
 import cn.dancingsnow.neoecoprototype.blockentity.trinity.SimplifyTrinityComputationModuleBlockEntity;
 import cn.dancingsnow.neoecoprototype.blockentity.trinity.SimplifyTrinityControllerBlockEntity;
 import cn.dancingsnow.neoecoprototype.blockentity.trinity.SimplifyTrinityCraftingModuleBlockEntity;
@@ -25,6 +30,7 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.crafting.CraftingInput;
@@ -68,8 +74,15 @@ public final class NeoECOPrototypeGameTests {
     /** Verifies the fixed 3/10-type design and all data assets without duplicating eco's backend. */
     @GameTest(template = "empty", templateNamespace = NeoECOPrototype.MOD_ID, required = false)
     public static void smallBulkCellsAndUpgradeRecipeAreRegistered(GameTestHelper helper) {
-        var base = ModRegistration.SIMPLIFY_SMALL_BULK_CELL.get();
-        var expanded = ModRegistration.SIMPLIFY_SMALL_BULK_CELL_EXPANDED.get();
+        if (ModRegistration.SIMPLIFY_SMALL_BULK_CELL == null
+                || ModRegistration.SIMPLIFY_SMALL_BULK_CELL_EXPANDED == null) {
+            helper.succeed(); // MegaCells absent: the small bulk family is not registered.
+            return;
+        }
+        var base = (cn.dancingsnow.neoecoprototype.items.SimplifySmallBulkStorageCellItem)
+                ModRegistration.SIMPLIFY_SMALL_BULK_CELL.get();
+        var expanded = (cn.dancingsnow.neoecoprototype.items.SimplifySmallBulkStorageCellItem)
+                ModRegistration.SIMPLIFY_SMALL_BULK_CELL_EXPANDED.get();
         helper.assertTrue(base.getBytes() == Long.MAX_VALUE && base.getTotalTypes() == 3,
                 "base small bulk cell must have Long.MAX_VALUE capacity and three types");
         helper.assertTrue(expanded.getBytes() == Long.MAX_VALUE && expanded.getTotalTypes() == 10,
@@ -99,6 +112,56 @@ public final class NeoECOPrototypeGameTests {
         helper.assertTrue(net.minecraft.network.chat.Component.literal("keep-me").equals(
                         upgraded.get(net.minecraft.core.component.DataComponents.CUSTOM_NAME)),
                 "AE2 cell upgrade did not preserve source-cell components");
+        helper.succeed();
+    }
+
+    /** The small-bulk family opts into AE2 upgrade cards (fuzzy/inverter, one of each). */
+    @GameTest(template = "empty", templateNamespace = NeoECOPrototype.MOD_ID, required = false)
+    public static void smallBulkUpgradeCardsAreAssociated(GameTestHelper helper) {
+        if (ModRegistration.SIMPLIFY_SMALL_BULK_CELL == null) {
+            helper.succeed(); // MegaCells absent: the small bulk family is not registered.
+            return;
+        }
+        var fuzzy = AEItems.FUZZY_CARD.asItem();
+        var inverter = AEItems.INVERTER_CARD.asItem();
+        helper.assertTrue(Upgrades.getMaxInstallable(fuzzy,
+                        ModRegistration.SIMPLIFY_SMALL_BULK_CELL.get()) == 1,
+                "fuzzy card must be associated with the small bulk cell");
+        helper.assertTrue(Upgrades.getMaxInstallable(inverter,
+                        ModRegistration.SIMPLIFY_SMALL_BULK_CELL_EXPANDED.get()) == 1,
+                "inverter card must be associated with the expanded small bulk cell");
+        if (ModRegistration.SIMPLIFY_SMALL_BULK_FLUID_CELL != null) {
+            helper.assertTrue(Upgrades.getMaxInstallable(fuzzy,
+                    ModRegistration.SIMPLIFY_SMALL_BULK_FLUID_CELL.get()) == 1,
+                    "fuzzy card must be associated with the small bulk fluid cell");
+        }
+        helper.succeed();
+    }
+
+    /** The small-bulk item cell mounts through eco's MEGA long-bulk backend (chain behavior). */
+    @GameTest(template = "empty", templateNamespace = NeoECOPrototype.MOD_ID, required = false)
+    public static void smallBulkUsesMegaLongBulkBackend(GameTestHelper helper) {
+        if (ModRegistration.SIMPLIFY_SMALL_BULK_CELL == null) {
+            helper.succeed(); // MegaCells absent: the small bulk family is not registered.
+            return;
+        }
+        var stack = new ItemStack(ModRegistration.SIMPLIFY_SMALL_BULK_CELL.get());
+        var cell = ECOStorageCells.getCellInventory(stack, (ISaveProvider) null);
+        helper.assertTrue(
+                cell instanceof ECOMegaLongBulkStorageCell,
+                "small bulk cell must mount through the MEGA long-bulk backend");
+        helper.succeed();
+    }
+
+    /** Fixed infinite sources keep a null config so the cell workbench refuses them (AE2 NPE guard). */
+    @GameTest(template = "empty", templateNamespace = NeoECOPrototype.MOD_ID, required = false)
+    public static void infiniteConcreteCellIsNotWorkbenchEditable(GameTestHelper helper) {
+        var item = ModRegistration.SIMPLIFY_CONCRETE_STORAGE_CELL.get();
+        var stack = new ItemStack(item);
+        helper.assertTrue(item.getConfigInventory(stack) == null,
+                "infinite concrete cell must keep a null config inventory");
+        helper.assertTrue(!item.isEditable(stack),
+                "infinite concrete cell must not be workbench-editable");
         helper.succeed();
     }
 
@@ -1124,6 +1187,132 @@ public final class NeoECOPrototypeGameTests {
                                 });
                     });
                 });
+    }
+
+    /**
+     * The processor assembler recipes are machine-only and shapeless: reachable through the custom
+     * recipe type, and matched regardless of which input slot holds which ingredient.
+     */
+    @GameTest(template = "empty", templateNamespace = NeoECOPrototype.MOD_ID, required = false)
+    public static void processorAssemblerRecipesMatchInAnyOrder(GameTestHelper helper) {
+        var recipes = helper.getLevel().getRecipeManager().getAllRecipesFor(
+                ModRegistration.PROCESSOR_ASSEMBLER_RECIPE_TYPE.get());
+        helper.assertTrue(recipes.size() >= 3,
+                "expected at least three processor assembler recipes, found " + recipes.size());
+
+        record Expectation(List<String> ingredients, String result) {}
+        List<Expectation> expectations = List.of(
+                new Expectation(List.of("ae2:silicon", "minecraft:redstone", "minecraft:gold_ingot"),
+                        "ae2:logic_processor"),
+                new Expectation(List.of("ae2:silicon", "minecraft:redstone", "ae2:certus_quartz_crystal"),
+                        "ae2:calculation_processor"),
+                new Expectation(List.of("ae2:silicon", "minecraft:redstone", "minecraft:diamond"),
+                        "ae2:engineering_processor"));
+
+        for (Expectation expectation : expectations) {
+            List<ItemStack> stacks = expectation.ingredients().stream().map(NeoECOPrototypeGameTests::stackOf)
+                    .toList();
+            ItemStack result = stackOf(expectation.result());
+
+            var match = recipes.stream()
+                    .filter(holder -> holder.value().result().getItem() == result.getItem())
+                    .findFirst()
+                    .orElse(null);
+            helper.assertTrue(match != null,
+                    "no processor assembler recipe produces " + expectation.result());
+            if (match == null) {
+                continue;
+            }
+            for (ItemStack[] permutation : permutations(stacks)) {
+                helper.assertTrue(match.value().matches(permutation), "recipe for " + expectation.result()
+                        + " rejected the order " + describe(permutation));
+            }
+
+            ItemStack[] wrong = stacks.toArray(new ItemStack[0]);
+            wrong[wrong.length - 1] = stackOf("minecraft:cobblestone");
+            helper.assertTrue(!match.value().matches(wrong),
+                    "recipe for " + expectation.result() + " accepted " + describe(wrong));
+        }
+        helper.succeed();
+    }
+
+    /**
+     * The inscriber-derived whitelist must reproduce the curated simplification: a press recipe eats
+     * printed parts, and each printed part has to unfold back into the material inscribed into it.
+     */
+    @GameTest(template = "empty", templateNamespace = NeoECOPrototype.MOD_ID, required = false)
+    public static void processorRecipesDeriveFromInscriberMaterials(GameTestHelper helper) {
+        var derived = cn.dancingsnow.neoecoprototype.recipe.ProcessorAssemblerRecipes
+                .derived(helper.getLevel(), List.of());
+        helper.assertTrue(derived.size() >= 3, "derived only " + derived.size() + " recipes from the inscriber");
+
+        // The bundled JSON recipes are exactly AE2's own press recipes, so dedupe must drop those three
+        // while still letting other mods' inscriber recipes through.
+        var declared = helper.getLevel().getRecipeManager()
+                .getAllRecipesFor(ModRegistration.PROCESSOR_ASSEMBLER_RECIPE_TYPE.get())
+                .stream().map(net.minecraft.world.item.crafting.RecipeHolder::value).toList();
+        var extra = cn.dancingsnow.neoecoprototype.recipe.ProcessorAssemblerRecipes
+                .derived(helper.getLevel(), declared);
+        for (var expectation : List.of("ae2:logic_processor", "ae2:calculation_processor",
+                "ae2:engineering_processor")) {
+            Item output = stackOf(expectation).getItem();
+            helper.assertTrue(extra.stream().noneMatch(recipe -> recipe.result().getItem() == output),
+                    "derivation re-added " + expectation + ", which the bundled JSON already provides");
+        }
+
+        record Expectation(String material, String result) {}
+        for (var expectation : List.of(
+                new Expectation("minecraft:gold_ingot", "ae2:logic_processor"),
+                new Expectation("ae2:certus_quartz_crystal", "ae2:calculation_processor"),
+                new Expectation("minecraft:diamond", "ae2:engineering_processor"))) {
+            List<ItemStack> stacks = List.of(stackOf("ae2:silicon"), stackOf("minecraft:redstone"),
+                    stackOf(expectation.material()));
+            var match = derived.stream()
+                    .filter(recipe -> !recipe.result().isEmpty()
+                            && recipe.result().getItem() == stackOf(expectation.result()).getItem())
+                    .findFirst()
+                    .orElse(null);
+            helper.assertTrue(match != null,
+                    "inscriber derivation produced no recipe for " + expectation.result());
+            if (match == null) continue;
+            for (ItemStack[] permutation : permutations(stacks)) {
+                helper.assertTrue(match.matches(permutation), "derived recipe for " + expectation.result()
+                        + " rejected the order " + describe(permutation));
+            }
+        }
+        helper.succeed();
+    }
+
+    private static List<ItemStack[]> permutations(List<ItemStack> stacks) {
+        List<ItemStack[]> out = new java.util.ArrayList<>();
+        if (stacks.size() <= 1) {
+            out.add(stacks.toArray(new ItemStack[0]));
+            return out;
+        }
+        for (int first = 0; first < stacks.size(); first++) {
+            List<ItemStack> rest = new java.util.ArrayList<>(stacks);
+            rest.remove(first);
+            for (ItemStack[] tail : permutations(rest)) {
+                ItemStack[] whole = new ItemStack[stacks.size()];
+                whole[0] = stacks.get(first);
+                System.arraycopy(tail, 0, whole, 1, tail.length);
+                out.add(whole);
+            }
+        }
+        return out;
+    }
+
+    private static String describe(ItemStack[] stacks) {
+        return java.util.Arrays.stream(stacks).map(stack -> stack.getItem().toString()).toList().toString();
+    }
+
+    private static ItemStack stackOf(String itemId) {
+        var id = ResourceLocation.parse(itemId);
+        var item = BuiltInRegistries.ITEM.get(id);
+        if (item == null || item == net.minecraft.world.item.Items.AIR) {
+            throw new IllegalStateException("missing item for processor test: " + itemId);
+        }
+        return new ItemStack(item);
     }
 
     /**

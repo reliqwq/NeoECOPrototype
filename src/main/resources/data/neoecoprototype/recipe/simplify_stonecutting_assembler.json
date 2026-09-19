@@ -1,0 +1,14 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "G": { "item": "neoecoprototype:simplify_green_crystal_matrix" },
+    "A": { "item": "neoecoprototype:simplify_green_aluminum_casing" },
+    "M": { "item": "ae2:molecular_assembler" }
+  },
+  "pattern": ["GAG", "AMA", "GAG"],
+  "result": {
+    "count": 1,
+    "id": "neoecoprototype:simplify_stonecutting_assembler"
+  }
+}

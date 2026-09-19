@@ -10,8 +10,8 @@ Neo ECO Prototype is an unofficial addon for Neo ECO AE Extension and Applied En
 - AE2/eco network crafting entry with unified task state, cancellation, timeout, and stale-output protection.
 - Advisory inventory and pattern observations; recursive material planning, alternatives, CPU selection, and execution remain owned by AE2/eco.
 - JEI multiblock build previews plus addon-owned storage cells, drives, energy cells, interfaces, and supporting blocks.
-- Dedicated-server-safe crafting interface fallback for the Neo ECO AE Extension beta3 runtime.
-- L1 small bulk storage cells: `3` item types by default or `10` after AE2's NBT-preserving cell-upgrade recipe, each with long-integer capacity and eco's standard storage backend.
+- Dedicated-server-safe crafting interface fallback for the Neo ECO AE Extension beta4 runtime.
+- L1 small bulk storage matrices in item, fluid, and chemical variants (requires MegaCells): `3` types by default or `10` after AE2's NBT-preserving cell-upgrade recipe, each with long-integer capacity. The item variant reuses eco's MEGA long-bulk backend, so marked items store as compression chains.
 - L1 drives accept native L1 cells and small bulk cells by default; pack makers may explicitly whitelist extra eco cells, including eco's MegaCells bulk cell.
 - Addon-owned model, texture, translation, and recipe files organized under the `neoecoprototype` namespace; some visual resources are adapted from upstream Neo ECO AE Extension assets and retain their upstream licensing.
 
@@ -22,8 +22,8 @@ Neo ECO Prototype is an unofficial addon for Neo ECO AE Extension and Applied En
 | Minecraft | 1.21.1 |
 | NeoForge | 21.1.233 or compatible 21.1.x release |
 | Applied Energistics 2 | 19.2.17 or compatible 19.2.x release |
-| Neo ECO AE Extension | 21.2.0-beta3 or a compatible release |
-| MegaCells (optional; eco bulk compatibility) | 4.11.0 or later |
+| Neo ECO AE Extension | 21.2.0-beta4 or a compatible release |
+| MegaCells (optional; required for the small bulk matrix family) | 4.11.0 or later |
 | Java | 21 |
 
 ### Platform environment
@@ -35,7 +35,7 @@ Neo ECO Prototype is not affiliated with or endorsed by Mojang, Microsoft, Appli
 ## Installation
 
 1. Install Minecraft 1.21.1 with NeoForge.
-2. Install the required runtime dependencies: Applied Energistics 2, GuideME, LowDragLib2, and Neo ECO AE Extension.
+2. Install the required runtime dependencies: Applied Energistics 2, GuideME, LowDragLib2, and Neo ECO AE Extension. MegaCells is optional and only enables the small bulk matrix family.
 3. Put the Neo ECO Prototype release JAR in the `mods` directory.
 4. Start the game and verify that the required dependency versions are installed.
 
@@ -50,7 +50,7 @@ L1 drives mount native L1 cells and the addon small bulk cells by default. Highe
 additional_storage_cells = ["neoecoae:eco_mega_long_bulk_cell"]
 ```
 
-The small bulk cell starts with three item types and is upgraded to ten types through the `ae2:storage_cell_upgrade` recipe; AE2 copies the source cell's NBT, so stored contents and cell settings are retained. This addon reuses eco's normal storage-cell backend and does not reimplement MegaCells compression.
+The small bulk cells start with three types (fluid and chemical variants included) and upgrade to ten types through the `ae2:storage_cell_upgrade` recipe; AE2 copies the source cell's NBT, so stored contents and cell settings are retained. The item variant reuses eco's MEGA long-bulk storage backend, so marked items store as compression chains; installing the MegaCells compression card in the cell workbench enables the chain variants.
 
 ## KubeJS Support
 
@@ -58,7 +58,7 @@ KubeJS is optional. Matrix texture recoloring is handled offline by `tools/gener
 
 ## Development Build
 
-The current development setup uses the published Neo ECO AE Extension `21.2.0-beta3` JAR under `neoecobeta/` for offline compatibility testing. The local development copy is intentionally excluded from GitHub. The stable GitHub `v1.1.0` release remains a separate artifact from this development tree; this beta3-following development line is version `1.2.1`.
+The current development setup uses the published Neo ECO AE Extension `21.2.0-beta4` JAR under `neoecobeta/` for offline compatibility testing. The local development copy is intentionally excluded from GitHub. The stable GitHub `v1.1.0` release remains a separate artifact from this development tree; this beta4-following development line is version `1.2.2`.
 
 Required local development files are listed in `build.gradle`. Place lawful copies of the exact compatible dependencies in `libs/`, then run:
 
@@ -66,7 +66,7 @@ Required local development files are listed in `build.gradle`. Place lawful copi
 .\gradlew.bat build --offline
 ```
 
-The output is written to `build/libs/neoecoprototype-1.1.1.jar`.
+The output is written to `build/libs/neoecoprototype-1.2.2.jar`.
 
 Do not commit `libs/`, `run/`, `build/`, reference checkouts, or local world data. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for dependency licensing information.
 

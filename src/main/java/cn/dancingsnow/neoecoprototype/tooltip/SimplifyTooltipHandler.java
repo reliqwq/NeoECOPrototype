@@ -65,7 +65,8 @@ public final class SimplifyTooltipHandler {
         if (stack.is(ModRegistration.SIMPLIFY_CONCRETE_STORAGE_CELL.get())) {
             return CONCRETE_CELL_KEY;
         }
-        if (stack.is(ModRegistration.SIMPLIFY_SMALL_BULK_CELL.get())) {
+        var smallBulkCell = ModRegistration.SIMPLIFY_SMALL_BULK_CELL;
+        if (smallBulkCell != null && stack.is(smallBulkCell.get())) {
             return SMALL_BULK_CELL_KEY;
         }
         // "ECO - L4 存储组件" / "ECO - L4 Storage Component".

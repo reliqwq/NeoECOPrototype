@@ -25,6 +25,8 @@
     "block.neoecoprototype.simplify_computation_network_interface": "C1 Computation Subsystem Interface",
     "block.neoecoprototype.simplify_computation_casing": "ECO - C1 Computation Substructure Casing",
     "block.neoecoprototype.simplify_crafting_system": "ECO - F1 Extensible Crafting Subsystem Host",
+    "block.neoecoprototype.simplify_stonecutting_assembler": "L1 Processor Assembler",
+    "block.neoecoprototype.simplify_pattern_provider": "L1 Pattern Provider",
     "block.neoecoprototype.simplify_crafting_pattern_bus": "F1 Intelligent Pattern Bus",
     "block.neoecoprototype.simplify_crafting_worker": "F1 Worker Core",
     "block.neoecoprototype.simplify_crafting_parallel_core": "F1 Parallel Core",
@@ -96,6 +98,13 @@
     "gui.neoecoprototype.multiblock.no_plan": "No valid structure plan is available.",
     "gui.neoecoprototype.multiblock.conflicts": "Cannot build: %s target positions are obstructed.",
     "gui.neoecoprototype.multiblock.missing_items": "Cannot build: required blocks are missing from your inventory.",
+    "gui.neoecoprototype.l1_storage_cells": "L1 Storage Cells",
+  "item.neoecoprototype.simplify_small_bulk_fluid_storage_cell": "ECO - L1 Small Bulk Fluid Storage Matrix (3 Types)",
+  "item.neoecoprototype.simplify_small_bulk_fluid_storage_cell_expanded": "ECO - L1 Small Bulk Fluid Storage Matrix (10 Types)",
+  "item.neoecoprototype.simplify_small_bulk_chemical_storage_cell": "ECO - L1 Small Bulk Chemical Storage Matrix (3 Types)",
+  "item.neoecoprototype.simplify_small_bulk_chemical_storage_cell_expanded": "ECO - L1 Small Bulk Chemical Storage Matrix (10 Types)",
+  "item.neoecoprototype.simplify_small_bulk_fluid_storage_matrix_housing": "ECO - L1 Small Bulk Fluid Storage Matrix Housing",
+  "item.neoecoprototype.simplify_small_bulk_chemical_storage_matrix_housing": "ECO - L1 Small Bulk Chemical Storage Matrix Housing",
     "item.neoecoprototype.simplify_universal_storage_matrix_housing": "ECO - L1 Universal Storage Matrix Housing",
     "item.neoecoprototype.simplify_universal_storage_cell_1k": "ECO - L1 Universal Storage Matrix 1K",
     "item.neoecoprototype.simplify_universal_storage_cell_1m": "ECO - L1 Universal Storage Matrix 1M",
@@ -104,6 +113,7 @@
     "item.neoecoprototype.simplify_quantum_storage_cell_1m": "ECO - L1 Quantum Storage Matrix 1M",
     "item.neoecoprototype.simplify_small_bulk_storage_matrix_housing": "ECO - Small Bulk Storage Matrix Housing",
     "gui.neoecoprototype.storage.bulk_mark.unavailable": "Small bulk automatic marking is unavailable; compression requires the MEGA compression upgrade",
-    "gui.neoecoprototype.storage.bulk_mark.result": "MEGA marking: %s added, %s already marked; automatic compression needs the MEGA compression upgrade"
+    "gui.neoecoprototype.storage.bulk_mark.result": "MEGA marking: %s added, %s already marked; automatic compression needs the MEGA compression upgrade",
+    "jei.neoecoprototype.processor_assembler.encode_hint": "Crafts processors directly, working much like the Molecular Assembler."
 }
 

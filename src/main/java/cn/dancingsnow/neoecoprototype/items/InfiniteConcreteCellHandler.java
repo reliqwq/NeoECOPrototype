@@ -154,5 +154,11 @@ public final class InfiniteConcreteCellHandler implements IECOCellHandler {
         public long getTotalBytes() {
             return SimplifyConcreteStorageCellItem.REPORTED_BYTES;
         }
+
+        // 让存储主机按无限盘展示（"无限"），而不是无意义的"类型: 1 / 字节: 0/16"。
+        @Override
+        public boolean hasInfiniteTypeCapacity() {
+            return true;
+        }
     }
 }
