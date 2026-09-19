@@ -1,0 +1,33 @@
+{
+  "variants": {
+    "push_direction=all": {
+      "model": "neoecoprototype:block/pattern_provider/pattern_provider"
+    },
+    "push_direction=down": {
+      "model": "neoecoprototype:block/pattern_provider/pattern_provider_oriented",
+      "x": 180
+    },
+    "push_direction=east": {
+      "model": "neoecoprototype:block/pattern_provider/pattern_provider_oriented",
+      "x": 90,
+      "y": 90
+    },
+    "push_direction=north": {
+      "model": "neoecoprototype:block/pattern_provider/pattern_provider_oriented",
+      "x": 90
+    },
+    "push_direction=south": {
+      "model": "neoecoprototype:block/pattern_provider/pattern_provider_oriented",
+      "x": 90,
+      "y": 180
+    },
+    "push_direction=up": {
+      "model": "neoecoprototype:block/pattern_provider/pattern_provider_oriented"
+    },
+    "push_direction=west": {
+      "model": "neoecoprototype:block/pattern_provider/pattern_provider_oriented",
+      "x": 90,
+      "y": 270
+    }
+  }
+}

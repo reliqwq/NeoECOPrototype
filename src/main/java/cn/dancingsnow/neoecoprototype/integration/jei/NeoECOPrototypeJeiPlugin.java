@@ -7,18 +7,24 @@ import cn.dancingsnow.neoecoprototype.multiblock.definition.SimplifyComputationD
 import cn.dancingsnow.neoecoprototype.multiblock.definition.SimplifyCraftingDefinition;
 import cn.dancingsnow.neoecoprototype.multiblock.definition.SimplifyStorageDefinition;
 import cn.dancingsnow.neoecoprototype.multiblock.definition.SimplifyTrinityDefinition;
+import cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig;
+import cn.dancingsnow.neoecoprototype.recipe.ProcessorAssemblerRecipe;
+import cn.dancingsnow.neoecoprototype.recipe.ProcessorAssemblerRecipes;
 import cn.dancingsnow.neoecoprototype.registration.ModRegistration;
 import mezz.jei.api.IModPlugin;
 import mezz.jei.api.JeiPlugin;
 import mezz.jei.api.registration.IRecipeCatalystRegistration;
+import mezz.jei.api.registration.IRecipeCategoryRegistration;
 import mezz.jei.api.registration.IRecipeRegistration;
 import mezz.jei.api.runtime.IJeiRuntime;
+import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.crafting.RecipeHolder;
 
 import java.util.List;
 
-/** Adds the L1 definitions to eco's existing multiblock preview category. */
+/** Adds the L1 multiblock definitions to eco's preview category, plus the processor assembler page. */
 @JeiPlugin
 public final class NeoECOPrototypeJeiPlugin implements IModPlugin {
     /**
@@ -41,6 +47,11 @@ public final class NeoECOPrototypeJeiPlugin implements IModPlugin {
     }
 
     @Override
+    public void registerCategories(IRecipeCategoryRegistration registration) {
+        registration.addRecipeCategories(new ProcessorAssemblerCategory(registration.getJeiHelpers().getGuiHelper()));
+    }
+
+    @Override
     public void registerRecipes(IRecipeRegistration registration) {
         List<cn.dancingsnow.neoecoae.multiblock.definition.MultiBlockDefinition> definitions =
                 l1Definitions();
@@ -50,6 +61,22 @@ public final class NeoECOPrototypeJeiPlugin implements IModPlugin {
         }
         registration.addRecipes(NeoECOAEJeiPlugin.MULTIBLOCK_TYPE,
                 definitions.stream().map(MultiBlockInfoWrapper::new).toList());
+
+        var level = net.minecraft.client.Minecraft.getInstance().level;
+        if (level != null) {
+            List<ProcessorAssemblerRecipe> recipes = new java.util.ArrayList<>(level.getRecipeManager()
+                    .getAllRecipesFor(ModRegistration.PROCESSOR_ASSEMBLER_RECIPE_TYPE.get())
+                    .stream().map(RecipeHolder::value).toList());
+            if (NeoECOPrototypeServerConfig.DERIVE_PROCESSOR_RECIPES_FROM_INSCRIBER.get()) {
+                recipes.addAll(ProcessorAssemblerRecipes.derived(level, recipes));
+            }
+            registration.addRecipes(ProcessorAssemblerCategory.TYPE,
+                    recipes.stream().filter(recipe ->
+                            !NeoECOPrototypeServerConfig.isProcessorRecipeDisabled(recipe.result().getItem()))
+                            .toList());
+            registration.addIngredientInfo(ModRegistration.SIMPLIFY_STONECUTTING_ASSEMBLER_ITEM.get(),
+                    Component.translatable("jei.neoecoprototype.processor_assembler.encode_hint"));
+        }
     }
 
     @Override
@@ -63,6 +90,9 @@ public final class NeoECOPrototypeJeiPlugin implements IModPlugin {
         registration.addRecipeCatalyst(
                 ModRegistration.SIMPLIFY_CRAFTING_SYSTEM_BLOCK.get(),
                 NeoECOAEJeiPlugin.MULTIBLOCK_TYPE);
+        registration.addRecipeCatalyst(
+                ModRegistration.SIMPLIFY_STONECUTTING_ASSEMBLER_BLOCK.get(),
+                ProcessorAssemblerCategory.TYPE);
         if (TRINITY_VISIBLE_IN_JEI) {
             registration.addRecipeCatalyst(
                     ModRegistration.SIMPLIFY_TRINITY_CONTROLLER_BLOCK.get(),

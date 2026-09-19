@@ -1,0 +1,9 @@
+{
+  "type": "neoecoprototype:processor_assembler",
+  "ingredients": [
+    { "tag": "c:silicon" },
+    { "item": "minecraft:redstone" },
+    { "item": "ae2:certus_quartz_crystal" }
+  ],
+  "result": { "id": "ae2:calculation_processor", "count": 1 }
+}

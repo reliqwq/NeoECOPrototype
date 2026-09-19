@@ -1,0 +1,94 @@
+{
+  "palette": {
+    "DEFAULT_TEXT_COLOR": "#413f54",
+    "MUTED_TEXT_COLOR": "#878fa5",
+    "SELECTION_COLOR": "#ace9ff",
+    "TEXTFIELD_PLACEHOLDER": "#dedfe3",
+    "TEXTFIELD_SELECTION": "#FF0000FF",
+    "TEXTFIELD_ERROR": "#FF1900",
+    "TEXTFIELD_TEXT": "#f2f2f2",
+    "ERROR": "#CE2401"
+  },
+  "background": {
+    "texture": "ae2:textures/guis/molecular_assembler.png",
+    "srcRect": [0, 0, 176, 199]
+  },
+  "slots": {
+    "MACHINE_CRAFTING_GRID": {
+      "left": 29,
+      "top": 31,
+      "grid": "BREAK_AFTER_3COLS"
+    },
+    "MACHINE_OUTPUT": {
+      "left": 126,
+      "top": 49
+    },
+    "PLAYER_INVENTORY": {
+      "left": 8,
+      "bottom": 84,
+      "grid": "BREAK_AFTER_9COLS"
+    },
+    "PLAYER_HOTBAR": {
+      "left": 8,
+      "bottom": 26,
+      "grid": "HORIZONTAL"
+    },
+    "TOOLBOX": {
+      "bottom": 84,
+      "right": 1,
+      "grid": "BREAK_AFTER_3COLS"
+    }
+  },
+  "text": {
+    "dialog_title": {
+      "text": {
+        "translate": "block.neoecoprototype.simplify_stonecutting_assembler"
+      },
+      "position": {
+        "left": 8,
+        "top": 6
+      }
+    },
+    "player_inventory_title": {
+      "text": {
+        "translate": "container.inventory"
+      },
+      "position": {
+        "left": 8,
+        "bottom": 95
+      }
+    }
+  },
+  "images": {
+    "progressBar": {
+      "texture": "ae2:textures/guis/molecular_assembler.png",
+      "srcRect": [176, 0, 6, 18]
+    },
+    "toolbox": {
+      "texture": "ae2:textures/guis/extra_panels.png",
+      "textureWidth": 128,
+      "textureHeight": 128,
+      "srcRect": [69, 62, 59, 66]
+    }
+  },
+  "widgets": {
+    "progressBar": {
+      "left": 148,
+      "top": 48
+    },
+    "verticalToolbar": {
+      "left": 3,
+      "top": 1
+    },
+    "upgrades": {
+      "right": 2,
+      "top": 0
+    },
+    "toolbox": {
+      "right": 2,
+      "bottom": 90,
+      "width": 59,
+      "height": 66
+    }
+  }
+}

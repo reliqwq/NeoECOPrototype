@@ -2,6 +2,7 @@ package cn.dancingsnow.neoecoprototype.integration.kubejs;
 
 import cn.dancingsnow.neoecoprototype.NeoECOPrototype;
 import dev.latvian.mods.kubejs.plugin.KubeJSPlugin;
+import dev.latvian.mods.kubejs.recipe.schema.RecipeSchemaRegistry;
 import dev.latvian.mods.kubejs.registry.BuilderTypeRegistry;
 import net.minecraft.core.registries.Registries;
 
@@ -20,6 +21,11 @@ import net.minecraft.core.registries.Registries;
  * }</pre>
  */
 public class KJSPlugin implements KubeJSPlugin {
+
+    @Override
+    public void registerRecipeSchemas(RecipeSchemaRegistry registry) {
+        ProcessorAssemblerRecipeSchema.register(registry);
+    }
 
     @Override
     public void registerBuilderTypes(BuilderTypeRegistry registry) {

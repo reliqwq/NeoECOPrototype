@@ -13,6 +13,12 @@ public final class NeoECOPrototypeServerConfig {
      */
     public static final ModConfigSpec.ConfigValue<List<? extends String>> L1_ADDITIONAL_STORAGE_CELLS;
     public static final ModConfigSpec.LongValue MEGA_BULK_AUTO_MARK_THRESHOLD;
+    /** Number of pattern slots in the green pattern provider. */
+    public static final ModConfigSpec.IntValue GREEN_PATTERN_PROVIDER_SLOTS;
+    /** Whether the processor assembler also accepts recipes derived from AE2's inscriber. */
+    public static final ModConfigSpec.BooleanValue DERIVE_PROCESSOR_RECIPES_FROM_INSCRIBER;
+    /** Processor outputs the assembler must refuse, from either the JSON recipes or the derivation. */
+    public static final ModConfigSpec.ConfigValue<List<? extends String>> DISABLED_PROCESSOR_RECIPES;
 
     static {
         ModConfigSpec.Builder builder = new ModConfigSpec.Builder();
@@ -26,7 +32,29 @@ public final class NeoECOPrototypeServerConfig {
         MEGA_BULK_AUTO_MARK_THRESHOLD = builder
                 .comment("Minimum stored item count for automatic MEGA marker selection; compression still requires the MEGA compression upgrade.")
                 .defineInRange("mega_bulk_auto_mark_threshold", 20_000L, 0L, Long.MAX_VALUE);
+        GREEN_PATTERN_PROVIDER_SLOTS = builder
+                .comment("Number of pattern slots in the green pattern provider. Default: 9.")
+                .defineInRange("green_pattern_provider_slots", 9, 1, 9_999);
+        DERIVE_PROCESSOR_RECIPES_FROM_INSCRIBER = builder
+                .comment("Also accept processor recipes derived from AE2's inscriber (press-mode recipes, with",
+                        "printed parts unfolded into the material inscribed into them).",
+                        "This is what lets other content that adds inscriber recipes work with no data file.",
+                        "Default: true.")
+                .define("derive_processor_recipes_from_inscriber", true);
+        DISABLED_PROCESSOR_RECIPES = builder
+                .comment("Processor outputs the assembler must refuse, e.g. [\"ae2:logic_processor\"].",
+                        "Applies to the JSON recipes and the inscriber derivation alike, so removing a data",
+                        "file alone is not enough to disable a recipe the inscriber still provides.")
+                .defineListAllowEmpty("disabled_processor_recipes",
+                        List.of(), value -> value instanceof String id
+                        && net.minecraft.resources.ResourceLocation.tryParse(id) != null);
         SPEC = builder.build();
+    }
+
+    /** Shared by the assembler and its JEI page so both agree on what is refused. */
+    public static boolean isProcessorRecipeDisabled(net.minecraft.world.item.Item output) {
+        var id = net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(output);
+        return DISABLED_PROCESSOR_RECIPES.get().stream().anyMatch(entry -> entry.equals(id.toString()));
     }
 
     private NeoECOPrototypeServerConfig() {

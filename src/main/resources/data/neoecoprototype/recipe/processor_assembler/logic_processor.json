@@ -1,0 +1,9 @@
+{
+  "type": "neoecoprototype:processor_assembler",
+  "ingredients": [
+    { "tag": "c:silicon" },
+    { "item": "minecraft:redstone" },
+    { "tag": "c:ingots/gold" }
+  ],
+  "result": { "id": "ae2:logic_processor", "count": 1 }
+}
