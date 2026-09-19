@@ -7,6 +7,7 @@ navigation:
 # Neo ECO Prototype
 
 Neo ECO Prototype 把 Neo ECO AE Extension 的后期内容带到 **L1 前期**，不用熬到终局也能用上。
+三大系统（存储/计算/合成）的耗电仅为 eco L4 同级的 **1/8**。
 
 先搭建 [L1 存储系统](storage_system.md)：一台 <ItemLink id="neoecoprototype:simplify_storage_controller" /> 带动任意数量的 <ItemLink id="neoecoprototype:simplify_drive" /> 驱动器与 <ItemLink id="neoecoprototype:simplify_energy_cell" /> 能量仓。要自动化处理器，加一台 [L1 处理器装配室](processor_assembler.md)；要大宗囤积少数几种资源，加 [小宗存储矩阵](small_bulk_matrices.md)。
 

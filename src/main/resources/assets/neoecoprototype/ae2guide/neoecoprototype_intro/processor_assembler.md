@@ -31,7 +31,8 @@ Three built-in recipes cover the AE2 processors:
 | Calculation | Silicon + Redstone + Certus Quartz Crystal |
 | Engineering | Silicon + Redstone + Diamond |
 
-The assembler also accepts processor recipes derived from AE2's inscriber press recipes, so any mod that adds inscriber recipes works with no extra files. Server admins can toggle derivation or exclude specific outputs in the server config (`derive_processor_recipes_from_inscriber`, `disabled_processor_recipes`).
+The assembler also accepts processor recipes derived from AE2's inscriber press recipes, so any mod that adds inscriber recipes works with no extra files.
+Server admins can tune this in the server config: toggle derivation (`derive_processor_recipes_from_inscriber`) or exclude specific outputs (`disabled_processor_recipes`).
 
 Insert speed and energy cards to accelerate it - five slots each.
 
