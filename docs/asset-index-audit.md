@@ -1,8 +1,9 @@
 # 资源索引审计报告
 
-- 审计时间：2026-09-18
+- 审计时间：2026-09-18（1.2.1 beta3 资产清理后）
 - 审计对象：`src/main/resources/assets/neoecoprototype`（贴图 / 模型 / blockstates）+ `src/main/java` 中的资源引用
-- 审计方式：只读扫描 + 可达性分析，**未修改任何文件**
+- 审计方式：只读扫描 + 可达性分析 + beta3 客户端启动回归
+- 本轮已删除：42 个确认废弃的 `l6/l9` 模型、58 张确认废弃的 `_b/_c` 贴图；删除清单见 `build/asset-removal-l6-l9-bc.txt`
 - 结论前提（已确认）：`_a/_b/_c` 是 eco 原版 4 / 6 / 9 三个等级的区分，本项目只做 4 级（`_a`），
   不打算做 L2 及其他等级
 
@@ -10,19 +11,23 @@
 
 ## 1. 结论摘要
 
-资产树里混进了**一整档 eco 原版的高等级内容**（6 级 / 9 级），这部分是复制残留，确认不做即属死资产：
+本轮已完成第一批高置信度清理。此前确认的高等级复制残留已删除，剩余资产不再默认视为可删：
 
-| 类别 | 数量 | 判定 |
-|---|---|---|
-| `*_l6_*` / `*_l9_*` 模型 | 42 个 | 死（blockstates 只接 `l4`） |
-| `*_b` / `*_c` 贴图 | 58 张 | 死（对应 6 级 / 9 级） |
-| `textures/block/storage/`（eco 原图本地副本） | 44 张中 42 张 | 死（`storage_recolor` 才是在用的） |
-| 字节完全重复的贴图副本 | 19 张 | 冗余 |
+| 类别 | 清理前 | 本轮动作 / 当前状态 |
+|---|---:|---|
+| `*_l6_*` / `*_l9_*` 模型 | 42 | 已删除；当前剩余 0 |
+| `*_b` / `*_c` 贴图 | 58 | 已删除；当前剩余 0 |
+| `textures/block/storage/` 原图副本 | 44 | 未删除；需先确认是否为生成器输入 |
+| 字节完全重复贴图 | 19 组旧统计 | 当前重新统计为 11 组、22 个文件，待审 |
 
-合计可清理量级约 **120 张贴图 + 42 个模型**，占现有贴图总数（244）的将近一半。
+清理后资源总量为 186 张贴图、160 个模型、31 个 blockstates。资源审计报告为模型引用的贴图缺失 0，
+但仍有 56 个“无模型直接引用”的贴图候选；其中可能包含动态 Java/KubeJS/GUI 引用，不可直接批量删除。
 
-**关键判断：Java 侧是干净的**——全仓库只有 6 处硬编码资源引用，模型路径已收敛在
-`api/MatrixMaterials`。因此治理不需要动代码，只需要动资产树 + 让审计可信。
+beta3 客户端回归结果：无 `Missing texture`、`Unable to load model` 或语言加载错误；KubeJS startup/client/server
+脚本分别为 2/2、1/1、2/2 成功加载。
+
+**关键判断：Java 侧的静态资源入口相对集中，但动态路径仍需白名单化**——当前治理重点是建立可信索引，
+不是继续根据文件名批量删除。
 
 ---
 
@@ -51,13 +56,14 @@
 
 | 指标 | 数值 |
 |---|---|
-| 贴图总数 | 244（唯一内容 225，重复副本 19） |
-| 其中 `*_recolor`（改色产物） | 191（78%） |
-| 模型总数 | 202（`models/item` 71 + `models/block` 131） |
+| 贴图总数 | 186（当前 11 组、22 个字节重复文件） |
+| 其中 `textures/**/recolor/` 改色产物 | 143 |
+| 模型总数 | 160（清理后） |
 | blockstates | 31 |
-| Java 硬编码资源引用 | 6 处 |
-| **可达模型 / 不可达模型** | **158 / 44** |
-| **可达贴图 / 不可达贴图** | **128 / 116** |
+| Java 硬编码资源引用 | 需结合动态白名单审计 |
+| **模型引用缺失贴图** | **0** |
+| **无模型直接引用的贴图候选** | **56** |
+| **孤立 `.mcmeta`（无同名 PNG）** | **0** |
 
 命名现状：
 - 物品栏：`simplify_item_storage_cell_1k`（种类在前、容量在后）
@@ -68,37 +74,43 @@
 
 ## 4. 发现
 
-### F1（P0）eco 6 级 / 9 级整档残留
+### F1（已完成）eco 6 级 / 9 级整档残留
 
-`models/block/` 下存在三档模型：`controller_l4_*`（32 个）、`controller_l6_*`（17 个）、
-`controller_l9_*`（25 个）。而 `blockstates` **只引用了 `l4`**，没有任何 `l6` / `l9`。
+此前 `models/block/` 中存在 42 个 `l6/l9` 模型，贴图侧对应 58 张 `_b/_c` 资源。静态引用扫描显示
+blockstates、Java 动态路径和 KubeJS 均未使用它们；beta3 客户端启动也没有出现模型或贴图错误。
 
-贴图侧与之对应：`_a`（4 级，在用）、`_b`（27 张）、`_c`（31 张），共 58 张只被 l6/l9 模型引用，
-而这些模型本身不可达 → 连带全死。Java 与 blockstates 中均无 `_b` / `_c` 的独立引用。
+**判定：这 42 个模型和 58 张贴图已删除。** 删除清单保存在 `build/asset-removal-l6-l9-bc.txt`，
+后续如需回退可按清单从 Git 恢复。
 
-**判定：确认不做 L2 及以上的前提下，这 58 张 + 42 个模型可以直接删。** 清单见附录 A、B。
+### F2（P1）`textures/block/storage/` 混合了运行时资产与待审副本
 
-### F2（P0）`textures/block/storage/` 是 eco 原图的本地副本
+当前生成器 `tools/generate_matrix_textures.py` 不读取这个目录，配置只处理物品矩阵贴图；但该目录也
+不是可以整体移出的纯生成源目录。`models/block/cell/storage_cell_l1_chemical.json` 仍直接引用：
 
-该目录 44 张贴图里 42 张不可达，实际在用的是 `textures/block/storage_recolor/`。
-推测是当年从 eco 复制出来做改色母版的原图，改完忘了清。
-而 computation / crafting 两个系列**只有 `*_recolor` 没有原图目录** —— 说明这个"保留母版"的做法
-本身就执行得不一致。
+```text
+neoecoprototype:block/storage/drive/cell_type
+neoecoprototype:block/storage/drive/cell_housing
+```
 
-**判定：源图在上游 `neoecoae` jar 里，本地这份母版可删；如确实要留，应移出 `assets/`
-（不要被打进产物 jar），或统一到 `tools/` 下的源图目录。**
+因此至少这两张必须继续留在运行时 `assets/`，当前运行时白名单为：
 
-### F3（P1）19 张字节完全重复的副本
+```text
+textures/block/storage/drive/cell_housing.png
+textures/block/storage/drive/cell_type.png
+```
 
-按 MD5 统计，244 张里只有 225 份唯一内容。典型：
-`storage/controller/controller_side_a.png` ≡ `storage/energy_cell/cell_side_a.png`、
-`storage_recolor/drive/quantum_cell_housing.png` ≡ `storage/drive/quantum_omni_cell_housing.png`。
+其余 storage 原图需逐文件核对模型入口、Java 动态路径和上游来源，确认后才能删除或移入
+`tools/assets-source/`。不能按目录整体移动。
 
-其中 `_b` / `_c` 相关的重复会在 F1 清理时一并消失。**删 F1 后需重跑一次哈希统计再清理剩余。**
+### F3（P1）剩余字节重复贴图
 
-### F4（P1）7 张 `_a` 贴图 + 2 个模型不可达，需人工确认
+清理后重新统计为 11 组、22 个文件存在字节完全重复。旧报告中的 19 张已过时，其中一部分随 F1 一并删除。
+典型重复仍需结合模型用途确认，不能只按哈希批量删除；相同内容的不同路径可能服务于不同运行时入口。
 
-这 7 张属于**在用的 4 级档**，却被判为不可达，很可能有动态引用，删前必须逐个确认：
+### F4（P1）剩余候选已完成第一轮分级
+
+清理后审计工具仍列出 56 张没有模型直接引用的贴图，但其中 7 张 `_a` 已确认属于 L4 模型链，不是死资产。
+审计工具此前只把它们列为孤儿，是因为没有展开完整模型入口/动态状态链。
 
 ```
 block/computation_recolor/controller/screen_on_a
@@ -109,14 +121,41 @@ block/storage/controller_formed/controller_formed_a
 block/storage/energy_cell/cell_north_layer_a
 block/storage/energy_cell/cell_side_a
 ```
+runtime-static（已确认使用，保留）：
+block/computation_recolor/controller/screen_on_a
+block/computation_recolor/controller_formed/controller_formed_a
+block/storage/controller/controller_north_a
+block/storage/controller/controller_side_a
+block/storage/controller_formed/controller_formed_a
+block/storage/energy_cell/cell_north_layer_a
+block/storage/energy_cell/cell_side_a
 
-另有 2 个不可达模型不属于 l6/l9：`block/computation_drive_full`、
-`block/crafting_controller/controller_l4_formed_auto`。后者名字是 `l4`，可能是**还没接线的功能**
-（自动合成控制器），删之前要确认是不是在做的功能。
+另有 2 个非 l6/l9 模型暂列待确认：
 
-### F5（P2）命名双轨
+review-required:
+models/block/computation_drive_full.json
+models/block/crafting_controller/controller_l4_formed_auto.json
 
-见第 3 节。Java 侧只有 6 处引用，改名成本低，建议放在最后统一做。
+`computation_drive_full` 当前没有 blockstate 入口，可能是旧备用模型；
+`controller_l4_formed_auto` 是自动合成控制器外观，但当前 `simplify_crafting_system.json` 没有接入它。
+两者暂不删除，等功能注册和运行时用途确认后再处理。
+
+### F5（暂缓）模型目录与命名双轨
+
+本轮不继续处理模型清理。当前审查重点限定为存储矩阵相关贴图和模型；控制器、计算、合成等历史模型
+即使暂未接入，也先保留，避免误删未完成功能。
+
+后续新增模型采用按功能独立目录的方式，例如：
+
+```text
+models/block/storage_matrix/
+models/block/computation_matrix/
+models/block/crafting_matrix/
+models/item/storage_matrix/
+```
+
+新功能不得继续把模型直接堆入旧的 `controller/`、`cell/` 或混合目录。命名双轨改造暂缓，等模型目录
+重组有实际需求时一起处理。
 
 ### F6（P2）文档与代码漂移
 
@@ -128,24 +167,24 @@ block/storage/energy_cell/cell_side_a
 
 ## 5. 建议与优先级
 
-### P0 —— 确认后即可清理
+### P0 —— 当前无待执行项
 
-1. 删 58 张 `_b` / `_c` 贴图 + 42 个 `l6` / `l9` 模型（附录 A、B）；
-2. 删 `textures/block/storage/` 下 42 张原图母版（**先确认上游 jar 里有同源图**）。
+1. `l6/l9` 模型与 `_b/_c` 贴图已清理，并完成 beta3 启动回归。
 
-### P1 —— 需要逐个确认
+### P1 —— 下一批需要逐个确认
 
-3. 逐条核对 F4 的 7 张 `_a` 与 2 个模型，确认是动态引用还是真的没接线；
-4. 清理 F1 之后剩余的字节重复副本。
+2. 逐文件检查 `textures/block/storage/`，保留运行时使用的贴图；确认只是历史副本后再考虑移入源图目录。
+3. 对剩余 56 个贴图孤儿候选建立动态资源白名单，再决定删除或保留。
+4. 清理 11 组、22 个文件的字节重复贴图，前提是路径用途已确认。
+5. 保留已确认使用的 7 张 `_a` 贴图；模型候选清理暂缓。
 
 ### P2 —— 制度性收尾
 
-5. 把本次的**可达性分析固化进 `tools/audit_assets.py`**（当前版本只扫 model JSON 的 `textures`
-   字段，报出的 80 条"孤立"里混着大量假阳性，导致报告没人敢信）。
-   新版本应：覆盖 blockstates + parent 链 + Java 常量，并把不可达项**分级**
-   （确认死 / 疑似动态引用 / 等级残留）；
-6. 统一命名秩序；
-7. 产物分层：`*_recolor` 是生成物，应显式标记或移出 `assets/`，避免手改被生成器覆盖。
+6. 把本次的**可达性分析固化进 `tools/audit_assets.py`**（当前版本仍主要扫 model JSON 的 `textures`
+   字段，清理后报出 56 个孤儿候选，里面可能混有动态引用）。新版本应覆盖 blockstates + parent 链 + Java 常量，
+   并把不可达项分级为“确认死 / 动态待审 / 生成源”；
+7. 统一命名秩序；
+8. 产物分层：改色目录中的资源属于生成结果，应显式标记或移出 `assets/`，避免手改被生成器覆盖。
 
 ### 验证方法（每次清理后必做）
 
@@ -159,13 +198,13 @@ block/storage/energy_cell/cell_side_a
 
 ## 6. 不做的事
 
-- **不新增对外扩展点**（KubeJS builder、新容量档、新家族）：当前无真实需求，
-  而每加一个维度，外观与后端的组合数翻倍，在索引治理完成前属于给混乱加杠杆；
+- **暂停继续扩展资产维度**（新容量档、新家族、新材质组合）：现有 KubeJS builder 已是发布能力，
+  但在索引治理完成前继续增加组合会放大维护成本；
 - **不重写 Java 侧索引**：`MatrixMaterials` 是对的，别动。
 
 ---
 
-## 附录 A：可删贴图 `*_b` / `*_c`（58 张）
+## 附录 A：已删除贴图 `*_b` / `*_c`（58 张）
 
 ```
 block/computation_recolor/cable/cable_b                    block/computation_recolor/cable/cable_c
@@ -201,7 +240,7 @@ block/storage_recolor/energy_cell/cell_north_layer_b      block/storage_recolor/
 block/storage_recolor/energy_cell/cell_side_b             block/storage_recolor/energy_cell/cell_side_c
 ```
 
-## 附录 B：可删模型 `*_l6_*` / `*_l9_*`（42 个）
+## 附录 B：已删除模型 `*_l6_*` / `*_l9_*`（42 个）
 
 ```
 block/computation_controller/controller_l6_{formed, formed_mirrored, off}
@@ -222,35 +261,26 @@ block/crafting_controller/controller_l9_{formed, formed_auto, formed_mirrored,
 block/crafting_core/parallel_core_l6{,_formed}         block/crafting_core/parallel_core_l9{,_formed}
 ```
 
-## 附录 C：字节完全重复的贴图（19 张多余副本）
+## 附录 C：本轮已删除资产
 
-```
-[2] block/computation_recolor/casing_side.png == block/computation_recolor/casing_side_west.png
-[2] block/storage_recolor/controller/controller_side_a.png == block/storage_recolor/energy_cell/cell_side_a.png
-[2] block/storage_recolor/controller/controller_side_b.png == block/storage_recolor/energy_cell/cell_side_b.png
-[2] block/storage_recolor/controller/controller_side_c.png == block/storage_recolor/energy_cell/cell_side_c.png
-[2] block/storage_recolor/drive/cell_type.png == block/storage/drive/cell_type.png
-[2] block/storage_recolor/drive/quantum_cell_housing.png == block/storage/drive/quantum_omni_cell_housing.png
-[2] block/storage_recolor/drive/small_bulk_cell_housing_expanded.png == block/storage/drive/mega_cell_housing.png
-[2] block/storage/controller/controller_side_a.png == block/storage/energy_cell/cell_side_a.png
-[2] block/storage/controller/controller_side_b.png == block/storage/energy_cell/cell_side_b.png
-[2] block/storage/controller/controller_side_c.png == block/storage/energy_cell/cell_side_c.png
-[2] block/crafting_recolor/controller/controller_side_a.png == block/crafting_recolor/core/core_side_a.png
-[2] block/crafting_recolor/controller/controller_side_b.png == block/crafting_recolor/core/core_side_b.png
-[2] block/crafting_recolor/controller/controller_side_c.png == block/crafting_recolor/core/core_side_c.png
-[2] block/crafting_recolor/core/parallel_core_light_a.png == block/computation_recolor/core/parallel_core_light_a.png
-[2] block/crafting_recolor/core/parallel_core_light_a_on.png == block/computation_recolor/core/parallel_core_light_a_on.png
-[2] block/crafting_recolor/core/parallel_core_light_b.png == block/computation_recolor/core/parallel_core_light_b.png
-[2] block/crafting_recolor/core/parallel_core_light_b_on.png == block/computation_recolor/core/parallel_core_light_b_on.png
-[2] block/crafting_recolor/core/parallel_core_light_c.png == block/computation_recolor/core/parallel_core_light_c.png
-[2] block/crafting_recolor/core/parallel_core_light_c_on.png == block/computation_recolor/core/parallel_core_light_c_on.png
+本轮删除了 42 个 `l6/l9` 模型和 58 张 `_b/_c` 贴图。完整路径清单保存在构建过程文件：
+
+```text
+build/asset-removal-l6-l9-bc.txt
 ```
 
-## 附录 D：不可达模型分布（44 个）
+这些文件不再属于当前资源树，因此不应继续出现在“当前重复贴图”或“当前不可达模型”统计中。
 
+## 附录 D：当前待审摘要
+
+```text
+贴图总数：186
+模型总数：160
+blockstates：31
+模型引用缺失贴图：0
+无模型直接引用的贴图候选：56
+孤立 .mcmeta：0
+字节重复贴图：11 组 / 22 个文件
 ```
-13  block/crafting_controller          10  block/computation_controller
-10  block/computation_core              6  block/computation_cooling_controller
- 4  block/crafting_core                 1  block/computation_drive_full（非 l6/l9，需确认）
-```
-（`block/crafting_controller/controller_l4_formed_auto` 为 l4 却不可达，疑似未接线功能，需确认）
+
+其中 56 个贴图候选仍需结合 GUI、Java 动态路径、KubeJS 与生成器输入逐项确认，不能直接当作删除清单。
