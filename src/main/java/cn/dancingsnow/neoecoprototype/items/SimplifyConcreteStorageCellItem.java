@@ -101,7 +101,13 @@ public final class SimplifyConcreteStorageCellItem extends Item implements IBasi
     }
 
     // A fixed infinite source has nothing to partition or fuzzily match; both
-    // hooks stay inert so the cell workbench cannot fake a partition.
+    // hooks stay inert so the cell workbench cannot fake a partition. AE2's
+    // default isEditable dereferences getConfigInventory() without a null check
+    // (NPE crash 2026-09-19), so opt out of the workbench explicitly.
+    @Override
+    public boolean isEditable(ItemStack stack) {
+        return false;
+    }
 
     @Override
     public appeng.util.ConfigInventory getConfigInventory(ItemStack stack) {

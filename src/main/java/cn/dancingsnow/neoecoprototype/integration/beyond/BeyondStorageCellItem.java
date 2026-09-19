@@ -59,6 +59,12 @@ public final class BeyondStorageCellItem extends NetedItem implements IBasicECOC
 
     // The contents live in the bound network, so there is nothing local to partition
     // or to match fuzzily. Both hooks stay inert instead of faking a cell partition.
+    // AE2's default isEditable dereferences getConfigInventory() without a null
+    // check (NPE crash 2026-09-19); opt out of the workbench explicitly.
+    @Override
+    public boolean isEditable(ItemStack stack) {
+        return false;
+    }
 
     @Override
     public appeng.util.ConfigInventory getConfigInventory(ItemStack stack) {

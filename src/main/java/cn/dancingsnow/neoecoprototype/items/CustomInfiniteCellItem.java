@@ -120,6 +120,12 @@ public final class CustomInfiniteCellItem extends Item implements IBasicECOCellI
     }
 
     // 固定无限源：没有可编辑的分区，模糊模式保持无效。
+    // AE2 的 isEditable 默认实现对 null config 直接调 size()（null 会 NPE 崩溃）；
+    // 本类没有分区、工作台不可配置，明确返回 false 让 WORKBENCH_CELL 槽拒收而不是崩溃。
+    @Override
+    public boolean isEditable(ItemStack stack) {
+        return false;
+    }
 
     @Override
     public ConfigInventory getConfigInventory(ItemStack stack) {
