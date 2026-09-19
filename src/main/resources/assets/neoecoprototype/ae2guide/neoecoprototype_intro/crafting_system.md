@@ -38,6 +38,4 @@ The L1 Crafting System is the early-game version of eco's Crafting System: a mul
 </ItemGrid>
 
 
-The concept matches eco's Crafting System - see eco's guidebook for the full mechanics. The L1 variant above is the minimal working structure.
-
-Proofread note: confirm the intended throughput/worker behavior for the L1 variant before wide release.
+The concept matches eco's Crafting System: **16 parallel** pattern executions by default, **32** overclocked (independent from the computation side). The L1 variant above is the minimal working structure.

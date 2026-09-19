@@ -38,6 +38,4 @@ The L1 Computation System is the early-game version of eco's Computation System:
 </ItemGrid>
 
 
-The concept matches eco's Computation System - see eco's guidebook for the full mechanics. The L1 variant above is the minimal working structure.
-
-Proofread note: confirm the intended thread/acceleration behavior for the L1 variant before wide release.
+The concept matches eco's Computation System: the base provides **1 crafting thread** (a quarter of eco's L4), extendable with parallel and threading cores under eco's rules. The L1 variant above is the minimal working structure.

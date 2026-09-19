@@ -57,7 +57,6 @@ The storage controller sets the tier and the interaction face; storage matrix dr
 
 Placing block by block is error-prone - use the **auto-build panel** in the host UI: preview the structure first, then fill it in one click.
 
-Proofread note: the placement order is written from the block set, not verified block by block - the auto-build preview is authoritative.
 
 
 ## Choosing a matrix
