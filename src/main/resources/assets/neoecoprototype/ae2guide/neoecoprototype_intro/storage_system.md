@@ -28,6 +28,11 @@ item_ids:
 
 The L1 storage system is a compact multiblock: a <ItemLink id="neoecoprototype:simplify_storage_controller" /> plus any number of <ItemLink id="neoecoprototype:simplify_drive" /> drives and <ItemLink id="neoecoprototype:simplify_energy_cell" /> energy cells. Drives hold your storage matrices and mount them into the ME network.
 
+<GameScene zoom="4" interactive={true}>
+  <ImportStructure src="../scenes/l1_storage_min.nbt" />
+  <IsometricCamera yaw="45" pitch="30" />
+</GameScene>
+
 ## Choosing a matrix
 
 | What you store | Matrix family | Requires |

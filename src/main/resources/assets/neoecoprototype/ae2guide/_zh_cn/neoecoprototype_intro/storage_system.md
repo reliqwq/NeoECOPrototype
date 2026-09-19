@@ -28,6 +28,11 @@ item_ids:
 
 L1 存储系统是一个紧凑多方块：一台 <ItemLink id="neoecoprototype:simplify_storage_controller" /> 主机，加上任意数量的 <ItemLink id="neoecoprototype:simplify_drive" /> 驱动器与 <ItemLink id="neoecoprototype:simplify_energy_cell" /> 能量仓。驱动器装载存储矩阵并挂载进 ME 网络。
 
+<GameScene zoom="4" interactive={true}>
+  <ImportStructure src="../scenes/l1_storage_min.nbt" />
+  <IsometricCamera yaw="45" pitch="30" />
+</GameScene>
+
 ## 选择矩阵
 
 | 要存什么 | 矩阵家族 | 需要的模组 |

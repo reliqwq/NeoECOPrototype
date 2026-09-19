@@ -1,0 +1,29 @@
+---
+navigation:
+  title: L1 Computation System
+  icon: neoecoprototype:simplify_computation_system
+  position: 50
+  parent: neoecoprototype_intro/index.md
+item_ids:
+  - neoecoprototype:simplify_computation_system
+  - neoecoprototype:simplify_computation_casing
+  - neoecoprototype:simplify_computation_parallel_core
+  - neoecoprototype:simplify_computation_threading_core
+  - neoecoprototype:simplify_computation_cooling_controller
+  - neoecoprototype:simplify_computation_drive
+  - neoecoprototype:simplify_computation_interface
+  - neoecoprototype:simplify_computation_network_interface
+---
+
+# L1 Computation System
+
+The L1 Computation System is the early-game version of eco's Computation System: a multiblock crafting CPU cluster that provides parallel crafting threads for the ME network.
+
+<GameScene zoom="4" interactive={true}>
+  <ImportStructure src="../scenes/l1_compute_min.nbt" />
+  <IsometricCamera yaw="45" pitch="30" />
+</GameScene>
+
+The concept matches eco's Computation System - see eco's guidebook for the full mechanics. The L1 variant above is the minimal working structure.
+
+Proofread note: confirm the intended thread/acceleration behavior for the L1 variant before wide release.
