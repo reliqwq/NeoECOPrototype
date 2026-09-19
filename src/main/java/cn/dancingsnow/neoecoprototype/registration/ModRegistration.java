@@ -49,6 +49,7 @@ import cn.dancingsnow.neoecoprototype.block.crafting.SimplifyStonecuttingAssembl
 import cn.dancingsnow.neoecoprototype.block.decoration.FumoBlock;
 import cn.dancingsnow.neoecoprototype.block.crafting.SimplifyPatternProviderBlock;
 import cn.dancingsnow.neoecoprototype.blockentity.crafting.SimplifyStonecuttingAssemblerBlockEntity;
+import cn.dancingsnow.neoecoprototype.blockentity.decoration.FumoBlockEntity;
 import cn.dancingsnow.neoecoprototype.blockentity.crafting.SimplifyPatternProviderBlockEntity;
 import cn.dancingsnow.neoecoprototype.block.crafting.SimplifyFluidInputHatchBlock;
 import cn.dancingsnow.neoecoprototype.block.crafting.SimplifyFluidOutputHatchBlock;
@@ -460,6 +461,9 @@ public class ModRegistration {
                     .of().strength(0.8f).sound(net.minecraft.world.level.block.SoundType.WOOL).noOcclusion()));
     public static final Supplier<BlockItem> FUMO_RELIQWQ_ITEM =
             ITEMS.register("fumo_reliqwq", () -> new BlockItem(FUMO_BLOCK.get(), new Item.Properties().stacksTo(1)));
+    public static final Supplier<BlockEntityType<FumoBlockEntity>> FUMO_BE =
+            BLOCK_ENTITIES.register("fumo_reliqwq", () -> BlockEntityType.Builder
+                    .of(FumoBlockEntity::new, FUMO_BLOCK.get()).build(null));
 
     public static final Supplier<Item> SIMPLIFY_STORAGE_COMPONENT_1M =
              ITEMS.register("simplify_storage_component_1m", () -> new Item(new Item.Properties()));
