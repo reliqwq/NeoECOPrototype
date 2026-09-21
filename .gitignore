@@ -88,6 +88,11 @@ bin/
 
 # 别人模组的参考 jar（第三方二进制，只作技术参考，不进仓库）
 /参考模组/
+/Neo eco protype1.20.1/
+
+# 兜底：任何第三方 jar 都不许进仓库（gradle wrapper 除外）
+*.jar
+!gradle/wrapper/gradle-wrapper.jar
 
 # tools/ 脚本留下的字节码缓存
 __pycache__/
