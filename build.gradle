@@ -32,7 +32,9 @@ repositories {
 }
 
 dependencies {
-    implementation "net.neoforged:neoforge:21.1.233"
+    // Dev loader only; the floor we ship in neoforge.mods.toml stays [21.1.0,). Raised to the newest
+    // 21.1.x because AE2 Pattern Disk requires [21.1.241,21.2.0) and eco accepts any [21.1.0,).
+    implementation "net.neoforged:neoforge:21.1.251"
 
     // 三个运行时 mod 全部本地化到 libs/（沙箱/离线构建需要）：
     implementation files("libs/ae2-19.2.17.jar")               // AE2 (modId: ae2)
@@ -55,6 +57,10 @@ dependencies {
     // Optional integration: Beyond Dimensions. compileOnly so the addon still builds
     // and runs without it; the cell is registered only when the mod is present.
     compileOnly files("libs/beyonddimensions-1.21.1-neoforge-0.7.30.jar")
+    // 可选联动：AE2 Pattern Disk（LGPL-3.0，与 AE2 同许可族）。compileOnly 暴露它的
+    // PatternDiskApi/IPatternDiskHost/DiskHostCollector 稳定面，runtimeOnly 只为共存验证。
+    compileOnly files("libs/ae2_pattern_disk-0.5.0.jar")
+    runtimeOnly files("libs/ae2_pattern_disk-0.5.0.jar")
     // 可选参考依赖：ExtendedAE（非强制，仅编译期可见，用于对齐其无限元件的处理方式）。
     // 运行时不需要它；当前代码没有引用其类。
     compileOnly files("libs/extendedae-892005-7478960.jar") // ExtendedAE 1.21-2.2.28
@@ -84,7 +90,7 @@ tasks.named('test', Test) {
 }
 
 neoForge {
-    version = '21.1.233'
+    version = '21.1.251'
 
     runs {
         client {
@@ -93,7 +99,7 @@ neoForge {
         server {
             server()
         }
-        // NeoForge 21.1.233 GameTest server; keep the namespace enabled explicitly.
+        // NeoForge 21.1.251 GameTest server; keep the namespace enabled explicitly.
         gameTestServer {
             type = 'gameTestServer'
             systemProperty 'neoforge.enableGameTest', 'true'

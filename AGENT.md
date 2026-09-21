@@ -161,7 +161,7 @@ IDLE -> PLANNING -> RUNNING -> WAITING_OUTPUT -> COMPLETED / FAILED
 | 组件 | 版本 |
 | --- | --- |
 | Minecraft | 1.21.1 |
-| NeoForge | 21.1.233 |
+| NeoForge | 21.1.251（开发/测试用加载器；发布物下限仍是 `[21.1.0,)`，抬版本只为让 `ae2_pattern_disk` 能在 dev 里加载） |
 | AE2 | 19.2.17（`ae2`） |
 | Neo ECO AE Extension | 21.2.0-beta4（`neoecoae`） |
 | Java | 21 |
