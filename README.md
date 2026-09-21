@@ -58,7 +58,7 @@ KubeJS is optional. Matrix texture recoloring is handled offline by `tools/gener
 
 ## Development Build
 
-The current development setup uses the published Neo ECO AE Extension `21.2.0-beta4` JAR under `neoecobeta/` for offline compatibility testing. The local development copy is intentionally excluded from GitHub. The stable GitHub `v1.1.0` release remains a separate artifact from this development tree; this beta4-following development line is version `1.2.4`.
+The current development setup uses the published Neo ECO AE Extension `21.2.0-beta4` JAR under `neoecobeta/` for offline compatibility testing. The local development copy is intentionally excluded from GitHub.
 
 Required local development files are listed in `build.gradle`. Place lawful copies of the exact compatible dependencies in `libs/`, then run:
 

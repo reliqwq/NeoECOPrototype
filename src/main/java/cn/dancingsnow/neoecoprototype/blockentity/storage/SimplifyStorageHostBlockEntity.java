@@ -11,7 +11,6 @@ import cn.dancingsnow.neoecoae.all.NERegistries;
 import cn.dancingsnow.neoecoae.api.storage.ECOCellType;
 import cn.dancingsnow.neoecoae.api.storage.IECOStorageCell;
 import cn.dancingsnow.neoecoae.api.storage.IECOStorageCellItem;
-import cn.dancingsnow.neoecoae.blocks.NEBlock;
 import cn.dancingsnow.neoecoae.blocks.entity.NEBlockEntity;
 import cn.dancingsnow.neoecoae.gui.storage.StorageHostActionUI;
 import cn.dancingsnow.neoecoae.gui.storage.StorageHostUI;
@@ -160,10 +159,6 @@ public class SimplifyStorageHostBlockEntity
 
     public SimplifyTier getTier() {
         return SimplifyTier.L1;
-    }
-
-    public boolean isMirrored() {
-        return mirrored;
     }
 
     public void setMirrored(boolean mirrored) {
@@ -554,28 +549,6 @@ public class SimplifyStorageHostBlockEntity
                         storageTotals(SimplifyStorageCellItem.getItemCellType()).usedBytes(),
                         storageTotals(SimplifyStorageCellItem.getFluidCellType()).usedBytes()),
                 chemicalStorageTotals().usedBytes());
-    }
-
-    private long getMaxLoadTotalBytes() {
-        return saturatingAdd(
-                saturatingAdd(
-                        storageTotals(SimplifyStorageCellItem.getItemCellType()).totalBytes(),
-                        storageTotals(SimplifyStorageCellItem.getFluidCellType()).totalBytes()),
-                chemicalStorageTotals().totalBytes());
-    }
-
-    private int getIdleMatrixCount() {
-        int idle = 0;
-        SimplifyStorageCluster cluster = getCluster();
-        if (cluster != null) {
-            for (SimplifyDriveBlockEntity drive : cluster.getDrives()) {
-                IECOStorageCell cell = drive.getCellInventory();
-                if (cell != null && cell.getStoredItemTypes() <= 0L) {
-                    idle++;
-                }
-            }
-        }
-        return idle;
     }
 
     private static long saturatingAdd(long left, long right) {

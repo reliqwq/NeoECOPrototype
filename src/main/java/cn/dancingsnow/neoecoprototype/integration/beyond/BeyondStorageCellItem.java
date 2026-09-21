@@ -4,7 +4,6 @@ import appeng.api.stacks.AEKeyType;
 import cn.dancingsnow.neoecoae.api.storage.ECOCellType;
 import cn.dancingsnow.neoecoae.api.storage.IBasicECOCellItem;
 import cn.dancingsnow.neoecoae.api.IECOTier;
-import cn.dancingsnow.neoecoae.api.storage.IECOStorageCellItem;
 import cn.dancingsnow.neoecoprototype.api.SimplifyTier;
 import com.wintercogs.beyonddimensions.common.item.NetedItem;
 import net.minecraft.network.chat.Component;

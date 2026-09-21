@@ -10,7 +10,6 @@ import cn.dancingsnow.neoecoae.util.ServerTaskUtil;
 import cn.dancingsnow.neoecoae.blocks.entity.NEBlockEntity;
 import cn.dancingsnow.neoecoprototype.block.storage.SimplifyDriveBlock;
 import cn.dancingsnow.neoecoprototype.block.storage.SimplifyStorageControllerBlock;
-import cn.dancingsnow.neoecoprototype.items.SimplifyStorageCellItem;
 import cn.dancingsnow.neoecoae.api.storage.IECOStorageCellItem;
 import cn.dancingsnow.neoecoprototype.multiblock.calculator.SimplifyStorageClusterCalculator;
 import cn.dancingsnow.neoecoprototype.multiblock.cluster.SimplifyStorageCluster;
@@ -40,8 +39,6 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import org.jetbrains.annotations.Nullable;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.List;
 
@@ -56,7 +53,6 @@ import java.util.List;
 public class SimplifyDriveBlockEntity extends NEBlockEntity<SimplifyStorageCluster, SimplifyDriveBlockEntity>
         implements ISyncPersistRPCBlockEntity, ISaveProvider, IStorageProvider {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(SimplifyDriveBlockEntity.class);
     private final FieldManagedStorage syncStorage = new FieldManagedStorage(this);
 
     @DescSynced

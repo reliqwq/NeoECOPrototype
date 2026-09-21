@@ -1,6 +1,5 @@
 package cn.dancingsnow.neoecoprototype.integration.kubejs;
 
-import cn.dancingsnow.neoecoprototype.NeoECOPrototype;
 import dev.latvian.mods.kubejs.plugin.KubeJSPlugin;
 import dev.latvian.mods.kubejs.recipe.schema.RecipeSchemaRegistry;
 import dev.latvian.mods.kubejs.registry.BuilderTypeRegistry;

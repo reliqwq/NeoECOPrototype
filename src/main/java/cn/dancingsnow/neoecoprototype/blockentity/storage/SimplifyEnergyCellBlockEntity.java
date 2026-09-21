@@ -20,7 +20,6 @@ import appeng.blockentity.powersink.IExternalPowerSink;
 import appeng.me.energy.StoredEnergyAmount;
 import com.lowdragmc.lowdraglib2.syncdata.annotation.Persisted;
 import net.minecraft.core.BlockPos;
-import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 
