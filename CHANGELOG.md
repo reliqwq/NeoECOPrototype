@@ -1,5 +1,25 @@
 # Changelog
 
+## 1.2.5 (2026-09-22)
+
+### 修复 / Fixed
+
+- **右键 eco 的接口界面不再可能崩掉游戏**。三个界面标题重定向（`ECOStorageInterfaceUIMixin`、
+  `ECOCraftingInterfaceUIMixin`、`ECOComputationInterfaceUIMixin`）此前是 `require = 1`，且注入点钉在
+  编译器生成的 lambda 名 `lambda$create$1` 上。上游只要在同一个 `create` 方法里多加一个 lambda，
+  这些合成方法名就会整体重编号，注入找不到目标便抛 `Critical injection failure`，玩家打开 eco 自己的
+  界面就崩。现在三处都改成 `require = 0, expect = 0`：命中不了只是退回 eco 的默认标题，不再崩。
+  触发实例是 eco `21.2.0-beta5`——它在 `StorageInterfaceUI#create` 里新增了一行 `SampledValue` 的 lambda。
+
+### 新增 / Added
+
+- `LocalGuiTitleContext` 加了看门狗：本地标题已经解析出来、却没有任何一个重定向命中时，
+  按标题 key 打一次性 WARN，避免"降级"变成没人发现的静默失效。
+- 新增必需 GameTest `ecoInterfaceUiClassesLoadWithoutFatalMixinError`：用
+  `Class.forName(name, false, loader)` 触发 mixin 变换但不做静态初始化，三个 eco 界面类任一加载抛错
+  即测试失败。反向对照已做：把任一 mixin 改回 `require = 1` 后，该测试在 beta5 下确实失败，
+  说明这道守卫不是空跑。
+
 ## 1.2.4 (2026-09-20)
 
 ### 新增 / Added
