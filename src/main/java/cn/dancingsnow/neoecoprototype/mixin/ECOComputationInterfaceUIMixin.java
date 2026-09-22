@@ -1,6 +1,12 @@
 package cn.dancingsnow.neoecoprototype.mixin;
 
-/* Version lock: NeoForge 21.1.233, Eco 21.2.0-preview12. Check ComputationInterfaceUI#title. */
+/*
+ * Version lock: NeoForge 21.1.233, Eco 21.2.0-preview12. Check ComputationInterfaceUI#title.
+ *
+ * Optional like the other two title redirects: a renamed or removed title() must cost us the
+ * localised title, not crash eco's GUI for players on another eco build. LocalGuiTitleContext logs
+ * when none of them fire.
+ */
 
 import cn.dancingsnow.neoecoprototype.gui.LocalGuiTitleContext;
 import net.minecraft.network.chat.Component;
@@ -16,7 +22,7 @@ public abstract class ECOComputationInterfaceUIMixin {
             at = @At(
                     value = "INVOKE",
                     target = "Lnet/minecraft/network/chat/Component;translatable(Ljava/lang/String;)Lnet/minecraft/network/chat/MutableComponent;"),
-            require = 1)
+            require = 0, expect = 0)
     private static MutableComponent neoecoprototype$localTitle(String key) {
         return Component.translatable(LocalGuiTitleContext.replace(key));
     }
