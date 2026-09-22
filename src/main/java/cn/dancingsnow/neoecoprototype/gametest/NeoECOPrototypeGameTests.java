@@ -13,6 +13,7 @@ import appeng.api.stacks.GenericStack;
 import appeng.api.stacks.KeyCounter;
 import appeng.api.storage.cells.ISaveProvider;
 import appeng.api.upgrades.Upgrades;
+import appeng.core.definitions.AEBlocks;
 import appeng.core.definitions.AEItems;
 import cn.dancingsnow.neoecoae.api.storage.ECOStorageCells;
 import cn.dancingsnow.neoecoae.integration.megacells.backend.ECOMegaLongBulkStorageCell;
@@ -20,6 +21,7 @@ import cn.dancingsnow.neoecoprototype.blockentity.trinity.SimplifyTrinityComputa
 import cn.dancingsnow.neoecoprototype.blockentity.trinity.SimplifyTrinityControllerBlockEntity;
 import cn.dancingsnow.neoecoprototype.blockentity.trinity.SimplifyTrinityCraftingModuleBlockEntity;
 import cn.dancingsnow.neoecoprototype.blockentity.trinity.SimplifyTrinityStorageModuleBlockEntity;
+import cn.dancingsnow.neoecoprototype.gui.LocalGuiTitleContext;
 import cn.dancingsnow.neoecoprototype.integration.ae2.SimplifyGridFacade;
 import cn.dancingsnow.neoecoprototype.items.SimplifySmallBulkStorageCellItem;
 import cn.dancingsnow.neoecoprototype.multiblock.calculator.SimplifyTrinityClusterCalculator;
@@ -1332,5 +1334,27 @@ public final class NeoECOPrototypeGameTests {
         }
         helper.runAfterDelay(10,
                 () -> waitUntil(helper, triesLeft - 1, condition, failureMessage, onSuccess));
+    }
+    /**
+     * Guards the 1.2.5 regression: loading eco's interface UI classes must never abort with a fatal
+     * mixin injection error. The title redirects aim at compiler generated lambda names, so an added
+     * lambda upstream used to turn "open eco's storage interface" into a crash for every player on a
+     * different eco build. Loading with initialize = false still runs the transformer, which is the
+     * part we care about, without touching client-only static state.
+     */
+    @GameTest(template = "empty", templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void ecoInterfaceUiClassesLoadWithoutFatalMixinError(GameTestHelper helper) {
+        for (var name : new String[]{
+                "cn.dancingsnow.neoecoae.gui.storage.StorageInterfaceUI",
+                "cn.dancingsnow.neoecoae.gui.crafting.CraftingInterfaceUI",
+                "cn.dancingsnow.neoecoae.gui.computation.ComputationInterfaceUI"}) {
+            try {
+                Class.forName(name, false, LocalGuiTitleContext.class.getClassLoader());
+            } catch (Throwable failure) {
+                helper.fail("loading " + name + " threw " + failure);
+                return;
+            }
+        }
+        helper.succeed();
     }
 }
