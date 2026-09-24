@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.2.8 (2026-09-24) - L1 Computation and Interface Update
+## 1.2.7 (2026-09-24) - L1 Computation and Interface Update
 
 ### 新增 / Added
 
