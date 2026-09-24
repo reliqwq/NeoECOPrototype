@@ -1,0 +1,13 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    {
+      "item": "neoecoprototype:cable_superconductive_interface"
+    }
+  ],
+  "result": {
+    "count": 1,
+    "id": "neoecoprototype:superconductive_interface"
+  }
+}

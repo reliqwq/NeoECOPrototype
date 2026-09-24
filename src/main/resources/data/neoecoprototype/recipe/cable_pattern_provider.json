@@ -1,0 +1,11 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "G": { "item": "neoecoprototype:simplify_green_crystal_matrix" },
+    "P": { "item": "ae2:cable_pattern_provider" },
+    "Q": { "item": "ae2:quartz_glass" }
+  },
+  "pattern": ["GQG", "QPQ", "GQG"],
+  "result": { "count": 1, "id": "neoecoprototype:cable_pattern_provider" }
+}

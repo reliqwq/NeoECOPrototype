@@ -2,7 +2,9 @@ package cn.dancingsnow.neoecoprototype.blockentity.crafting;
 
 import appeng.blockentity.crafting.PatternProviderBlockEntity;
 import appeng.helpers.patternprovider.PatternProviderLogic;
-import cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig;
+import appeng.menu.MenuOpener;
+import appeng.menu.locator.MenuHostLocator;
+import cn.dancingsnow.neoecoprototype.registration.ModRegistration;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
@@ -14,8 +16,17 @@ public class SimplifyPatternProviderBlockEntity extends PatternProviderBlockEnti
     }
 
     @Override
+    public void openMenu(net.minecraft.world.entity.player.Player player, MenuHostLocator locator) {
+        MenuOpener.open(ModRegistration.L1_PATTERN_PROVIDER_MENU.get(), player, locator);
+    }
+
+    @Override
+    public void returnToMainMenu(net.minecraft.world.entity.player.Player player, appeng.menu.ISubMenu subMenu) {
+        MenuOpener.returnTo(ModRegistration.L1_PATTERN_PROVIDER_MENU.get(), player, subMenu.getLocator());
+    }
+
+    @Override
     protected PatternProviderLogic createLogic() {
-        return new PatternProviderLogic(getMainNode(), this,
-                NeoECOPrototypeServerConfig.GREEN_PATTERN_PROVIDER_SLOTS.get());
+        return new PatternProviderLogic(getMainNode(), this, 27);
     }
 }

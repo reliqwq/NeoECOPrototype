@@ -1,5 +1,10 @@
 package cn.dancingsnow.neoecoprototype.client;
 
+import appeng.api.parts.PartModels;
+import appeng.client.gui.implementations.PatternProviderScreen;
+import appeng.init.client.InitScreens;
+import appeng.menu.implementations.InterfaceMenu;
+import appeng.menu.implementations.PatternProviderMenu;
 import appeng.client.render.crafting.MolecularAssemblerRenderer;
 import cn.dancingsnow.neoecoae.api.ECOCellModels;
 import cn.dancingsnow.neoecoae.api.ECOComputationModels;
@@ -10,12 +15,16 @@ import cn.dancingsnow.neoecoprototype.client.render.FumoModel;
 import cn.dancingsnow.neoecoprototype.client.render.FumoRenderer;
 import cn.dancingsnow.neoecoprototype.client.renderer.blockentity.SimplifyComputationDriveRenderer;
 import cn.dancingsnow.neoecoprototype.client.renderer.blockentity.SimplifyDriveRenderer;
+import cn.dancingsnow.neoecoprototype.client.renderer.blockentity.SimplifyEnergizedComputationCoreRenderer;
 import cn.dancingsnow.neoecoprototype.menu.ProcessorAssemblerMenu;
 import cn.dancingsnow.neoecoprototype.registration.ModRegistration;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.resources.model.ModelResourceLocation;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.packs.resources.ReloadableResourceManager;
+import net.minecraft.server.packs.resources.ResourceManagerReloadListener;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.api.distmarker.Dist;
@@ -35,6 +44,13 @@ public final class NeoECOPrototypeClient {
 
     @SubscribeEvent
     public static void onClientSetup(FMLClientSetupEvent event) {
+        // AE2 freezes this set before baking; a part model missing from it crashes the cable bus
+        // tesselation with "Trying to use an unregistered part model".
+        PartModels.registerModels(
+                ResourceLocation.fromNamespaceAndPath(NeoECOPrototype.MOD_ID, "part/powered_me_interface"),
+                ResourceLocation.fromNamespaceAndPath(NeoECOPrototype.MOD_ID, "part/superconductive_interface"),
+                ResourceLocation.fromNamespaceAndPath(NeoECOPrototype.MOD_ID, "part/pattern_provider"));
+
         ResourceLocation itemCellModel = ResourceLocation.fromNamespaceAndPath(
                 NeoECOPrototype.MOD_ID, "block/cell/storage_cell_l1_item");
         ResourceLocation fluidCellModel = ResourceLocation.fromNamespaceAndPath(
@@ -110,8 +126,19 @@ public final class NeoECOPrototypeClient {
                 BuiltInRegistries.ITEM.wrapAsHolder(ModRegistration.SIMPLIFY_COMPUTATION_CELL_1M.get()),
                 ResourceLocation.fromNamespaceAndPath(NeoECOPrototype.MOD_ID, "block/computation_cell/cell_l4"),
                 ResourceLocation.fromNamespaceAndPath(NeoECOPrototype.MOD_ID, "block/computation_cell/cell_l4_formed"));
+        ECOComputationModels.registerCellModel(
+                BuiltInRegistries.ITEM.wrapAsHolder(ModRegistration.ENERGIZED_COMPUTATION_CELL_4M.get()),
+                ResourceLocation.fromNamespaceAndPath(NeoECOPrototype.MOD_ID, "block/computation_cell/cell_l4"),
+                ResourceLocation.fromNamespaceAndPath(NeoECOPrototype.MOD_ID, "block/computation_cell/cell_l4_formed"));
         ECOComputationModels.registerCableModel(
                 cn.dancingsnow.neoecoprototype.api.SimplifyTier.L1,
+                ResourceLocation.fromNamespaceAndPath(NeoECOPrototype.MOD_ID, "block/computation_cable/cable_l4_dis"),
+                ResourceLocation.fromNamespaceAndPath(NeoECOPrototype.MOD_ID, "block/computation_cable/cable_l4"));
+        // The drive renderer adopts the working cell's tier before asking for cable models
+        // (SimplifyComputationDriveRenderer#renderFixed), so every tier a cell can carry needs an entry
+        // here or chunk rendering throws an NPE inside eco's lookup.
+        ECOComputationModels.registerCableModel(
+                cn.dancingsnow.neoecoprototype.api.SimplifyTier.L1_REINFORCED,
                 ResourceLocation.fromNamespaceAndPath(NeoECOPrototype.MOD_ID, "block/computation_cable/cable_l4_dis"),
                 ResourceLocation.fromNamespaceAndPath(NeoECOPrototype.MOD_ID, "block/computation_cable/cable_l4"));
         ECOComputationModels.runDeferredRegistration();
@@ -120,10 +147,23 @@ public final class NeoECOPrototypeClient {
                 new SimplifyDriveRenderer());
         FixedBlockEntityRenderers.register(ModRegistration.SIMPLIFY_COMPUTATION_DRIVE_BE.get(),
                 new SimplifyComputationDriveRenderer());
+        // The energized core hides its block model when formed, so its lamps come back through
+        // eco's section-geometry pass instead.
+        FixedBlockEntityRenderers.register(ModRegistration.ENERGIZED_COMPUTATION_CORE_BE.get(),
+                new SimplifyEnergizedComputationCoreRenderer());
+        // Same hook AE2's StyleManager uses for its style cache: reloads must discard the parsed copy
+        // or a resource pack could never override our assembler layout.
+        if (Minecraft.getInstance().getResourceManager() instanceof ReloadableResourceManager resourceManager) {
+            resourceManager.registerReloadListener(
+                    (ResourceManagerReloadListener) manager -> ProcessorAssemblerScreen.forgetStyle());
+        }
     }
 
     @SubscribeEvent
     public static void onRegisterAdditionalModels(ModelEvent.RegisterAdditional event) {
+        // Nothing references this from a blockstate: only the section-geometry renderer draws it.
+        event.register(ModelResourceLocation.standalone(
+                SimplifyEnergizedComputationCoreRenderer.FORMED_FACE_MODEL));
         event.register(ModelResourceLocation.standalone(ResourceLocation.fromNamespaceAndPath(
                 NeoECOPrototype.MOD_ID, "block/computation_cable/cable_l4")));
         event.register(ModelResourceLocation.standalone(ResourceLocation.fromNamespaceAndPath(
@@ -161,6 +201,18 @@ public final class NeoECOPrototypeClient {
 
     @SubscribeEvent
     public static void onRegisterMenuScreens(net.neoforged.neoforge.client.event.RegisterMenuScreensEvent event) {
+        InitScreens.<InterfaceMenu, PoweredInterfaceScreen>register(event,
+                ModRegistration.L1_POWERED_INTERFACE_MENU.get(),
+                PoweredInterfaceScreen::new,
+                "/screens/neoecoprototype/l1_powered_me_interface.json");
+        InitScreens.<InterfaceMenu, SuperconductiveInterfaceScreen>register(event,
+                ModRegistration.SUPERCONDUCTIVE_INTERFACE_MENU.get(),
+                SuperconductiveInterfaceScreen::new,
+                "/screens/neoecoprototype/superconductive_interface.json");
+        InitScreens.<PatternProviderMenu, PatternProviderScreen<PatternProviderMenu>>register(event,
+                ModRegistration.L1_PATTERN_PROVIDER_MENU.get(),
+                (menu, inventory, title, style) -> new PatternProviderScreen<>(menu, inventory, title, style),
+                "/screens/neoecoprototype/l1_pattern_provider.json");
         event.<ProcessorAssemblerMenu, ProcessorAssemblerScreen>register(
                 ProcessorAssemblerMenu.type(), ProcessorAssemblerScreen::new);
     }

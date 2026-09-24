@@ -1,6 +1,7 @@
 package cn.dancingsnow.neoecoprototype.api;
 
 import cn.dancingsnow.neoecoae.api.IECOTier;
+import cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig;
 import net.minecraft.resources.ResourceLocation;
 
 /**
@@ -19,7 +20,30 @@ import net.minecraft.resources.ResourceLocation;
  * the intended upgrade path.
  */
 public enum SimplifyTier implements IECOTier {
-    L1(0, 1L << 20, 100_000L, 1L << 20, 1, 1, 16, 1);
+    L1(0, 1L << 20, 100_000L, 1L << 20, 1, 1, 16, 1),
+    /**
+     * The tier behind the 4 MiB computation cell: same tier index, so an L1 frame accepts it wherever
+     * it accepts a plain L1 cell, with four times L1's original cell bytes. Its thread and
+     * co-processor numbers are never read, because no member of this tier is a threading or parallel
+     * core -- those numbers only matter to cells through {@link #getCPUTotalBytes()}.
+     */
+    L1_REINFORCED(0, 1L << 20, 100_000L, 4L << 20, 1, 1, 128, 4),
+    /**
+     * The energized threading core: sixteen real threads, because eco allocates one
+     * {@code ECOCraftingCPU} per thread in the core's constructor, so this is the only way to raise
+     * concurrency without inflating the panel number. It is deliberately not given extra
+     * co-processors or cell bytes -- those belong to the other members.
+     */
+    L1_ENERGIZED_THREADING(0, 1L << 20, 100_000L, 1L << 20, 1, 1, 16, 16),
+    /**
+     * The shell-mounted parallel member: it replaces a casing block, so only
+     * {@link #getCPUAccelerators()} matters -- eco sums it over the parallel cores it finds in the
+     * bounding box, and {@code getPooledParallelism()} is what {@code ECOCraftingCPU} and AE2's
+     * crafting service actually read, so the 1024 is work rather than a displayed number. Tier index
+     * stays 0 so an L1 host accepts it; threads, cell bytes and storage stay at L1's because this
+     * member is never a threading core or a drive.
+     */
+    L1_PARALLEL_SWITCH(0, 1L << 20, 100_000L, 1L << 20, 1, 1, 1024, 1);
 
     private final int tier;
     private final long storageTotalBytes;
@@ -49,6 +73,14 @@ public enum SimplifyTier implements IECOTier {
 
     // L1 computation capacity is one eighth of the previous 8 MiB setting.
 
+    /**
+     * L1's computation numbers are the ones a server may retune; {@link #L1_REINFORCED} keeps its own
+     * constants because it is a different member rather than a re-tuned L1.
+     */
+    private boolean isConfigurable() {
+        return this == L1;
+    }
+
     @Override
     public int getCrafterParallel() {
         return crafterParallel;
@@ -61,17 +93,17 @@ public enum SimplifyTier implements IECOTier {
 
     @Override
     public int getCPUAccelerators() {
-        return cpuAccelerators;
+        return isConfigurable() ? NeoECOPrototypeServerConfig.L1_CPU_ACCELERATORS.get() : cpuAccelerators;
     }
 
     @Override
     public int getCPUThreads() {
-        return cpuThreads;
+        return isConfigurable() ? NeoECOPrototypeServerConfig.L1_CPU_THREADS.get() : cpuThreads;
     }
 
     @Override
     public long getCPUTotalBytes() {
-        return cpuTotalBytes;
+        return isConfigurable() ? NeoECOPrototypeServerConfig.L1_CPU_TOTAL_BYTES.get() : cpuTotalBytes;
     }
 
     @Override
@@ -84,6 +116,11 @@ public enum SimplifyTier implements IECOTier {
         return powerStorageSize;
     }
 
+    /**
+     * eco paints this badge over its computation GUIs. Nothing in code references the file itself -
+     * the path is only resolved at runtime - so a static "unused" search will call it dead and
+     * deleting it breaks the overlay silently, visible only in game.
+     */
     @Override
     public ResourceLocation getCPUOverlayTexture() {
         return ResourceLocation.fromNamespaceAndPath("neoecoprototype", "textures/gui/tier/l1.png");

@@ -133,5 +133,10 @@ public final class CustomInfiniteCellHandler implements IECOCellHandler {
         public boolean hasInfiniteTypeCapacity() {
             return true;
         }
+
+        @Override
+        public boolean isInfiniteStorageEligible() {
+            return false;
+        }
     }
 }

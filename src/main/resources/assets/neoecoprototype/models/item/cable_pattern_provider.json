@@ -1,0 +1,9 @@
+{
+  "credit": "AE2's own cable item layout, with this addon's green pattern provider face",
+  "parent": "ae2:item/cable_interface",
+  "textures": {
+    "sides": "ae2:part/pattern_provider_sides",
+    "back": "neoecoprototype:block/green_pattern_provider",
+    "front": "neoecoprototype:block/green_pattern_provider_alternate_front"
+  }
+}

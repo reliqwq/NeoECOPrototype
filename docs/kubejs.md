@@ -115,6 +115,27 @@ The exact item IDs and recipe IDs are part of the addon data files. Check `src/m
 
 KubeJS scripts can change addon recipes, but they do not change multiblock structure definitions or the behavior of the storage and computation controllers.
 
+## What KubeJS should configure
+
+KubeJS is an optional content-layer extension point, not a replacement for the Java AE2 integration layer.
+
+Good candidates for KubeJS:
+
+- storage matrix definitions, bound item/fluid/chemical, capacity tier, material family, and models;
+- addon and upstream integrated-working-station recipes;
+- pack-specific recipe removal, replacement, and balancing;
+- future data-driven allowlists whose meaning is already defined by a stable Java API.
+
+Keep these in Java and resources:
+
+- AE2 menu semantics and the distinction between `CONFIG` marker slots and `STORAGE` output slots;
+- the L1 interface's alternating six-row screen layout, amount-button-to-CONFIG mapping, and screen-scoped slot repositioning;
+- passive power generation, suppression behavior, network node flags, and block/Part host logic;
+- AE2 upgrade-card associations, because they must be registered for the exact block item and Part item and must match the logic that actually supports the card;
+- multiblock structure validation, controller behavior, and Part geometry.
+
+This split is intentional. A script can safely choose what content exists and how it is crafted, while the Java layer guarantees that an interface slot, button, texture, network behavior, and upgrade inventory remain the same contract. KubeJS support is therefore useful, but exposing raw GUI coordinates or arbitrary AE2 card insertion through scripts is not recommended.
+
 ## 自定义无限存储矩阵（KubeJS 在场时）
 
 KubeJS 在场时可以通过自定义 builder 类型 `neoecoprototype:infinite_storage_matrix`

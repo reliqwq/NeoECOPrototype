@@ -7,31 +7,51 @@ import appeng.api.crafting.PatternDetailsHelper;
 import appeng.api.networking.crafting.ICraftingProvider;
 import appeng.api.networking.crafting.ICraftingLink;
 import appeng.api.networking.IGrid;
+import appeng.api.networking.energy.IPassiveEnergyGenerator;
+import appeng.api.networking.IGridNode;
+import appeng.api.networking.IInWorldGridNodeHost;
+import appeng.api.parts.IPartHost;
 import appeng.api.networking.security.IActionSource;
+import appeng.api.stacks.AEFluidKey;
 import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.GenericStack;
 import appeng.api.stacks.KeyCounter;
 import appeng.api.storage.cells.ISaveProvider;
 import appeng.api.upgrades.Upgrades;
+import appeng.api.util.AEColor;
 import appeng.core.definitions.AEBlocks;
 import appeng.core.definitions.AEItems;
+import appeng.core.definitions.AEParts;
+import appeng.helpers.InterfaceLogicHost;
+import appeng.me.helpers.IGridConnectedBlockEntity;
+import cn.dancingsnow.neoecoae.blocks.entity.computation.ECOComputationSystemBlockEntity;
 import cn.dancingsnow.neoecoae.api.storage.ECOStorageCells;
 import cn.dancingsnow.neoecoae.integration.megacells.backend.ECOMegaLongBulkStorageCell;
+import cn.dancingsnow.neoecoae.multiblock.cluster.NEComputationCluster;
+import cn.dancingsnow.neoecoae.multiblock.placement.MultiBlockBuildController;
+import cn.dancingsnow.neoecoprototype.api.SimplifyTier;
+import cn.dancingsnow.neoecoprototype.blockentity.crafting.SimplifySuperconductiveInterfaceBlockEntity;
 import cn.dancingsnow.neoecoprototype.blockentity.trinity.SimplifyTrinityComputationModuleBlockEntity;
 import cn.dancingsnow.neoecoprototype.blockentity.trinity.SimplifyTrinityControllerBlockEntity;
 import cn.dancingsnow.neoecoprototype.blockentity.trinity.SimplifyTrinityCraftingModuleBlockEntity;
 import cn.dancingsnow.neoecoprototype.blockentity.trinity.SimplifyTrinityStorageModuleBlockEntity;
+import cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig;
 import cn.dancingsnow.neoecoprototype.gui.LocalGuiTitleContext;
+import cn.dancingsnow.neoecoprototype.integration.ae2.OversizeInterfaceLogic;
 import cn.dancingsnow.neoecoprototype.integration.ae2.SimplifyGridFacade;
 import cn.dancingsnow.neoecoprototype.items.SimplifySmallBulkStorageCellItem;
 import cn.dancingsnow.neoecoprototype.multiblock.calculator.SimplifyTrinityClusterCalculator;
 import cn.dancingsnow.neoecoprototype.multiblock.trinity.TrinityCraftingExecutor;
 import cn.dancingsnow.neoecoprototype.registration.ModRegistration;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -39,10 +59,20 @@ import net.minecraft.world.item.crafting.CraftingInput;
 import net.minecraft.world.item.crafting.RecipeHolder;
 import net.minecraft.world.item.crafting.RecipeType;
 import net.minecraft.world.item.crafting.CraftingRecipe;
+import net.minecraft.world.item.context.UseOnContext;
+import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.material.Fluids;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.Vec3;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.function.BooleanSupplier;
+import java.util.regex.Pattern;
 import net.neoforged.fml.ModList;
 import net.neoforged.neoforge.gametest.GameTestHolder;
 import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
@@ -1356,5 +1386,475 @@ public final class NeoECOPrototypeGameTests {
             }
         }
         helper.succeed();
+    }
+
+    /**
+     * Guards the resources that code only names inside a string, which is the one set an
+     * "unreferenced file" cleanup cannot see: deleting the assembler style JSON made every player
+     * leave the world when the processor assembly GUI opened. Part models are whitelisted by AE2 at
+     * startup and their cable item models are derived from the naming convention, so a missing file
+     * surfaces as a crash while tesselating chunks, not as a compile error. Reads through the mod
+     * classloader because a dedicated server does not have to index {@code assets/}.
+     */
+    @GameTest(template = "empty", templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void stringReferencedAssetsAreShipped(GameTestHelper helper) {
+        for (ResourceLocation location : List.of(
+                // ProcessorAssemblerScreen.STYLE, read when the GUI opens
+                ResourceLocation.fromNamespaceAndPath(NeoECOPrototype.MOD_ID,
+                        "screens/processor_assembler.json"),
+                // The three interfaces go through AE2's StyleManager, which resolves inside its own
+                // namespace, so NeoECOPrototypeClient's "/screens/neoecoprototype/*.json" paths land here
+                ResourceLocation.fromNamespaceAndPath("ae2",
+                        "screens/neoecoprototype/l1_powered_me_interface.json"),
+                ResourceLocation.fromNamespaceAndPath("ae2",
+                        "screens/neoecoprototype/superconductive_interface.json"),
+                ResourceLocation.fromNamespaceAndPath("ae2",
+                        "screens/neoecoprototype/l1_pattern_provider.json"),
+                // SimplifyTier / SimplifyCraftingTier badge, drawn on every drive panel row
+                ResourceLocation.fromNamespaceAndPath(NeoECOPrototype.MOD_ID,
+                        "textures/gui/tier/l1.png"),
+                // PartModel base models, frozen by PartModels.registerModels
+                ResourceLocation.fromNamespaceAndPath(NeoECOPrototype.MOD_ID,
+                        "models/part/powered_me_interface.json"),
+                ResourceLocation.fromNamespaceAndPath(NeoECOPrototype.MOD_ID,
+                        "models/part/superconductive_interface.json"),
+                ResourceLocation.fromNamespaceAndPath(NeoECOPrototype.MOD_ID,
+                        "models/part/pattern_provider.json"),
+                // AE2 derives item models as models/item/cable_<part>.json from the part location
+                ResourceLocation.fromNamespaceAndPath(NeoECOPrototype.MOD_ID,
+                        "models/item/cable_powered_me_interface.json"),
+                ResourceLocation.fromNamespaceAndPath(NeoECOPrototype.MOD_ID,
+                        "models/item/cable_superconductive_interface.json"),
+                ResourceLocation.fromNamespaceAndPath(NeoECOPrototype.MOD_ID,
+                        "models/item/cable_pattern_provider.json"))) {
+            String archivePath = "/assets/" + location.getNamespace() + "/" + location.getPath();
+            try (var resource = NeoECOPrototype.class.getResourceAsStream(archivePath)) {
+                if (resource == null) {
+                    helper.fail("missing " + location + " (" + archivePath + ")");
+                    return;
+                }
+                if (resource.readAllBytes().length == 0) {
+                    helper.fail("empty " + location);
+                    return;
+                }
+            } catch (java.io.IOException failure) {
+                helper.fail("could not read " + location + ": " + failure);
+                return;
+            }
+        }
+        helper.succeed();
+    }
+
+    /**
+     * Reproduces the placement-order report: put one of our machines down first, then a glass cable
+     * against it, and the cable never joins that machine's grid, while the reverse order connects. AE2
+     * registers the node-host block capability for its own block entity types only, so an addon machine
+     * that is missing from that list cannot be found by anything looking in from outside. AE2's own
+     * interface is the control row: if it fails too, the probe is wrong rather than the registration.
+     */
+    @GameTest(template = "trinity_room", templateNamespace = NeoECOPrototype.MOD_ID, timeoutTicks = 300)
+    public static void cablePlacedAgainstAnExistingMachineConnects(GameTestHelper helper) {
+        var probes = List.of(
+                new CableProbe("ae2 interface (control)", AEBlocks.INTERFACE.block(), new BlockPos(1, 5, 4)),
+                new CableProbe("powered ME interface",
+                        ModRegistration.SIMPLIFY_POWERED_ME_INTERFACE_BLOCK.get(), new BlockPos(3, 5, 4)),
+                new CableProbe("superconductive interface",
+                        ModRegistration.SUPERCONDUCTIVE_INTERFACE_BLOCK.get(), new BlockPos(5, 5, 4)),
+                new CableProbe("pattern provider",
+                        ModRegistration.SIMPLIFY_PATTERN_PROVIDER_BLOCK.get(), new BlockPos(7, 5, 4)),
+                new CableProbe("stonecutting assembler",
+                        ModRegistration.SIMPLIFY_STONECUTTING_ASSEMBLER_BLOCK.get(), new BlockPos(1, 5, 6)));
+
+        var player = helper.makeMockPlayer(GameType.CREATIVE);
+        for (var probe : probes) {
+            helper.setBlock(probe.machinePos, Blocks.AIR);
+            helper.setBlock(probe.cablePos(), Blocks.AIR);
+            helper.setBlock(probe.machinePos, probe.block);
+            helper.assertTrue(placeCableAgainst(helper, player, probe.machinePos, Direction.EAST),
+                    "could not place a glass cable against " + probe.label + " at "
+                            + at(probe.machinePos));
+        }
+
+        waitUntil(helper, 25,
+                () -> machineProbesWithoutConnection(helper, probes).isEmpty(),
+                () -> "cable placed after the machine stayed disconnected for "
+                        + machineProbesWithoutConnection(helper, probes),
+                helper::succeed);
+    }
+
+    /**
+     * The other order, and the control that keeps {@link
+     * #cablePlacedAgainstAnExistingMachineConnects} honest: a machine that appears next to an existing
+     * cable scans out for itself, so this direction worked even while the capability was missing. If
+     * this one fails, nothing here can observe a connection and the other result means nothing.
+     */
+    @GameTest(template = "trinity_room", templateNamespace = NeoECOPrototype.MOD_ID, timeoutTicks = 300)
+    public static void machinePlacedAgainstAnExistingCableConnects(GameTestHelper helper) {
+        var machinePos = new BlockPos(2, 5, 4);
+        var cablePos = machinePos.east();
+        helper.setBlock(machinePos, Blocks.AIR);
+        helper.setBlock(cablePos, Blocks.AIR);
+        // Clicking the north face of the block behind the cable slot puts the cable into that slot.
+        helper.setBlock(cablePos.south(), Blocks.STONE);
+
+        var player = helper.makeMockPlayer(GameType.CREATIVE);
+        helper.assertTrue(placeCableAgainst(helper, player, cablePos.south(), Direction.NORTH),
+                "could not place a glass cable at " + at(cablePos) + ", so this probe measures nothing");
+
+        helper.setBlock(machinePos, ModRegistration.SIMPLIFY_POWERED_ME_INTERFACE_BLOCK.get());
+        waitUntil(helper, 25,
+                () -> connectedOnSide(helper, machinePos, Direction.EAST)
+                        && connectedOnSide(helper, cablePos, Direction.WEST),
+                () -> "even the machine placed after the cable did not connect, so the probe cannot "
+                        + "observe grid connections: cable placed first is in place but the powered "
+                        + "ME interface at " + at(machinePos) + " has no connection on its east side",
+                helper::succeed);
+    }
+
+    /**
+     * How much one interface marker may stock is widened for every key type by the same factor: AE2
+     * caps an item marker at one stack (64) and a fluid marker at 4000 mB, and chemicals copy the fluid
+     * value. An earlier revision answered 8192 for everything, which quietly shrank a fluid marker from
+     * 4 buckets worth of headroom down to 8 buckets total - so the factor, not the number, is the
+     * behaviour worth pinning.
+     */
+    @GameTest(template = "empty", templateNamespace = NeoECOPrototype.MOD_ID, timeoutTicks = 300)
+    public static void superconductiveInterfaceWidensEveryMarkerAmount(GameTestHelper helper) {
+        var pos = new BlockPos(0, 0, 0);
+        helper.setBlock(pos, ModRegistration.SUPERCONDUCTIVE_INTERFACE_BLOCK.get());
+        if (!(helper.getLevel().getBlockEntity(helper.absolutePos(pos)) instanceof InterfaceLogicHost host)) {
+            helper.fail("the superconductive interface block entity is not an interface logic host");
+            return;
+        }
+
+        var config = host.getInterfaceLogic().getConfig();
+        long iron = config.getMaxAmount(AEItemKey.of(Items.IRON_INGOT));
+        long snowball = config.getMaxAmount(AEItemKey.of(Items.SNOWBALL));
+        long water = config.getMaxAmount(AEFluidKey.of(Fluids.WATER));
+        long raised = OversizeInterfaceLogic.MAX_AMOUNT;
+
+        helper.assertTrue(iron == raised,
+                "item markers should cap at " + raised + ", got " + iron);
+        helper.assertTrue(snowball >= raised,
+                "a 16-stackable item must not end up below the raised cap, got " + snowball);
+        helper.assertTrue(water == 4000L * OversizeInterfaceLogic.WIDENING,
+                "fluid markers should be AE2's 4000 mB times " + OversizeInterfaceLogic.WIDENING
+                        + ", got " + water);
+
+        // The power has to reach the grid through a service on the node, not just a method on the class.
+        // AE2 only creates that node in onReady, so this has to be polled rather than read immediately.
+        var interfaceHost = (IGridConnectedBlockEntity) helper.getBlockEntity(pos);
+        waitUntil(helper, 10,
+                () -> providesPassiveGenerator(interfaceHost),
+                () -> "the superconductive interface node must offer its "
+                        + SimplifySuperconductiveInterfaceBlockEntity.GENERATION_RATE
+                        + " AE/t passive generator service",
+                helper::succeed);
+    }
+
+    private static boolean providesPassiveGenerator(IGridConnectedBlockEntity host) {
+        var node = host.getGridNode();
+        var generator = node == null ? null : node.getService(IPassiveEnergyGenerator.class);
+        return generator != null
+                && generator.getRate() == SimplifySuperconductiveInterfaceBlockEntity.GENERATION_RATE;
+    }
+
+    /** Side length of the {@code l1_room} template: the smallest cube that holds a minimum L1 build. */
+    private static final int L1_ROOM_SIZE = 17;
+
+    /**
+     * Builds a complete L1 computation subsystem from eco's own build plan, replacing the
+     * {@code replaceNth}-th planned slot of {@code replaceThis} with {@code replaceWith}, then handing
+     * the controller to {@code onBuilt} after it has had twenty ticks to rebuild.
+     *
+     * <p>{@code rotateFacing} turns the replacement a quarter turn -- what a player dropping a single
+     * block in by hand does -- while {@code false} keeps the facing the column asks for.
+     *
+     * <p>Every caller needs its own {@code batch}: tests in one batch run concurrently, and the
+     * framework can place two of these 14-block-wide structures seven blocks apart, which makes each
+     * controller find the other one and both fail as "not unique".
+     */
+    private static void buildComputationStructure(GameTestHelper helper, BlockPos controllerPos,
+            Block replaceThis, Block replaceWith, int replaceNth, boolean rotateFacing, int buildLength,
+            java.util.function.Consumer<ECOComputationSystemBlockEntity> onBuilt) {
+        helper.setBlock(controllerPos, ModRegistration.SIMPLIFY_COMPUTATION_SYSTEM_BLOCK.get());
+        BlockPos absolute = helper.absolutePos(controllerPos);
+        helper.runAfterDelay(5, () -> {
+            if (!(helper.getLevel().getBlockEntity(absolute)
+                    instanceof ECOComputationSystemBlockEntity controller)) {
+                helper.fail("the L1 controller has no computation block entity at " + absolute);
+                return;
+            }
+            var buildController = new MultiBlockBuildController(controller);
+            // The minimum structure has a single threading core, so testing "not the first slot" needs
+            // a line that is at least two long.
+            var builder = helper.makeMockPlayer(GameType.CREATIVE);
+            for (int i = 1; i < buildLength; i++) {
+                buildController.increaseBuildLength(builder);
+            }
+            var plan = buildController.createLocalPreviewPlan();
+            if (plan == null || plan.getAllBlocks().isEmpty()) {
+                helper.fail("the L1 controller produced no build plan");
+                return;
+            }
+            BlockPos origin = helper.absolutePos(BlockPos.ZERO);
+            List<BlockPos> built = new ArrayList<>();
+            int seen = 0;
+            for (var planned : plan.getAllBlocks()) {
+                // Only the template volume is restored after a test, so anything written outside it
+                // leaks into the neighbouring test room and takes its block entities with it.
+                BlockPos rel = planned.worldPos().subtract(origin);
+                if (rel.getX() < 0 || rel.getY() < 0 || rel.getZ() < 0 || rel.getX() >= L1_ROOM_SIZE
+                        || rel.getY() >= L1_ROOM_SIZE || rel.getZ() >= L1_ROOM_SIZE) {
+                    helper.fail("the L1 build plan leaves the " + L1_ROOM_SIZE + "^3 template at " + rel);
+                    return;
+                }
+                var plannedState = planned.targetState();
+                if (plannedState.getBlock() == replaceThis && seen++ == replaceNth) {
+                    var required = plannedState.getValue(BlockStateProperties.HORIZONTAL_FACING);
+                    var facing = rotateFacing
+                            ? Direction.from2DDataValue((required.get2DDataValue() + 1) % 4) : required;
+                    helper.getLevel().setBlockAndUpdate(planned.worldPos(),
+                            replaceWith.defaultBlockState()
+                                    .setValue(BlockStateProperties.HORIZONTAL_FACING, facing));
+                } else {
+                    helper.getLevel().setBlockAndUpdate(planned.worldPos(), plannedState);
+                }
+                built.add(planned.worldPos());
+            }
+            helper.assertTrue(seen > replaceNth,
+                    "the build plan placed only " + seen + " of "
+                            + BuiltInRegistries.BLOCK.getKey(replaceThis).getPath()
+                            + ", so this test would prove nothing");
+            controller.rebuildMultiblock();
+            helper.runAfterDelay(20, () -> {
+                try {
+                    onBuilt.accept(controller);
+                } finally {
+                    // Batches run one after another but the framework does not reliably restore one
+                    // batch before starting the next, and two of these structures seven blocks apart
+                    // make every controller "not unique". Clear our own blocks so the next test is
+                    // measuring its own build.
+                    for (BlockPos pos : built) {
+                        helper.getLevel().setBlockAndUpdate(pos, Blocks.AIR.defaultBlockState());
+                    }
+                    helper.getLevel().setBlockAndUpdate(absolute, Blocks.AIR.defaultBlockState());
+                }
+                helper.succeed();
+            });
+        });
+    }
+
+    /**
+     * The parallel column takes the energized core even when it faces the wrong way, and the cluster
+     * adopts it so its co-processors land in the total the CPUs actually read.
+     *
+     * <p>It is a core slot rather than a shell cell on purpose: eco draws every formed casing with
+     * {@code RenderShape.INVISIBLE} and stops it culling neighbours, so a member that keeps drawing
+     * inside the shell is seen from both sides and flickers.
+     */
+    @GameTest(template = "l1_room", batch = "l1_core", templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void energizedCoreInParallelColumnAddsItsParallelism(GameTestHelper helper) {
+        var ourTier = SimplifyTier.L1_PARALLEL_SWITCH;
+        buildComputationStructure(helper, new BlockPos(13, 3, 4),
+                ModRegistration.SIMPLIFY_COMPUTATION_PARALLEL_CORE_BLOCK.get(),
+                ModRegistration.ENERGIZED_COMPUTATION_CORE_BLOCK.get(), 0, true, 1, controller -> {
+                    NEComputationCluster cluster = controller.getCluster();
+                    helper.assertTrue(controller.isFormed() && cluster != null,
+                            "the L1 subsystem did not form with the energized core in a parallel column");
+                    int ours = (int) cluster.getParallelCores().stream()
+                            .filter(core -> core.getTier() == ourTier).count();
+                    int plain = cluster.getParallelCores().size() - ours;
+                    helper.assertTrue(ours == 1, "the parallel column rejected the energized core");
+                    helper.assertTrue(cluster.getCPUAccelerators()
+                                    == plain * SimplifyTier.L1.getCPUAccelerators()
+                                            + ourTier.getCPUAccelerators(),
+                            "the energized core should add " + ourTier.getCPUAccelerators()
+                                    + " co-processors on top of " + plain + " plain cores, but the cluster "
+                                    + "reports " + cluster.getCPUAccelerators());
+                });
+    }
+
+    /**
+     * The energized threading core gives sixteen real threads -- sixteen {@code ECOCraftingCPU} objects,
+     * because eco sizes that array from the tier in the constructor.
+     */
+    @GameTest(template = "l1_room", batch = "l1_threading", templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void energizedThreadingCoreInFirstSlotAddsThreads(GameTestHelper helper) {
+        var ourTier = SimplifyTier.L1_ENERGIZED_THREADING;
+        buildComputationStructure(helper, new BlockPos(13, 3, 4),
+                ModRegistration.SIMPLIFY_COMPUTATION_THREADING_CORE_BLOCK.get(),
+                ModRegistration.ENERGIZED_COMPUTATION_THREADING_CORE_BLOCK.get(), 0, false, 1,
+                controller -> {
+                    NEComputationCluster cluster = controller.getCluster();
+                    helper.assertTrue(controller.isFormed() && cluster != null,
+                            "the L1 subsystem did not form with the energized core in the first threading"
+                                    + " slot");
+                    int ours = (int) cluster.getThreadingCores().stream()
+                            .filter(core -> core.getTier() == ourTier).count();
+                    int plain = cluster.getThreadingCores().size() - ours;
+                    helper.assertTrue(ours == 1,
+                            "the threading line rejected the energized core next to the controller");
+                    helper.assertTrue(ourTier.getCPUThreads() == 16,
+                            "this member is sold as 16 threads, but its tier says "
+                                    + ourTier.getCPUThreads());
+                    helper.assertTrue(cluster.getMaxThreads()
+                                    == plain * SimplifyTier.L1.getCPUThreads() + ours * 16,
+                            "the threading line should total " + (plain * SimplifyTier.L1.getCPUThreads()
+                                    + ours * 16) + " threads, got " + cluster.getMaxThreads());
+                });
+    }
+
+    /**
+     * Only the cell nearest the controller takes the energized threading core, which is what caps a
+     * structure at one of them: anywhere else the line stops matching and the subsystem will not form.
+     */
+    @GameTest(template = "l1_room", batch = "l1_threading_second", templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void energizedThreadingCoreOutsideTheFirstSlotIsRejected(GameTestHelper helper) {
+        buildComputationStructure(helper, new BlockPos(13, 3, 4),
+                ModRegistration.SIMPLIFY_COMPUTATION_THREADING_CORE_BLOCK.get(),
+                ModRegistration.ENERGIZED_COMPUTATION_THREADING_CORE_BLOCK.get(), 1, false, 2,
+                controller -> {
+                    helper.assertTrue(!controller.isFormed(),
+                            "the threading line accepted the energized core in its second slot; the "
+                                    + "\"only one, nearest the controller\" rule is not being enforced");
+                });
+    }
+
+    /**
+     * L1's computation numbers are read from the server config so a pack can buff the tier without
+     * adding a member. This checks the tier really forwards to the config: a getter that kept returning
+     * the enum constant would pass every other test and still ignore the file. It also pins the 4 MiB
+     * cell to its own bytes and to L1's tier index, which is what lets an L1 frame mount it at all.
+     */
+    @GameTest(template = "empty", templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void l1ComputationNumbersComeFromConfig(GameTestHelper helper) {
+        var plain = SimplifyTier.L1;
+        var reinforced = SimplifyTier.L1_REINFORCED;
+
+        helper.assertTrue(plain.getCPUThreads() == NeoECOPrototypeServerConfig.L1_CPU_THREADS.get(),
+                "the L1 threading core should report the configured "
+                        + NeoECOPrototypeServerConfig.L1_CPU_THREADS.get() + " threads, got "
+                        + plain.getCPUThreads());
+        helper.assertTrue(plain.getCPUAccelerators()
+                        == NeoECOPrototypeServerConfig.L1_CPU_ACCELERATORS.get(),
+                "the L1 parallel core should report the configured "
+                        + NeoECOPrototypeServerConfig.L1_CPU_ACCELERATORS.get() + " co-processors, got "
+                        + plain.getCPUAccelerators());
+        helper.assertTrue(plain.getCPUTotalBytes() == NeoECOPrototypeServerConfig.L1_CPU_TOTAL_BYTES.get(),
+                "an L1 cell should report the configured "
+                        + NeoECOPrototypeServerConfig.L1_CPU_TOTAL_BYTES.get() + " bytes, got "
+                        + plain.getCPUTotalBytes());
+        helper.assertTrue(reinforced.getCPUTotalBytes() == 4L << 20,
+                "the 4 MiB cell should keep its own bytes, got " + reinforced.getCPUTotalBytes());
+        helper.assertTrue(reinforced.getTier() == plain.getTier() && plain.supportsComponentTier(reinforced),
+                "an L1 frame must still mount the bigger cell");
+        helper.assertTrue(ModRegistration.ENERGIZED_COMPUTATION_CELL_4M.get().getTier() == reinforced,
+                "the 4M cell item reports " + ModRegistration.ENERGIZED_COMPUTATION_CELL_4M.get().getTier()
+                        + " instead of the reinforced tier");
+        helper.succeed();
+    }
+
+    /**
+     * Blocks find their models from the registry name, so no code points at those files: a typo or a
+     * deleted model shows up in game as the missing-texture cube and in a compile as nothing at all.
+     * Walk every block we register and check the blockstate, each model it names, and the item model of
+     * its BlockItem.
+     */
+    @GameTest(template = "empty", templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void everyBlockShipsItsModels(GameTestHelper helper) {
+        var missing = new ArrayList<String>();
+        for (var block : BuiltInRegistries.BLOCK) {
+            var id = BuiltInRegistries.BLOCK.getKey(block);
+            if (!NeoECOPrototype.MOD_ID.equals(id.getNamespace())) {
+                continue;
+            }
+            var blockstate = ResourceLocation.fromNamespaceAndPath(id.getNamespace(),
+                    "blockstates/" + id.getPath() + ".json");
+            var document = readShippedResource(blockstate);
+            if (document == null) {
+                missing.add("blockstate " + blockstate);
+                continue;
+            }
+            for (var matcher = MODEL_REFERENCE.matcher(document); matcher.find();) {
+                var model = ResourceLocation.tryParse(matcher.group(1));
+                if (model == null || !NeoECOPrototype.MOD_ID.equals(model.getNamespace())) {
+                    continue; // vanilla and AE2 models come from their own packs
+                }
+                var modelFile = ResourceLocation.fromNamespaceAndPath(model.getNamespace(),
+                        "models/" + model.getPath() + ".json");
+                if (readShippedResource(modelFile) == null) {
+                    missing.add(modelFile + " referenced by " + id.getPath());
+                }
+            }
+            if (BuiltInRegistries.ITEM.get(id) instanceof BlockItem) {
+                var itemModel = ResourceLocation.fromNamespaceAndPath(id.getNamespace(),
+                        "models/item/" + id.getPath() + ".json");
+                if (readShippedResource(itemModel) == null) {
+                    missing.add("item model " + itemModel);
+                }
+            }
+        }
+        helper.assertTrue(missing.isEmpty(), "unreferenced-or-missing block models: " + missing);
+        helper.succeed();
+    }
+
+    private static final Pattern MODEL_REFERENCE = Pattern.compile("\"model\"\\s*:\\s*\"([^\"]+)\"");
+
+    /** The contents of a resource we ship, or null when it is not there. */
+    private static String readShippedResource(ResourceLocation location) {
+        var path = "/assets/" + location.getNamespace() + "/" + location.getPath();
+        try (var resource = NeoECOPrototype.class.getResourceAsStream(path)) {
+            return resource == null ? null : new String(resource.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+        } catch (java.io.IOException failure) {
+            return null;
+        }
+    }
+
+    /** Places a glass cable into the empty cell next to {@code clickedPos} on {@code face}. */
+    private static boolean placeCableAgainst(GameTestHelper helper, Player player, BlockPos clickedPos,
+                                             Direction face) {
+        // The structure is addressed relatively, but a use context and a part host are world objects.
+        var clicked = helper.absolutePos(clickedPos);
+        var cableStack = AEParts.GLASS_CABLE.stack(AEColor.TRANSPARENT);
+        player.setItemInHand(InteractionHand.MAIN_HAND, cableStack);
+        var hit = new BlockHitResult(Vec3.atCenterOf(clicked)
+                .add(face.getStepX() * 0.5, face.getStepY() * 0.5, face.getStepZ() * 0.5),
+                face, clicked, false);
+        cableStack.getItem().useOn(new UseOnContext(helper.getLevel(), player,
+                InteractionHand.MAIN_HAND, cableStack, hit));
+        return helper.getLevel().getBlockEntity(clicked.relative(face)) instanceof IPartHost host
+                && host.getPart(null) != null;
+    }
+
+    private static String at(BlockPos pos) {
+        return pos.getX() + "," + pos.getY() + "," + pos.getZ();
+    }
+
+    private static List<String> machineProbesWithoutConnection(GameTestHelper helper,
+                                                                List<CableProbe> probes) {
+        var stuck = new ArrayList<String>();
+        for (var probe : probes) {
+            if (!connectedOnSide(helper, probe.machinePos, Direction.EAST)
+                    || !connectedOnSide(helper, probe.cablePos(), Direction.WEST)) {
+                stuck.add(probe.label);
+            }
+        }
+        return stuck;
+    }
+
+    /** True once the node at {@code pos} reports a connection on {@code side}. */
+    private static boolean connectedOnSide(GameTestHelper helper, BlockPos pos, Direction side) {
+        if (!(helper.getLevel().getBlockEntity(helper.absolutePos(pos)) instanceof IInWorldGridNodeHost host)) {
+            return false;
+        }
+        IGridNode node = host.getGridNode(side);
+        return node != null && node.getConnectedSides().contains(side);
+    }
+
+    private record CableProbe(String label, Block block, BlockPos machinePos) {
+        BlockPos cablePos() {
+            return machinePos.east();
+        }
     }
 }

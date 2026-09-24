@@ -21,6 +21,7 @@ import cn.dancingsnow.neoecoae.blocks.entity.crafting.ECOFluidOutputHatchBlockEn
 import cn.dancingsnow.neoecoae.multiblock.calculator.NEComputationClusterCalculator;
 import cn.dancingsnow.neoecoae.multiblock.cluster.NEComputationCluster;
 import cn.dancingsnow.neoecoprototype.NeoECOPrototype;
+import cn.dancingsnow.neoecoprototype.api.SimplifyTier;
 import cn.dancingsnow.neoecoprototype.block.storage.SimplifyDriveBlock;
 import cn.dancingsnow.neoecoprototype.block.storage.SimplifyEnergyCellBlock;
 import cn.dancingsnow.neoecoprototype.block.storage.SimplifyStorageCasingBlock;
@@ -36,6 +37,7 @@ import cn.dancingsnow.neoecoprototype.block.computation.SimplifyComputationParal
 import cn.dancingsnow.neoecoprototype.block.computation.SimplifyComputationSystemBlock;
 import cn.dancingsnow.neoecoprototype.block.computation.SimplifyComputationThreadingCoreBlock;
 import cn.dancingsnow.neoecoprototype.block.computation.SimplifyComputationTransmitterBlock;
+import cn.dancingsnow.neoecoprototype.block.computation.SimplifyEnergizedComputationCoreBlock;
 import cn.dancingsnow.neoecoprototype.block.crafting.SimplifyCraftingCasingBlock;
 import cn.dancingsnow.neoecoprototype.block.crafting.SimplifyCraftingInterfaceBlock;
 import cn.dancingsnow.neoecoprototype.block.crafting.SimplifyCraftingNetworkInterfaceBlock;
@@ -49,7 +51,11 @@ import cn.dancingsnow.neoecoprototype.block.decoration.FumoBlock;
 import cn.dancingsnow.neoecoprototype.blockentity.decoration.FumoBlockEntity;
 import cn.dancingsnow.neoecoprototype.item.decoration.FumoItem;
 import cn.dancingsnow.neoecoprototype.block.crafting.SimplifyPatternProviderBlock;
+import cn.dancingsnow.neoecoprototype.block.crafting.SimplifyPoweredMEInterfaceBlock;
+import cn.dancingsnow.neoecoprototype.block.crafting.SimplifySuperconductiveInterfaceBlock;
 import cn.dancingsnow.neoecoprototype.blockentity.crafting.SimplifyStonecuttingAssemblerBlockEntity;
+import cn.dancingsnow.neoecoprototype.blockentity.crafting.SimplifyPoweredMEInterfaceBlockEntity;
+import cn.dancingsnow.neoecoprototype.blockentity.crafting.SimplifySuperconductiveInterfaceBlockEntity;
 import cn.dancingsnow.neoecoprototype.blockentity.crafting.SimplifyPatternProviderBlockEntity;
 import cn.dancingsnow.neoecoprototype.block.crafting.SimplifyFluidInputHatchBlock;
 import cn.dancingsnow.neoecoprototype.block.crafting.SimplifyFluidOutputHatchBlock;
@@ -68,6 +74,7 @@ import cn.dancingsnow.neoecoprototype.blockentity.storage.SimplifyStorageHostBlo
 import cn.dancingsnow.neoecoprototype.blockentity.storage.SimplifyStorageInterfaceBlockEntity;
 import cn.dancingsnow.neoecoprototype.blockentity.storage.SimplifyStorageVentBlockEntity;
 import cn.dancingsnow.neoecoprototype.blockentity.computation.SimplifyComputationDriveBlockEntity;
+import cn.dancingsnow.neoecoprototype.blockentity.computation.SimplifyEnergizedComputationCoreBlockEntity;
 import cn.dancingsnow.neoecoprototype.items.PigcatStorageMatrixHousingItem;
 import cn.dancingsnow.neoecoprototype.items.SimplifyComputationCellItem;
 import cn.dancingsnow.neoecoprototype.items.SimplifyConcreteStorageCellItem;
@@ -87,6 +94,10 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.EquipmentSlotGroup;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
+import appeng.items.parts.PartItem;
+import cn.dancingsnow.neoecoprototype.part.PoweredInterfacePart;
+import cn.dancingsnow.neoecoprototype.part.SuperconductiveInterfacePart;
+import cn.dancingsnow.neoecoprototype.part.SimplifyPatternProviderPart;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.component.ResolvableProfile;
 import net.minecraft.world.item.CreativeModeTab;
@@ -112,6 +123,16 @@ public class ModRegistration {
 
     public static final DeferredRegister<Item> ITEMS =
             DeferredRegister.create(Registries.ITEM, NeoECOPrototype.MOD_ID);
+
+    public static final Supplier<PartItem<PoweredInterfacePart>> POWERED_INTERFACE_PART = ITEMS.register(
+            "cable_powered_me_interface",
+            () -> new PartItem<>(new Item.Properties(), PoweredInterfacePart.class, PoweredInterfacePart::new));
+    public static final Supplier<PartItem<SuperconductiveInterfacePart>> SUPERCONDUCTIVE_INTERFACE_PART = ITEMS.register(
+            "cable_superconductive_interface",
+            () -> new PartItem<>(new Item.Properties(), SuperconductiveInterfacePart.class, SuperconductiveInterfacePart::new));
+    public static final Supplier<PartItem<SimplifyPatternProviderPart>> CABLE_PATTERN_PROVIDER_PART = ITEMS.register(
+            "cable_pattern_provider",
+            () -> new PartItem<>(new Item.Properties(), SimplifyPatternProviderPart.class, SimplifyPatternProviderPart::new));
     public static Supplier<? extends Item> OPTIONAL_CHEMICAL_CELL_1K;
     public static Supplier<? extends Item> OPTIONAL_CHEMICAL_CELL_4K;
     public static Supplier<? extends Item> OPTIONAL_CHEMICAL_CELL_16K;
@@ -156,12 +177,27 @@ public class ModRegistration {
     public static final Supplier<net.minecraft.world.inventory.MenuType<cn.dancingsnow.neoecoprototype.menu.ProcessorAssemblerMenu>>
             PROCESSOR_ASSEMBLER_MENU = MENU_TYPES.register("processor_assembler",
             cn.dancingsnow.neoecoprototype.menu.ProcessorAssemblerMenu::buildType);
+    public static final Supplier<net.minecraft.world.inventory.MenuType<appeng.menu.implementations.InterfaceMenu>>
+            L1_POWERED_INTERFACE_MENU = MENU_TYPES.register("l1_powered_me_interface", () ->
+            appeng.menu.implementations.MenuTypeBuilder.<appeng.menu.implementations.InterfaceMenu, appeng.helpers.InterfaceLogicHost>create(
+                    (type, id, inventory, host) -> new appeng.menu.implementations.InterfaceMenu(type, id, inventory, host),
+                    appeng.helpers.InterfaceLogicHost.class).buildUnregistered(NeoECOPrototype.id("l1_powered_me_interface")));
+    public static final Supplier<net.minecraft.world.inventory.MenuType<appeng.menu.implementations.InterfaceMenu>>
+            SUPERCONDUCTIVE_INTERFACE_MENU = MENU_TYPES.register("superconductive_interface", () ->
+             appeng.menu.implementations.MenuTypeBuilder.<appeng.menu.implementations.InterfaceMenu, appeng.helpers.InterfaceLogicHost>create(
+                     (type, id, inventory, host) -> new appeng.menu.implementations.InterfaceMenu(type, id, inventory, host),
+                     appeng.helpers.InterfaceLogicHost.class).buildUnregistered(NeoECOPrototype.id("superconductive_interface")));
+     public static final Supplier<net.minecraft.world.inventory.MenuType<appeng.menu.implementations.PatternProviderMenu>>
+             L1_PATTERN_PROVIDER_MENU = MENU_TYPES.register("l1_pattern_provider", () ->
+            appeng.menu.implementations.MenuTypeBuilder.<appeng.menu.implementations.PatternProviderMenu, appeng.helpers.patternprovider.PatternProviderLogicHost>create(
+                    (type, id, inventory, host) -> new appeng.menu.implementations.PatternProviderMenu(type, id, inventory, host),
+                    appeng.helpers.patternprovider.PatternProviderLogicHost.class).buildUnregistered(NeoECOPrototype.id("l1_pattern_provider")));
     public static final Supplier<RecipeType<ProcessorAssemblerRecipe>> PROCESSOR_ASSEMBLER_RECIPE_TYPE =
             RECIPE_TYPES.register("processor_assembler", () -> ProcessorAssemblerRecipe.TYPE);
     public static final Supplier<RecipeSerializer<ProcessorAssemblerRecipe>> PROCESSOR_ASSEMBLER_RECIPE_SERIALIZER =
             RECIPE_SERIALIZERS.register("processor_assembler", ProcessorAssemblerRecipe.Serializer::new);
 
-    /** 鐗╁搧鍚嶄富棰樼豢锛氶ケ鍜屽害鍙栬创鍥剧偣缂€鑹诧紙#80FFAE 鍋忚壋锛変笌绮夊僵搴曡壊锛?A8DCA8 鍋忔贰锛変箣闂淬€?*/
+    /** 闁绘せ鏅涢幖褔宕ュ鍕槣濡増顭囩挒銏ゆ晬濮樿翰鍋欓柛婊冭嫰鐎规娊宕ｉ弽顒€鍨遍柛銉ュ⒔閸嬶絿绱撻埀顒勬嚌鐠囇呯#80FFAE 闁稿绻楁竟瀣晬婢跺鐟㈢紒顔碱槸閸嶅灚鎯旈弴鈥愁棌闁?A8DCA8 闁稿绻戠拹浼存晬婢跺顓洪梻鍌涚暘閳?*/
     private static final int NAME_THEME_GREEN = 0xFF94EDAB;
 
     private static final BlockBehaviour.Properties MACHINE_PROPS =
@@ -214,6 +250,10 @@ public class ModRegistration {
             BLOCKS.register("simplify_computation_drive", () -> new SimplifyComputationDriveBlock(COMPUTATION_PROPS));
     public static final Supplier<SimplifyComputationThreadingCoreBlock> SIMPLIFY_COMPUTATION_THREADING_CORE_BLOCK =
             BLOCKS.register("simplify_computation_threading_core", () -> new SimplifyComputationThreadingCoreBlock(COMPUTATION_PROPS));
+    public static final Supplier<SimplifyComputationThreadingCoreBlock> ENERGIZED_COMPUTATION_THREADING_CORE_BLOCK =
+            BLOCKS.register("energized_computation_threading_core",
+                    () -> new SimplifyComputationThreadingCoreBlock(COMPUTATION_PROPS,
+                            SimplifyTier.L1_ENERGIZED_THREADING));
     public static final Supplier<SimplifyComputationParallelCoreBlock> SIMPLIFY_COMPUTATION_PARALLEL_CORE_BLOCK =
             BLOCKS.register("simplify_computation_parallel_core", () -> new SimplifyComputationParallelCoreBlock(COMPUTATION_PROPS));
     public static final Supplier<SimplifyComputationCoolingControllerBlock> SIMPLIFY_COMPUTATION_COOLING_CONTROLLER_BLOCK =
@@ -236,6 +276,12 @@ public class ModRegistration {
             BLOCKS.register("simplify_crafting_system", () -> new SimplifyCraftingSystemBlock(COMPUTATION_PROPS));
      public static final Supplier<SimplifyStonecuttingAssemblerBlock> SIMPLIFY_STONECUTTING_ASSEMBLER_BLOCK = BLOCKS.register("simplify_stonecutting_assembler", () -> new SimplifyStonecuttingAssemblerBlock(AE2_MACHINE_PROPS));
      public static final Supplier<SimplifyPatternProviderBlock> SIMPLIFY_PATTERN_PROVIDER_BLOCK = BLOCKS.register("simplify_pattern_provider", SimplifyPatternProviderBlock::new);
+      public static final Supplier<SimplifyPoweredMEInterfaceBlock> SIMPLIFY_POWERED_ME_INTERFACE_BLOCK = BLOCKS.register("simplify_powered_me_interface", SimplifyPoweredMEInterfaceBlock::new);
+       public static final Supplier<SimplifySuperconductiveInterfaceBlock> SUPERCONDUCTIVE_INTERFACE_BLOCK = BLOCKS.register("superconductive_interface", SimplifySuperconductiveInterfaceBlock::new);
+    public static final Supplier<SimplifyComputationParallelCoreBlock> ENERGIZED_COMPUTATION_CORE_BLOCK =
+            BLOCKS.register("energized_computation_core",
+                    () -> new SimplifyEnergizedComputationCoreBlock(COMPUTATION_PROPS,
+                            SimplifyTier.L1_PARALLEL_SWITCH));
     public static final Supplier<SimplifyCraftingPatternBusBlock> SIMPLIFY_CRAFTING_PATTERN_BUS_BLOCK =
             BLOCKS.register("simplify_crafting_pattern_bus", () -> new SimplifyCraftingPatternBusBlock(COMPUTATION_PROPS));
     public static final Supplier<SimplifyCraftingWorkerBlock> SIMPLIFY_CRAFTING_WORKER_BLOCK =
@@ -330,6 +376,9 @@ public class ModRegistration {
     public static final Supplier<BlockItem> SIMPLIFY_COMPUTATION_THREADING_CORE_ITEM =
             ITEMS.register("simplify_computation_threading_core",
                     () -> new BlockItem(SIMPLIFY_COMPUTATION_THREADING_CORE_BLOCK.get(), new Item.Properties()));
+    public static final Supplier<BlockItem> ENERGIZED_COMPUTATION_THREADING_CORE_ITEM =
+            ITEMS.register("energized_computation_threading_core",
+                    () -> new BlockItem(ENERGIZED_COMPUTATION_THREADING_CORE_BLOCK.get(), new Item.Properties()));
     public static final Supplier<BlockItem> SIMPLIFY_COMPUTATION_PARALLEL_CORE_ITEM =
             ITEMS.register("simplify_computation_parallel_core",
                     () -> new BlockItem(SIMPLIFY_COMPUTATION_PARALLEL_CORE_BLOCK.get(), new Item.Properties()));
@@ -354,6 +403,12 @@ public class ModRegistration {
 
     public static final Supplier<BlockItem> SIMPLIFY_STONECUTTING_ASSEMBLER_ITEM = ITEMS.register("simplify_stonecutting_assembler", () -> new BlockItem(SIMPLIFY_STONECUTTING_ASSEMBLER_BLOCK.get(), coloredName(SIMPLIFY_STONECUTTING_ASSEMBLER_BLOCK, NAME_THEME_GREEN)));
      public static final Supplier<BlockItem> SIMPLIFY_PATTERN_PROVIDER_ITEM = ITEMS.register("simplify_pattern_provider", () -> new BlockItem(SIMPLIFY_PATTERN_PROVIDER_BLOCK.get(), coloredName(SIMPLIFY_PATTERN_PROVIDER_BLOCK, NAME_THEME_GREEN)));
+      public static final Supplier<BlockItem> SIMPLIFY_POWERED_ME_INTERFACE_ITEM = ITEMS.register("simplify_powered_me_interface", () -> new BlockItem(SIMPLIFY_POWERED_ME_INTERFACE_BLOCK.get(), coloredName(SIMPLIFY_POWERED_ME_INTERFACE_BLOCK, NAME_THEME_GREEN)));
+       public static final Supplier<BlockItem> SUPERCONDUCTIVE_INTERFACE_ITEM = ITEMS.register("superconductive_interface", () -> new BlockItem(SUPERCONDUCTIVE_INTERFACE_BLOCK.get(), coloredName(SUPERCONDUCTIVE_INTERFACE_BLOCK, NAME_THEME_GREEN)));
+    public static final Supplier<BlockItem> ENERGIZED_COMPUTATION_CORE_ITEM =
+            ITEMS.register("energized_computation_core",
+                    () -> new BlockItem(ENERGIZED_COMPUTATION_CORE_BLOCK.get(),
+                            coloredName(ENERGIZED_COMPUTATION_CORE_BLOCK, NAME_THEME_GREEN)));
      public static final Supplier<BlockItem> SIMPLIFY_CRAFTING_SYSTEM_ITEM =
             ITEMS.register("simplify_crafting_system",
                     () -> new BlockItem(SIMPLIFY_CRAFTING_SYSTEM_BLOCK.get(),
@@ -530,8 +585,8 @@ public class ModRegistration {
                             SimplifyStorageCellItem.BYTES_4M, 1 << 14));
 
     /**
-     * 鐗╁搧鍚嶅瓧鐫€鑹层€俽arity 鍥涙。锛堢櫧/榛?钃?绱級瑕嗙洊涓嶅埌鐨勯鑹茬敤 ITEM_NAME 缁勪欢甯?
-     * 鏍峰紡瀹炵幇锛氱粍浠堕噷瀛樼炕璇戦敭锛堟湰鍦板寲瀹夊叏锛夛紝閾佺牕鏀瑰悕鏃朵粛浼氳 CUSTOM_NAME 瑕嗙洊銆?
+     * 闁绘せ鏅涢幖褔宕ュ鍛憻闁活偀鍋撻柤鐟扮湴閳ь兛鎷穉rity 闁搞儲绋掗妴鍌炴晬閸垺顏?濮?闁?缂侀硸鍋撶槐姘辨啺閸℃瑦纾板☉鎾崇Т閸╁矂鎯冮崟顖ｆ澒闁肩灏欓弫?ITEM_NAME 缂備礁瀚▎銏㈡暜?
+     * 闁哄秴鍢茬槐锛勨偓鍦仧楠炲洭鏁嶅杈╃煁濞寸姴鐖奸崳椋庘偓娑欘焽閻愭洜鎷犻幋锔芥殯闁挎稑鐗婂﹢浼村捶閺夊灝顕ч悗鐟邦槸閸欏繘鏁嶆径娑氱闂佸彞鑳堕悧鏇㈠绩閻熺増鍊抽柡鍐╂构缁稒瀵煎鎰佹蕉 CUSTOM_NAME 閻熸洖妫涘ú濠囧Υ?
      */
     private static Item.Properties coloredName(Supplier<? extends Block> block, int color) {
         return coloredName(block.get().getDescriptionId(), color);
@@ -543,7 +598,7 @@ public class ModRegistration {
                         Component.translatable(descriptionId).withStyle(Style.EMPTY.withColor(color)));
     }
 
-    /** 鏅€氱墿鍝佷究鎹烽噸杞斤細娉ㄥ唽鑷韩鏃舵棤娉曡В鏋愯嚜韬?Supplier锛屾寜娉ㄥ唽璺緞鏋勯€犵炕璇戦敭銆?*/
+    /** 闁哄拋鍣ｉ埀顒佹皑婢у潡宕担椋庘敀闁瑰湱鍏橀崳鍛婃姜閺傘倗绐楁繛澶堝妼閸炰粙鎳涢鍥叐闁哄啳鍩栧Λ銈呪枖閺団寬鎺楀几閹邦垰娈伴棅?Supplier闁挎稑鏈€垫粌鈻旈妸銉ユ杸閻犱警鍨扮欢鐐哄几閸曨垪鍋撻悩鐢靛€抽悹鍥ㄥ灴閺侇參濡?*/
     private static Item.Properties coloredItemName(String itemPath, int color) {
         return coloredName(
                 Util.makeDescriptionId("item", ResourceLocation.fromNamespaceAndPath(NeoECOPrototype.MOD_ID, itemPath)),
@@ -551,9 +606,9 @@ public class ModRegistration {
     }
 
     /**
-     * 鐚挭澶栧３褰╄泲锛?.6 鏀诲嚮浼ゅ銆佸墤閫熴€?2 瀹炰綋浜や簰璺濈銆侀檮榄斿厜娉姐€?
-     * 浼ゅ/鏀婚€熺殑 modifier ID 涓庡師鐗堝墤涓€鑷翠互渚挎纭覆鏌撴彁绀猴紱
-     * 鏀诲嚮浼ゅ淇閲?5.6 + 鐜╁鍩虹 1 = 闈㈡澘鏄剧ず 6.6銆?
+     * 闁绘凹浜滈幐顓熷緞閺嵮嶇处鐟滄壋鏅炲▔鏌ユ晬?.6 闁衡偓鐠囨彃姣婂ù绗哄€曢濠囧Υ娴ｇ鈪抽梺顐ゅ枂閳?2 閻庡湱鍋樼紞瀣閵堝嫮闉嶉悹鐑樼箘椤洭濡存笟鈧顔筋洨閺傚灝甯ㄦ繛澶婎潟閳?
+     * 濞寸鍊曢?闁衡偓婵犳埃鍋撻悢鐑樼暠 modifier ID 濞戞挸楠哥敮顐︽偋閸繂鈪冲☉鎾亾闁奸绻濇禍鎺撶瑹閹稿寒鍔€缁绢収鍠楃憰鍡涘蓟閹炬潙绲圭紒鈧悮瀵稿耿
+     * 闁衡偓鐠囨彃姣婂ù绗哄€曢濠冪┍椤旂瓔鍔€闂?5.6 + 闁绘壕鏅涢宥夊春閾忚鏀?1 = 闂傚牄鍨哄姗€寮伴崜褋浠?6.6闁?
      */
     private static Item.Properties pigcatHousingProperties() {
         return new Item.Properties()
@@ -586,6 +641,11 @@ public class ModRegistration {
             ITEMS.register("simplify_computation_cell_1m",
                     () -> new SimplifyComputationCellItem(
                             coloredItemName("simplify_computation_cell_1m", NAME_THEME_GREEN).stacksTo(8)));
+    public static final Supplier<SimplifyComputationCellItem> ENERGIZED_COMPUTATION_CELL_4M =
+            ITEMS.register("energized_computation_cell_4m",
+                    () -> new SimplifyComputationCellItem(
+                            coloredItemName("energized_computation_cell_4m", NAME_THEME_GREEN).stacksTo(8),
+                            SimplifyTier.L1_REINFORCED));
 
     // ============================ Block entity types ============================
     public static final Supplier<BlockEntityType<SimplifyTrinityControllerBlockEntity>> SIMPLIFY_TRINITY_CONTROLLER_BE =
@@ -696,7 +756,20 @@ public class ModRegistration {
                         SIMPLIFY_STORAGE_NETWORK_INTERFACE_BLOCK.get()).build(null));
     }
 
-    private static Supplier<BlockEntityType<SimplifyStorageVentBlockEntity>> registerStorageVentBe() {
+          private static Supplier<BlockEntityType<SimplifySuperconductiveInterfaceBlockEntity>> registerSuperconductiveInterfaceBe() {
+          return (Supplier) BLOCK_ENTITIES.register("superconductive_interface", () -> BlockEntityType.Builder.of((pos, state) -> new SimplifySuperconductiveInterfaceBlockEntity(SUPERCONDUCTIVE_INTERFACE_BE.get(), pos, state), SUPERCONDUCTIVE_INTERFACE_BLOCK.get()).build(null));
+      }
+
+    private static Supplier<BlockEntityType<ECOComputationParallelCoreBlockEntity>> registerEnergizedComputationCoreBe() {
+        return (Supplier) BLOCK_ENTITIES.register("energized_computation_core",
+                () -> BlockEntityType.Builder.of(
+                        (pos, state) -> new SimplifyEnergizedComputationCoreBlockEntity(
+                                ENERGIZED_COMPUTATION_CORE_BE.get(), pos, state,
+                                SimplifyTier.L1_PARALLEL_SWITCH),
+                        ENERGIZED_COMPUTATION_CORE_BLOCK.get()).build(null));
+    }
+
+private static Supplier<BlockEntityType<SimplifyStorageVentBlockEntity>> registerStorageVentBe() {
         return (Supplier) BLOCK_ENTITIES.register("simplify_storage_vent",
                 () -> BlockEntityType.Builder.of(
                         (pos, state) -> new SimplifyStorageVentBlockEntity(
@@ -710,6 +783,8 @@ public class ModRegistration {
             registerComputationDriveBe();
     public static final Supplier<BlockEntityType<ECOComputationThreadingCoreBlockEntity>> SIMPLIFY_COMPUTATION_THREADING_CORE_BE =
             registerComputationThreadingCoreBe();
+    public static final Supplier<BlockEntityType<ECOComputationThreadingCoreBlockEntity>> ENERGIZED_COMPUTATION_THREADING_CORE_BE =
+            registerEnergizedComputationThreadingCoreBe();
     public static final Supplier<BlockEntityType<ECOComputationParallelCoreBlockEntity>> SIMPLIFY_COMPUTATION_PARALLEL_CORE_BE =
             registerComputationParallelCoreBe();
     public static final Supplier<BlockEntityType<ECOComputationCoolingControllerBlockEntity>> SIMPLIFY_COMPUTATION_COOLING_CONTROLLER_BE =
@@ -722,7 +797,12 @@ public class ModRegistration {
             SIMPLIFY_COMPUTATION_CASING_BE = registerComputationCasingBe();
 
     public static final Supplier<BlockEntityType<SimplifyStonecuttingAssemblerBlockEntity>> SIMPLIFY_STONECUTTING_ASSEMBLER_BE = registerStonecuttingAssemblerBe();
+
      public static final Supplier<BlockEntityType<SimplifyPatternProviderBlockEntity>> SIMPLIFY_PATTERN_PROVIDER_BE = registerPatternProviderBe();
+      public static final Supplier<BlockEntityType<SimplifyPoweredMEInterfaceBlockEntity>> SIMPLIFY_POWERED_ME_INTERFACE_BE = registerPoweredMEInterfaceBe();
+       public static final Supplier<BlockEntityType<SimplifySuperconductiveInterfaceBlockEntity>> SUPERCONDUCTIVE_INTERFACE_BE = registerSuperconductiveInterfaceBe();
+    public static final Supplier<BlockEntityType<ECOComputationParallelCoreBlockEntity>> ENERGIZED_COMPUTATION_CORE_BE =
+            registerEnergizedComputationCoreBe();
      public static final Supplier<BlockEntityType<ECOCraftingSystemBlockEntity>> SIMPLIFY_CRAFTING_SYSTEM_BE =
             registerCraftingSystemBe();
     public static final Supplier<BlockEntityType<ECOCraftingPatternBusBlockEntity>> SIMPLIFY_CRAFTING_PATTERN_BUS_BE =
@@ -745,6 +825,10 @@ public class ModRegistration {
     private static Supplier<BlockEntityType<SimplifyStonecuttingAssemblerBlockEntity>> registerStonecuttingAssemblerBe() {
         return (Supplier) BLOCK_ENTITIES.register("simplify_stonecutting_assembler", () -> BlockEntityType.Builder.of((pos, state) -> new SimplifyStonecuttingAssemblerBlockEntity(SIMPLIFY_STONECUTTING_ASSEMBLER_BE.get(), pos, state), SIMPLIFY_STONECUTTING_ASSEMBLER_BLOCK.get()).build(null));
     }
+     private static Supplier<BlockEntityType<SimplifyPoweredMEInterfaceBlockEntity>> registerPoweredMEInterfaceBe() {
+         return (Supplier) BLOCK_ENTITIES.register("simplify_powered_me_interface", () -> BlockEntityType.Builder.of((pos, state) -> new SimplifyPoweredMEInterfaceBlockEntity(SIMPLIFY_POWERED_ME_INTERFACE_BE.get(), pos, state), SIMPLIFY_POWERED_ME_INTERFACE_BLOCK.get()).build(null));
+     }
+
     private static Supplier<BlockEntityType<SimplifyPatternProviderBlockEntity>> registerPatternProviderBe() {
         return (Supplier) BLOCK_ENTITIES.register("simplify_pattern_provider", () -> BlockEntityType.Builder.of((pos, state) -> new SimplifyPatternProviderBlockEntity(SIMPLIFY_PATTERN_PROVIDER_BE.get(), pos, state), SIMPLIFY_PATTERN_PROVIDER_BLOCK.get()).build(null));
     }
@@ -840,6 +924,15 @@ public class ModRegistration {
                         (pos, state) -> new SimplifyComputationDriveBlockEntity(
                                 SIMPLIFY_COMPUTATION_DRIVE_BE.get(), pos, state),
                         SIMPLIFY_COMPUTATION_DRIVE_BLOCK.get()).build(null));
+    }
+
+    private static Supplier<BlockEntityType<ECOComputationThreadingCoreBlockEntity>> registerEnergizedComputationThreadingCoreBe() {
+        return (Supplier) BLOCK_ENTITIES.register("energized_computation_threading_core",
+                () -> BlockEntityType.Builder.of(
+                        (pos, state) -> new ECOComputationThreadingCoreBlockEntity(
+                                ENERGIZED_COMPUTATION_THREADING_CORE_BE.get(), pos, state,
+                                SimplifyTier.L1_ENERGIZED_THREADING),
+                        ENERGIZED_COMPUTATION_THREADING_CORE_BLOCK.get()).build(null));
     }
 
     private static Supplier<BlockEntityType<ECOComputationThreadingCoreBlockEntity>> registerComputationThreadingCoreBe() {
@@ -972,6 +1065,7 @@ public class ModRegistration {
                         output.accept(SIMPLIFY_COMPUTATION_SYSTEM_ITEM.get());
                         output.accept(SIMPLIFY_COMPUTATION_DRIVE_ITEM.get());
                         output.accept(SIMPLIFY_COMPUTATION_THREADING_CORE_ITEM.get());
+                        output.accept(ENERGIZED_COMPUTATION_THREADING_CORE_ITEM.get());
                         output.accept(SIMPLIFY_COMPUTATION_PARALLEL_CORE_ITEM.get());
                         output.accept(SIMPLIFY_COMPUTATION_COOLING_CONTROLLER_ITEM.get());
                         output.accept(SIMPLIFY_COMPUTATION_TRANSMITTER_ITEM.get());
@@ -979,9 +1073,16 @@ public class ModRegistration {
                          output.accept(SIMPLIFY_COMPUTATION_NETWORK_INTERFACE_ITEM.get());
                         output.accept(SIMPLIFY_COMPUTATION_CASING_ITEM.get());
                         output.accept(SIMPLIFY_COMPUTATION_CELL_1M.get());
+                        output.accept(ENERGIZED_COMPUTATION_CELL_4M.get());
                          output.accept(SIMPLIFY_CRAFTING_SYSTEM_ITEM.get());
                          output.accept(SIMPLIFY_STONECUTTING_ASSEMBLER_ITEM.get());
                          output.accept(SIMPLIFY_PATTERN_PROVIDER_ITEM.get());
+                          output.accept(SIMPLIFY_POWERED_ME_INTERFACE_ITEM.get());
+                          output.accept(POWERED_INTERFACE_PART.get());
+                          output.accept(SUPERCONDUCTIVE_INTERFACE_ITEM.get());
+                          output.accept(SUPERCONDUCTIVE_INTERFACE_PART.get());
+                          output.accept(CABLE_PATTERN_PROVIDER_PART.get());
+                          output.accept(ENERGIZED_COMPUTATION_CORE_ITEM.get());
                          output.accept(SIMPLIFY_CRAFTING_PATTERN_BUS_ITEM.get());
                          output.accept(SIMPLIFY_CRAFTING_WORKER_ITEM.get());
                          output.accept(SIMPLIFY_CRAFTING_PARALLEL_CORE_ITEM.get());
@@ -1043,6 +1144,8 @@ public class ModRegistration {
                 SimplifyComputationDriveBlockEntity.class, SIMPLIFY_COMPUTATION_DRIVE_BE.get(), null, null);
         ((AEBaseEntityBlock) SIMPLIFY_COMPUTATION_THREADING_CORE_BLOCK.get()).setBlockEntity(
                 ECOComputationThreadingCoreBlockEntity.class, SIMPLIFY_COMPUTATION_THREADING_CORE_BE.get(), null, null);
+        ((AEBaseEntityBlock) ENERGIZED_COMPUTATION_THREADING_CORE_BLOCK.get()).setBlockEntity(
+                ECOComputationThreadingCoreBlockEntity.class, ENERGIZED_COMPUTATION_THREADING_CORE_BE.get(), null, null);
         ((AEBaseEntityBlock) SIMPLIFY_COMPUTATION_PARALLEL_CORE_BLOCK.get()).setBlockEntity(
                 ECOComputationParallelCoreBlockEntity.class, SIMPLIFY_COMPUTATION_PARALLEL_CORE_BE.get(), null, null);
         ((AEBaseEntityBlock) SIMPLIFY_COMPUTATION_COOLING_CONTROLLER_BLOCK.get()).setBlockEntity(
@@ -1057,6 +1160,10 @@ public class ModRegistration {
                 ECOMachineCasingBlockEntity.class, SIMPLIFY_COMPUTATION_CASING_BE.get(), null, null);
         ((AEBaseEntityBlock) SIMPLIFY_STONECUTTING_ASSEMBLER_BLOCK.get()).setBlockEntity(SimplifyStonecuttingAssemblerBlockEntity.class, SIMPLIFY_STONECUTTING_ASSEMBLER_BE.get(), null, null);
         ((AEBaseEntityBlock) SIMPLIFY_PATTERN_PROVIDER_BLOCK.get()).setBlockEntity(SimplifyPatternProviderBlockEntity.class, SIMPLIFY_PATTERN_PROVIDER_BE.get(), null, null);
+         ((AEBaseEntityBlock) SIMPLIFY_POWERED_ME_INTERFACE_BLOCK.get()).setBlockEntity(SimplifyPoweredMEInterfaceBlockEntity.class, SIMPLIFY_POWERED_ME_INTERFACE_BE.get(), null, null);
+         ((AEBaseEntityBlock) SUPERCONDUCTIVE_INTERFACE_BLOCK.get()).setBlockEntity(SimplifySuperconductiveInterfaceBlockEntity.class, SUPERCONDUCTIVE_INTERFACE_BE.get(), null, null);
+        ((AEBaseEntityBlock) ENERGIZED_COMPUTATION_CORE_BLOCK.get()).setBlockEntity(
+                ECOComputationParallelCoreBlockEntity.class, ENERGIZED_COMPUTATION_CORE_BE.get(), null, null);
         ((AEBaseEntityBlock) SIMPLIFY_CRAFTING_SYSTEM_BLOCK.get()).setBlockEntity(
                 ECOCraftingSystemBlockEntity.class, SIMPLIFY_CRAFTING_SYSTEM_BE.get(), null,
                 (level, pos, state, blockEntity) -> ((ECOCraftingSystemBlockEntity) blockEntity).tick(level, pos, state));
@@ -1103,6 +1210,8 @@ public class ModRegistration {
                 SIMPLIFY_COMPUTATION_DRIVE_ITEM.get().asItem());
         AEBaseBlockEntity.registerBlockEntityItem(SIMPLIFY_COMPUTATION_THREADING_CORE_BE.get(),
                 SIMPLIFY_COMPUTATION_THREADING_CORE_ITEM.get().asItem());
+        AEBaseBlockEntity.registerBlockEntityItem(ENERGIZED_COMPUTATION_THREADING_CORE_BE.get(),
+                ENERGIZED_COMPUTATION_THREADING_CORE_ITEM.get().asItem());
         AEBaseBlockEntity.registerBlockEntityItem(SIMPLIFY_COMPUTATION_PARALLEL_CORE_BE.get(),
                 SIMPLIFY_COMPUTATION_PARALLEL_CORE_ITEM.get().asItem());
         AEBaseBlockEntity.registerBlockEntityItem(SIMPLIFY_COMPUTATION_COOLING_CONTROLLER_BE.get(),
@@ -1115,6 +1224,8 @@ public class ModRegistration {
                 SIMPLIFY_COMPUTATION_CASING_ITEM.get().asItem());
         AEBaseBlockEntity.registerBlockEntityItem(SIMPLIFY_STONECUTTING_ASSEMBLER_BE.get(), SIMPLIFY_STONECUTTING_ASSEMBLER_ITEM.get().asItem());
         AEBaseBlockEntity.registerBlockEntityItem(SIMPLIFY_PATTERN_PROVIDER_BE.get(), SIMPLIFY_PATTERN_PROVIDER_ITEM.get().asItem());
+         AEBaseBlockEntity.registerBlockEntityItem(SIMPLIFY_POWERED_ME_INTERFACE_BE.get(), SIMPLIFY_POWERED_ME_INTERFACE_ITEM.get().asItem());
+         AEBaseBlockEntity.registerBlockEntityItem(SUPERCONDUCTIVE_INTERFACE_BE.get(), SUPERCONDUCTIVE_INTERFACE_ITEM.get().asItem());
         AEBaseBlockEntity.registerBlockEntityItem(SIMPLIFY_CRAFTING_SYSTEM_BE.get(),
                 SIMPLIFY_CRAFTING_SYSTEM_ITEM.get().asItem());
         AEBaseBlockEntity.registerBlockEntityItem(SIMPLIFY_CRAFTING_PATTERN_BUS_BE.get(),
@@ -1135,4 +1246,3 @@ public class ModRegistration {
                 SIMPLIFY_CRAFTING_CASING_ITEM.get().asItem());
     }
 }
-

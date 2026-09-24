@@ -1,0 +1,40 @@
+{
+  "$schema": "../schema.json",
+  "includes": ["../pattern_provider.json"],
+  "background": {
+    "texture": "guis/neoecoprototype/l1_pattern_provider.png",
+    "srcRect": [0, 0, 176, 251]
+  },
+  "slots": {
+    "ENCODED_PATTERN": {
+      "left": 8,
+      "top": 45,
+      "grid": "BREAK_AFTER_9COLS"
+    },
+    "STORAGE": {
+      "left": 8,
+      "top": 133,
+      "grid": "HORIZONTAL"
+    }
+  },
+  "text": {
+    "dialog_title": {
+      "text": {
+        "translate": "block.neoecoprototype.simplify_pattern_provider"
+      },
+      "position": {
+        "left": 8,
+        "top": 6
+      }
+    },
+    "interface_stored_items": {
+      "text": {
+        "translate": "gui.ae2.ReturnInventory"
+      },
+      "position": {
+        "left": 8,
+        "top": 122
+      }
+    }
+  }
+}

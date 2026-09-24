@@ -69,6 +69,10 @@ public enum SimplifyCraftingTier implements IECOTier {
         return powerStorageSize;
     }
 
+    /**
+     * Shares the badge with {@link SimplifyTier}: eco resolves this path at runtime, so no static
+     * search sees a reference and deleting the file breaks the GUI overlay only in game.
+     */
     @Override
     public ResourceLocation getCPUOverlayTexture() {
         return ResourceLocation.fromNamespaceAndPath("neoecoprototype", "textures/gui/tier/l1.png");

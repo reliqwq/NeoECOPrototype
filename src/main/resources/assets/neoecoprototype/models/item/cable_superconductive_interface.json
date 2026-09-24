@@ -1,0 +1,7 @@
+{
+  "credit": "AE2's own cable item layout, with this addon's animated superconductive face",
+  "parent": "ae2:item/cable_interface",
+  "textures": {
+    "front": "neoecoprototype:part/superconductive_interface_front"
+  }
+}

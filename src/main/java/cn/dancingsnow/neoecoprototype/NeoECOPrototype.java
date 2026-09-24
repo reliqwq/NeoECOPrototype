@@ -72,6 +72,13 @@ public class NeoECOPrototype {
         event.registerBlockEntity(AECapabilities.CRAFTING_MACHINE,
                 ModRegistration.SIMPLIFY_STONECUTTING_ASSEMBLER_BE.get(),
                 (blockEntity, side) -> (ICraftingMachine) blockEntity);
+        // AE2 registers the node-host block capability for its own block entity types only. A machine we
+        // leave out of this list is invisible from the outside, so a cable placed against an already
+        // standing machine finds nothing and never joins its grid.
+        registerNodeHost(event, ModRegistration.SIMPLIFY_STONECUTTING_ASSEMBLER_BE.get());
+        registerNodeHost(event, ModRegistration.SIMPLIFY_PATTERN_PROVIDER_BE.get());
+        registerNodeHost(event, ModRegistration.SIMPLIFY_POWERED_ME_INTERFACE_BE.get());
+        registerNodeHost(event, ModRegistration.SUPERCONDUCTIVE_INTERFACE_BE.get());
         registerNodeHost(event, ModRegistration.SIMPLIFY_STORAGE_CONTROLLER_BE.get());
         registerNodeHost(event, ModRegistration.SIMPLIFY_DRIVE_BE.get());
         registerNodeHost(event, ModRegistration.SIMPLIFY_ENERGY_CELL_BE.get());
@@ -81,7 +88,9 @@ public class NeoECOPrototype {
         registerNodeHost(event, ModRegistration.SIMPLIFY_COMPUTATION_SYSTEM_BE.get());
         registerNodeHost(event, ModRegistration.SIMPLIFY_COMPUTATION_DRIVE_BE.get());
         registerNodeHost(event, ModRegistration.SIMPLIFY_COMPUTATION_THREADING_CORE_BE.get());
+        registerNodeHost(event, ModRegistration.ENERGIZED_COMPUTATION_THREADING_CORE_BE.get());
         registerNodeHost(event, ModRegistration.SIMPLIFY_COMPUTATION_PARALLEL_CORE_BE.get());
+        registerNodeHost(event, ModRegistration.ENERGIZED_COMPUTATION_CORE_BE.get());
         registerNodeHost(event, ModRegistration.SIMPLIFY_COMPUTATION_COOLING_CONTROLLER_BE.get());
         registerNodeHost(event, ModRegistration.SIMPLIFY_COMPUTATION_TRANSMITTER_BE.get());
         registerNodeHost(event, ModRegistration.SIMPLIFY_COMPUTATION_INTERFACE_BE.get());
@@ -121,6 +130,18 @@ public class NeoECOPrototype {
         var assembler = ModRegistration.SIMPLIFY_STONECUTTING_ASSEMBLER_ITEM.get();
         appeng.api.upgrades.Upgrades.add(appeng.core.definitions.AEItems.SPEED_CARD.asItem(), assembler, 5);
         appeng.api.upgrades.Upgrades.add(appeng.core.definitions.AEItems.ENERGY_CARD.asItem(), assembler, 5);
+        var interfaceGroup = appeng.core.localization.GuiText.Interface.getTranslationKey();
+        var poweredInterfaceBlock = ModRegistration.SIMPLIFY_POWERED_ME_INTERFACE_ITEM.get();
+        var poweredInterfacePart = ModRegistration.POWERED_INTERFACE_PART.get();
+        var superconductiveInterfaceBlock = ModRegistration.SUPERCONDUCTIVE_INTERFACE_ITEM.get();
+        var superconductiveInterfacePart = ModRegistration.SUPERCONDUCTIVE_INTERFACE_PART.get();
+        for (var item : java.util.List.of(poweredInterfaceBlock, poweredInterfacePart,
+                superconductiveInterfaceBlock, superconductiveInterfacePart)) {
+            appeng.api.upgrades.Upgrades.add(
+                    appeng.core.definitions.AEItems.CRAFTING_CARD.asItem(), item, 1, interfaceGroup);
+            appeng.api.upgrades.Upgrades.add(
+                    appeng.core.definitions.AEItems.FUZZY_CARD.asItem(), item, 1, interfaceGroup);
+        }
         // AE2 的卡↔元件关联表决定：卡片 tooltip 的"可用于"清单、元件工作台升级槽放行
         // （查无登记即拒绝，界面标红"与单元格不兼容"）。按命名空间扫描以同时覆盖
         // KubeJS 脚本创建的矩阵；getConfigInventory 返回 null 的固定无限源没有分区，

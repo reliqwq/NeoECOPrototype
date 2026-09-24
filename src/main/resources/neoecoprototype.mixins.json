@@ -16,9 +16,14 @@
     "ECOComputationInterfaceUIMixin",
     "MBCalculatorTargetAccessor",
     "NEComputationClusterCalculatorMixin",
-    "NECraftingClusterCalculatorMixin"
+    "NECraftingClusterCalculatorMixin",
+    "InterfaceLogicAccess"
   ],
   "client": [
-    "FixedBlockEntityRenderersMixin"
-  ]
+    "FixedBlockEntityRenderersMixin",
+    "SlotYAccessor"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
 }

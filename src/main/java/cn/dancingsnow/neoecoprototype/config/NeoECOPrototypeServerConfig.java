@@ -21,6 +21,15 @@ public final class NeoECOPrototypeServerConfig {
     public static final ModConfigSpec.ConfigValue<List<? extends String>> DISABLED_PROCESSOR_RECIPES;
     /** Whether /prototypefumo may be used. */
     public static final ModConfigSpec.BooleanValue FUMO_COMMAND_ENABLED;
+    /**
+     * Computation threads per L1 threading core. Each core allocates one {@code ECOCraftingCPU} per
+     * thread when it is created, so a core already standing keeps its old count until it is replaced.
+     */
+    public static final ModConfigSpec.IntValue L1_CPU_THREADS;
+    /** Co-processors per L1 parallel core, summed by the cluster with no design cap. */
+    public static final ModConfigSpec.IntValue L1_CPU_ACCELERATORS;
+    /** Crafting storage bytes per L1 computation cell. Raising it leaves stored cells valid. */
+    public static final ModConfigSpec.LongValue L1_CPU_TOTAL_BYTES;
 
     static {
         ModConfigSpec.Builder builder = new ModConfigSpec.Builder();
@@ -47,6 +56,17 @@ public final class NeoECOPrototypeServerConfig {
                         "This is what lets other content that adds inscriber recipes work with no data file.",
                         "Default: true.")
                 .define("derive_processor_recipes_from_inscriber", true);
+        builder.push("l1_computation");
+        L1_CPU_THREADS = builder
+                .comment("Computation threads per L1 threading core. Was 1 before this was configurable.")
+                .defineInRange("cpu_threads", 2, 1, 1_024);
+        L1_CPU_ACCELERATORS = builder
+                .comment("Co-processors per L1 parallel core, i.e. what the panel shows as 并行. Was 16.")
+                .defineInRange("cpu_accelerators", 24, 1, 65_536);
+        L1_CPU_TOTAL_BYTES = builder
+                .comment("Crafting storage bytes per L1 computation cell. Was 1 MiB (1048576).")
+                .defineInRange("cpu_total_bytes", 1_572_864L, 1L, 1L << 40);
+        builder.pop();
         DISABLED_PROCESSOR_RECIPES = builder
                 .comment("Processor outputs the assembler must refuse, e.g. [\"ae2:logic_processor\"].",
                         "Applies to the JSON recipes and the inscriber derivation alike, so removing a data",

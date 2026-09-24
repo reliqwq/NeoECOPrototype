@@ -18,12 +18,13 @@ import net.minecraft.world.level.Level;
 
 import java.util.List;
 
-/** Shapeless processor recipe: the three inputs may be inserted into the assembler in any order. */
+/** Shapeless processor recipe: three or four inputs may be inserted in any order. */
 public record ProcessorAssemblerRecipe(List<Ingredient> ingredients, ItemStack result)
         implements Recipe<ProcessorAssemblerRecipe.Input> {
-    public static final int REQUIRED_INPUTS = 3;
+    public static final int MIN_INPUTS = 3;
+    public static final int MAX_INPUTS = 4;
     public static final Codec<List<Ingredient>> INGREDIENTS_CODEC =
-            Codec.list(Ingredient.CODEC, REQUIRED_INPUTS, REQUIRED_INPUTS);
+            Codec.list(Ingredient.CODEC, MIN_INPUTS, MAX_INPUTS);
 
     public static final RecipeType<ProcessorAssemblerRecipe> TYPE = new RecipeType<>() {
         @Override
@@ -38,7 +39,10 @@ public record ProcessorAssemblerRecipe(List<Ingredient> ingredients, ItemStack r
 
     /** True when the stacks can be assigned to the ingredients one-to-one, in any order. */
     public boolean matches(ItemStack[] stacks) {
-        return stacks.length == REQUIRED_INPUTS && assign(0, stacks, new boolean[stacks.length]);
+        return stacks.length == ingredients.size()
+                && stacks.length >= MIN_INPUTS
+                && stacks.length <= MAX_INPUTS
+                && assign(0, stacks, new boolean[stacks.length]);
     }
 
     private boolean assign(int index, ItemStack[] stacks, boolean[] taken) {
@@ -65,7 +69,7 @@ public record ProcessorAssemblerRecipe(List<Ingredient> ingredients, ItemStack r
 
     @Override
     public boolean canCraftInDimensions(int width, int height) {
-        return width * height >= REQUIRED_INPUTS;
+        return width * height >= MIN_INPUTS;
     }
 
     @Override

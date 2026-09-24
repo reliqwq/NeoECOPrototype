@@ -1,0 +1,8 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    { "item": "neoecoprototype:simplify_powered_me_interface" }
+  ],
+  "result": { "count": 1, "id": "neoecoprototype:cable_powered_me_interface" }
+}

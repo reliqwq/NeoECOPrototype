@@ -39,17 +39,20 @@ public class SimplifyStonecuttingAssemblerBlockEntity extends MolecularAssembler
                 && super.pushPattern(new ProcessorAssemblyPattern(pattern, recipe), inputs, direction);
     }
 
-    /** The pattern must ask for exactly one recipe's three ingredients and that recipe's output. */
+    /** The pattern must ask for exactly one declared recipe's inputs and output. */
     private ProcessorAssemblerRecipe matchRecipe(IPatternDetails pattern) {
         var outputs = pattern.getOutputs();
-        if (pattern.getInputs().length != ProcessorAssemblerRecipe.REQUIRED_INPUTS || outputs.size() != 1
+        int inputCount = pattern.getInputs().length;
+        if (inputCount < ProcessorAssemblerRecipe.MIN_INPUTS
+                || inputCount > ProcessorAssemblerRecipe.MAX_INPUTS
+                || outputs.size() != 1
                 || !(outputs.get(0).what() instanceof AEItemKey outputKey)) {
             return null;
         }
         if (NeoECOPrototypeServerConfig.isProcessorRecipeDisabled(outputKey.getItem())) {
             return null;
         }
-        int size = ProcessorAssemblerRecipe.REQUIRED_INPUTS;
+        int size = inputCount;
         ItemStack[] stacks = new ItemStack[size];
         for (int slot = 0; slot < size; slot++) {
             GenericStack[] possible = pattern.getInputs()[slot].getPossibleInputs();

@@ -105,10 +105,10 @@ public class SimplifyComputationClusterCalculator extends NEComputationClusterCa
     private Optional<BlockPos> verifyStructure(ServerLevel level, BlockPos controllerPos, IECOTier tier,
                                                 Direction front, Direction back, Direction top, Direction down,
                                                 Direction interfaceSide, Direction expandSide) {
-        if (!validateCasing(level, controllerPos, top, down, interfaceSide)
-                || !validateCasing(level, controllerPos, top, down, expandSide)
-                || !validateCasing(level, controllerPos, top, down, back)
-                || !validateCasing(level, controllerPos.relative(back).relative(expandSide), top, down)) {
+        if (!validateShell(level, controllerPos, top, down, interfaceSide)
+                || !validateShell(level, controllerPos, top, down, expandSide)
+                || !validateShell(level, controllerPos, top, down, back)
+                || !validateShell(level, controllerPos.relative(back).relative(expandSide), top, down)) {
             return Optional.empty();
         }
 
@@ -127,7 +127,7 @@ public class SimplifyComputationClusterCalculator extends NEComputationClusterCa
 
         BlockPos threadingCoreStart = connectorStart.relative(back);
         Optional<BlockPos> threadingCoreEndResult = validateBlockLine(level, expandSide, threadingCoreStart,
-                matchingThreadingCore(level, tier, back));
+                matchingThreadingCore(level, tier, back, threadingCoreStart));
         if (threadingCoreEndResult.isEmpty()) {
             return Optional.empty();
         }
@@ -180,10 +180,38 @@ public class SimplifyComputationClusterCalculator extends NEComputationClusterCa
 
         BlockPos coolerPos = connectorEnd.relative(expandSide);
         if (!validateBlock(level, coolerPos, matchingCoolingController(level, tier, expandSide), coolerPos)
-                || !validateBlocks(level, tailCasings, BlockState::is, casing())) {
+                || !tailCasings.stream().allMatch(tail -> isShell(level.getBlockState(tail)))) {
             return Optional.empty();
         }
         return Optional.of(coolerPos);
+    }
+
+    /**
+     * One shell column: the cell at {@code pos} plus the cells above and below it. Mirrors eco's
+     * {@code validateCasing}, which is final and pinned to {@link #casing()}, so that the energized core
+     * can stand in for a casing block the way eco lets its network switch do.
+     */
+    private boolean validateShell(ServerLevel level, BlockPos pos, Direction top, Direction down) {
+        return isShell(level.getBlockState(pos))
+                && isShell(level.getBlockState(pos.relative(top)))
+                && isShell(level.getBlockState(pos.relative(down)));
+    }
+
+    private boolean validateShell(ServerLevel level, BlockPos pos, Direction top, Direction down,
+                                  Direction side) {
+        return validateShell(level, pos.relative(side), top, down);
+    }
+
+    /**
+     * A shell cell is the casing or an energized core. The core may only do this because it hides
+     * itself once the structure forms ({@code SimplifyEnergizedComputationCoreBlock.hideWhenFormed}),
+     * exactly like eco's {@code NENetworkSwitchBlock}. Draw anything here and it flickers: every
+     * formed casing is {@code RenderShape.INVISIBLE} and stops culling neighbours, so the shell is
+     * transparent and a member in it is seen from both sides at once.
+     */
+    private boolean isShell(BlockState state) {
+        return state.is(casing())
+                || state.is(holder(ModRegistration.ENERGIZED_COMPUTATION_CORE_BLOCK.get()));
     }
 
     private boolean validateComputationInterface(ServerLevel level, BlockPos interfacePos,
@@ -198,20 +226,45 @@ public class SimplifyComputationClusterCalculator extends NEComputationClusterCa
         return BuiltInRegistries.BLOCK.wrapAsHolder(block);
     }
 
+    /**
+     * The threading core line. The energized core is only accepted at {@code firstPos} -- the cell
+     * nearest the controller -- which is what caps a structure at exactly one of them without any
+     * counting state: every other cell of the line rejects it and the line then fails to reach the
+     * tail casing.
+     */
     private static java.util.function.BiPredicate<BlockState, BlockPos> matchingThreadingCore(
-            ServerLevel level, IECOTier tier, Direction facing) {
-        return (state, pos) -> state.is(holder(ModRegistration.SIMPLIFY_COMPUTATION_THREADING_CORE_BLOCK.get()))
+            ServerLevel level, IECOTier tier, Direction facing, BlockPos firstPos) {
+        return (state, pos) -> (
+                        state.is(holder(ModRegistration.SIMPLIFY_COMPUTATION_THREADING_CORE_BLOCK.get()))
+                        || (pos.equals(firstPos)
+                                && state.is(holder(ModRegistration.ENERGIZED_COMPUTATION_THREADING_CORE_BLOCK.get()))))
                 && level.getBlockEntity(pos) instanceof ECOComputationThreadingCoreBlockEntity core
                 && tier.supportsComponentTier(core.getTier())
                 && state.getValue(BlockStateProperties.HORIZONTAL_FACING) == facing;
     }
 
+    /**
+     * The parallel core column takes the plain L1 core or the energized core. They are separate Block
+     * instances, so both have to be named here; whether the host accepts what the one that is standing
+     * there actually reports is still {@code supportsComponentTier}'s call.
+     *
+     * <p>Only the plain core has to face {@code back} -- that is eco's own rule. The energized core is
+     * one block a player drops in by hand and its facing changes nothing about what it contributes
+     * (the cluster just sums {@code getCPUAccelerators()}), so demanding a facing there only made
+     * otherwise-correct structures fail to form.
+     *
+     * <p>The energized core may not stand in the shell instead: eco renders every formed casing with
+     * {@code RenderShape.INVISIBLE} and stops it culling its neighbours, so a member in a shell cell
+     * can be seen through from inside and flickers. eco's own answer there is to draw nothing.
+     */
     private static java.util.function.BiPredicate<BlockState, BlockPos> matchingParallelCore(
             ServerLevel level, IECOTier tier, Direction facing) {
-        return (state, pos) -> state.is(holder(ModRegistration.SIMPLIFY_COMPUTATION_PARALLEL_CORE_BLOCK.get()))
+        return (state, pos) -> (
+                        (state.is(holder(ModRegistration.SIMPLIFY_COMPUTATION_PARALLEL_CORE_BLOCK.get()))
+                                && state.getValue(BlockStateProperties.HORIZONTAL_FACING) == facing)
+                        || state.is(holder(ModRegistration.ENERGIZED_COMPUTATION_CORE_BLOCK.get())))
                 && level.getBlockEntity(pos) instanceof ECOComputationParallelCoreBlockEntity core
-                && tier.supportsComponentTier(core.getTier())
-                && state.getValue(BlockStateProperties.HORIZONTAL_FACING) == facing;
+                && tier.supportsComponentTier(core.getTier());
     }
 
     private static java.util.function.BiPredicate<BlockState, BlockPos> matchingCoolingController(

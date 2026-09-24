@@ -1,0 +1,7 @@
+{
+  "credit": "AE2's own cable item layout, with this addon's L1 face",
+  "parent": "ae2:item/cable_interface",
+  "textures": {
+    "front": "neoecoprototype:block/powered_me_interface"
+  }
+}
