@@ -57,8 +57,16 @@ Two extra parts lift an L1 subsystem above what eco's own members give it:
   validate and the whole structure stays unformed. The threads are real: eco sizes its CPU array from
   this number, so it is concurrency the CPUs actually run on.
 
-All three energized computation items (both cores and the `energized_computation_cell_4m` drive cell)
-are **creative only for now** - they have no crafting recipe yet.
+## Crafting them
+
+| Item | Where | Ingredients |
+| --- | --- | --- |
+| Energized Computation Core | Integrated Working Station (eco) | 3 x C4 expandable computation system, 8 x green crystal matrix, 4 x not-so-mysterious cube, 66,600 FE |
+| Energized Computation Threading Core | L1 processor assembly room | 2 x CM4A threading core, 1 x C1 computation casing |
+| Energized computation cell (CE1R) | L1 processor assembly room | 2 x CE1 cell, 1 x L4 storage component |
+
+The two computation cells are told apart **by their inventory icon only** - CE1 keeps eco's green
+accent, CE1R uses our blue. Once they are sitting in a drive they look the same again.
 
 ## L1 numbers are configurable
 
@@ -70,6 +78,7 @@ tiers keep eco's own values.
 | `cpu_threads` | 2 | crafting threads of a plain L1 subsystem |
 | `cpu_accelerators` | 24 | co-processors per plain parallel core |
 | `cpu_total_bytes` | 1572864 | the tier's nominal crafting storage, 1.5x the old 1 MiB |
+| `energized_cell_total_bytes` | 5242880 | bytes per energized cell (CE1R): the old 4 MiB + 30% |
 
 Re-enter the world after editing. Threads are allocated when the cluster is built, so a structure that
 is already standing has to be broken and formed again to pick up a new value.

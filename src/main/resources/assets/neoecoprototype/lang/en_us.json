@@ -124,5 +124,6 @@
   "gui.neoecoprototype.storage.bulk_mark.result": "MEGA marking: %s added, %s already marked; automatic compression needs the MEGA compression upgrade",
   "jei.neoecoprototype.processor_assembler.encode_hint": "Crafts processors directly, working much like the Molecular Assembler.",
   "block.neoecoprototype.energized_computation_threading_core": "Energized Reinforced Threading Core",
-  "item.neoecoprototype.energized_computation_threading_core": "Energized Reinforced Threading Core"
+  "item.neoecoprototype.energized_computation_threading_core": "Energized Reinforced Threading Core",
+  "config.jade.plugin_neoecoae.large_workstation_patterns": "Large Workstation Patterns"
 }

@@ -1,0 +1,18 @@
+{
+  "type": "neoecoprototype:processor_assembler",
+  "ingredients": [
+    {
+      "item": "neoecoprototype:simplify_computation_cell_1m"
+    },
+    {
+      "item": "neoecoprototype:simplify_computation_cell_1m"
+    },
+    {
+      "item": "neoecoprototype:simplify_storage_component_4m"
+    }
+  ],
+  "result": {
+    "id": "neoecoprototype:energized_computation_cell_4m",
+    "count": 1
+  }
+}

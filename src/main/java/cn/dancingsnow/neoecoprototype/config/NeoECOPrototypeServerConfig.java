@@ -30,6 +30,8 @@ public final class NeoECOPrototypeServerConfig {
     public static final ModConfigSpec.IntValue L1_CPU_ACCELERATORS;
     /** Crafting storage bytes per L1 computation cell. Raising it leaves stored cells valid. */
     public static final ModConfigSpec.LongValue L1_CPU_TOTAL_BYTES;
+    /** Same number for the energized cell (CE1R), which is otherwise fixed at the tier constant. */
+    public static final ModConfigSpec.LongValue ENERGIZED_CELL_TOTAL_BYTES;
 
     static {
         ModConfigSpec.Builder builder = new ModConfigSpec.Builder();
@@ -66,6 +68,10 @@ public final class NeoECOPrototypeServerConfig {
         L1_CPU_TOTAL_BYTES = builder
                 .comment("Crafting storage bytes per L1 computation cell. Was 1 MiB (1048576).")
                 .defineInRange("cpu_total_bytes", 1_572_864L, 1L, 1L << 40);
+        ENERGIZED_CELL_TOTAL_BYTES = builder
+                .comment("Crafting storage bytes per energized computation cell (CE1R).",
+                        "Default 5242880 is the old 4 MiB plus 30%.")
+                .defineInRange("energized_cell_total_bytes", 5_242_880L, 1L, 1L << 40);
         builder.pop();
         DISABLED_PROCESSOR_RECIPES = builder
                 .comment("Processor outputs the assembler must refuse, e.g. [\"ae2:logic_processor\"].",

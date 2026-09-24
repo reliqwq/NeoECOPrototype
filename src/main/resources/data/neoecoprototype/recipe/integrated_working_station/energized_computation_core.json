@@ -1,0 +1,22 @@
+{
+  "type": "neoecoae:integrated_working_station",
+  "energy": 66600,
+  "inputItems": [
+    {
+      "count": 3,
+      "item": "neoecoae:computation_system_l4"
+    },
+    {
+      "count": 8,
+      "item": "neoecoprototype:simplify_green_crystal_matrix"
+    },
+    {
+      "count": 4,
+      "item": "ae2:not_so_mysterious_cube"
+    }
+  ],
+  "itemOutput": {
+    "count": 1,
+    "id": "neoecoprototype:energized_computation_core"
+  }
+}

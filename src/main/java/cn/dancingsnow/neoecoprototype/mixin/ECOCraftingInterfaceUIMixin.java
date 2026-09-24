@@ -1,11 +1,16 @@
 package cn.dancingsnow.neoecoprototype.mixin;
 
 /*
- * Version lock: NeoForge 21.1.233, Eco 21.2.0-preview12. Check CraftingInterfaceUI#create lambda.
+ * Version lock: NeoForge 21.1.251, Eco 21.2.0-beta4.
  *
- * Deliberately optional (require = 0): the target is a compiler generated lambda name, so any lambda
- * added upstream renumbers it. A miss costs us the localised title; it must not crash eco's GUI for
- * players on a different eco build. LocalGuiTitleContext logs when this never fires.
+ * The title is built inside a compiler generated lambda whose name carries an index, so this pin
+ * breaks whenever eco adds a lambda to the enclosing method: beta5 renumbered
+ * StorageInterfaceUI#create and the redirect silently stopped matching. require = 0 keeps that miss
+ * from crashing eco's GUI on another build - it costs the localised title only, and
+ * LocalGuiTitleContext logs it. Matching any index by regex was tried against beta6 and crashed the
+ * client instead: the selector also picks up lambdas whose translatable call has a different
+ * signature, and @Redirect rejects those as an invalid target descriptor no matter what
+ * require is set to.
  */
 
 import cn.dancingsnow.neoecoprototype.gui.LocalGuiTitleContext;

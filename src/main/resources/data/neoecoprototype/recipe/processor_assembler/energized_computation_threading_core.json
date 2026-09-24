@@ -1,0 +1,18 @@
+{
+  "type": "neoecoprototype:processor_assembler",
+  "ingredients": [
+    {
+      "item": "neoecoae:computation_threading_core_l4"
+    },
+    {
+      "item": "neoecoae:computation_threading_core_l4"
+    },
+    {
+      "item": "neoecoprototype:simplify_computation_casing"
+    }
+  ],
+  "result": {
+    "id": "neoecoprototype:energized_computation_threading_core",
+    "count": 1
+  }
+}

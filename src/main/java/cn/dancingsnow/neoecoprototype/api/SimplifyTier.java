@@ -22,12 +22,13 @@ import net.minecraft.resources.ResourceLocation;
 public enum SimplifyTier implements IECOTier {
     L1(0, 1L << 20, 100_000L, 1L << 20, 1, 1, 16, 1),
     /**
-     * The tier behind the 4 MiB computation cell: same tier index, so an L1 frame accepts it wherever
-     * it accepts a plain L1 cell, with four times L1's original cell bytes. Its thread and
-     * co-processor numbers are never read, because no member of this tier is a threading or parallel
-     * core -- those numbers only matter to cells through {@link #getCPUTotalBytes()}.
+     * The tier behind the energized computation cell: same tier index, so an L1 frame accepts it
+     * wherever it accepts a plain L1 cell. Its storage bytes are the 4 MiB it shipped with plus 30%,
+     * and a server may retune them; its thread and co-processor numbers are never read, because no
+     * member of this tier is a threading or parallel core -- those numbers only matter to cells
+     * through {@link #getCPUTotalBytes()}.
      */
-    L1_REINFORCED(0, 1L << 20, 100_000L, 4L << 20, 1, 1, 128, 4),
+    L1_REINFORCED(0, 1L << 20, 100_000L, 5_242_880L, 1, 1, 128, 4),
     /**
      * The energized threading core: sixteen real threads, because eco allocates one
      * {@code ECOCraftingCPU} per thread in the core's constructor, so this is the only way to raise
@@ -74,8 +75,8 @@ public enum SimplifyTier implements IECOTier {
     // L1 computation capacity is one eighth of the previous 8 MiB setting.
 
     /**
-     * L1's computation numbers are the ones a server may retune; {@link #L1_REINFORCED} keeps its own
-     * constants because it is a different member rather than a re-tuned L1.
+     * L1's computation numbers are the ones a server may retune. {@link #L1_REINFORCED} is a different
+     * member, so only its storage bytes follow the config: its threads and co-processors stay fixed.
      */
     private boolean isConfigurable() {
         return this == L1;
@@ -103,7 +104,13 @@ public enum SimplifyTier implements IECOTier {
 
     @Override
     public long getCPUTotalBytes() {
-        return isConfigurable() ? NeoECOPrototypeServerConfig.L1_CPU_TOTAL_BYTES.get() : cpuTotalBytes;
+        if (this == L1) {
+            return NeoECOPrototypeServerConfig.L1_CPU_TOTAL_BYTES.get();
+        }
+        if (this == L1_REINFORCED) {
+            return NeoECOPrototypeServerConfig.ENERGIZED_CELL_TOTAL_BYTES.get();
+        }
+        return cpuTotalBytes;
     }
 
     @Override

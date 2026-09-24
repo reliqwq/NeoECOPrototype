@@ -40,6 +40,7 @@ import cn.dancingsnow.neoecoprototype.gui.LocalGuiTitleContext;
 import cn.dancingsnow.neoecoprototype.integration.ae2.OversizeInterfaceLogic;
 import cn.dancingsnow.neoecoprototype.integration.ae2.SimplifyGridFacade;
 import cn.dancingsnow.neoecoprototype.items.SimplifySmallBulkStorageCellItem;
+import cn.dancingsnow.neoecoprototype.multiblock.calculator.SimplifyComputationClusterCalculator;
 import cn.dancingsnow.neoecoprototype.multiblock.calculator.SimplifyTrinityClusterCalculator;
 import cn.dancingsnow.neoecoprototype.multiblock.trinity.TrinityCraftingExecutor;
 import cn.dancingsnow.neoecoprototype.registration.ModRegistration;
@@ -1646,33 +1647,124 @@ public final class NeoECOPrototypeGameTests {
     }
 
     /**
-     * The parallel column takes the energized core even when it faces the wrong way, and the cluster
-     * adopts it so its co-processors land in the total the CPUs actually read.
-     *
-     * <p>It is a core slot rather than a shell cell on purpose: eco draws every formed casing with
-     * {@code RenderShape.INVISIBLE} and stops it culling neighbours, so a member that keeps drawing
-     * inside the shell is seen from both sides and flickers.
+     * The energized core is sold as "exactly one, in the shell to the host's left". The geometry
+     * enforces it by allotting a single cell, so nothing has to be counted afterwards. These tests
+     * each build the structure once: swapping members in and out of one standing structure walks
+     * into AE2 refusing to re-initialise a grid node.
      */
-    @GameTest(template = "l1_room", batch = "l1_core", templateNamespace = NeoECOPrototype.MOD_ID)
-    public static void energizedCoreInParallelColumnAddsItsParallelism(GameTestHelper helper) {
-        var ourTier = SimplifyTier.L1_PARALLEL_SWITCH;
+    @GameTest(template = "l1_room", batch = "l1_core_left", templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void energizedCoreInShellLeftOfHostAddsItsParallelism(GameTestHelper helper) {
+        buildWithEnergizedCoreInShell(helper, true);
+    }
+
+    /** The mirrored cell has to refuse the same block, which is what keeps "exactly one" honest. */
+    @GameTest(template = "l1_room", batch = "l1_core_right", templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void energizedCoreOnTheShellsOtherSideIsRejected(GameTestHelper helper) {
+        buildWithEnergizedCoreInShell(helper, false);
+    }
+
+    /**
+     * The parallel column no longer takes the energized core. The cluster treats it as a parallel core
+     * anyway, so the column is the second place where "only one" would have to be counted.
+     */
+    @GameTest(template = "l1_room", batch = "l1_core_column", templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void energizedCoreInParallelColumnIsRejected(GameTestHelper helper) {
         buildComputationStructure(helper, new BlockPos(13, 3, 4),
                 ModRegistration.SIMPLIFY_COMPUTATION_PARALLEL_CORE_BLOCK.get(),
-                ModRegistration.ENERGIZED_COMPUTATION_CORE_BLOCK.get(), 0, true, 1, controller -> {
-                    NEComputationCluster cluster = controller.getCluster();
-                    helper.assertTrue(controller.isFormed() && cluster != null,
-                            "the L1 subsystem did not form with the energized core in a parallel column");
-                    int ours = (int) cluster.getParallelCores().stream()
-                            .filter(core -> core.getTier() == ourTier).count();
-                    int plain = cluster.getParallelCores().size() - ours;
-                    helper.assertTrue(ours == 1, "the parallel column rejected the energized core");
-                    helper.assertTrue(cluster.getCPUAccelerators()
-                                    == plain * SimplifyTier.L1.getCPUAccelerators()
-                                            + ourTier.getCPUAccelerators(),
-                            "the energized core should add " + ourTier.getCPUAccelerators()
-                                    + " co-processors on top of " + plain + " plain cores, but the cluster "
-                                    + "reports " + cluster.getCPUAccelerators());
-                });
+                ModRegistration.ENERGIZED_COMPUTATION_CORE_BLOCK.get(), 0, false, 1, controller ->
+                        helper.assertTrue(!controller.isFormed(),
+                                "the parallel column still takes the energized core, so two of them can "
+                                        + "stand in one subsystem"));
+    }
+
+    /**
+     * Builds the minimum L1 structure, then replaces the shell casing on one side of the controller
+     * with an energized core: the allotted cell when {@code left} is true, its mirror otherwise.
+     */
+    private static void buildWithEnergizedCoreInShell(GameTestHelper helper, boolean left) {
+        BlockPos controllerPos = new BlockPos(13, 3, 4);
+        helper.setBlock(controllerPos, ModRegistration.SIMPLIFY_COMPUTATION_SYSTEM_BLOCK.get());
+        BlockPos absolute = helper.absolutePos(controllerPos);
+        helper.runAfterDelay(5, () -> {
+            if (!(helper.getLevel().getBlockEntity(absolute)
+                    instanceof ECOComputationSystemBlockEntity controller)) {
+                helper.fail("the L1 controller has no computation block entity at " + absolute);
+                return;
+            }
+            var plan = new MultiBlockBuildController(controller).createLocalPreviewPlan();
+            if (plan == null || plan.getAllBlocks().isEmpty()) {
+                helper.fail("the L1 controller produced no build plan");
+                return;
+            }
+            BlockPos origin = helper.absolutePos(BlockPos.ZERO);
+            List<BlockPos> built = new ArrayList<>();
+            for (var planned : plan.getAllBlocks()) {
+                // Only the template volume is restored after a test, so anything written outside it
+                // leaks into the neighbouring test room and takes its block entities with it.
+                BlockPos rel = planned.worldPos().subtract(origin);
+                if (rel.getX() < 0 || rel.getY() < 0 || rel.getZ() < 0 || rel.getX() >= L1_ROOM_SIZE
+                        || rel.getY() >= L1_ROOM_SIZE || rel.getZ() >= L1_ROOM_SIZE) {
+                    helper.fail("the L1 build plan leaves the " + L1_ROOM_SIZE + "^3 template at " + rel);
+                    return;
+                }
+                helper.getLevel().setBlockAndUpdate(planned.worldPos(), planned.targetState());
+                built.add(planned.worldPos());
+            }
+
+            // Both hands come from the production rule, so the negative case is genuinely "the other
+            // shell cell of this same build" rather than a direction this file guessed at.
+            BlockPos cell = SimplifyComputationClusterCalculator.energizedCoreCell(
+                    absolute, helper.getLevel().getBlockState(absolute), !left);
+            var stateHere = helper.getLevel().getBlockState(cell);
+            // assertTrue does not stop execution: falling through after a recorded failure and then
+            // calling succeed() leaves the batch waiting on a test that can no longer finish.
+            if (!stateHere.is(ModRegistration.SIMPLIFY_COMPUTATION_CASING_BLOCK.get())) {
+                helper.fail((left ? "left" : "right") + " of the controller is " + stateHere.getBlock()
+                        + " at " + cell + ", not a casing, so this test cannot speak about it");
+                return;
+            }
+
+            helper.getLevel().setBlockAndUpdate(cell,
+                    ModRegistration.ENERGIZED_COMPUTATION_CORE_BLOCK.get().defaultBlockState());
+            controller.rebuildMultiblock();
+            helper.runAfterDelay(20, () -> {
+                try {
+                    if (left) {
+                        var cluster = controller.getCluster();
+                        if (!controller.isFormed() || cluster == null) {
+                            helper.fail("the allotted shell cell did not accept the energized core");
+                            return;
+                        }
+                        int ours = (int) cluster.getParallelCores().stream()
+                                .filter(core -> core.getTier() == SimplifyTier.L1_PARALLEL_SWITCH).count();
+                        if (ours != 1) {
+                            helper.fail("the allotted shell cell rejected the energized core");
+                            return;
+                        }
+                        int plain = cluster.getParallelCores().size() - ours;
+                        long expected = (long) plain * SimplifyTier.L1.getCPUAccelerators()
+                                + SimplifyTier.L1_PARALLEL_SWITCH.getCPUAccelerators();
+                        if (cluster.getCPUAccelerators() != expected) {
+                            helper.fail("the energized core should add "
+                                    + SimplifyTier.L1_PARALLEL_SWITCH.getCPUAccelerators()
+                                    + " co-processors on top of " + plain + " plain cores, but the "
+                                    + "cluster reports " + cluster.getCPUAccelerators());
+                            return;
+                        }
+                    } else if (controller.isFormed()) {
+                        helper.fail("the shell cell on the other side took the energized core too, so "
+                                + "nothing limits it to one");
+                        return;
+                    }
+                } finally {
+                    for (BlockPos pos : built) {
+                        helper.getLevel().setBlockAndUpdate(pos, Blocks.AIR.defaultBlockState());
+                    }
+                    helper.getLevel().setBlockAndUpdate(absolute, Blocks.AIR.defaultBlockState());
+                }
+                helper.succeed();
+            });
+        });
     }
 
     /**
@@ -1724,8 +1816,9 @@ public final class NeoECOPrototypeGameTests {
     /**
      * L1's computation numbers are read from the server config so a pack can buff the tier without
      * adding a member. This checks the tier really forwards to the config: a getter that kept returning
-     * the enum constant would pass every other test and still ignore the file. It also pins the 4 MiB
-     * cell to its own bytes and to L1's tier index, which is what lets an L1 frame mount it at all.
+     * the enum constant would pass every other test and still ignore the file. It also pins the
+     * energized cell to its own config entry and to L1's tier index, which is what lets an L1 frame
+     * mount it at all.
      */
     @GameTest(template = "empty", templateNamespace = NeoECOPrototype.MOD_ID)
     public static void l1ComputationNumbersComeFromConfig(GameTestHelper helper) {
@@ -1745,8 +1838,11 @@ public final class NeoECOPrototypeGameTests {
                 "an L1 cell should report the configured "
                         + NeoECOPrototypeServerConfig.L1_CPU_TOTAL_BYTES.get() + " bytes, got "
                         + plain.getCPUTotalBytes());
-        helper.assertTrue(reinforced.getCPUTotalBytes() == 4L << 20,
-                "the 4 MiB cell should keep its own bytes, got " + reinforced.getCPUTotalBytes());
+        helper.assertTrue(reinforced.getCPUTotalBytes()
+                        == NeoECOPrototypeServerConfig.ENERGIZED_CELL_TOTAL_BYTES.get(),
+                "the energized cell should report the configured "
+                        + NeoECOPrototypeServerConfig.ENERGIZED_CELL_TOTAL_BYTES.get() + " bytes, got "
+                        + reinforced.getCPUTotalBytes());
         helper.assertTrue(reinforced.getTier() == plain.getTier() && plain.supportsComponentTier(reinforced),
                 "an L1 frame must still mount the bigger cell");
         helper.assertTrue(ModRegistration.ENERGIZED_COMPUTATION_CELL_4M.get().getTier() == reinforced,

@@ -64,6 +64,16 @@ AE2 Part 不是普通方块模型。保留 AE2 的 Part 几何、背面和侧面
 
 不适合配置的内容：槽位语义顺序、CONFIG/STORAGE 的交错规则、amount button 与 CONFIG 索引的映射、Mixin 作用范围、Part 几何和 GUI 像素坐标。这些属于菜单契约或资源契约，应固定在代码和资源中，避免服务器配置制造不可交互的界面。
 
+## 多方块朝向与镜像
+
+处理“某一格才接受指定成员”或网络交换模块位置时，先读取 eco 自己的实现，再读取 AE2，最后才参考原版。eco 的正规入口是 `NENetworkSwitchUtil.switchPosition`，不要用 `front.getCounterClockWise()` 等手工推导替代它。
+
+- 使用 `OrientationStrategies.horizontalFacing()` 获取 `IOrientationStrategy`。
+- 使用 `strategy.getSide(controllerState, RelativeSide.LEFT/RIGHT)` 获取玩家视角下的左右方向。
+- 非镜像位置使用 `RelativeSide.RIGHT`，镜像位置使用 `RelativeSide.LEFT`；这与 eco 的 `switchPosition(controllerPos, state, mirrored)` 同构。
+- 位置判断和结构校验必须同时传递 `mirrored`，否则镜像结构会把合法成员判到错误的一侧。
+- GameTest 中 `helper.assertTrue` 只记录失败，不会中断后续代码。异步测试遇到前置失败时必须使用 `helper.fail(...); return;`，否则继续调用 `succeed()` 可能让批次静默卡住。
+
 ## 验证清单
 
 - `compileJava processResources` 通过。
