@@ -1,5 +1,37 @@
 # Changelog
 
+## 1.2.8 (2026-09-24) - L1 Computation and Interface Update
+
+### 新增 / Added
+
+- **L1 计算系统扩展 / L1 computation system expansion**：新增盈能强化计算机核心、盈能强化线程核心和盈能 4M 计算盘；支持 L1 计算集群的专用成员槽位、并行能力和线程能力。 Adds the energized computation core, energized threading core, and energized 4M computation cell with dedicated L1 cluster slots, parallelism, and threading behavior.
+- **L1 计算系统配方 / L1 computation recipes**：新增处理器装配室和 eco 集成工作站配方，使用超导处理器、盈能超导锭与极寒凌冰等材料。 Adds processor-assembler and ECO integrated-working-station recipes using superconducting processors, energized superconductive ingots, and Cryotheum Crystals.
+- **L1 供电 ME 接口 / L1 powered ME interface**：新增方块版与线缆 Part 版，保持 18 个 CONFIG / 18 个 STORAGE 槽位，提供 200 AE/t 被动供电。 Adds block and cable-Part forms with 18 CONFIG slots, 18 STORAGE slots, and 200 AE/t passive generation.
+- **盈能超导接口 / energized superconductive interface**：新增方块版与线缆 Part 版，每个标记槽最多配置 8192 个物品、512,000 mB 流体或化学品。 Adds block and cable-Part forms with a per-marker limit of 8,192 items or 512,000 mB of fluids or chemicals.
+- **L1 接口配方 / L1 interface recipes**：L1 供电接口改由 L1 处理器装配室制作；盈能超导接口改由 eco 集成工作站制作并消耗 10,000 FE。 The powered interface is made in the L1 processor assembler; the superconductive interface is made in the ECO integrated working station and consumes 10,000 FE.
+- **双语发布文档 / bilingual release documentation**：补充计算系统、接口、配方和兼容性说明。 Adds bilingual documentation for the computation system, interfaces, recipes, and compatibility requirements.
+
+### 修复 / Fixed
+
+- **计算集群左右槽位判断**：改用 AE2 `IOrientationStrategy` 与 `RelativeSide.LEFT/RIGHT`，并正确处理镜像结构，不再使用手工逆时针方向推导。
+- **beta6 启动兼容性**：移除 beta6 已不存在的 `onReady` Mixin 注入，保留 L1 计算系统的结构定义覆盖。
+- **GameTest 异步失败处理**：失败断言改为显式 `fail + return`，避免失败后继续执行导致测试批次静默卡住。
+- **接口与样板供应器界面**：修正自定义六行布局、物品栏背景贴图偏移和样板供应器物品栏位置。
+- **线缆 Part 渲染**：按 AE2 Part 几何约定区分端面、侧面、背面和状态覆盖层，修正反向显示背板材质的问题。
+
+### 变更 / Changed
+
+- **处理器装配室输入数量**：从固定 3 个输入扩展为支持 3 或 4 个无序输入，兼容原有处理器配方。
+- **Part 模型风格**：样板供应器、L1 供电接口和盈能超导接口沿用 AE2 的端盖、主体侧面和状态灯分层模型。
+- **版本与开发基线**：项目版本升至 `1.3.0`，开发环境同步 NeoForge `21.1.251` 与 Neo ECO AE Extension `21.2.0-beta6`。
+- **开发规范**：新增 eco 多方块朝向、镜像位置和 GameTest 失败处理规则，要求先读 eco，再读 AE2，最后参考原版。
+
+### 验证 / Verification
+
+- `./gradlew compileJava processResources` 通过。
+- `./gradlew runClient` 已成功进入运行阶段。
+- 已确认 beta6 下 Mixin 不再因缺失 `onReady` 方法阻断启动。
+
 ## 1.2.6 (2026-09-24)
 
 ### 新增 / Added

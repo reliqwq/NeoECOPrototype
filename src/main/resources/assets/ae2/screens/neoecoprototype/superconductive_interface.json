@@ -2,12 +2,12 @@
   "$schema": "../schema.json",
   "includes": ["../interface.json"],
   "background": {
-    "texture": "guis/neoecoprototype/l1_powered_me_interface.png",
+    "texture": "guis/neoecoprototype/superconductive_interface.png",
     "srcRect": [0, 0, 176, 261]
   },
   "slots": {
-    "CONFIG": { "left": 8, "top": 53, "grid": "BREAK_AFTER_9COLS" },
-    "STORAGE": { "left": 8, "top": 71, "grid": "BREAK_AFTER_9COLS" }
+    "CONFIG": { "left": 8, "top": 51, "grid": "BREAK_AFTER_9COLS" },
+    "STORAGE": { "left": 8, "top": 69, "grid": "BREAK_AFTER_9COLS" }
   },
   "text": {
     "dialog_title": {
@@ -16,22 +16,22 @@
     },
     "interface_stored_items": {
       "text": { "translate": "gui.ae2.StoredItems" },
-      "position": { "left": 105, "top": 161 }
+      "position": { "left": 105, "top": 159 }
     },
     "player_inventory_title": {
       "text": { "translate": "container.inventory" },
-      "position": { "left": 8, "top": 161 }
+      "position": { "left": 8, "top": 159 }
     }
   },
   "widgets": {
-    "amtButton10": { "left": 8, "top": 89, "width": 16, "height": 16 },
-    "amtButton11": { "left": 26, "top": 89, "width": 16, "height": 16 },
-    "amtButton12": { "left": 44, "top": 89, "width": 16, "height": 16 },
-    "amtButton13": { "left": 62, "top": 89, "width": 16, "height": 16 },
-    "amtButton14": { "left": 80, "top": 89, "width": 16, "height": 16 },
-    "amtButton15": { "left": 98, "top": 89, "width": 16, "height": 16 },
-    "amtButton16": { "left": 116, "top": 89, "width": 16, "height": 16 },
-    "amtButton17": { "left": 134, "top": 89, "width": 16, "height": 16 },
-    "amtButton18": { "left": 152, "top": 89, "width": 16, "height": 16 }
+    "amtButton10": { "left": 8, "top": 87, "width": 16, "height": 16 },
+    "amtButton11": { "left": 26, "top": 87, "width": 16, "height": 16 },
+    "amtButton12": { "left": 44, "top": 87, "width": 16, "height": 16 },
+    "amtButton13": { "left": 62, "top": 87, "width": 16, "height": 16 },
+    "amtButton14": { "left": 80, "top": 87, "width": 16, "height": 16 },
+    "amtButton15": { "left": 98, "top": 87, "width": 16, "height": 16 },
+    "amtButton16": { "left": 116, "top": 87, "width": 16, "height": 16 },
+    "amtButton17": { "left": 134, "top": 87, "width": 16, "height": 16 },
+    "amtButton18": { "left": 152, "top": 87, "width": 16, "height": 16 }
   }
 }

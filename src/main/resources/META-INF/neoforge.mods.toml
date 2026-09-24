@@ -4,7 +4,7 @@ license = "GPL-3.0-only"
 
 [[mods]]
 modId = "neoecoprototype"
-version = "1.2.6"
+version = "1.2.8"
 displayName = "Neo ECO Prototype"
 authors = "reliqwq"
 description = "A unified Trinity addon for Neo ECO AE Extension and AE2: multiblock storage, network crafting entry, task diagnostics, and UI below eco's L4 tier."

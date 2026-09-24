@@ -20,9 +20,9 @@ Neo ECO Prototype is an unofficial addon for Neo ECO AE Extension and Applied En
 | Component | Version |
 | --- | --- |
 | Minecraft | 1.21.1 |
-| NeoForge | 21.1.233 or compatible 21.1.x release |
+| NeoForge | 21.1.251 or compatible 21.1.x release |
 | Applied Energistics 2 | 19.2.17 or compatible 19.2.x release |
-| Neo ECO AE Extension | 21.2.0-beta4 or a compatible release |
+| Neo ECO AE Extension | 21.2.0-beta6 or a compatible beta release |
 | MegaCells (optional; required for the small bulk matrix family) | 4.11.0 or later |
 | Java | 21 |
 
@@ -66,7 +66,7 @@ Required local development files are listed in `build.gradle`. Place lawful copi
 .\gradlew.bat build --offline
 ```
 
-The output is written to `build/libs/neoecoprototype-1.2.6.jar`.
+The output is written to `build/libs/neoecoprototype-1.2.8.jar`.
 
 Do not commit `libs/`, `run/`, `build/`, reference checkouts, or local world data. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for dependency licensing information.
 
