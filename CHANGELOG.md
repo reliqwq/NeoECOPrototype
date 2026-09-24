@@ -10,6 +10,9 @@
 - **盈能超导接口 / energized superconductive interface**：新增方块版与线缆 Part 版，每个标记槽最多配置 8192 个物品、512,000 mB 流体或化学品。 Adds block and cable-Part forms with a per-marker limit of 8,192 items or 512,000 mB of fluids or chemicals.
 - **L1 接口配方 / L1 interface recipes**：L1 供电接口改由 L1 处理器装配室制作；盈能超导接口改由 eco 集成工作站制作并消耗 10,000 FE。 The powered interface is made in the L1 processor assembler; the superconductive interface is made in the ECO integrated working station and consumes 10,000 FE.
 - **双语发布文档 / bilingual release documentation**：补充计算系统、接口、配方和兼容性说明。 Adds bilingual documentation for the computation system, interfaces, recipes, and compatibility requirements.
+- **L1 数值配置项 / extra config entry**：`l1_computation.energized_cell_total_bytes`，默认 `5242880`（原 4 MiB 加 30%），单独控制盈能闪存增强（CE1R）的合成存储字节数。 Adds a config entry for the energized cell's storage bytes.
+- **盈能盘物品栏贴图 / item-icon-only difference**：CE1R 不再与 CE1 共用同一张物品模型，改为一张只把绿色信号换成我们蓝色的独立贴图；插进驱动器之后两者外观仍然一致。 Gives the energized cell its own inventory texture instead of sharing the plain cell's model.
+- **外壳位成员的成型外观 / shell member rendering**：盈能强化计算机核心成型后不再画方块模型（与 eco 所有外壳位成员一致：成型外壳是 `RenderShape.INVISIBLE` 且不再替邻居遮面，成员继续画就会从内外两侧同时可见而闪烁），那一格的表面改由 eco 的 section-geometry 钩子画回。 Hides the energized core's block model once formed, like every eco shell member, and paints the face back through eco's section-geometry hook.
 
 ### 修复 / Fixed
 
@@ -23,14 +26,16 @@
 
 - **处理器装配室输入数量**：从固定 3 个输入扩展为支持 3 或 4 个无序输入，兼容原有处理器配方。
 - **Part 模型风格**：样板供应器、L1 供电接口和盈能超导接口沿用 AE2 的端盖、主体侧面和状态灯分层模型。
-- **版本与开发基线**：项目版本升至 `1.3.0`，开发环境同步 NeoForge `21.1.251` 与 Neo ECO AE Extension `21.2.0-beta6`。
+- **版本与开发基线**：项目版本为 `1.2.7`（先前误写的 `1.2.8` 从未打过 tag、从未发布，已更正），开发环境同步 NeoForge `21.1.251` 与 Neo ECO AE Extension `21.2.0-beta6`；**发布下限仍是 eco `21.2.0-beta4`**，我们没有用到任何比 beta4 更新的 API。
 - **开发规范**：新增 eco 多方块朝向、镜像位置和 GameTest 失败处理规则，要求先读 eco，再读 AE2，最后参考原版。
 
 ### 验证 / Verification
 
-- `./gradlew compileJava processResources` 通过。
-- `./gradlew runClient` 已成功进入运行阶段。
-- 已确认 beta6 下 Mixin 不再因缺失 `onReady` 方法阻断启动。
+- `./gradlew build` 通过；`runGameTestServer` **37 条全部通过**（1.9 秒）。
+- 客户端在 beta6 下正常启动到标题界面，日志中 `MixinApplyError` / `InvalidInjectionException` /
+  `Missing config translation` 均为 0 次。
+- 未覆盖：eco 接口 GUI 的标题重定向只在**打开界面**时才会被应用，GameTest 从不加载这些类，
+  所以那一条还需要实机开一次存储/合成接口确认。
 
 ## 1.2.6 (2026-09-24)
 
