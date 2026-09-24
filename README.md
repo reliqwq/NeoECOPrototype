@@ -58,7 +58,7 @@ KubeJS is optional. Matrix texture recoloring is handled offline by `tools/gener
 
 ## Development Build
 
-The current development setup uses the published Neo ECO AE Extension `21.2.0-beta4` JAR under `neoecobeta/` for offline compatibility testing. The local development copy is intentionally excluded from GitHub.
+The current development setup uses the published Neo ECO AE Extension `21.2.0-beta6` JAR under `neoecobeta/` for offline compatibility testing; the released compatibility floor stays at `21.2.0-beta4`, which is the first build exposing `IECOBulkMarkableCellItem`. The local development copy is intentionally excluded from GitHub.
 
 Required local development files are listed in `build.gradle`. Place lawful copies of the exact compatible dependencies in `libs/`, then run:
 

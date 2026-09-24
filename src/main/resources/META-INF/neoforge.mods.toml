@@ -39,6 +39,8 @@ side = "BOTH"
 # range would admit preview10..preview16-hotfix1, which lack the 13-argument
 # StorageHostUI.Config constructor and fail at runtime with NoSuchMethodError.
 # beta4 is the first build exposing IECOBulkMarkableCellItem used by the small-bulk cells.
+# Developed against beta6, but the floor stays at beta4: nothing here uses an API newer than
+# beta4 (hideWhenFormed, FixedBlockEntityRenderers.register and NEBlock.FORMED are all present).
 [[dependencies.neoecoprototype]]
 modId = "neoecoae"
 mandatory = true

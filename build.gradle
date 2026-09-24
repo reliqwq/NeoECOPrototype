@@ -46,7 +46,7 @@ dependencies {
     // beta5 inserts a lambda into StorageInterfaceUI#create, which renumbers lambda$create$N and stops
     // our title redirects from matching: no longer a crash (they are require = 0) but the interface GUIs
     // silently keep eco's default title until LocalGuiTitleContext warns in the log.
-    implementation files("neoecobeta/neoecoae-21.2.0-beta4.jar")
+    implementation files("neoecobeta/neoecoae-21.2.0-beta6.jar")
     // MegaCells 4.11.0 is the supported optional integration version.
     implementation files("libs/megacells-4.11.0.jar")
     // Temporary local runtime dependencies for client inspection; restore compileOnly after viewing.
