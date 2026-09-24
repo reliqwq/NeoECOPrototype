@@ -1,5 +1,53 @@
 # Changelog
 
+## 1.2.6 (2026-09-24)
+
+### 新增 / Added
+
+- **L1 供能接口**（`simplify_powered_me_interface`）与**盈能超导接口**（`superconductive_interface`）：
+  各带方块与线缆部件两种形态。供能接口 18 标记槽 / 18 库存槽（原版 9），通电且有频道时以
+  200 AE/t 被动发电；超导接口同样的翻倍布局，单个标记可囤 8192 个物品 / 512,000 mB 流体 /
+  512,000 mB 化学品，输出功率 4000 AE/t。AE2 每个网格只保留输出功率最高的一台被动发电源。
+- **盈能强化计算机核心**（`energized_computation_core`）：每块 **1024 并行**，可以顶掉一格外壳
+  站位，也可以进并行核心列。
+- **盈能强化线程核心**（`energized_computation_threading_core`）：每块 **16 线程**，只接受离控制器
+  最近的那一格 —— 放在别处整条线校验不过，结构直接不成形。
+- **L1 计算数值进服务端配置**：`l1_computation` 段下 `cpu_threads`（默认 2）、
+  `cpu_accelerators`（默认 24）、`cpu_total_bytes`（默认 1,572,864，即 4M 盘位加量 50%）。
+  只影响 L1 一档，加量不加配方价格。
+- **盈能 4M 计算盘**（`energized_computation_cell_4m`）。
+- 上面三件盈能计算成员（核心 / 线程核心 / 4M 盘）**只有创造模式入口，暂无合成配方**，
+  配方等数值定下来再补。
+- **样板供应器方块 ↔ 线缆部件互转配方**（`pattern_provider_alt.json`），补全原来只有单向的一对。
+
+### 修复 / Fixed
+
+- **计算驱动器成型动画缺失**：`simplify_computation_drive` 的 blockstate 把 `formed` 的取值写成了
+  `False`/`True`，属性匹配不上 → 驱动器变成紫黑缺失方块，成型后也没有点亮动画。已改为小写
+  `true`/`false` 并补上 `computation_drive_full` 模型。
+- **超导接口指南页两条红字**：`<ItemIcon>` 不能作为 `<Row>` 的块级子元素（本 GuideMe 版本会报
+  Unhandled MDX element），已移进 `<ItemGrid>`；`<RecipeFor>` 查不到配方是因为集成工作站的
+  `neoecoae:integrated_working_station` 类型渲染不出来，已补上方块与部件之间的无损互转配方，
+  并在页面里写明配方图显示的是哪一条。
+
+### 变更 / Changed
+
+- **盈能核心成型后不再由方块模型绘制**：eco 成型时所有外壳都是 `RenderShape.INVISIBLE` 且不再替
+  邻居遮面，成员站在外壳位上会同时从内外两侧可见，任何角度都闪。现在与 eco 一致，成型即隐身，
+  那一格的外观由 eco 自己的 section-geometry 钩子（`FixedBlockEntityRenderers`）画回来。
+
+### 清理 / Housekeeping
+
+- 删除中途做过的两件强化成员（CM1R 线程核心 / CT1R 并行核心）与 AE2 侧的
+  `EnergizedComputationCoreType`：它们被 AE2 自家的 256K 档位与 16 并行硬上限完全压住。
+  存档里已经 `/give` 出来的这两件会变成未知方块，启动日志报一次后消失。
+- 美术分层源图（盈能核心的外壳 / 灯 / 成型灯三层）移到仓库根 `artsrc/`，只作交接源文件，
+  不再随 jar 打包。
+
+### 指南 / Guide
+
+- 新增中英文「L1 供能接口」「盈能超导接口」两页，并从首页链过去。
+
 ## 1.2.4 (2026-09-20)
 
 ### 新增 / Added

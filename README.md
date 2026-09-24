@@ -66,7 +66,7 @@ Required local development files are listed in `build.gradle`. Place lawful copi
 .\gradlew.bat build --offline
 ```
 
-The output is written to `build/libs/neoecoprototype-1.2.4.jar`.
+The output is written to `build/libs/neoecoprototype-1.2.6.jar`.
 
 Do not commit `libs/`, `run/`, `build/`, reference checkouts, or local world data. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for dependency licensing information.
 

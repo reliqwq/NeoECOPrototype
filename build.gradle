@@ -3,7 +3,7 @@ plugins {
     id 'net.neoforged.moddev' version '2.0.78'
 }
 
-version = '1.2.4'
+version = '1.2.6'
 group = 'cn.dancingsnow.neoecoprototype'
 
 base {
@@ -43,6 +43,9 @@ dependencies {
     implementation "dev.vfyjxf:taffy:1.1.3"
     implementation "org.appliedenergistics.yoga:yoga:1.0.0"
     // Trinity ABI target: beta4 (adds IECOBulkMarkableCellItem for the host marking page).
+    // beta5 inserts a lambda into StorageInterfaceUI#create, which renumbers lambda$create$N and stops
+    // our title redirects from matching: no longer a crash (they are require = 0) but the interface GUIs
+    // silently keep eco's default title until LocalGuiTitleContext warns in the log.
     implementation files("neoecobeta/neoecoae-21.2.0-beta4.jar")
     // MegaCells 4.11.0 is the supported optional integration version.
     implementation files("libs/megacells-4.11.0.jar")
@@ -60,7 +63,8 @@ dependencies {
     // 可选联动：AE2 Pattern Disk（LGPL-3.0，与 AE2 同许可族）。compileOnly 暴露它的
     // PatternDiskApi/IPatternDiskHost/DiskHostCollector 稳定面，runtimeOnly 只为共存验证。
     compileOnly files("libs/ae2_pattern_disk-0.5.0.jar")
-    runtimeOnly files("libs/ae2_pattern_disk-0.5.0.jar")
+    // Optional at runtime: the local Pattern Disk build requires Jade >= 15.10.6,
+    // while the current dev runtime intentionally uses Jade 15.10.4.
     // 可选参考依赖：ExtendedAE（非强制，仅编译期可见，用于对齐其无限元件的处理方式）。
     // 运行时不需要它；当前代码没有引用其类。
     compileOnly files("libs/extendedae-892005-7478960.jar") // ExtendedAE 1.21-2.2.28
@@ -75,7 +79,7 @@ dependencies {
     // Upstream beta3 uses requiredMods for conditional compat mixin loading;
     // no separate Advanced AE / GeckoLib runtime fallback is required.
     // 开发辅助 mod（与 eco 预览 neweco 同版本）：
-    implementation files("libs/jei-1.21.1-neoforge-19.27.0.340.jar")  // JEI (mezz.jei, 19.27.0.340)
+    implementation files("libs/jei-1.21.1-neoforge-19.27.0.340.jar")  // JEI compatible with LDLib2 2.2.8
     implementation files("libs/jade-7428884.jar")                      // Jade 🔍 (curse jade-324717:7428884)
 
     compileOnly "org.projectlombok:lombok:1.18.34"
