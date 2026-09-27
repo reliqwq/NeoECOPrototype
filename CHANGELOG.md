@@ -20,6 +20,13 @@
 
 - **三个接口界面的标题未本地化**：eco 21.2.0-beta6 改了生成 lambda 的序号，我们钉 `lambda$create$1` 的 `@Redirect` 没命中（`require = 0`，所以不崩），标题仍显示 eco 默认文案。 The interface UI title redirects no longer match beta6; cosmetic only.
 
+### 资源包与覆写 / For resource pack authors
+
+- **三份主机 blockstate 结构变了，条目数必须跟着变**：`simplify_computation_system` 现在是 8 个属性穷举出 512 条，`simplify_storage_controller` 4 个属性 32 条，`simplify_crafting_system` 是 20 条 multipart 且每个 `formed` 条件都钉住 `communication_interface`（不钉住就会有一个状态同时命中两条、同一格画两遍模型）。`simplify_computation_interface` 拆成 `formed=false` / `formed=true` 两态，好让成型的通讯接口带上自己的成型外观；另外两份只是改指向自己的模型文件，不再与隔壁共用。 The three host files now have to name every state, and the interface files are split per role.
+- **老世界不受影响**：方块状态是按"属性名=值"存进区块 palette 的，新增属性回读即默认 `false`，blockstate 文件本身不进存档；升上来看到的还是升级前那台机器。 Existing worlds are untouched - a property that did not exist yet reads back as its default.
+- **但覆写会静默失效**：谁之前替换过这三份主机文件，他的副本没有新键，那些没被命名的状态**匹配不到任何模型 = 方块直接隐形**（不会回退到我们的文件）。请拿新版文件重做覆盖，不要在旧副本上打补丁。 Overrides break quietly: an unnamed state resolves to no model at all, which renders the block invisible rather than falling back.
+- **成型外观的挂点**：`textures/block/<机器>_recolor/controller_formed/controller_formed_a<后缀>.png`，后缀由 `c`（接口格里是通讯接口）、`t`（盈能线程核心）、`p`（盈能并行核心）拼接，`_c_t_p` 是三者全有、无后缀是三者全无。18 个变体模型已经在 `models/block/<机器>_controller/` 下建好并且目前全部指向 `controller_formed_a`，所以给某个组合换外观只改一处贴图引用。 The 18 variant models exist and all still point at the current sheet, so a new look is one reference change.
+
 ## 1.2.7 (2026-09-24) - L1 Computation and Interface Update
 
 ### 新增 / Added
