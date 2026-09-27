@@ -32,7 +32,9 @@ public class KJSPlugin implements KubeJSPlugin {
                 Registries.ITEM,
                 r -> {
                     r.add("infinite_storage_matrix", InfiniteMatrixBuilder.class, InfiniteMatrixBuilder::new);
-                    r.add("storage_matrix", StorageMatrixBuilder.class, StorageMatrixBuilder::new);
+                    if (net.neoforged.fml.ModList.get().isLoaded("ae2omnicells")) {
+                        r.add("storage_matrix", StorageMatrixBuilder.class, StorageMatrixBuilder::new);
+                    }
                 }
         );
     }

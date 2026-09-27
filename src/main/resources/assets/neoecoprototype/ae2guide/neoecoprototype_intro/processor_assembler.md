@@ -36,6 +36,10 @@ Server admins can tune this in the server config: toggle derivation (`derive_pro
 
 Insert speed and energy cards to accelerate it - five slots each.
 
+## Batched patterns
+
+The assembler accepts multiplied pattern inputs: however many complete sets the provider pushes in one go, it finishes them in a **single** crafting cycle, so the output doubles with the number of sets. The result is capped at one stack (64 items) and the **cycle time does not change** - batching costs nothing, and only speed cards make it faster.
+
 ## Pattern provider
 
 The green pattern provider stores the assembler's processing patterns and pushes work into it, like AE2's pattern provider does for molecular assemblers.

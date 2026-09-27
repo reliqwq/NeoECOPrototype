@@ -3,8 +3,10 @@ package cn.dancingsnow.neoecoprototype;
 import appeng.api.AECapabilities;
 import appeng.api.implementations.blockentities.ICraftingMachine;
 import appeng.api.networking.IInWorldGridNodeHost;
+import appeng.api.parts.RegisterPartCapabilitiesEvent;
 import cn.dancingsnow.neoecoprototype.blockentity.trinity.SimplifyTrinityCraftingModuleBlockEntity;
 import cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig;
+import cn.dancingsnow.neoecoprototype.part.SimplifyPatternProviderPart;
 import cn.dancingsnow.neoecoprototype.registration.ModRegistration;
 import cn.dancingsnow.neoecoprototype.integration.beyond.BeyondIntegration;
 import net.neoforged.bus.api.IEventBus;
@@ -55,6 +57,20 @@ public class NeoECOPrototype {
         // are already handled by eco's registered IECOCellHandler.
         modBus.addListener(NeoECOPrototype::commonSetup);
         modBus.addListener(NeoECOPrototype::registerCapabilities);
+        modBus.addListener(NeoECOPrototype::registerPartCapabilities);
+    }
+
+    /**
+     * Exposes the cable-mounted provider's return inventory. AE2 posts this event from its own
+     * capability hook and builds one shared lookup out of every registration, so the host type is
+     * already there and only our part class has to be described. Its javadoc promises a walk up the
+     * class hierarchy, but the lookup is by exact class, so inheriting {@code PatternProviderPart}
+     * does not inherit the capability.
+     */
+    private static void registerPartCapabilities(final RegisterPartCapabilitiesEvent event) {
+        event.register(AECapabilities.GENERIC_INTERNAL_INV,
+                (part, side) -> part.getLogic().getReturnInv(),
+                SimplifyPatternProviderPart.class);
     }
 
     private static void registerCapabilities(final RegisterCapabilitiesEvent event) {
@@ -76,6 +92,15 @@ public class NeoECOPrototype {
         // leave out of this list is invisible from the outside, so a cable placed against an already
         // standing machine finds nothing and never joins its grid.
         registerNodeHost(event, ModRegistration.SIMPLIFY_STONECUTTING_ASSEMBLER_BE.get());
+        // The assembler can only eject a finished product into a neighbour that answers
+        // Capabilities.ItemHandler.BLOCK, and AE2 never registers that capability directly for its
+        // provider: it exposes the return inventory as GENERIC_INTERNAL_INV and lets its own
+        // lowest-priority hook wrap every such block into an item (and fluid) handler. Registering
+        // the inner capability is therefore the only way to reuse that adapter; a hand-written item
+        // handler would have to reimplement the insert-while-injecting guard as well.
+        event.registerBlockEntity(AECapabilities.GENERIC_INTERNAL_INV,
+                ModRegistration.SIMPLIFY_PATTERN_PROVIDER_BE.get(),
+                (blockEntity, side) -> blockEntity.getLogic().getReturnInv());
         registerNodeHost(event, ModRegistration.SIMPLIFY_PATTERN_PROVIDER_BE.get());
         registerNodeHost(event, ModRegistration.SIMPLIFY_POWERED_ME_INTERFACE_BE.get());
         registerNodeHost(event, ModRegistration.SUPERCONDUCTIVE_INTERFACE_BE.get());

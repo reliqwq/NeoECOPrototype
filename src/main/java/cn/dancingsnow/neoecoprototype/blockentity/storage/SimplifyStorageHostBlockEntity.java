@@ -102,6 +102,7 @@ public class SimplifyStorageHostBlockEntity
 
     private final MultiBlockBuildController buildController = new MultiBlockBuildController(this);
     private boolean mirrored;
+    private boolean communicationInterface;
 
     public SimplifyStorageHostBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState blockState) {
         super(type, pos, blockState, SimplifyStorageClusterCalculator::new);
@@ -165,6 +166,11 @@ public class SimplifyStorageHostBlockEntity
         this.mirrored = mirrored;
     }
 
+    /** Recorded by the calculator; published onto the block state by {@link #updateState(boolean)}. */
+    public void setCommunicationInterface(boolean communicationInterface) {
+        this.communicationInterface = communicationInterface;
+    }
+
     public int getStoragePriority() {
         return storagePriority;
     }
@@ -207,9 +213,11 @@ public class SimplifyStorageHostBlockEntity
         }
         BlockState state = level.getBlockState(worldPosition);
         if (state.hasProperty(SimplifyStorageControllerBlock.MIRRORED)) {
-            BlockState newState = state.setValue(
-                    SimplifyStorageControllerBlock.MIRRORED,
-                    isFormed() && mirrored);
+            boolean formed = isFormed();
+            BlockState newState = state
+                    .setValue(SimplifyStorageControllerBlock.MIRRORED, formed && mirrored)
+                    .setValue(SimplifyStorageControllerBlock.COMMUNICATION_INTERFACE,
+                            formed && communicationInterface);
             if (newState != state) {
                 level.setBlock(worldPosition, newState, Block.UPDATE_CLIENTS);
             }

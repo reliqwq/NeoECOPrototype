@@ -1,19 +1,36 @@
 {
   "$schema": "../schema.json",
-  "includes": ["../pattern_provider.json"],
+  "includes": [
+    "../pattern_provider.json"
+  ],
   "background": {
     "texture": "guis/neoecoprototype/l1_pattern_provider.png",
-    "srcRect": [0, 0, 176, 251]
+    "srcRect": [
+      0,
+      0,
+      176,
+      251
+    ]
   },
   "slots": {
     "ENCODED_PATTERN": {
       "left": 8,
-      "top": 45,
+      "top": 43,
       "grid": "BREAK_AFTER_9COLS"
     },
     "STORAGE": {
       "left": 8,
-      "top": 133,
+      "top": 131,
+      "grid": "HORIZONTAL"
+    },
+    "PLAYER_INVENTORY": {
+      "left": 8,
+      "bottom": 83,
+      "grid": "BREAK_AFTER_9COLS"
+    },
+    "PLAYER_HOTBAR": {
+      "left": 8,
+      "bottom": 25,
       "grid": "HORIZONTAL"
     }
   },
@@ -33,7 +50,16 @@
       },
       "position": {
         "left": 8,
-        "top": 122
+        "top": 120
+      }
+    },
+    "player_inventory_title": {
+      "text": {
+        "translate": "container.inventory"
+      },
+      "position": {
+        "left": 8,
+        "bottom": 94
       }
     }
   }

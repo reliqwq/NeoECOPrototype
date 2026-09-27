@@ -27,19 +27,27 @@ public class SimplifyStorageControllerBlock extends NEBlock<SimplifyStorageHostB
 
     public static final DirectionProperty FACING = BlockStateProperties.HORIZONTAL_FACING;
     public static final BooleanProperty MIRRORED = BooleanProperty.create("mirrored");
+    /**
+     * The interface cell holds the block named "...Communication Interface" rather than the plain
+     * one. Set by the calculator when the machine forms; a resource pack can pick a formed model per
+     * value instead of reading the world.
+     */
+    public static final BooleanProperty COMMUNICATION_INTERFACE =
+            BooleanProperty.create("communication_interface");
 
     public SimplifyStorageControllerBlock(Properties properties) {
         super(properties);
         registerDefaultState(getStateDefinition().any()
                 .setValue(FORMED, false)
                 .setValue(FACING, Direction.NORTH)
-                .setValue(MIRRORED, false));
+                .setValue(MIRRORED, false)
+                .setValue(COMMUNICATION_INTERFACE, false));
     }
 
     @Override
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
         super.createBlockStateDefinition(builder);
-        builder.add(MIRRORED);
+        builder.add(MIRRORED, COMMUNICATION_INTERFACE);
     }
 
     @Override

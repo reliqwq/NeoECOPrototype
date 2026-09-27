@@ -1,5 +1,25 @@
 # Changelog
 
+## 1.2.8 (2026-09-27) - Interface Naming Alignment and Formed Appearance States
+
+### 新增 / Added
+
+- **成型外观改由方块状态选择 / formed appearance picked by block state**：三台主机各自发布"接口格里放的是不是通讯接口"（`communication_interface`），C1 计算主机另外发布 `energized_threading_core` 与 `energized_parallel_core`；成型模型的挑选全部落在 blockstate 文件里，资源包不需要读世界。新增 18 个变体模型作为分图钩子，目前全部指向现有成型贴图，所以任何组合下看到的都还是现在的正式外观。 Publishes what the finished machine holds onto the host's own block state so the blockstate file picks the formed model; 18 variant models are the art hooks and all still point at the current sheet, so nothing looks provisional.
+- **六门新守卫 / six new guards**：装配室往供应器推产物的能力面、主机正上下格的盈能核心、三台主机的状态发布，以及 `variants` 穷举与 multipart "每状态恰好命中一条"的文件覆盖检查。 Adds GameTests for the provider capability, the host-column geometry hole, the published shape of each host, and full blockstate coverage.
+- **装配室批量样板说明 / guide section**：GuideMe 中英双语补充"整批进料一次合成、产物随份数翻倍、上限一叠 64、耗时不变"。 Documents batched patterns in both guide languages.
+
+### 修复 / Fixed
+
+- **装配室产物卡在供应器**：给 L1 样板供应器的方块实体与线缆部件注册 `AECapabilities.GENERIC_INTERNAL_INV`，交给 AE2 自己的最低优先级钩子包成 `ItemHandler`。此前只有 AE2 原版供应器回答该能力，装配室完工时推不出产物。 Registers the capability AE2 actually looks for, so assemblers can hand their product to our provider.
+- **F1 合成子系统那对接口与 eco 的命名对齐**：`simplify_crafting_interface` 现在是"F1 合成子系统通讯接口"并且能打开接口界面，`simplify_crafting_network_interface` 变成"F1 合成子系统接口"（只挂网络端点、右键无反应）。**注册名与存档数据一个字未改**，只换行为与显示名，老世界的方块不会丢失，所以这两块的名字与界面归属会互换。 Aligns F1's interface pair with eco's own naming by swapping behaviour and display names only; registry names are untouched, so worlds keep their blocks but the two names trade places.
+- **盈能强化计算机核心成型后闪烁**：删掉它的方块实体渲染器，成型外观改由 blockstate 换整块模型，与其余外壳位成员的 `RenderShape.INVISIBLE` 规矩一致，不再出现内外两侧同时可见。 Retires the block entity renderer behind the formed model, which also removes the flicker.
+- **第二颗盈能核心被悄悄收编**：计算集群几何补上有界守卫，主机正上方/正下方或采纳盒内多出一颗盈能核心时不再成型。 Rejects an energized core standing in the host column or anywhere the cluster would adopt.
+- **L1 样板供应器与两个接口的界面错位**：补回贴图里被贴错位置造成的整行透明空洞、把 ↓ 箭头只留在配置行、并修掉扩成两行后配置组与存储组抢同一行导致"存储行放不了东西"的问题。 Fixes the provider/interface GUI textures and slot layout.
+
+### 已知 / Known
+
+- **三个接口界面的标题未本地化**：eco 21.2.0-beta6 改了生成 lambda 的序号，我们钉 `lambda$create$1` 的 `@Redirect` 没命中（`require = 0`，所以不崩），标题仍显示 eco 默认文案。 The interface UI title redirects no longer match beta6; cosmetic only.
+
 ## 1.2.7 (2026-09-24) - L1 Computation and Interface Update
 
 ### 新增 / Added

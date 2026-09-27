@@ -53,6 +53,7 @@ import cn.dancingsnow.neoecoprototype.item.decoration.FumoItem;
 import cn.dancingsnow.neoecoprototype.block.crafting.SimplifyPatternProviderBlock;
 import cn.dancingsnow.neoecoprototype.block.crafting.SimplifyPoweredMEInterfaceBlock;
 import cn.dancingsnow.neoecoprototype.block.crafting.SimplifySuperconductiveInterfaceBlock;
+import cn.dancingsnow.neoecoprototype.blockentity.crafting.SimplifyCraftingSystemBlockEntity;
 import cn.dancingsnow.neoecoprototype.blockentity.crafting.SimplifyStonecuttingAssemblerBlockEntity;
 import cn.dancingsnow.neoecoprototype.blockentity.crafting.SimplifyPoweredMEInterfaceBlockEntity;
 import cn.dancingsnow.neoecoprototype.blockentity.crafting.SimplifySuperconductiveInterfaceBlockEntity;
@@ -74,7 +75,7 @@ import cn.dancingsnow.neoecoprototype.blockentity.storage.SimplifyStorageHostBlo
 import cn.dancingsnow.neoecoprototype.blockentity.storage.SimplifyStorageInterfaceBlockEntity;
 import cn.dancingsnow.neoecoprototype.blockentity.storage.SimplifyStorageVentBlockEntity;
 import cn.dancingsnow.neoecoprototype.blockentity.computation.SimplifyComputationDriveBlockEntity;
-import cn.dancingsnow.neoecoprototype.blockentity.computation.SimplifyEnergizedComputationCoreBlockEntity;
+import cn.dancingsnow.neoecoprototype.blockentity.computation.SimplifyComputationSystemBlockEntity;
 import cn.dancingsnow.neoecoprototype.items.PigcatStorageMatrixHousingItem;
 import cn.dancingsnow.neoecoprototype.items.SimplifyComputationCellItem;
 import cn.dancingsnow.neoecoprototype.items.SimplifyConcreteStorageCellItem;
@@ -763,7 +764,7 @@ public class ModRegistration {
     private static Supplier<BlockEntityType<ECOComputationParallelCoreBlockEntity>> registerEnergizedComputationCoreBe() {
         return (Supplier) BLOCK_ENTITIES.register("energized_computation_core",
                 () -> BlockEntityType.Builder.of(
-                        (pos, state) -> new SimplifyEnergizedComputationCoreBlockEntity(
+                        (pos, state) -> new ECOComputationParallelCoreBlockEntity(
                                 ENERGIZED_COMPUTATION_CORE_BE.get(), pos, state,
                                 SimplifyTier.L1_PARALLEL_SWITCH),
                         ENERGIZED_COMPUTATION_CORE_BLOCK.get()).build(null));
@@ -836,7 +837,7 @@ private static Supplier<BlockEntityType<SimplifyStorageVentBlockEntity>> registe
     private static Supplier<BlockEntityType<ECOCraftingSystemBlockEntity>> registerCraftingSystemBe() {
         return (Supplier) BLOCK_ENTITIES.register("simplify_crafting_system",
                 () -> BlockEntityType.Builder.of(
-                        (pos, state) -> new ECOCraftingSystemBlockEntity(
+                        (pos, state) -> new SimplifyCraftingSystemBlockEntity(
                                 SIMPLIFY_CRAFTING_SYSTEM_BE.get(), pos, state, cn.dancingsnow.neoecoprototype.api.SimplifyCraftingTier.L1),
                         SIMPLIFY_CRAFTING_SYSTEM_BLOCK.get()).build(null));
     }
@@ -913,7 +914,7 @@ private static Supplier<BlockEntityType<SimplifyStorageVentBlockEntity>> registe
     private static Supplier<BlockEntityType<ECOComputationSystemBlockEntity>> registerComputationSystemBe() {
         return (Supplier) BLOCK_ENTITIES.register("simplify_computation_system",
                 () -> BlockEntityType.Builder.of(
-                        (pos, state) -> new ECOComputationSystemBlockEntity(
+                        (pos, state) -> new SimplifyComputationSystemBlockEntity(
                                 SIMPLIFY_COMPUTATION_SYSTEM_BE.get(), pos, state, cn.dancingsnow.neoecoprototype.api.SimplifyTier.L1),
                         SIMPLIFY_COMPUTATION_SYSTEM_BLOCK.get()).build(null));
     }

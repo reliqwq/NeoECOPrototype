@@ -15,7 +15,6 @@ import cn.dancingsnow.neoecoprototype.client.render.FumoModel;
 import cn.dancingsnow.neoecoprototype.client.render.FumoRenderer;
 import cn.dancingsnow.neoecoprototype.client.renderer.blockentity.SimplifyComputationDriveRenderer;
 import cn.dancingsnow.neoecoprototype.client.renderer.blockentity.SimplifyDriveRenderer;
-import cn.dancingsnow.neoecoprototype.client.renderer.blockentity.SimplifyEnergizedComputationCoreRenderer;
 import cn.dancingsnow.neoecoprototype.menu.ProcessorAssemblerMenu;
 import cn.dancingsnow.neoecoprototype.registration.ModRegistration;
 import net.minecraft.client.Minecraft;
@@ -147,10 +146,6 @@ public final class NeoECOPrototypeClient {
                 new SimplifyDriveRenderer());
         FixedBlockEntityRenderers.register(ModRegistration.SIMPLIFY_COMPUTATION_DRIVE_BE.get(),
                 new SimplifyComputationDriveRenderer());
-        // The energized core hides its block model when formed, so its lamps come back through
-        // eco's section-geometry pass instead.
-        FixedBlockEntityRenderers.register(ModRegistration.ENERGIZED_COMPUTATION_CORE_BE.get(),
-                new SimplifyEnergizedComputationCoreRenderer());
         // Same hook AE2's StyleManager uses for its style cache: reloads must discard the parsed copy
         // or a resource pack could never override our assembler layout.
         if (Minecraft.getInstance().getResourceManager() instanceof ReloadableResourceManager resourceManager) {
@@ -161,9 +156,6 @@ public final class NeoECOPrototypeClient {
 
     @SubscribeEvent
     public static void onRegisterAdditionalModels(ModelEvent.RegisterAdditional event) {
-        // Nothing references this from a blockstate: only the section-geometry renderer draws it.
-        event.register(ModelResourceLocation.standalone(
-                SimplifyEnergizedComputationCoreRenderer.FORMED_FACE_MODEL));
         event.register(ModelResourceLocation.standalone(ResourceLocation.fromNamespaceAndPath(
                 NeoECOPrototype.MOD_ID, "block/computation_cable/cable_l4")));
         event.register(ModelResourceLocation.standalone(ResourceLocation.fromNamespaceAndPath(

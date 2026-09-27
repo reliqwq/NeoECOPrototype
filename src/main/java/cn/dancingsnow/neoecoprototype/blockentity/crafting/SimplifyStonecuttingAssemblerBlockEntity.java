@@ -19,11 +19,7 @@ import net.minecraft.world.level.block.state.BlockState;
 
 import java.util.List;
 
-/**
- * Green molecular assembler that additionally runs the addon's shapeless processor recipes. AE2 only
- * lets crafting patterns into the assembler, so a matching processing pattern is wrapped into one it
- * can run; everything else (grid, upgrades, timing, animation, GUI) stays AE2's.
- */
+/** Molecular assembler that also accepts the addon's processor patterns. */
 public class SimplifyStonecuttingAssemblerBlockEntity extends MolecularAssemblerBlockEntity {
     public SimplifyStonecuttingAssemblerBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state) {
         super(type, pos, state);
@@ -35,31 +31,22 @@ public class SimplifyStonecuttingAssemblerBlockEntity extends MolecularAssembler
             return super.pushPattern(pattern, inputs, direction);
         }
         ProcessorAssemblerRecipe recipe = matchRecipe(pattern);
-        return recipe != null
-                && super.pushPattern(new ProcessorAssemblyPattern(pattern, recipe), inputs, direction);
+        return recipe != null && super.pushPattern(new ProcessorAssemblyPattern(pattern, recipe), inputs, direction);
     }
 
-    /** The pattern must ask for exactly one declared recipe's inputs and output. */
     private ProcessorAssemblerRecipe matchRecipe(IPatternDetails pattern) {
         var outputs = pattern.getOutputs();
         int inputCount = pattern.getInputs().length;
         if (inputCount < ProcessorAssemblerRecipe.MIN_INPUTS
                 || inputCount > ProcessorAssemblerRecipe.MAX_INPUTS
                 || outputs.size() != 1
-                || !(outputs.get(0).what() instanceof AEItemKey outputKey)) {
-            return null;
-        }
-        if (NeoECOPrototypeServerConfig.isProcessorRecipeDisabled(outputKey.getItem())) {
-            return null;
-        }
-        int size = inputCount;
-        ItemStack[] stacks = new ItemStack[size];
-        for (int slot = 0; slot < size; slot++) {
+                || !(outputs.get(0).what() instanceof AEItemKey outputKey)) return null;
+        if (NeoECOPrototypeServerConfig.isProcessorRecipeDisabled(outputKey.getItem())) return null;
+        ItemStack[] stacks = new ItemStack[inputCount];
+        for (int slot = 0; slot < inputCount; slot++) {
             GenericStack[] possible = pattern.getInputs()[slot].getPossibleInputs();
-            if (possible.length != 1 || possible[0].amount() != 1
-                    || !(possible[0].what() instanceof AEItemKey key)) {
-                return null;
-            }
+            if (possible.length != 1 || possible[0].amount() <= 0
+                    || !(possible[0].what() instanceof AEItemKey key)) return null;
             stacks[slot] = key.toStack();
         }
         List<ProcessorAssemblerRecipe> declared = level.getRecipeManager()

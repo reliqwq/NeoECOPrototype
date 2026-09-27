@@ -23,6 +23,7 @@ import appeng.core.definitions.AEBlocks;
 import appeng.core.definitions.AEItems;
 import appeng.core.definitions.AEParts;
 import appeng.helpers.InterfaceLogicHost;
+import appeng.helpers.patternprovider.PatternProviderLogicHost;
 import appeng.me.helpers.IGridConnectedBlockEntity;
 import cn.dancingsnow.neoecoae.blocks.entity.computation.ECOComputationSystemBlockEntity;
 import cn.dancingsnow.neoecoae.api.storage.ECOStorageCells;
@@ -30,6 +31,9 @@ import cn.dancingsnow.neoecoae.integration.megacells.backend.ECOMegaLongBulkStor
 import cn.dancingsnow.neoecoae.multiblock.cluster.NEComputationCluster;
 import cn.dancingsnow.neoecoae.multiblock.placement.MultiBlockBuildController;
 import cn.dancingsnow.neoecoprototype.api.SimplifyTier;
+import cn.dancingsnow.neoecoprototype.block.computation.SimplifyComputationSystemBlock;
+import cn.dancingsnow.neoecoprototype.block.crafting.SimplifyCraftingSystemBlock;
+import cn.dancingsnow.neoecoprototype.block.storage.SimplifyStorageControllerBlock;
 import cn.dancingsnow.neoecoprototype.blockentity.crafting.SimplifySuperconductiveInterfaceBlockEntity;
 import cn.dancingsnow.neoecoprototype.blockentity.trinity.SimplifyTrinityComputationModuleBlockEntity;
 import cn.dancingsnow.neoecoprototype.blockentity.trinity.SimplifyTrinityControllerBlockEntity;
@@ -1647,34 +1651,79 @@ public final class NeoECOPrototypeGameTests {
     }
 
     /**
+     * An assembler finishes by handing the product to whatever item handler faces it, and AE2 never
+     * registers that handler for its own provider: it exposes the return inventory as
+     * {@code AECapabilities.GENERIC_INTERNAL_INV} and a lowest-priority AE2 hook then wraps every
+     * block answering that capability. The wrap is keyed on the block, so our provider -- which has
+     * its own block entity type -- answers nothing and the product stays in the assembler. AE2's
+     * provider is the control: if it exposes nothing either, the probe is wrong rather than ours.
+     */
+    @GameTest(template = "trinity_room", batch = "provider_eject",
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void assemblerCanPushItsProductIntoOurProvider(GameTestHelper helper) {
+        var oursPos = new BlockPos(1, 5, 4);
+        var controlPos = new BlockPos(3, 5, 4);
+        helper.setBlock(oursPos, ModRegistration.SIMPLIFY_PATTERN_PROVIDER_BLOCK.get());
+        helper.setBlock(controlPos, AEBlocks.PATTERN_PROVIDER.block());
+
+        var control = helper.getLevel().getCapability(net.neoforged.neoforge.capabilities
+                        .Capabilities.ItemHandler.BLOCK, helper.absolutePos(controlPos), Direction.UP);
+        if (control == null) {
+            helper.fail("AE2's own provider exposes no item handler either, so this test cannot speak "
+                    + "about ours");
+            return;
+        }
+        var ours = helper.getLevel().getCapability(net.neoforged.neoforge.capabilities
+                        .Capabilities.ItemHandler.BLOCK, helper.absolutePos(oursPos), Direction.UP);
+        if (ours == null) {
+            helper.fail("our provider exposes no item handler, so an assembler standing next to it has "
+                    + "nowhere to push its product and the craft stalls with the output inside it");
+            return;
+        }
+        if (!ours.insertItem(0, new ItemStack(Items.IRON_INGOT), false).isEmpty()) {
+            helper.fail("our provider refused the pushed product");
+            return;
+        }
+        var logic = ((PatternProviderLogicHost) helper.getBlockEntity(oursPos)).getLogic();
+        if (logic.getReturnInv().isEmpty()) {
+            helper.fail("the pushed product never reached the provider's return inventory, so nothing "
+                    + "will carry it back into the network");
+            return;
+        }
+        helper.succeed();
+    }
+
+    /**
      * The energized core is sold as "exactly one, in the shell to the host's left". The geometry
      * enforces it by allotting a single cell, so nothing has to be counted afterwards. These tests
      * each build the structure once: swapping members in and out of one standing structure walks
      * into AE2 refusing to re-initialise a grid node.
      */
-    @GameTest(template = "l1_room", batch = "l1_core_left", templateNamespace = NeoECOPrototype.MOD_ID)
+    @GameTest(template = "l1_room", batch = "l1_core_left", timeoutTicks = 140, templateNamespace = NeoECOPrototype.MOD_ID)
     public static void energizedCoreInShellLeftOfHostAddsItsParallelism(GameTestHelper helper) {
         buildWithEnergizedCoreInShell(helper, true);
     }
 
     /** The mirrored cell has to refuse the same block, which is what keeps "exactly one" honest. */
-    @GameTest(template = "l1_room", batch = "l1_core_right", templateNamespace = NeoECOPrototype.MOD_ID)
+    @GameTest(template = "l1_room", batch = "l1_core_right", timeoutTicks = 140, templateNamespace = NeoECOPrototype.MOD_ID)
     public static void energizedCoreOnTheShellsOtherSideIsRejected(GameTestHelper helper) {
         buildWithEnergizedCoreInShell(helper, false);
     }
 
     /**
-     * The parallel column no longer takes the energized core. The cluster treats it as a parallel core
-     * anyway, so the column is the second place where "only one" would have to be counted.
+     * The column the host itself stands in is not one the shell walk visits, and AE2 grows the
+     * cluster bounds over any member block entity, so a core above or below the host used to pass
+     * every geometry check and still get adopted.
      */
-    @GameTest(template = "l1_room", batch = "l1_core_column", templateNamespace = NeoECOPrototype.MOD_ID)
-    public static void energizedCoreInParallelColumnIsRejected(GameTestHelper helper) {
-        buildComputationStructure(helper, new BlockPos(13, 3, 4),
-                ModRegistration.SIMPLIFY_COMPUTATION_PARALLEL_CORE_BLOCK.get(),
-                ModRegistration.ENERGIZED_COMPUTATION_CORE_BLOCK.get(), 0, false, 1, controller ->
-                        helper.assertTrue(!controller.isFormed(),
-                                "the parallel column still takes the energized core, so two of them can "
-                                        + "stand in one subsystem"));
+    @GameTest(template = "l1_room", batch = "l1_core_above", timeoutTicks = 140, templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void energizedCoreAboveTheHostIsRejected(GameTestHelper helper) {
+        buildWithEnergizedCoreInHostColumn(helper, Direction.UP);
+    }
+
+    /** The same column seen from underneath. */
+    @GameTest(template = "l1_room", batch = "l1_core_below", timeoutTicks = 140, templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void energizedCoreBelowTheHostIsRejected(GameTestHelper helper) {
+        buildWithEnergizedCoreInHostColumn(helper, Direction.DOWN);
     }
 
     /**
@@ -1682,6 +1731,29 @@ public final class NeoECOPrototypeGameTests {
      * with an energized core: the allotted cell when {@code left} is true, its mirror otherwise.
      */
     private static void buildWithEnergizedCoreInShell(GameTestHelper helper, boolean left) {
+        // Both hands come from the production rule, so the negative case is genuinely "the other
+        // shell cell of this same build" rather than a direction this file guessed at.
+        buildWithEnergizedCore(helper, absolute -> SimplifyComputationClusterCalculator.energizedCoreCell(
+                absolute, helper.getLevel().getBlockState(absolute), !left), left,
+                left ? "the allotted shell cell" : "the shell cell on the other side");
+    }
+
+    /**
+     * The host stands in a column the shell walk never visits, so its above and below cells are the
+     * two places the geometry used to accept a second core by simply not looking.
+     */
+    private static void buildWithEnergizedCoreInHostColumn(GameTestHelper helper, Direction lift) {
+        buildWithEnergizedCore(helper, absolute -> absolute.relative(lift), false,
+                "the cell " + (lift == Direction.UP ? "above" : "below") + " the host");
+    }
+
+    /**
+     * Builds the minimum L1 structure, then puts an energized core into the cell {@code cellOf} picks
+     * out and reports whether the machine formed.
+     */
+    private static void buildWithEnergizedCore(GameTestHelper helper,
+                                               java.util.function.Function<BlockPos, BlockPos> cellOf,
+                                               boolean expectFormed, String where) {
         BlockPos controllerPos = new BlockPos(13, 3, 4);
         helper.setBlock(controllerPos, ModRegistration.SIMPLIFY_COMPUTATION_SYSTEM_BLOCK.get());
         BlockPos absolute = helper.absolutePos(controllerPos);
@@ -1711,16 +1783,13 @@ public final class NeoECOPrototypeGameTests {
                 built.add(planned.worldPos());
             }
 
-            // Both hands come from the production rule, so the negative case is genuinely "the other
-            // shell cell of this same build" rather than a direction this file guessed at.
-            BlockPos cell = SimplifyComputationClusterCalculator.energizedCoreCell(
-                    absolute, helper.getLevel().getBlockState(absolute), !left);
+            BlockPos cell = cellOf.apply(absolute);
             var stateHere = helper.getLevel().getBlockState(cell);
             // assertTrue does not stop execution: falling through after a recorded failure and then
             // calling succeed() leaves the batch waiting on a test that can no longer finish.
             if (!stateHere.is(ModRegistration.SIMPLIFY_COMPUTATION_CASING_BLOCK.get())) {
-                helper.fail((left ? "left" : "right") + " of the controller is " + stateHere.getBlock()
-                        + " at " + cell + ", not a casing, so this test cannot speak about it");
+                helper.fail(where + " is " + stateHere.getBlock() + " at " + cell
+                        + ", not a casing, so this test cannot speak about it");
                 return;
             }
 
@@ -1729,31 +1798,50 @@ public final class NeoECOPrototypeGameTests {
             controller.rebuildMultiblock();
             helper.runAfterDelay(20, () -> {
                 try {
-                    if (left) {
+                    if (expectFormed) {
                         var cluster = controller.getCluster();
                         if (!controller.isFormed() || cluster == null) {
-                            helper.fail("the allotted shell cell did not accept the energized core");
+                            helper.fail(where + " did not accept the energized core");
                             return;
                         }
                         int ours = (int) cluster.getParallelCores().stream()
                                 .filter(core -> core.getTier() == SimplifyTier.L1_PARALLEL_SWITCH).count();
                         if (ours != 1) {
-                            helper.fail("the allotted shell cell rejected the energized core");
+                            helper.fail(where + " rejected the energized core");
                             return;
                         }
                         int plain = cluster.getParallelCores().size() - ours;
                         long expected = (long) plain * SimplifyTier.L1.getCPUAccelerators()
                                 + SimplifyTier.L1_PARALLEL_SWITCH.getCPUAccelerators();
                         if (cluster.getCPUAccelerators() != expected) {
-                            helper.fail("the energized core should add "
+                            helper.fail(where + " should add "
                                     + SimplifyTier.L1_PARALLEL_SWITCH.getCPUAccelerators()
                                     + " co-processors on top of " + plain + " plain cores, but the "
                                     + "cluster reports " + cluster.getCPUAccelerators());
                             return;
                         }
+                        // The formed look is chosen from the host's block state, so a machine that
+                        // works but never publishes what it holds would ship as one frozen skin.
+                        var hostState = helper.getLevel().getBlockState(controller.getBlockPos());
+                        if (!hostState.hasProperty(
+                                SimplifyComputationSystemBlock.ENERGIZED_PARALLEL_CORE)) {
+                            helper.fail("the host block state has no energized_parallel_core property "
+                                    + "at all: " + hostState);
+                            return;
+                        }
+                        if (!hostState.getValue(SimplifyComputationSystemBlock.ENERGIZED_PARALLEL_CORE)) {
+                            helper.fail("the machine runs on the energized core, but the host did not "
+                                    + "publish energized_parallel_core, so no formed skin can select it");
+                            return;
+                        }
+                        if (hostState.getValue(SimplifyComputationSystemBlock.ENERGIZED_THREADING_CORE)) {
+                            helper.fail("the host claims an energized threading core that this build "
+                                    + "does not contain");
+                            return;
+                        }
                     } else if (controller.isFormed()) {
-                        helper.fail("the shell cell on the other side took the energized core too, so "
-                                + "nothing limits it to one");
+                        helper.fail(where + " took the energized core too, so nothing limits the "
+                                + "machine to one");
                         return;
                     }
                 } finally {
@@ -1771,7 +1859,7 @@ public final class NeoECOPrototypeGameTests {
      * The energized threading core gives sixteen real threads -- sixteen {@code ECOCraftingCPU} objects,
      * because eco sizes that array from the tier in the constructor.
      */
-    @GameTest(template = "l1_room", batch = "l1_threading", templateNamespace = NeoECOPrototype.MOD_ID)
+    @GameTest(template = "l1_room", batch = "l1_threading", timeoutTicks = 140, templateNamespace = NeoECOPrototype.MOD_ID)
     public static void energizedThreadingCoreInFirstSlotAddsThreads(GameTestHelper helper) {
         var ourTier = SimplifyTier.L1_ENERGIZED_THREADING;
         buildComputationStructure(helper, new BlockPos(13, 3, 4),
@@ -1794,14 +1882,165 @@ public final class NeoECOPrototypeGameTests {
                                     == plain * SimplifyTier.L1.getCPUThreads() + ours * 16,
                             "the threading line should total " + (plain * SimplifyTier.L1.getCPUThreads()
                                     + ours * 16) + " threads, got " + cluster.getMaxThreads());
+                    var hostState = helper.getLevel().getBlockState(controller.getBlockPos());
+                    if (!hostState.getValue(SimplifyComputationSystemBlock.ENERGIZED_THREADING_CORE)) {
+                        helper.fail("the threading line runs on the energized core, but the host did not "
+                                + "publish energized_threading_core, so no formed skin can select it");
+                        return;
+                    }
+                    if (hostState.getValue(SimplifyComputationSystemBlock.ENERGIZED_PARALLEL_CORE)) {
+                        helper.fail("the host claims an energized parallel core that this build does not "
+                                + "contain");
+                    }
                 });
+    }
+
+    /** The name a blockstate key spells for this property's value; toString() is not it. */
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    private static String valueName(net.minecraft.world.level.block.state.BlockState state,
+                                    net.minecraft.world.level.block.state.properties.Property property) {
+        return property.getName((Comparable) state.getValue(property));
+    }
+
+    /**
+     * Every state the host can be in must resolve to a model, or that state renders as nothing at all
+     * -- and the states that go missing are the rare ones nobody clicks through by hand. The hosts now
+     * carry up to eight properties, so this checks the shipped blockstate against the whole product
+     * rather than against the handful a person would think to look at.
+     */
+    @GameTest(template = "empty", templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void computationHostBlockstateCoversEveryState(GameTestHelper helper) {
+        assertVariantsCoverEveryState(helper, ModRegistration.SIMPLIFY_COMPUTATION_SYSTEM_BLOCK.get(),
+                "blockstates/simplify_computation_system.json");
+    }
+
+    @GameTest(template = "empty", templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void storageHostBlockstateCoversEveryState(GameTestHelper helper) {
+        assertVariantsCoverEveryState(helper, ModRegistration.SIMPLIFY_STORAGE_CONTROLLER_BLOCK.get(),
+                "blockstates/simplify_storage_controller.json");
+    }
+
+    private static void assertVariantsCoverEveryState(GameTestHelper helper, Block block, String path) {
+        var text = readShippedResource(ResourceLocation.fromNamespaceAndPath(NeoECOPrototype.MOD_ID, path));
+        if (text == null) {
+            helper.fail("the shipped blockstate at " + path + " could not be read");
+            return;
+        }
+        var variants = com.google.gson.JsonParser.parseString(text).getAsJsonObject()
+                .getAsJsonObject("variants");
+        if (variants == null) {
+            helper.fail(path + " has no variants object");
+            return;
+        }
+        var entries = new ArrayList<java.util.Map<String, String>>();
+        for (var entry : variants.entrySet()) {
+            var pairs = new java.util.HashMap<String, String>();
+            for (var pair : entry.getKey().split(",")) {
+                if (pair.isEmpty()) {
+                    continue;
+                }
+                var kv = pair.split("=", 2);
+                if (kv.length != 2) {
+                    helper.fail("unparsable blockstate key \"" + entry.getKey() + "\"");
+                    return;
+                }
+                pairs.put(kv[0], kv[1]);
+            }
+            entries.add(pairs);
+        }
+
+        var uncovered = new ArrayList<String>();
+        for (var state : block.getStateDefinition().getPossibleStates()) {
+            var wanted = new java.util.HashMap<String, String>();
+            for (var property : state.getProperties()) {
+                wanted.put(property.getName(), valueName(state, property));
+            }
+            final var described = wanted;
+            if (entries.stream().noneMatch(pairs -> described.entrySet().containsAll(pairs.entrySet()))) {
+                if (uncovered.isEmpty()) {
+                    NeoECOPrototype.LOGGER.info("blockstate coverage probe: state={} firstFileEntry={}",
+                            described, entries.get(0));
+                }
+                uncovered.add(described.toString());
+            }
+        }
+        helper.assertTrue(uncovered.isEmpty(),
+                uncovered.size() + " of " + block.getStateDefinition().getPossibleStates().size()
+                        + " states of " + name(block) + " have no model and would render invisible; "
+                        + "first few: " + uncovered.subList(0, Math.min(3, uncovered.size())));
+        helper.succeed();
+    }
+
+    /**
+     * A multipart file selects by matching clauses, so a state that matches two of them draws two
+     * models in one cell -- which reads as z-fighting, not as a configuration error. Every state of the
+     * F1 host has to match exactly one clause, and the shape of the clauses is checked here rather
+     * than in game because nothing else walks the product of six properties.
+     */
+    @GameTest(template = "empty", templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void craftingHostBlockstateMatchesExactlyOneTermPerState(GameTestHelper helper) {
+        var text = readShippedResource(ResourceLocation.fromNamespaceAndPath(NeoECOPrototype.MOD_ID,
+                "blockstates/simplify_crafting_system.json"));
+        if (text == null) {
+            helper.fail("the shipped blockstate for the F1 host could not be read");
+            return;
+        }
+        var terms = com.google.gson.JsonParser.parseString(text).getAsJsonObject()
+                .getAsJsonArray("multipart");
+        if (terms == null) {
+            helper.fail("the F1 host blockstate has no multipart array");
+            return;
+        }
+        var clauses = new ArrayList<java.util.Map<String, String>>();
+        for (var element : terms) {
+            var when = element.getAsJsonObject().getAsJsonObject("when");
+            if (when == null) {
+                helper.fail("a multipart term of the F1 host blockstate has no when clause");
+                return;
+            }
+            var clause = new java.util.HashMap<String, String>();
+            for (var member : when.entrySet()) {
+                if ("AND".equals(member.getKey()) || "OR".equals(member.getKey())
+                        || "NOT".equals(member.getKey())) {
+                    helper.fail("this test only reads flat when clauses; " + member.getKey()
+                            + " would need matching semantics");
+                    return;
+                }
+                clause.put(member.getKey(), member.getValue().getAsString());
+            }
+            clauses.add(clause);
+        }
+
+        var block = ModRegistration.SIMPLIFY_CRAFTING_SYSTEM_BLOCK.get();
+        var wrong = new ArrayList<String>();
+        for (var state : block.getStateDefinition().getPossibleStates()) {
+            var described = new java.util.HashMap<String, String>();
+            for (var property : state.getProperties()) {
+                described.put(property.getName(), valueName(state, property));
+            }
+            long matched = clauses.stream()
+                    .filter(clause -> described.entrySet().containsAll(clause.entrySet()))
+                    .count();
+            if (matched != 1) {
+                if (wrong.isEmpty()) {
+                    NeoECOPrototype.LOGGER.info("multipart probe: state={} matched={} firstClause={}",
+                            described, matched, clauses.get(0));
+                }
+                wrong.add(described + " x" + matched);
+            }
+        }
+        helper.assertTrue(wrong.isEmpty(),
+                wrong.size() + " of " + block.getStateDefinition().getPossibleStates().size()
+                        + " states of the F1 host do not match exactly one multipart term; first few: "
+                        + wrong.subList(0, Math.min(3, wrong.size())));
+        helper.succeed();
     }
 
     /**
      * Only the cell nearest the controller takes the energized threading core, which is what caps a
      * structure at one of them: anywhere else the line stops matching and the subsystem will not form.
      */
-    @GameTest(template = "l1_room", batch = "l1_threading_second", templateNamespace = NeoECOPrototype.MOD_ID)
+    @GameTest(template = "l1_room", batch = "l1_threading_second", timeoutTicks = 140, templateNamespace = NeoECOPrototype.MOD_ID)
     public static void energizedThreadingCoreOutsideTheFirstSlotIsRejected(GameTestHelper helper) {
         buildComputationStructure(helper, new BlockPos(13, 3, 4),
                 ModRegistration.SIMPLIFY_COMPUTATION_THREADING_CORE_BLOCK.get(),
@@ -1952,5 +2191,155 @@ public final class NeoECOPrototypeGameTests {
         BlockPos cablePos() {
             return machinePos.east();
         }
+    }
+
+    /**
+     * Builds a whole L1 room from eco's own placement plan, standing {@code wantedInterface} in the
+     * cell the plan reserves for {@code planInterface}, then hands the standing machine to
+     * {@code onFormed}. Going through the plan instead of hand-placing blocks keeps the test honest
+     * when the geometry moves: a room that no longer matches the builder fails here rather than
+     * quietly measuring a shape nobody can build.
+     */
+    private static void buildL1Room(GameTestHelper helper, BlockPos controllerPos, Block hostBlock,
+                                    Block planInterface, Block wantedInterface,
+                                    java.util.function.Consumer<MultiBlockBuildController.Host> onFormed) {
+        helper.setBlock(controllerPos, hostBlock);
+        BlockPos absolute = helper.absolutePos(controllerPos);
+        helper.runAfterDelay(5, () -> {
+            if (!(helper.getLevel().getBlockEntity(absolute) instanceof MultiBlockBuildController.Host host)) {
+                helper.fail(name(hostBlock) + " has no one-click builder at " + absolute);
+                return;
+            }
+            host.setSelectedBuildLength(host.getMinBuildLength());
+            var plan = new MultiBlockBuildController(host).createLocalPreviewPlan();
+            if (plan == null || plan.getAllBlocks().isEmpty()) {
+                helper.fail("the builder produced no placement plan for " + name(hostBlock));
+                return;
+            }
+            List<BlockPos> built = new ArrayList<>();
+            int seen = 0;
+            for (var planned : plan.getAllBlocks()) {
+                // Only the template volume is restored after a test, so anything written outside it
+                // leaks into the neighbouring test room and takes its block entities with it.
+                BlockPos rel = planned.worldPos().subtract(helper.absolutePos(BlockPos.ZERO));
+                if (rel.getX() < 0 || rel.getY() < 0 || rel.getZ() < 0 || rel.getX() >= L1_ROOM_SIZE
+                        || rel.getY() >= L1_ROOM_SIZE || rel.getZ() >= L1_ROOM_SIZE) {
+                    helper.fail("the " + name(hostBlock) + " build plan leaves the "
+                            + L1_ROOM_SIZE + "^3 template at " + rel);
+                    return;
+                }
+                var target = planned.targetState();
+                if (target.getBlock() == planInterface) {
+                    seen++;
+                    helper.getLevel().setBlockAndUpdate(planned.worldPos(),
+                            wantedInterface.defaultBlockState());
+                } else {
+                    helper.getLevel().setBlockAndUpdate(planned.worldPos(), target);
+                }
+                built.add(planned.worldPos());
+            }
+            if (seen == 0) {
+                helper.fail("the plan for " + name(hostBlock) + " placed no " + name(planInterface)
+                        + ", so this test would prove nothing");
+                return;
+            }
+            host.rebuildAfterBuild();
+            helper.runAfterDelay(20, () -> {
+                try {
+                    if (!host.isFormed()) {
+                        helper.fail("the room built from the plan never formed, so the published shape "
+                                + "says nothing about the machine");
+                        return;
+                    }
+                    onFormed.accept(host);
+                } finally {
+                    // Two standing machines seven blocks apart make every controller "not unique", so
+                    // clear our own blocks before the next batch starts.
+                    for (BlockPos pos : built) {
+                        helper.getLevel().setBlockAndUpdate(pos, Blocks.AIR.defaultBlockState());
+                    }
+                    helper.getLevel().setBlockAndUpdate(absolute, Blocks.AIR.defaultBlockState());
+                }
+                helper.succeed();
+            });
+        });
+    }
+
+    private static String name(Block block) {
+        return BuiltInRegistries.BLOCK.getKey(block).getPath();
+    }
+
+    /**
+     * A formed host has to say which of the two interface blocks it ended up with, because that is the
+     * only handle a resource pack has for choosing the formed look. Both directions are measured per
+     * machine: a flag stuck at its default and a flag hard-wired to true look identical right up to
+     * the point where an artist has drawn sheets nobody can ever reach.
+     */
+    @GameTest(template = "l1_room", batch = "storage_comm_plain", timeoutTicks = 200,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void storageHostPublishesThePlainInterfaceItHolds(GameTestHelper helper) {
+        assertStorageInterfacePublished(helper,
+                ModRegistration.SIMPLIFY_STORAGE_NETWORK_INTERFACE_BLOCK.get(), false);
+    }
+
+    @GameTest(template = "l1_room", batch = "storage_comm_on", timeoutTicks = 200,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void storageHostPublishesTheCommunicationInterfaceItHolds(GameTestHelper helper) {
+        assertStorageInterfacePublished(helper,
+                ModRegistration.SIMPLIFY_STORAGE_INTERFACE_BLOCK.get(), true);
+    }
+
+    private static void assertStorageInterfacePublished(GameTestHelper helper, Block interfaceBlock,
+                                                        boolean expected) {
+        var controllerPos = new BlockPos(6, 3, 6);
+        buildL1Room(helper, controllerPos, ModRegistration.SIMPLIFY_STORAGE_CONTROLLER_BLOCK.get(),
+                ModRegistration.SIMPLIFY_STORAGE_NETWORK_INTERFACE_BLOCK.get(), interfaceBlock, host -> {
+                    var state = helper.getLevel().getBlockState(helper.absolutePos(controllerPos));
+                    if (!state.hasProperty(SimplifyStorageControllerBlock.COMMUNICATION_INTERFACE)) {
+                        helper.fail("the L1 storage host has no communication_interface property at all: "
+                                + state);
+                        return;
+                    }
+                    if (state.getValue(SimplifyStorageControllerBlock.COMMUNICATION_INTERFACE) != expected) {
+                        helper.fail("the machine holds " + name(interfaceBlock) + ", which is "
+                                + (expected ? "" : "not ") + "the communication interface, but the host "
+                                + "published communication_interface="
+                                + state.getValue(SimplifyStorageControllerBlock.COMMUNICATION_INTERFACE));
+                    }
+                });
+    }
+
+    @GameTest(template = "l1_room", batch = "crafting_comm_plain", timeoutTicks = 200,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void craftingHostPublishesThePlainInterfaceItHolds(GameTestHelper helper) {
+        assertCraftingInterfacePublished(helper,
+                ModRegistration.SIMPLIFY_CRAFTING_NETWORK_INTERFACE_BLOCK.get(), false);
+    }
+
+    @GameTest(template = "l1_room", batch = "crafting_comm_on", timeoutTicks = 200,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void craftingHostPublishesTheCommunicationInterfaceItHolds(GameTestHelper helper) {
+        assertCraftingInterfacePublished(helper,
+                ModRegistration.SIMPLIFY_CRAFTING_INTERFACE_BLOCK.get(), true);
+    }
+
+    private static void assertCraftingInterfacePublished(GameTestHelper helper, Block interfaceBlock,
+                                                         boolean expected) {
+        var controllerPos = new BlockPos(6, 3, 6);
+        buildL1Room(helper, controllerPos, ModRegistration.SIMPLIFY_CRAFTING_SYSTEM_BLOCK.get(),
+                ModRegistration.SIMPLIFY_CRAFTING_INTERFACE_BLOCK.get(), interfaceBlock, host -> {
+                    var state = helper.getLevel().getBlockState(helper.absolutePos(controllerPos));
+                    if (!state.hasProperty(SimplifyCraftingSystemBlock.COMMUNICATION_INTERFACE)) {
+                        helper.fail("the F1 crafting host has no communication_interface property at all: "
+                                + state);
+                        return;
+                    }
+                    if (state.getValue(SimplifyCraftingSystemBlock.COMMUNICATION_INTERFACE) != expected) {
+                        helper.fail("the machine holds " + name(interfaceBlock) + ", which is "
+                                + (expected ? "" : "not ") + "the communication interface, but the host "
+                                + "published communication_interface="
+                                + state.getValue(SimplifyCraftingSystemBlock.COMMUNICATION_INTERFACE));
+                    }
+                });
     }
 }

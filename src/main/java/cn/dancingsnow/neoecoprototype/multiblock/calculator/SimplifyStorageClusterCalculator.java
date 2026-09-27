@@ -33,9 +33,10 @@ import java.util.Optional;
 public class SimplifyStorageClusterCalculator extends NEClusterCalculator<SimplifyStorageCluster> {
 
     /** Side-effect-free result of the storage geometry check. */
-    public record StructureValidation(boolean valid, boolean mirrored, BlockPos controllerPos) {
+    public record StructureValidation(boolean valid, boolean mirrored, BlockPos controllerPos,
+                                      boolean communicationInterface) {
         public static StructureValidation invalid(BlockPos controllerPos) {
-            return new StructureValidation(false, false, controllerPos);
+            return new StructureValidation(false, false, controllerPos, false);
         }
     }
 
@@ -70,7 +71,7 @@ public class SimplifyStorageClusterCalculator extends NEClusterCalculator<Simpli
     @Override
     public boolean verifyInternalStructure(ServerLevel level, BlockPos min, BlockPos max) {
         StructureValidation result = validateStructure(level, min, max);
-        applyMirroredState(level, result);
+        applyValidationState(level, result);
         return result.valid();
     }
 
@@ -97,18 +98,42 @@ public class SimplifyStorageClusterCalculator extends NEClusterCalculator<Simpli
         Direction right = left.getOpposite();
 
         if (verifyStructure(level, controllerPos, front, back, top, down, left, right)) {
-            return new StructureValidation(true, false, controllerPos);
+            return formed(level, controllerPos, back, left, false);
         }
         if (verifyStructure(level, controllerPos, front, back, top, down, right, left)) {
-            return new StructureValidation(true, true, controllerPos);
+            return formed(level, controllerPos, back, right, true);
         }
         return StructureValidation.invalid(controllerPos);
     }
 
-    private void applyMirroredState(ServerLevel level, StructureValidation result) {
+    /** A hand that checked out: report the shape, including which of the two interface blocks won. */
+    private StructureValidation formed(ServerLevel level, BlockPos controllerPos, Direction back,
+                                       Direction staticSide, boolean mirrored) {
+        return new StructureValidation(true, mirrored, controllerPos,
+                isCommunicationInterface(level.getBlockState(interfaceCell(controllerPos, back, staticSide))));
+    }
+
+    /** The single cell behind the static-side casing column that carries the machine's interface. */
+    private static BlockPos interfaceCell(BlockPos controllerPos, Direction back, Direction staticSide) {
+        return controllerPos.relative(staticSide).relative(back);
+    }
+
+    /** Either interface block is accepted in that cell. */
+    private static boolean isStorageInterface(BlockState state) {
+        return state.is(ModRegistration.SIMPLIFY_STORAGE_INTERFACE_BLOCK.get())
+                || state.is(ModRegistration.SIMPLIFY_STORAGE_NETWORK_INTERFACE_BLOCK.get());
+    }
+
+    /** Which of the two the cell actually holds: the plain one is the communication interface. */
+    private static boolean isCommunicationInterface(BlockState state) {
+        return state.is(ModRegistration.SIMPLIFY_STORAGE_INTERFACE_BLOCK.get());
+    }
+
+    private void applyValidationState(ServerLevel level, StructureValidation result) {
         if (result.controllerPos() != null
                 && level.getBlockEntity(result.controllerPos()) instanceof SimplifyStorageHostBlockEntity controller) {
             controller.setMirrored(result.mirrored());
+            controller.setCommunicationInterface(result.communicationInterface());
         }
     }
 
@@ -129,9 +154,8 @@ public class SimplifyStorageClusterCalculator extends NEClusterCalculator<Simpli
             return false;
         }
         // interface at the back of the static side
-        BlockPos interfacePos = controllerPos.relative(staticSide).relative(back);
-        if (!validateBlock(level, interfacePos, state -> state.is(ModRegistration.SIMPLIFY_STORAGE_INTERFACE_BLOCK.get())
-                        || state.is(ModRegistration.SIMPLIFY_STORAGE_NETWORK_INTERFACE_BLOCK.get()))) {
+        BlockPos interfacePos = interfaceCell(controllerPos, back, staticSide);
+        if (!validateBlock(level, interfacePos, SimplifyStorageClusterCalculator::isStorageInterface)) {
             return false;
         }
         if (!validateBlock(level, interfacePos.relative(top), state -> state.is(ModRegistration.SIMPLIFY_STORAGE_CASING_BLOCK.get()))) {
@@ -317,8 +341,10 @@ public class SimplifyStorageClusterCalculator extends NEClusterCalculator<Simpli
         expectCasingColumn.apply(controllerPos.relative(staticSide));
         expectCasingColumn.apply(controllerPos.relative(back));
         // interface at back of static side (+ casing above/below)
-        BlockPos interfacePos = controllerPos.relative(staticSide).relative(back);
-        expect.apply(interfacePos, ModRegistration.SIMPLIFY_STORAGE_INTERFACE_BLOCK.get());
+        BlockPos interfacePos = interfaceCell(controllerPos, back, staticSide);
+        if (!isStorageInterface(level.getBlockState(interfacePos))) {
+            expect.apply(interfacePos, ModRegistration.SIMPLIFY_STORAGE_INTERFACE_BLOCK.get());
+        }
         expect.apply(interfacePos.relative(top), ModRegistration.SIMPLIFY_STORAGE_CASING_BLOCK.get());
         expect.apply(interfacePos.relative(down), ModRegistration.SIMPLIFY_STORAGE_CASING_BLOCK.get());
         expect.apply(controllerPos.relative(top), ModRegistration.SIMPLIFY_STORAGE_CASING_BLOCK.get());

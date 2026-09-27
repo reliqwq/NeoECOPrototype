@@ -1,1 +1,10 @@
-{"variants":{"":{"model":"neoecoprototype:block/computation_interface"}}}
+{
+ "variants": {
+  "formed=false": {
+   "model": "neoecoprototype:block/computation_interface"
+  },
+  "formed=true": {
+   "model": "neoecoprototype:block/computation_interface_formed"
+  }
+ }
+}

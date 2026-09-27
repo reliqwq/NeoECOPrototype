@@ -2,22 +2,14 @@ package cn.dancingsnow.neoecoprototype.block.crafting;
 
 import cn.dancingsnow.neoecoae.blocks.ECOMachineInterface;
 import cn.dancingsnow.neoecoae.multiblock.cluster.NECraftingCluster;
-import net.minecraft.world.InteractionResult;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.core.BlockPos;
-import net.minecraft.world.phys.BlockHitResult;
 
-/** F1 subsystem interface: a network endpoint without a player-facing GUI. */
+/**
+ * F1 subsystem communication interface: the full interface block, opened by hand and by the
+ * one-click builder, with eco's interface GUI. Matches how C1 spells the pair -- the block without
+ * "network" in its name is the one the player uses.
+ */
 public class SimplifyCraftingInterfaceBlock extends ECOMachineInterface<NECraftingCluster> {
     public SimplifyCraftingInterfaceBlock(Properties properties) {
         super(properties);
-    }
-
-    @Override
-    protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos, Player player,
-                                               BlockHitResult hitResult) {
-        return InteractionResult.PASS;
     }
 }

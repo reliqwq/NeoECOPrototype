@@ -8,6 +8,7 @@ import cn.dancingsnow.neoecoae.blocks.entity.computation.ECOComputationSystemBlo
 import cn.dancingsnow.neoecoae.blocks.entity.computation.ECOComputationThreadingCoreBlockEntity;
 import cn.dancingsnow.neoecoae.multiblock.calculator.NEComputationClusterCalculator;
 import cn.dancingsnow.neoecoprototype.api.SimplifyMultiblockConfig;
+import cn.dancingsnow.neoecoprototype.blockentity.computation.SimplifyComputationSystemBlockEntity;
 import cn.dancingsnow.neoecoae.multiblock.cluster.NEComputationCluster;
 import cn.dancingsnow.neoecoprototype.registration.ModRegistration;
 import net.minecraft.core.BlockPos;
@@ -28,11 +29,17 @@ public class SimplifyComputationClusterCalculator extends NEComputationClusterCa
 
     /** Side-effect-free result of the computation geometry check. */
     public record StructureValidation(boolean valid, boolean mirrored,
-                                      BlockPos controllerPos, BlockPos coolerPos) {
+                                      BlockPos controllerPos, BlockPos coolerPos,
+                                      boolean communicationInterface, boolean energizedThreadingCore,
+                                      boolean energizedParallelCore) {
         public static StructureValidation invalid(BlockPos controllerPos) {
-            return new StructureValidation(false, false, controllerPos, null);
+            return new StructureValidation(false, false, controllerPos, null, false, false, false);
         }
     }
+
+    /** What {@link #verifyStructure} reports when one hand of the machine checks out. */
+    private record Formed(BlockPos coolerPos, boolean communicationInterface,
+                          boolean energizedThreadingCore, boolean energizedParallelCore) { }
 
     public SimplifyComputationClusterCalculator(NEBlockEntity<NEComputationCluster, ?> blockEntity) {
         super(blockEntity);
@@ -85,15 +92,21 @@ public class SimplifyComputationClusterCalculator extends NEComputationClusterCa
         BlockPos energizedCoreLeft = energizedCoreCell(controllerPos, controllerState, false);
         BlockPos energizedCoreRight = energizedCoreCell(controllerPos, controllerState, true);
 
-        Optional<BlockPos> coolerPos = verifyStructure(
-                level, controllerPos, tier, front, back, top, down, right, left, energizedCoreLeft);
-        if (coolerPos.isPresent()) {
-            return new StructureValidation(true, false, controllerPos, coolerPos.get());
+        Optional<Formed> formed = verifyStructure(
+                level, controllerPos, tier, front, back, top, down, right, left, energizedCoreLeft, min, max);
+        if (formed.isPresent()) {
+            var shape = formed.get();
+            return new StructureValidation(true, false, controllerPos, shape.coolerPos(),
+                    shape.communicationInterface(), shape.energizedThreadingCore(),
+                    shape.energizedParallelCore());
         }
-        coolerPos = verifyStructure(level, controllerPos, tier, front, back, top, down, left, right,
-                energizedCoreRight);
-        if (coolerPos.isPresent()) {
-            return new StructureValidation(true, true, controllerPos, coolerPos.get());
+        formed = verifyStructure(level, controllerPos, tier, front, back, top, down, left, right,
+                energizedCoreRight, min, max);
+        if (formed.isPresent()) {
+            var shape = formed.get();
+            return new StructureValidation(true, true, controllerPos, shape.coolerPos(),
+                    shape.communicationInterface(), shape.energizedThreadingCore(),
+                    shape.energizedParallelCore());
         }
         return StructureValidation.invalid(controllerPos);
     }
@@ -102,6 +115,10 @@ public class SimplifyComputationClusterCalculator extends NEComputationClusterCa
         if (result.controllerPos() != null
                 && level.getBlockEntity(result.controllerPos()) instanceof ECOComputationSystemBlockEntity controller) {
             controller.setMirrored(result.mirrored());
+            if (controller instanceof SimplifyComputationSystemBlockEntity host) {
+                host.setPublishedShape(result.communicationInterface(), result.energizedThreadingCore(),
+                        result.energizedParallelCore());
+            }
         }
         if (result.coolerPos() != null
                 && level.getBlockEntity(result.coolerPos()) instanceof ECOComputationCoolingControllerBlockEntity cooler) {
@@ -109,10 +126,10 @@ public class SimplifyComputationClusterCalculator extends NEComputationClusterCa
         }
     }
 
-    private Optional<BlockPos> verifyStructure(ServerLevel level, BlockPos controllerPos, IECOTier tier,
+    private Optional<Formed> verifyStructure(ServerLevel level, BlockPos controllerPos, IECOTier tier,
                                                 Direction front, Direction back, Direction top, Direction down,
                                                 Direction interfaceSide, Direction expandSide,
-                                                BlockPos energizedCorePos) {
+                                                BlockPos energizedCorePos, BlockPos min, BlockPos max) {
         if (!validateShell(level, controllerPos, top, down, interfaceSide, energizedCorePos)
                 || !validateShell(level, controllerPos, top, down, expandSide, energizedCorePos)
                 || !validateShell(level, controllerPos, top, down, back, energizedCorePos)
@@ -122,9 +139,12 @@ public class SimplifyComputationClusterCalculator extends NEComputationClusterCa
         }
 
         BlockPos interfacePos = controllerPos.relative(back).relative(interfaceSide);
-        if (!validateComputationInterface(level, interfacePos, top, down)) {
+        Optional<Block> matchedInterface = matchedComputationInterface(level, interfacePos, top, down);
+        if (matchedInterface.isEmpty()) {
             return Optional.empty();
         }
+        boolean communicationInterface = matchedInterface.get()
+                == ModRegistration.SIMPLIFY_COMPUTATION_INTERFACE_BLOCK.get();
 
         BlockPos connectorStart = controllerPos.relative(expandSide).relative(expandSide);
         Optional<BlockPos> connectorEndResult = validateBlockLine(level, expandSide, connectorStart,
@@ -192,7 +212,23 @@ public class SimplifyComputationClusterCalculator extends NEComputationClusterCa
                 || !tailCasings.stream().allMatch(tail -> level.getBlockState(tail).is(casing()))) {
             return Optional.empty();
         }
-        return Optional.of(coolerPos);
+        // The host stands in a column no shell walk visits, so a core directly above or below it
+        // passes every check above and is still adopted by the cluster's bounding-box scan. Those two
+        // cells are the whole hole; the allotted cell is already covered by the shell walk.
+        for (Direction lift : new Direction[]{top, down}) {
+            if (level.getBlockState(controllerPos.relative(lift))
+                    .is(holder(ModRegistration.ENERGIZED_COMPUTATION_CORE_BLOCK.get()))) {
+                return Optional.empty();
+            }
+        }
+        // The two energized members each have exactly one cell they may occupy, so "is this machine
+        // carrying one" is a lookup at a known position rather than a count over the structure.
+        boolean energizedThreadingCore = level.getBlockState(threadingCoreStart)
+                .is(holder(ModRegistration.ENERGIZED_COMPUTATION_THREADING_CORE_BLOCK.get()));
+        boolean energizedParallelCore = level.getBlockState(energizedCorePos)
+                .is(holder(ModRegistration.ENERGIZED_COMPUTATION_CORE_BLOCK.get()));
+        return Optional.of(new Formed(coolerPos, communicationInterface,
+                energizedThreadingCore, energizedParallelCore));
     }
 
     /**
@@ -232,12 +268,9 @@ public class SimplifyComputationClusterCalculator extends NEComputationClusterCa
     }
 
     /**
-     * A shell cell is the casing, or the energized core in the single cell allotted to it. The core may
-     * only stand there because it hides itself once the structure forms
-     * ({@code SimplifyEnergizedComputationCoreBlock.hideWhenFormed}), exactly like eco's
-     * {@code NENetworkSwitchBlock}. Draw anything here and it flickers: every formed casing is
-     * {@code RenderShape.INVISIBLE} and stops culling neighbours, so the shell is transparent and a
-     * member in it is seen from both sides at once.
+     * A shell cell is the casing, or the energized core in the single cell allotted to it. The core
+     * belongs in the shell at all: once the structure forms it swaps to a model that carries only the
+     * lit face, like every other member of the shell.
      *
      * <p>Allotting one cell is also how "exactly one" gets enforced: the geometry refuses the block
      * everywhere else, so there is nothing to count afterwards.
@@ -248,12 +281,18 @@ public class SimplifyComputationClusterCalculator extends NEComputationClusterCa
                         && state.is(holder(ModRegistration.ENERGIZED_COMPUTATION_CORE_BLOCK.get())));
     }
 
-    private boolean validateComputationInterface(ServerLevel level, BlockPos interfacePos,
-                                                  Direction top, Direction down) {
-        return validateInterface(level, interfacePos, top, down,
-                holder(ModRegistration.SIMPLIFY_COMPUTATION_INTERFACE_BLOCK.get()), casing())
-                || validateInterface(level, interfacePos, top, down,
-                holder(ModRegistration.SIMPLIFY_COMPUTATION_NETWORK_INTERFACE_BLOCK.get()), casing());
+    /** Which of the two interface kinds occupies the interface cell, if either does. */
+    private Optional<Block> matchedComputationInterface(ServerLevel level, BlockPos interfacePos,
+                                                        Direction top, Direction down) {
+        Block communication = ModRegistration.SIMPLIFY_COMPUTATION_INTERFACE_BLOCK.get();
+        Block network = ModRegistration.SIMPLIFY_COMPUTATION_NETWORK_INTERFACE_BLOCK.get();
+        if (validateInterface(level, interfacePos, top, down, holder(communication), casing())) {
+            return Optional.of(communication);
+        }
+        if (validateInterface(level, interfacePos, top, down, holder(network), casing())) {
+            return Optional.of(network);
+        }
+        return Optional.empty();
     }
 
     private static Holder<Block> holder(Block block) {

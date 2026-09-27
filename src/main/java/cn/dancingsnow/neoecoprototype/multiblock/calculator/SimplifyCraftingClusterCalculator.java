@@ -7,6 +7,7 @@ import cn.dancingsnow.neoecoae.blocks.entity.crafting.ECOCraftingSystemBlockEnti
 import cn.dancingsnow.neoecoae.multiblock.calculator.NECraftingClusterCalculator;
 import cn.dancingsnow.neoecoae.multiblock.cluster.NECraftingCluster;
 import cn.dancingsnow.neoecoae.config.NEConfig;
+import cn.dancingsnow.neoecoprototype.blockentity.crafting.SimplifyCraftingSystemBlockEntity;
 import cn.dancingsnow.neoecoprototype.registration.ModRegistration;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -30,9 +31,10 @@ public class SimplifyCraftingClusterCalculator extends NECraftingClusterCalculat
     private static final Logger LOGGER = LoggerFactory.getLogger("neoecoprototype-crafting");
 
     /** Side-effect-free result of the crafting geometry check. */
-    public record StructureValidation(boolean valid, boolean mirrored, BlockPos controllerPos) {
+    public record StructureValidation(boolean valid, boolean mirrored, BlockPos controllerPos,
+                                      boolean communicationInterface) {
         public static StructureValidation invalid(BlockPos controllerPos) {
-            return new StructureValidation(false, false, controllerPos);
+            return new StructureValidation(false, false, controllerPos, false);
         }
     }
 
@@ -53,7 +55,7 @@ public class SimplifyCraftingClusterCalculator extends NECraftingClusterCalculat
     @Override
     public boolean verifyInternalStructure(ServerLevel level, BlockPos min, BlockPos max) {
         StructureValidation result = validateStructure(level, min, max);
-        applyMirroredState(level, result);
+        applyValidationState(level, result);
         // Successful checks run frequently while the eco cluster is alive. Formation and
         // destruction are already logged by the cluster/host, so do not emit one INFO line
         // per validation tick here. Keep failures available only to debug logging while
@@ -80,19 +82,37 @@ public class SimplifyCraftingClusterCalculator extends NECraftingClusterCalculat
         Direction expandSide = context.left();
         if (verifyStructure(level, controllerPos, controller.getTier(), context.front(), context.back(),
                 context.top(), context.down(), interfaceSide, expandSide)) {
-            return new StructureValidation(true, false, controllerPos);
+            return formed(level, controllerPos, context.back(), interfaceSide, false);
         }
         if (verifyStructure(level, controllerPos, controller.getTier(), context.front(), context.back(),
                 context.top(), context.down(), expandSide, interfaceSide)) {
-            return new StructureValidation(true, true, controllerPos);
+            return formed(level, controllerPos, context.back(), expandSide, true);
         }
         return StructureValidation.invalid(controllerPos);
     }
 
-    private void applyMirroredState(ServerLevel level, StructureValidation result) {
-        if (result.controllerPos() != null
-                && level.getBlockEntity(result.controllerPos()) instanceof ECOCraftingSystemBlockEntity controller) {
+    /** A hand that checked out: report the shape, including which of the two interface blocks won. */
+    private StructureValidation formed(ServerLevel level, BlockPos controllerPos, Direction back,
+                                       Direction interfaceSide, boolean mirrored) {
+        BlockState interfaceState = level.getBlockState(interfaceCell(controllerPos, back, interfaceSide));
+        return new StructureValidation(true, mirrored, controllerPos,
+                interfaceState.is(holder(ModRegistration.SIMPLIFY_CRAFTING_INTERFACE_BLOCK.get())));
+    }
+
+    /** The one cell that carries the machine's interface, behind the controller and off to a hand. */
+    private static BlockPos interfaceCell(BlockPos controllerPos, Direction back, Direction interfaceSide) {
+        return controllerPos.relative(back).relative(interfaceSide);
+    }
+
+    private void applyValidationState(ServerLevel level, StructureValidation result) {
+        if (result.controllerPos() == null) {
+            return;
+        }
+        if (level.getBlockEntity(result.controllerPos()) instanceof ECOCraftingSystemBlockEntity controller) {
             controller.setMirrored(result.mirrored());
+            if (controller instanceof SimplifyCraftingSystemBlockEntity host) {
+                host.setCommunicationInterface(result.communicationInterface());
+            }
         }
     }
 
@@ -106,7 +126,7 @@ public class SimplifyCraftingClusterCalculator extends NECraftingClusterCalculat
             return false;
         }
 
-        BlockPos interfacePos = controllerPos.relative(back).relative(interfaceSide);
+        BlockPos interfacePos = interfaceCell(controllerPos, back, interfaceSide);
         if (!validateBlock(level, interfacePos, this::isCraftingInterface)
                 || !validateBlock(level, interfacePos.relative(top), state ->
                 state.is(holder(ModRegistration.SIMPLIFY_FLUID_INPUT_HATCH_BLOCK.get())))

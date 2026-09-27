@@ -4,7 +4,7 @@ license = "GPL-3.0-only"
 
 [[mods]]
 modId = "neoecoprototype"
-version = "1.2.7"
+version = "1.2.8"
 displayName = "Neo ECO Prototype"
 authors = "reliqwq"
 description = "A unified Trinity addon for Neo ECO AE Extension and AE2: multiblock storage, network crafting entry, task diagnostics, and UI below eco's L4 tier."
@@ -40,7 +40,7 @@ side = "BOTH"
 # StorageHostUI.Config constructor and fail at runtime with NoSuchMethodError.
 # beta4 is the first build exposing IECOBulkMarkableCellItem used by the small-bulk cells.
 # Developed against beta6, but the floor stays at beta4: nothing here uses an API newer than
-# beta4 (hideWhenFormed, FixedBlockEntityRenderers.register and NEBlock.FORMED are all present).
+# beta4 (FixedBlockEntityRenderers.register and NEBlock.FORMED are both present in beta4).
 [[dependencies.neoecoprototype]]
 modId = "neoecoae"
 mandatory = true
