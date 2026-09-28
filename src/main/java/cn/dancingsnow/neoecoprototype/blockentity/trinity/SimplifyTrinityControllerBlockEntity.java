@@ -369,7 +369,9 @@ public class SimplifyTrinityControllerBlockEntity
                 },
                 () -> false,
                 () -> 0L,
-                () -> {
+                // Consumer<Boolean> since eco 21.2.0 (the shift state of the triggering right-click);
+                // the trinity host has no bulk marking yet, so this stays an empty sink.
+                shift -> {
                 }));
         actionUI.addTo(root);
         return new ModularUI(UI.of(root,

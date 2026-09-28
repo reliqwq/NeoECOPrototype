@@ -248,7 +248,10 @@ public class SimplifyStorageHostBlockEntity
                 delta -> changeStoragePriority(holder.player, delta),
                  this::bulkMarkingAvailable,
                  this::bulkMarkingThreshold,
-                 () -> autoMarkBulkCells(holder.player)));
+                 // eco 21.2.0 turned this from a Runnable into a Consumer<Boolean> carrying the shift
+                 // state of the right-click that triggers it. We mark the same way either way for now,
+                 // but the flag is there if the button ever wants "shift = ignore the threshold".
+                 shift -> autoMarkBulkCells(holder.player)));
         actionUI.addTo(root);
         if (bulkMarkingAvailable()) {
             root.addChild(SimplifyStorageMegaPanelUI.create(this));

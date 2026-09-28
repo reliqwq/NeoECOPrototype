@@ -34,17 +34,17 @@ versionRange = "[19.2.17,)"
 ordering = "NONE"
 side = "BOTH"
 
-# Require the beta line: every preview build carries the older StorageHostUI ABI.
-# Maven compares the unknown qualifier "preview" above "beta", so a plain [21.2.0-beta4,)
-# range would admit preview10..preview16-hotfix1, which lack the 13-argument
-# StorageHostUI.Config constructor and fail at runtime with NoSuchMethodError.
-# beta4 is the first build exposing IECOBulkMarkableCellItem used by the small-bulk cells.
-# Developed against beta6, but the floor stays at beta4: nothing here uses an API newer than
-# beta4 (FixedBlockEntityRenderers.register and NEBlock.FORMED are both present in beta4).
+# Floor is the first stable eco, 21.2.0, because that release changed the type of the last component
+# of StorageHostActionUI.Config from Runnable to Consumer<Boolean> (it now carries the shift state of
+# the right-click that triggers bulk marking). Compiled against it, so the whole beta line is binary
+# incompatible in the other direction and must stay out.
+# Do not treat a range as a safety net: 1.2.7 shipped an upper bound that should have excluded
+# 21.2.0, a player still loaded it with that eco and got NoSuchMethodError when opening the L1
+# storage host GUI. ABI surprises are caught by compiling against the target, not by bounding it.
 [[dependencies.neoecoprototype]]
 modId = "neoecoae"
 mandatory = true
-versionRange = "[21.2.0-beta4,21.2.0-preview)"
+versionRange = "[21.2.0,)"
 ordering = "NONE"
 side = "BOTH"
 

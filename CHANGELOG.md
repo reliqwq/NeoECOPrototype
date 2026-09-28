@@ -2,6 +2,10 @@
 
 ## 1.2.8 (2026-09-27) - Interface Naming Alignment and Formed Appearance States
 
+### 依赖门槛抬高 / Raised dependency floor
+
+- **这一版起需要 Neo ECO AE Extension 21.2.0 或更新，且不再兼容 21.2.0-beta4 ~ beta6。** eco 在 21.2.0 之前把 `StorageHostActionUI$Config` 的最后一个参数从 `Runnable` 换成了 `Consumer<Boolean>`（实测 `beta6-hotfix2`、`beta7-hotfix1` 与正式版都已是新签名，裸 `beta4`~`beta6` 仍是旧签名），所以 1.2.7 配 21.2.0 打开 L1 存储主机会 `NoSuchMethodError` 崩服，1.2.8 反过来配裸 beta6 也会以同样方式崩。**停在 beta4 ~ beta6 的玩家请继续用 1.2.7。** 版本区间不是保险索：已有玩家用的启动器会跳过依赖检查，直接把不兼容的组合加载起来。 This build needs eco 21.2.0 or newer and drops plain 21.2.0-beta4 ~ beta6; the constructor type changed underneath us, so either direction mismatched crashes when the L1 storage host GUI opens.
+
 ### 新增 / Added
 
 - **成型外观改由方块状态选择 / formed appearance picked by block state**：三台主机各自发布"接口格里放的是不是通讯接口"（`communication_interface`），C1 计算主机另外发布 `energized_threading_core` 与 `energized_parallel_core`；成型模型的挑选全部落在 blockstate 文件里，资源包不需要读世界。新增 18 个变体模型作为分图钩子，目前全部指向现有成型贴图，所以任何组合下看到的都还是现在的正式外观。 Publishes what the finished machine holds onto the host's own block state so the blockstate file picks the formed model; 18 variant models are the art hooks and all still point at the current sheet, so nothing looks provisional.

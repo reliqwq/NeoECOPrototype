@@ -42,11 +42,13 @@ dependencies {
     implementation files("libs/ldlib2-2.2.8.jar")              // LDLib2 (eco 预览运行依赖, modId: ldlib2)
     implementation "dev.vfyjxf:taffy:1.1.3"
     implementation "org.appliedenergistics.yoga:yoga:1.0.0"
-    // Trinity ABI target: beta4 (adds IECOBulkMarkableCellItem for the host marking page).
-    // beta5 inserts a lambda into StorageInterfaceUI#create, which renumbers lambda$create$N and stops
-    // our title redirects from matching: no longer a crash (they are require = 0) but the interface GUIs
-    // silently keep eco's default title until LocalGuiTitleContext warns in the log.
-    implementation files("neoecobeta/neoecoae-21.2.0-beta6.jar")
+    // ABI target: eco 21.2.0, the first stable release. It changed the last component of
+    // StorageHostActionUI.Config from Runnable to Consumer<Boolean>, which is what crashed 1.2.7 for
+    // players who updated - the two call sites now pass the shift flag through.
+    // beta5 also inserted a lambda into StorageInterfaceUI#create, renumbering lambda$create$N so our
+    // title redirects stop matching: not a crash (they are require = 0) but those GUIs keep eco's
+    // default title until LocalGuiTitleContext warns in the log.
+    implementation files("neoecobeta/neoecoae-21.2.0.jar")
     // MegaCells 4.11.0 is the supported optional integration version.
     implementation files("libs/megacells-4.11.0.jar")
     // Temporary local runtime dependencies for client inspection; restore compileOnly after viewing.
