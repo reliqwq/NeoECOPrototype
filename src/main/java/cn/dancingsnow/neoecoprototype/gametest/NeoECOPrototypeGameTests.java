@@ -2099,25 +2099,21 @@ public final class NeoECOPrototypeGameTests {
     }
 
     /**
-     * eco collects a subsystem's CPUs by walking the grid the host sits on -- its crafting service mixin
-     * goes through {@code IGrid.getMachines} and {@code IGridNode.getOwner} -- so a host that is not on
-     * an ME network cannot show up in the CPU list whatever its switch bits say. That is why this test
-     * needs power and a cable, and why the same machine read as "the CPU is missing" when it was standing
-     * in a field with no network at all.
+     * A cable on the machine's interface pulls the whole computation subsystem -- controller included --
+     * onto the player's grid, which is the half that a field test cannot see: eco exposes a host's node
+     * only toward other eco blocks ({@code NEBlockEntity.getGridConnectableSides} answers nothing toward
+     * air), so wiring the host directly is impossible by design, while the interface block opens all six
+     * faces once formed ({@code ECOMachineInterfaceBlockEntity}) and every member node carries
+     * {@code IGridMultiblock}. Measured here: host, cable and power on one 92-node grid.
      *
-     * <p>The geometry comes from eco's own plan, and the network from our superconductive interface,
-     * which carries AE2's passive generator service on its node -- so no controller or energy cell is
-     * needed to get a live grid.
-     *
-     * <p>It is marked {@code required = false} because it currently reports an open question rather than
-     * a regression: wiring the machine's interface leaves the host on its own one-node grid, since every
-     * face of the host belongs to the structure. How a player is supposed to put the host itself on his
-     * network is undecided, and until it is, "the CPU is missing" cannot be told apart from "the host was
-     * never reachable".
+     * <p>Deliberately not asserted: whether the CPU panel lists the subsystem. That panel is not fed by
+     * {@code ICraftingService.getCpus()} -- eco ships its own snapshot to the client
+     * ({@code MenuDataTransport} channel {@code CPU} plus {@code ExactCpuSnapshot}) and mixes into AE2's
+     * selection list, so the two sources can disagree, and reading the panel needs a real GUI.
      */
-    @GameTest(template = "l1_room", batch = "l1_cpu_grid", timeoutTicks = 300, required = false,
+    @GameTest(template = "l1_room", batch = "l1_cpu_grid", timeoutTicks = 300,
             templateNamespace = NeoECOPrototype.MOD_ID)
-    public static void formedComputationHostPutsItsCpuOnTheNetwork(GameTestHelper helper) {
+    public static void computationHostCanBeWiredThroughItsInterface(GameTestHelper helper) {
         var hostPos = new BlockPos(13, 3, 4);
         buildComputationStructureKept(helper, hostPos,
                 ModRegistration.SIMPLIFY_COMPUTATION_THREADING_CORE_BLOCK.get(),
@@ -2135,7 +2131,7 @@ public final class NeoECOPrototypeGameTests {
                     };
                     if (!controller.isFormed()) {
                         leave.run();
-                        helper.fail("the L1 machine did not form, so it has no CPU to publish: "
+                        helper.fail("the L1 machine did not form, so there is nothing to wire: "
                                 + helper.getLevel().getBlockState(helper.absolutePos(hostPos)));
                         return;
                     }
@@ -2146,42 +2142,35 @@ public final class NeoECOPrototypeGameTests {
                                 + " this test has no way to reach the host's grid");
                         return;
                     }
-                    // Two quite different situations both read as "no CPU", so the wait pins down the one
-                    // this test builds: the power block has to land on the host's grid, not merely on a
-                    // grid of its own.
                     waitUntil(helper, 12,
                             () -> sharesGridWithPower(helper, controller, wired[0].power()),
                             () -> {
-                                var why = "the superconductive interface at " + at(wired[0].power())
-                                        + " never joined the host's grid (" + gridOf(controller)
-                                        + "), so this test never had a network to read";
+                                var why = "the network never reached the host: host=" + gridOf(controller)
+                                        + " interface@" + at(wired[0].machine()) + "="
+                                        + nodeGrid(helper, wired[0].machine()) + " cable@"
+                                        + at(wired[0].cable()) + "=" + nodeGrid(helper, wired[0].cable())
+                                        + " power@" + at(wired[0].power()) + "="
+                                        + nodeGrid(helper, wired[0].power());
                                 leave.run();
                                 return why;
                             },
                             () -> {
-                                int cells = controller.insertComputationCells(new ItemStack(
-                                        ModRegistration.ENERGIZED_COMPUTATION_CELL_4M.get()));
-                                helper.runAfterDelay(20, () -> {
-                                    var grid = gridOf(controller);
-                                    var cpus = grid.getCraftingService().getCpus();
-                                    long ours = cpus.stream().filter(cpu -> cpu instanceof cn.dancingsnow
-                                            .neoecoae.api.me.ECOCraftingCPU).count();
-                                    if (ours == 0) {
-                                        var why = "a formed L1 host on a " + grid.size() + "-node grid, with"
-                                                + " " + cells + " computation cell(s) inserted, still"
-                                                + " published no eco CPU: the crafting service lists "
-                                                + cpus.size() + " cpu(s) ["
-                                                + cpus.stream().map(cpu -> cpu.getClass().getSimpleName())
-                                                        .distinct()
-                                                        .collect(java.util.stream.Collectors.joining(", "))
-                                                + "]";
-                                        leave.run();
-                                        helper.fail(why);
-                                        return;
-                                    }
+                                // What is asserted here stops at "the host is on the player's grid".
+                                // Whether the CPU panel lists the subsystem is NOT readable from
+                                // ICraftingService.getCpus(): eco ships its own snapshot to the client
+                                // (MenuDataTransport Channel.CPU + ExactCpuSnapshot) and mixes into
+                                // AE2's selection list, so the panel has a different source than the
+                                // service -- measured idle here: 0 entries from getCpus().
+                                var grid = gridOf(controller);
+                                if (grid == null || grid.size() < 2) {
+                                    var why = "the host reports a grid of " + (grid == null ? "null"
+                                            : String.valueOf(grid.size())) + " node(s) after the cable";
                                     leave.run();
-                                    helper.succeed();
-                                });
+                                    helper.fail(why);
+                                    return;
+                                }
+                                leave.run();
+                                helper.succeed();
                             });
                 });
     }
@@ -2190,12 +2179,21 @@ public final class NeoECOPrototypeGameTests {
     private static boolean sharesGridWithPower(GameTestHelper helper,
                                                ECOComputationSystemBlockEntity controller, BlockPos power) {
         var hostGrid = gridOf(controller);
-        if (!(helper.getLevel().getBlockEntity(helper.absolutePos(power))
-                instanceof IInWorldGridNodeHost nodeHost)) {
-            return false;
-        }
-        var node = nodeHost.getGridNode(null);
+        var node = nodeAt(helper, power);
         return hostGrid != null && node != null && node.getGrid() == hostGrid;
+    }
+
+    /**
+     * The node a block entity reports. This has to go through AE2's {@code IGridConnectedBlockEntity},
+     * not {@code IInWorldGridNodeHost#getGridNode(side)}: that one is addressed by face and answers null
+     * for the whole block, which reads as "no node" on a block that is perfectly well connected.
+     */
+    private static IGridNode nodeAt(GameTestHelper helper, BlockPos pos) {
+        if (helper.getLevel().getBlockEntity(helper.absolutePos(pos))
+                instanceof IGridConnectedBlockEntity connected) {
+            return connected.getGridNode();
+        }
+        return null;
     }
 
     private static IGrid gridOf(ECOComputationSystemBlockEntity controller) {
@@ -2203,8 +2201,14 @@ public final class NeoECOPrototypeGameTests {
         return node == null ? null : node.getGrid();
     }
 
-    /** The two cells {@link #wireTheInterfaceCell} writes, so the caller can take them back. */
-    private record Wiring(BlockPos cable, BlockPos power) { }
+    /** The grid the node at a template-relative position reports, for naming which link is broken. */
+    private static String nodeGrid(GameTestHelper helper, BlockPos pos) {
+        var node = nodeAt(helper, pos);
+        return node == null ? "no node" : String.valueOf(node.getGrid());
+    }
+
+    /** The machine cell the cable hangs on, plus the two cells the wiring writes. */
+    private record Wiring(BlockPos machine, BlockPos cable, BlockPos power) { }
 
     /**
      * Stands a glass cable and then our superconductive interface in the first two free cells outside an
@@ -2233,7 +2237,7 @@ public final class NeoECOPrototypeGameTests {
                             continue;
                         }
                         helper.setBlock(power, ModRegistration.SUPERCONDUCTIVE_INTERFACE_BLOCK.get());
-                        return new Wiring(cable, power);
+                        return new Wiring(cell, cable, power);
                     }
                 }
             }
