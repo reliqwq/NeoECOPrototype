@@ -94,6 +94,10 @@ bin/
 *.jar
 !gradle/wrapper/gradle-wrapper.jar
 
+# 美术交付原件与旧资源快照包（本地工作区，不进仓库也不进 jar）
+/美术新资源/
+/旧资源包/
+
 # tools/ 脚本留下的字节码缓存
 __pycache__/
 *.pyc

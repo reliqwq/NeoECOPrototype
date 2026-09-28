@@ -5,7 +5,7 @@
     "sidesStatus": "ae2:part/monitor_sides_status",
     "particle": "neoecoprototype:part/green_pattern_provider_back",
     "back": "neoecoprototype:part/green_pattern_provider_back",
-    "front": "neoecoprototype:block/green_pattern_provider_alternate_front"
+    "front": "neoecoprototype:block/green_pattern_provider"
   },
   "elements": [
     {

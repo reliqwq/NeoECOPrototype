@@ -1,0 +1,9 @@
+{
+	"parent": "neoecoprototype:block/storage_controller/controller_formed_base",
+	"textures":
+	{
+		"body": "neoecoprototype:block/storage_recolor/controller_formed/controller_formed_network",
+		"light": "neoecoprototype:block/storage_recolor/controller_formed/controller_formed_light_a_network",
+		"screen_light": "neoecoprototype:block/storage_recolor/controller_formed/screen_a_light"
+	}
+}

@@ -2,6 +2,7 @@
 	"format_version": "1.9.0",
 	"credit": "Made with Blockbench, made by TedXenon",
 	"parent": "block/block",
+	"render_type": "cutout",
 	"textures": {
 		"0": "neoecoprototype:block/storage_recolor/casing",
 		"2": "neoecoprototype:block/storage_recolor/drive/drive_north",
@@ -9,7 +10,8 @@
 		"4": "neoecoprototype:block/storage_recolor/drive/drive_inside",
 		"5": "neoecoprototype:block/storage_recolor/casing_side",
 		"6": "neoecoprototype:block/storage_recolor/casing_back",
-		"particle": "neoecoprototype:block/storage_recolor/casing_side"
+		"particle": "neoecoprototype:block/storage_recolor/casing_side",
+		"light": "neoecoprototype:block/storage_recolor/drive/drive_light_1"
 	},
 	"elements": [
 		{
@@ -19,11 +21,11 @@
 			"rotation": {"angle": 0, "axis": "y", "origin": [4, 8, 8.5]},
 			"faces": {
 				"north": {"uv": [0, 0, 7, 16], "texture": "#2", "cullface": "north"},
-				"east": {"uv": [0, 0, 15, 16], "texture": "#5", "cullface": "east"},
+				"east": {"uv": [16, 0, 0, 16], "texture": "#5", "cullface": "east"},
 				"south": {"uv": [9, 0, 16, 16], "texture": "#6", "cullface": "south"},
 				"west": {"uv": [0, 0, 16, 16], "texture": "#0"},
-				"up": {"uv": [9, 0, 16, 16], "texture": "#0", "cullface": "up"},
-				"down": {"uv": [9, 0, 16, 16], "texture": "#0", "cullface": "down"}
+				"up": {"uv": [0, 0, 16, 7], "rotation": 90, "texture": "#5", "cullface": "up"},
+				"down": {"uv": [0, 9, 16, 16], "rotation": 270, "texture": "#5", "cullface": "down"}
 			}
 		},
 		{
@@ -36,8 +38,8 @@
 				"east": {"uv": [16, 0, 1, 16], "texture": "#4"},
 				"south": {"uv": [0, 0, 2, 16], "texture": "#6", "cullface": "south"},
 				"west": {"uv": [1, 0, 16, 16], "texture": "#5", "cullface": "west"},
-				"up": {"uv": [0, 1, 2, 16], "texture": "#0", "cullface": "up"},
-				"down": {"uv": [0, 0, 2, 15], "texture": "#0", "cullface": "down"}
+				"up": {"uv": [1, 14, 16, 16], "rotation": 90, "texture": "#5", "cullface": "up"},
+				"down": {"uv": [1, 0, 16, 2], "rotation": 270, "texture": "#5", "cullface": "down"}
 			}
 		},
 		{
@@ -48,8 +50,8 @@
 			"faces": {
 				"north": {"uv": [8, 0, 14, 16], "texture": "#2"},
 				"south": {"uv": [2, 0, 8, 16], "texture": "#6", "cullface": "south"},
-				"up": {"uv": [2, 11, 8, 16], "texture": "#0", "cullface": "up"},
-				"down": {"uv": [2, 0, 8, 5], "texture": "#0", "cullface": "down"}
+				"up": {"uv": [11, 8, 16, 14], "rotation": 90, "texture": "#5", "cullface": "up"},
+				"down": {"uv": [11, 2, 16, 8], "rotation": 270, "texture": "#5", "cullface": "down"}
 			}
 		},
 		{
@@ -60,7 +62,7 @@
 			"faces": {
 				"north": {"uv": [8, 14, 14, 16], "texture": "#2"},
 				"up": {"uv": [8, 15, 14, 4], "texture": "#3"},
-				"down": {"uv": [2, 5, 8, 15], "texture": "#0", "cullface": "down"}
+				"down": {"uv": [1, 2, 11, 8], "rotation": 270, "texture": "#5", "cullface": "down"}
 			}
 		},
 		{
@@ -70,7 +72,7 @@
 			"rotation": {"angle": 0, "axis": "y", "origin": [-8, 8, 6]},
 			"faces": {
 				"north": {"uv": [8, 0, 14, 2], "texture": "#2"},
-				"up": {"uv": [2, 1, 8, 11], "texture": "#0", "cullface": "up"},
+				"up": {"uv": [1, 8, 11, 14], "rotation": 90, "texture": "#5", "cullface": "up"},
 				"down": {"uv": [2, 4, 8, 15], "texture": "#3"}
 			}
 		},
@@ -144,15 +146,23 @@
 		},
 		{
 			"name": "body_connector",
-			"shade": false,
 			"from": [8, 0, 1],
 			"to": [9, 16, 16],
 			"faces": {
 				"north": {"uv": [7, 0, 8, 16], "texture": "#2"},
 				"south": {"uv": [8, 0, 9, 16], "texture": "#6", "cullface": "south"},
 				"west": {"uv": [1, 0, 16, 16], "texture": "#4"},
-				"up": {"uv": [7, 1, 8, 16], "texture": "#0", "cullface": "up"},
-				"down": {"uv": [7, 0, 8, 15], "texture": "#0", "cullface": "down"}
+				"up": {"uv": [1, 7, 16, 8], "rotation": 90, "texture": "#5", "cullface": "up"},
+				"down": {"uv": [1, 8, 16, 9], "rotation": 270, "texture": "#5", "cullface": "down"}
+			}
+		},
+		{
+			"name": "light",
+			"from": [0, 0, 0],
+			"to": [16, 16, 0],
+			"shade": false,
+			"faces": {
+				"north": {"uv": [0, 0, 16, 16], "texture": "#light", "neoforge_data": {"block_light": 15, "sky_light": 15}}
 			}
 		}
 	],

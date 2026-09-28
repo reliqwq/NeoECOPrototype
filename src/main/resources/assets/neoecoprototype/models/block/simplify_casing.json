@@ -1,0 +1,7 @@
+{
+  "parent": "neoecoae:block/casing_base",
+  "textures": {
+    "base": "neoecoprototype:block/simplify_casing",
+    "particle": "neoecoprototype:block/simplify_casing"
+  }
+}

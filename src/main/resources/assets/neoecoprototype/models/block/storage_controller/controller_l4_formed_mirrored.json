@@ -1,6 +1,4 @@
 {
     "parent": "neoecoprototype:block/storage_controller/controller_l4_formed_base_mirrored",
-    "textures": {
-        "base": "neoecoprototype:block/storage_recolor/controller_formed/controller_formed_a"
-    }
+    "textures": {}
 }
