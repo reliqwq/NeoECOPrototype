@@ -17,6 +17,14 @@ import net.minecraft.world.level.block.state.BlockState;
  * and this run inside AE2's cluster recalculation, which holds a global "modification in progress"
  * latch. A second write on the same stack is what wedged the C1 host, so the value is recorded here
  * and applied on the next server tick instead.
+ *
+ * <p>Unlike the C1 host, this one stays a subclass on purpose, and the reason is measured rather than
+ * assumed. AE2 files every node under {@code owner.getClass()} and eco looks machines up by that exact key,
+ * so subclassing costs visibility: eco's {@code CraftingServiceMixin.onAddNode} will not find this machine
+ * and its "ignore pattern substitutions" toggle is silently lost. That is the whole damage here -- the
+ * crafting host is not one of the clusters eco feeds into AE2's CPU list, which is why C1 could not stay a
+ * subclass -- while the face roll has to persist per host, and block entity data is the only place for it.
+ * Do not "fix" this by moving it onto the block the way C1 was moved: there is nowhere to save the roll.
  */
 public class SimplifyCraftingSystemBlockEntity extends ECOCraftingSystemBlockEntity {
     /**
