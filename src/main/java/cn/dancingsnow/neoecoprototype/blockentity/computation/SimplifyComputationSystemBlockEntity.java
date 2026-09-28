@@ -39,9 +39,14 @@ public class SimplifyComputationSystemBlockEntity extends ECOComputationSystemBl
     @Override
     public void tick(net.minecraft.world.level.Level level, BlockPos pos, BlockState state) {
         super.tick(level, pos, state);
-        if (appearancePending && !level.isClientSide) {
+        if (level.isClientSide || isRemoved()) {
+            return;
+        }
+        if (appearancePending) {
             appearancePending = false;
             publishAppearance(level, pos);
+        } else {
+            clearSwitchBits(state);
         }
     }
 
@@ -59,19 +64,36 @@ public class SimplifyComputationSystemBlockEntity extends ECOComputationSystemBl
         if (!state.hasProperty(SimplifyComputationSystemBlock.COMMUNICATION_INTERFACE)) {
             return;
         }
-        var next = state.setValue(SimplifyComputationSystemBlock.COMMUNICATION_INTERFACE,
-                isFormed() && communicationInterface);
         // eco lights these two from a cell beside the host and reads them back to decide whether the
         // cluster registers its CPUs through a switch frequency. An L1 machine has no switch block and so
         // no frequency, and leaving them set sent our CPUs into a logical network that does not exist -
         // the machine looked connected but never appeared in the network's CPU list. Measured: both came
         // up true with plain casings in both candidate cells.
-        next = pinSwitchBit(next, cn.dancingsnow.neoecoae.blocks.computation.ECOComputationSystem.NETWORK_SWITCH);
-        next = pinSwitchBit(next,
-                cn.dancingsnow.neoecoae.blocks.computation.ECOComputationSystem.HIGH_ENERGY_NETWORK_SWITCH);
+        var next = pinned(state.setValue(SimplifyComputationSystemBlock.COMMUNICATION_INTERFACE,
+                isFormed() && communicationInterface));
         if (next != state) {
             level.setBlock(worldPosition, next, Block.UPDATE_CLIENTS);
         }
+    }
+
+    /**
+     * Re-clears the switch bits without waiting for an appearance change to notice. eco only refreshes
+     * them inside its own {@code verifyInternalStructure}, which our calculator replaces wholesale, so
+     * nothing else will ever write false over a value an older world saved - and a host carrying them
+     * stays out of the network's CPU list forever. Once the bits are false this returns the same state
+     * and writes nothing, so the per-tick call costs a property read.
+     */
+    private void clearSwitchBits(BlockState state) {
+        BlockState next = pinned(state);
+        if (next != state) {
+            level.setBlock(worldPosition, next, Block.UPDATE_CLIENTS);
+        }
+    }
+
+    private static BlockState pinned(BlockState state) {
+        return pinSwitchBit(pinSwitchBit(state,
+                cn.dancingsnow.neoecoae.blocks.computation.ECOComputationSystem.NETWORK_SWITCH),
+                cn.dancingsnow.neoecoae.blocks.computation.ECOComputationSystem.HIGH_ENERGY_NETWORK_SWITCH);
     }
 
     private static BlockState pinSwitchBit(BlockState state,

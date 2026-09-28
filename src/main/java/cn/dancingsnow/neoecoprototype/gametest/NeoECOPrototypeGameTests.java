@@ -2045,6 +2045,43 @@ public final class NeoECOPrototypeGameTests {
     }
 
     /**
+     * eco only ever clears those two bits inside its own {@code verifyInternalStructure}, and our
+     * calculator replaces that method, so a host saved with them set has nothing left to write false
+     * over them -- its CPUs register on a network that does not exist and it never shows up in the
+     * network's CPU list. The only thing that can heal an existing world is our host's own tick, and
+     * the gate that used to hold it back was an appearance change, which is why this writes the stale
+     * bits onto a lone, unformed host and requires the tick to take them back off.
+     */
+    @GameTest(template = "empty", templateNamespace = NeoECOPrototype.MOD_ID, timeoutTicks = 100)
+    public static void computationHostHealsStaleSwitchBits(GameTestHelper helper) {
+        var pos = new BlockPos(1, 1, 1);
+        helper.setBlock(pos, ModRegistration.SIMPLIFY_COMPUTATION_SYSTEM_BLOCK.get());
+        var absolute = helper.absolutePos(pos);
+        var stale = helper.getLevel().getBlockState(absolute)
+                .setValue(cn.dancingsnow.neoecoae.blocks.computation.ECOComputationSystem.NETWORK_SWITCH, true)
+                .setValue(cn.dancingsnow.neoecoae.blocks.computation.ECOComputationSystem
+                        .HIGH_ENERGY_NETWORK_SWITCH, true);
+        helper.getLevel().setBlockAndUpdate(absolute, stale);
+        if (!helper.getLevel().getBlockState(absolute).getValue(
+                cn.dancingsnow.neoecoae.blocks.computation.ECOComputationSystem.NETWORK_SWITCH)) {
+            helper.fail("the probe could not leave network_switch set, so this test measures nothing");
+            return;
+        }
+        waitUntil(helper, 10,
+                () -> {
+                    var state = helper.getLevel().getBlockState(absolute);
+                    return !state.getValue(
+                                    cn.dancingsnow.neoecoae.blocks.computation.ECOComputationSystem.NETWORK_SWITCH)
+                            && !state.getValue(cn.dancingsnow.neoecoae.blocks.computation.ECOComputationSystem
+                                    .HIGH_ENERGY_NETWORK_SWITCH);
+                },
+                () -> "the host kept eco's switch bits set after 100 ticks, so a machine saved that way "
+                        + "stays out of the network's CPU list forever: "
+                        + helper.getLevel().getBlockState(absolute),
+                helper::succeed);
+    }
+
+    /**
      * The face is a once-per-host decision, not a once-per-check one: geometry validation re-runs on
      * neighbour changes, chunk loads and rebuilds, so a per-check roll would flip the model back and
      * forth instead of staying rare. This asserts the roll happened and that further checks leave it
