@@ -1,5 +1,32 @@
 # Changelog
 
+## 1.2.9 (2026-09-28) - Interface Roles Aligned With Their Names, L1 Artwork Replaced
+
+### 变更 / Changed
+
+- **「通讯接口」现在就是能打开界面的那块，三台机器一起**：显示名、右键行为、一键搭建默认放的方块、配方链、主机发布的 `communication_interface` 全部同时对齐。`simplify_<machine>_interface`（「…接口」）现在是有序合成的基础件、右键无反应、搭建时放的是它；`simplify_<machine>_network_interface`（「…通讯接口」）= 接口 + `ae2:terminal`，右键打开 eco 的界面。**注册 ID 与存档数据一个字未改**，老世界的方块不会丢。**玩家可见的代价**：库存里这两件物品的含义互换了 - 谁原来有一块能开界面的「接口」，升级后它是开不了界面的那一件，要去合成一份通讯接口。F1 这一对的名字在 1.2.8 与 1.2.9 之间各掉头一次，理由是 eco 那样叫只是因为它是唯一一个接口方块。**收益**：方块状态属性 `communication_interface` 的名字终于和显示名一致，美术为「放了通讯接口」画的那张主机成型面（`controller_l4_formed_network`）也绑到了它本该绑的状态上。
+- **成型后的成员方块一律不画自己，外观由主机的方块状态决定**：C1 那个「接口成型后还自绘」的历史遗留钩子（`hideWhenFormed()` 覆写 + `computation_interface_formed` 模型 + `formed` 两条键）删掉了，三台六块接口现在行为一致。**这条更正 1.2.8 发版说明里的一句话**：那里写「谁覆写过这三份主机文件，他的副本缺新键 → 方块直接隐形」，实测是错的 - `variants` 的键是**子集匹配**，没写的属性是通配，所以旧副本照样能解析所有状态（v1.2.7 那份 16 条键覆盖当前 32 个状态，不重不漏），只是表达不出新的区分。
+
+### 新增 / Added
+
+- **旧美术做成了游戏里可切换的资源包**：上一个正式版的模型、贴图、blockstate 现在随 jar 一起发布，在资源包列表里叫「Neo ECO Prototype 旧美术（上一个正式版）」，**默认不启用**，所以升级不会改变任何人的机器外观。它带着自己的 blockstate，因此不需要为每次新增的模型路径补别名；`tools/legacy_pack.py <tag>` 一条命令从任意 tag 重切。
+- **美术重绘的 L1 存储子系统整套并入**：驱动器、主机成型面（含镜像 × 是否通讯接口四格）、外壳、能源池、通风口、样板供应器部件、若干物品贴图。
+
+### 修复 / Fixed
+
+- **驱动器方块状态整份失效**：变体键里逗号后的空格（`"facing=east, formed=false"`）会让游戏把属性名读成 `" formed"` 并**整条丢弃**该键，所以成型与未成型共用一张图。去空格后 12 条键对 48 个状态恰好一对一（24 未成型 / 12 成型空 / 12 有盘）。GameTest 里新增守卫：任何键引用了方块没有的属性或非法取值就直接失败，正是这一类 bug。
+- **盈能计算核心成型后闪烁**：它成型后不再画自己（`hideWhenFormed()`），因为控制器的成型模型实测覆盖整面 3×3（x/y −16..32），成员那一格与它严格共面、两个同深度 quad 抢深度。旧成型模型与其 blockstate 键一并删除，没有路径能再画出它。**已知代价**：这个方块外壳位与并行列两吃，而一个方块只有一个 render shape，所以两处成型后都会消失；要「站列里还画着」得拆成两个方块。
+
+### 资源包与覆写 / For resource pack authors
+
+- **成型后的外观请改主机的 blockstate，不要改成员方块**：成员方块成型后不画自己（eco 对所有外壳位成员都是这个规矩）。主机状态：`communication_interface`（格子里放的是通讯接口）、`energized_parallel_core` / `energized_threading_core`（C1）、`mirrored`、`formed`。
+- **存储主机的成型外观挂点换了方案**：1.2.8 说明里写的 `controller_formed_a<后缀>`（后缀由 `c`/`t`/`p` 拼）对**存储主机已经不成立** - 现在按「镜像 × 是否通讯接口」分四张：`controller_formed` / `controller_formed_switch` / `controller_formed_network` / `controller_formed_network_switch`，灯层同名加 `_light_a`。计算与合成两台还是 `a`/`c`/`t`/`p` 那套。
+- **`simplify_casing.json` 的几何是内联的**：它不再 parent `neoecoae:block/casing_base`（本仓库 CI 禁止 addon 资源引用上游命名空间），13 个元素直接写在文件里，出处记在 `THIRD_PARTY_NOTICES.md`。想改铝板外形改这个文件即可。
+
+### 需要 / Requires
+
+- NeoForge `21.1.x` on Minecraft `1.21.1`，Applied Energistics 2 `19.2.17` 或更新，**Neo ECO AE Extension `21.2.0` 或更新**。停在 `21.2.0-beta4` ~ 裸 `beta6` 的玩家请继续用 1.2.8 或更早。
+
 ## 1.2.8 (2026-09-27) - Interface Naming Alignment and Formed Appearance States
 
 ### 依赖门槛抬高 / Raised dependency floor
