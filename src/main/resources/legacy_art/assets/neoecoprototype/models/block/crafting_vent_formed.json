@@ -1,0 +1,7 @@
+{
+    "parent": "neoecoprototype:block/crafting_vent",
+    "textures": {
+        "0": "neoecoprototype:block/crafting_recolor/casing_formed",
+        "3": "neoecoprototype:block/crafting_recolor/vent_north_formed"
+    }
+}

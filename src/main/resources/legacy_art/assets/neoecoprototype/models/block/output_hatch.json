@@ -1,0 +1,6 @@
+{
+  "parent": "minecraft:block/cube_all",
+  "textures": {
+    "all": "neoecoprototype:block/crafting_recolor/hatch_output"
+  }
+}

@@ -1,0 +1,7 @@
+{
+	"parent": "neoecoprototype:item/computation_cell_base",
+	"textures": {
+		"base": "neoecoprototype:block/computation_recolor/drive/cell_north_a",
+		"side": "neoecoprototype:block/computation_recolor/drive/cell_side_a"
+	}
+}

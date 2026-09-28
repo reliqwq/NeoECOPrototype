@@ -1,0 +1,21 @@
+{
+  "parent": "minecraft:block/block",
+  "textures": {
+    "baked": "neoecoprototype:block/energized_computation_core_baked",
+    "particle": "#baked"
+  },
+  "elements": [
+    {
+      "from": [0, 0, 0],
+      "to": [16, 16, 16],
+      "faces": {
+        "north": {"uv": [0, 0, 16, 16], "texture": "#baked", "cullface": "north"},
+        "east": {"uv": [0, 0, 16, 16], "texture": "#baked", "cullface": "east"},
+        "south": {"uv": [0, 0, 16, 16], "texture": "#baked", "cullface": "south"},
+        "west": {"uv": [0, 0, 16, 16], "texture": "#baked", "cullface": "west"},
+        "up": {"uv": [0, 0, 16, 16], "texture": "#baked", "cullface": "up"},
+        "down": {"uv": [0, 0, 16, 16], "texture": "#baked", "cullface": "down"}
+      }
+    }
+  ]
+}

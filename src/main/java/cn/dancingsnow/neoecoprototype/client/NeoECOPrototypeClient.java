@@ -21,7 +21,11 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.resources.model.ModelResourceLocation;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.packs.PackType;
+import net.minecraft.server.packs.repository.Pack;
+import net.minecraft.server.packs.repository.PackSource;
 import net.minecraft.server.packs.resources.ReloadableResourceManager;
 import net.minecraft.server.packs.resources.ResourceManagerReloadListener;
 import net.minecraft.world.level.Level;
@@ -35,10 +39,31 @@ import net.neoforged.neoforge.client.event.EntityRenderersEvent;
 import net.neoforged.neoforge.client.event.ModelEvent;
 import net.neoforged.neoforge.client.extensions.common.IClientBlockExtensions;
 import net.neoforged.neoforge.client.extensions.common.RegisterClientExtensionsEvent;
+import net.neoforged.neoforge.event.AddPackFindersEvent;
 
 @EventBusSubscriber(modid = NeoECOPrototype.MOD_ID, bus = EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)
 public final class NeoECOPrototypeClient {
     private NeoECOPrototypeClient() {
+    }
+
+    /**
+     * Offers the previous release's artwork as a pack the player can just toggle, instead of making
+     * them download one. It ships at {@code legacy_art/} in the jar and is re-cut from a tag by
+     * {@code tools/legacy_pack.py}. Required=false and PackSource.DEFAULT keep it switched off after
+     * an upgrade, so nobody's machine changes appearance without asking.
+     */
+    @SubscribeEvent
+    public static void onAddPackFinders(AddPackFindersEvent event) {
+        if (event.getPackType() != PackType.CLIENT_RESOURCES) {
+            return;
+        }
+        event.addPackFinders(
+                ResourceLocation.fromNamespaceAndPath(NeoECOPrototype.MOD_ID, "legacy_art"),
+                PackType.CLIENT_RESOURCES,
+                Component.translatable("pack.neoecoprototype.legacy"),
+                PackSource.DEFAULT,
+                false,
+                Pack.Position.TOP);
     }
 
     @SubscribeEvent

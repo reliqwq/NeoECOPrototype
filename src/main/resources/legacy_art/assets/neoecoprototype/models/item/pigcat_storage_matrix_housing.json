@@ -1,0 +1,6 @@
+{
+  "textures": {
+    "layer0": "neoecoprototype:item/storage_recolor/pigcat_cell_housing"
+  },
+  "parent": "minecraft:item/generated"
+}

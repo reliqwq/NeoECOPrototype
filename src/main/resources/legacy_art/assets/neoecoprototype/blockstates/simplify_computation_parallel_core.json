@@ -1,0 +1,12 @@
+{
+  "variants": {
+    "facing=north,formed=false": {"model":"neoecoprototype:block/computation_core/parallel_core_l4"},
+    "facing=east,formed=false": {"model":"neoecoprototype:block/computation_core/parallel_core_l4","y":90},
+    "facing=south,formed=false": {"model":"neoecoprototype:block/computation_core/parallel_core_l4","y":180},
+    "facing=west,formed=false": {"model":"neoecoprototype:block/computation_core/parallel_core_l4","y":270},
+    "facing=north,formed=true": {"model":"neoecoprototype:block/computation_core/parallel_core_l4_formed"},
+    "facing=east,formed=true": {"model":"neoecoprototype:block/computation_core/parallel_core_l4_formed","y":90},
+    "facing=south,formed=true": {"model":"neoecoprototype:block/computation_core/parallel_core_l4_formed","y":180},
+    "facing=west,formed=true": {"model":"neoecoprototype:block/computation_core/parallel_core_l4_formed","y":270}
+  }
+}

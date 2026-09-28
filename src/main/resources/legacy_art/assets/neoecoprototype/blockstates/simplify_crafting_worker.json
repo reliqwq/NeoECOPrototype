@@ -1,0 +1,20 @@
+{
+  "variants": {
+    "facing=north,formed=false,working=false":{"model":"neoecoprototype:block/crafting_worker"},
+    "facing=east,formed=false,working=false":{"model":"neoecoprototype:block/crafting_worker","y":90},
+    "facing=south,formed=false,working=false":{"model":"neoecoprototype:block/crafting_worker","y":180},
+    "facing=west,formed=false,working=false":{"model":"neoecoprototype:block/crafting_worker","y":270},
+    "facing=north,formed=false,working=true":{"model":"neoecoprototype:block/crafting_worker"},
+    "facing=east,formed=false,working=true":{"model":"neoecoprototype:block/crafting_worker","y":90},
+    "facing=south,formed=false,working=true":{"model":"neoecoprototype:block/crafting_worker","y":180},
+    "facing=west,formed=false,working=true":{"model":"neoecoprototype:block/crafting_worker","y":270},
+    "facing=north,formed=true,working=false":{"model":"neoecoprototype:block/crafting_worker_formed"},
+    "facing=east,formed=true,working=false":{"model":"neoecoprototype:block/crafting_worker_formed","y":90},
+    "facing=south,formed=true,working=false":{"model":"neoecoprototype:block/crafting_worker_formed","y":180},
+    "facing=west,formed=true,working=false":{"model":"neoecoprototype:block/crafting_worker_formed","y":270},
+    "facing=north,formed=true,working=true":{"model":"neoecoprototype:block/crafting_worker_working"},
+    "facing=east,formed=true,working=true":{"model":"neoecoprototype:block/crafting_worker_working","y":90},
+    "facing=south,formed=true,working=true":{"model":"neoecoprototype:block/crafting_worker_working","y":180},
+    "facing=west,formed=true,working=true":{"model":"neoecoprototype:block/crafting_worker_working","y":270}
+  }
+}

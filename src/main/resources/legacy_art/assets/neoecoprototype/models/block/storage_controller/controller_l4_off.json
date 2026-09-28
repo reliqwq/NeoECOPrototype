@@ -1,0 +1,8 @@
+{
+    "parent": "neoecoprototype:block/storage_controller/controller_off_base",
+    "textures": {
+        "north": "neoecoprototype:block/storage_recolor/controller/controller_north_a",
+        "side": "neoecoprototype:block/storage_recolor/controller/controller_side_a",
+        "particle": "neoecoprototype:block/storage_recolor/controller/controller_side_a"
+    }
+}

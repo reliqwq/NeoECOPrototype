@@ -1,0 +1,26 @@
+{
+	"format_version": "1.9.0",
+	"credit": "Made with Blockbench",
+	"parent": "block/block",
+	"textures": {
+		"north": "neoecoprototype:block/computation_recolor/cooling_controller/controller_north",
+		"west": "neoecoprototype:block/computation_recolor/casing_back",
+		"top": "neoecoprototype:block/computation_recolor/casing",
+		"back": "neoecoprototype:block/computation_recolor/transmitter/transmitter_side_east",
+		"particle": "neoecoprototype:block/computation_recolor/casing"
+	},
+	"elements": [
+		{
+			"from": [0, 0, 0],
+			"to": [16, 16, 16],
+			"faces": {
+				"north": {"uv": [0, 0, 16, 16], "texture": "#north"},
+				"east": {"uv": [0, 0, 16, 16], "texture": "#east"},
+				"south": {"uv": [16, 0, 0, 16], "texture": "#back"},
+				"west": {"uv": [0, 0, 16, 16], "texture": "#west"},
+				"up": {"uv": [0, 0, 16, 16], "texture": "#top"},
+				"down": {"uv": [0, 0, 16, 16], "texture": "#top"}
+			}
+		}
+	]
+}

@@ -1,0 +1,12 @@
+{
+  "variants": {
+    "facing=north,formed=false":{"model":"neoecoprototype:block/crafting_vent"},
+    "facing=east,formed=false":{"model":"neoecoprototype:block/crafting_vent","y":90},
+    "facing=south,formed=false":{"model":"neoecoprototype:block/crafting_vent","y":180},
+    "facing=west,formed=false":{"model":"neoecoprototype:block/crafting_vent","y":270},
+    "facing=north,formed=true":{"model":"neoecoprototype:block/crafting_vent_formed"},
+    "facing=east,formed=true":{"model":"neoecoprototype:block/crafting_vent_formed","y":90},
+    "facing=south,formed=true":{"model":"neoecoprototype:block/crafting_vent_formed","y":180},
+    "facing=west,formed=true":{"model":"neoecoprototype:block/crafting_vent_formed","y":270}
+  }
+}

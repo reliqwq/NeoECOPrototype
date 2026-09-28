@@ -1,0 +1,9 @@
+{
+    "parent": "neoecoprototype:block/storage_energy_cell/cell_base",
+    "textures": {
+        "level": "neoecoprototype:block/storage_recolor/energy_cell/cell_north_layer_a",
+        "side": "neoecoprototype:block/storage_recolor/energy_cell/cell_side_a",
+        "north": "neoecoprototype:block/storage_recolor/energy_cell/cell_north_2",
+        "light": "neoecoprototype:block/storage_recolor/energy_cell/cell_north_light_2"
+    }
+}

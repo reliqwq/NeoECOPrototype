@@ -1,0 +1,8 @@
+{
+  "parent": "minecraft:item/generated",
+  "textures": {
+    "layer0": "neoecoprototype:item/storage_recolor/concrete_cell_housing",
+    "layer1": "neoecoprototype:item/storage_recolor/eco_cell_light_16m",
+    "layer2": "neoecoprototype:item/storage_recolor/eco_cell_status_light"
+  }
+}

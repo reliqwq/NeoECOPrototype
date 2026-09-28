@@ -1,0 +1,9 @@
+{
+ "variants": {
+  "": [
+   {
+    "model": "neoecoprototype:block/computation_network_interface"
+   }
+  ]
+ }
+}
