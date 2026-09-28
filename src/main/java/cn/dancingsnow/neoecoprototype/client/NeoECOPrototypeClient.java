@@ -35,6 +35,7 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.ModList;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
+import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.neoforged.neoforge.client.event.EntityRenderersEvent;
 import net.neoforged.neoforge.client.event.ModelEvent;
 import net.neoforged.neoforge.client.extensions.common.IClientBlockExtensions;
@@ -66,15 +67,23 @@ public final class NeoECOPrototypeClient {
                 Pack.Position.TOP);
     }
 
+    /**
+     * AE2 freezes the part-model set the first time its cable-bus model resolves dependencies or its
+     * own RegisterAdditional handler runs, and {@code registerModels} throws after that. Freezing can
+     * therefore happen before client setup in a large pack, so this has to run in the setup phase AE2
+     * names: pre-initialization. A missing entry here is worse than late - it crashes cable bus
+     * tessellation with "Trying to use an unregistered part model".
+     */
     @SubscribeEvent
-    public static void onClientSetup(FMLClientSetupEvent event) {
-        // AE2 freezes this set before baking; a part model missing from it crashes the cable bus
-        // tesselation with "Trying to use an unregistered part model".
+    public static void onCommonSetup(FMLCommonSetupEvent event) {
         PartModels.registerModels(
                 ResourceLocation.fromNamespaceAndPath(NeoECOPrototype.MOD_ID, "part/powered_me_interface"),
                 ResourceLocation.fromNamespaceAndPath(NeoECOPrototype.MOD_ID, "part/superconductive_interface"),
                 ResourceLocation.fromNamespaceAndPath(NeoECOPrototype.MOD_ID, "part/pattern_provider"));
+    }
 
+    @SubscribeEvent
+    public static void onClientSetup(FMLClientSetupEvent event) {
         ResourceLocation itemCellModel = ResourceLocation.fromNamespaceAndPath(
                 NeoECOPrototype.MOD_ID, "block/cell/storage_cell_l1_item");
         ResourceLocation fluidCellModel = ResourceLocation.fromNamespaceAndPath(
