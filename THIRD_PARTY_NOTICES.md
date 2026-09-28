@@ -12,6 +12,8 @@ Neo ECO Prototype is an addon. It does not include the dependency JARs in this r
 
 Neo ECO Prototype is an independent addon and is not the Neo ECO AE Extension project. The local development JAR used during testing is intentionally not redistributed by this repository.
 
+One asset is copied rather than referenced: `src/main/resources/assets/neoecoprototype/models/block/simplify_casing.json` carries the 13-element geometry of upstream `assets/neoecoae/models/block/casing_base.json` verbatim, with its own texture slots. It is inlined on purpose - this addon's CI rejects any asset that points into the `neoecoae` namespace, because an upstream rename would turn our casing into a missing model with nothing to warn us. It is geometry only; the surface artwork is our own.
+
 Special thanks to `Yang120` for substantial help from the original Neo ECO AE Extension team.
 
 ## MegaCells (optional runtime compatibility)
