@@ -2385,6 +2385,82 @@ public final class NeoECOPrototypeGameTests {
                 "blockstates/simplify_drive.json");
     }
 
+    /**
+     * Five blocks enumerated all four facings although their models look the same on every side -- a full
+     * cube with six cullfaces, {@code cube_all}, or a model with no elements at all. That was 32 blockstate
+     * entries that could never differ, so each of those files is now a single catch-all key. One test walks
+     * all five rather than five tests each walking one: every extra plot shifts where the framework parks
+     * the other concurrent tests, and the L1 builders collide when two controllers end up seven blocks
+     * apart -- which showed up here as the whole suite wedging, not as a failure.
+     */
+    @GameTest(template = "empty", batch = "blockstate_catchall", timeoutTicks = 100,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void collapsedBlockstatesStillCoverEveryState(GameTestHelper helper) {
+        var files = new Object[][]{
+                {ModRegistration.ENERGIZED_COMPUTATION_CORE_BLOCK.get(), "energized_computation_core"},
+                {ModRegistration.FUMO_BLOCK.get(), "fumo_reliqwq"},
+                {ModRegistration.SIMPLIFY_TRINITY_STORAGE_MODULE_BLOCK.get(), "simplify_trinity_storage_module"},
+                {ModRegistration.SIMPLIFY_TRINITY_COMPUTATION_MODULE_BLOCK.get(),
+                        "simplify_trinity_computation_module"},
+                {ModRegistration.SIMPLIFY_TRINITY_CRAFTING_MODULE_BLOCK.get(),
+                        "simplify_trinity_crafting_module"},
+        };
+        var problems = new ArrayList<String>();
+        for (var entry : files) {
+            var block = (Block) entry[0];
+            var path = "blockstates/" + entry[1] + ".json";
+            var text = readShippedResource(
+                    ResourceLocation.fromNamespaceAndPath(NeoECOPrototype.MOD_ID, path));
+            if (text == null) {
+                problems.add(path + ": unreadable");
+                continue;
+            }
+            var variants = com.google.gson.JsonParser.parseString(text).getAsJsonObject()
+                    .getAsJsonObject("variants");
+            if (variants == null) {
+                problems.add(path + ": no variants object");
+                continue;
+            }
+            var keys = new ArrayList<java.util.Map<String, String>>();
+            var badKey = new ArrayList<String>();
+            for (var variant : variants.entrySet()) {
+                var pairs = new java.util.HashMap<String, String>();
+                for (var pair : variant.getKey().split(",")) {
+                    if (pair.isEmpty()) {
+                        continue;
+                    }
+                    var kv = pair.split("=", 2);
+                    var property = kv.length == 2 ? block.getStateDefinition().getProperty(kv[0]) : null;
+                    if (property == null || property.getValue(kv[1]).isEmpty()) {
+                        badKey.add(path + ": key \"" + variant.getKey() + "\" is not usable by "
+                                + name(block));
+                    }
+                    pairs.put(kv[0], kv[1]);
+                }
+                keys.add(pairs);
+            }
+            if (!badKey.isEmpty()) {
+                problems.add(badKey.get(0));
+                continue;
+            }
+            for (var state : block.getStateDefinition().getPossibleStates()) {
+                var described = new java.util.HashMap<String, String>();
+                for (var property : state.getProperties()) {
+                    described.put(property.getName(), valueName(state, property));
+                }
+                if (keys.stream().noneMatch(key -> described.entrySet().containsAll(key.entrySet()))) {
+                    problems.add(path + ": " + described + " has no model");
+                    break;
+                }
+            }
+        }
+        if (!problems.isEmpty()) {
+            helper.fail(problems.size() + " collapsed blockstate(s) broken, first: " + problems.get(0));
+            return;
+        }
+        helper.succeed();
+    }
+
     private static void assertVariantsCoverEveryState(GameTestHelper helper, Block block, String path) {
         var text = readShippedResource(ResourceLocation.fromNamespaceAndPath(NeoECOPrototype.MOD_ID, path));
         if (text == null) {

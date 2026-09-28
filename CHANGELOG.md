@@ -6,6 +6,8 @@
 
 - **成型并且接了网的 C1 计算主机重新出现在 AE2 的 CPU 列表里**：1.2.8 我们把主机的方块实体换成 eco 那个类的子类，为的是在主机自己的方块状态上发布成型外观；这一换让它从 AE2 的机器表里消失了。原因是 AE2 登记节点的键就是 `node.getOwner().getClass()`，**只有这一个键**（`Grid.add` 里只有一个 `put`，不沿父类链登记），而 eco 收集计算集群用的是 `getMachines(ECOComputationSystemBlockEntity.class)`——Map 的键相等查找，不是 `instanceof`。同一台主机、同一个 grid 换四个键实测：按 eco 的类查 = 0，按我们的子类查 = 1，再往上的两层父类查 = 0。现在主机的方块实体退回 eco 的类，那两件事改由 `publishShape()` 加方块自己的 scheduled tick 接手（发布 `communication_interface`、把 eco 的两个交换布尔钉成 false）——写方块不能发生在 AE2 的集群重算栈里。附带回来的还有：eco 在节点入网时按同一个类读的「快速规划 / 循环规划」开关，现在在我们的主机上也生效了（tooltip 里能看到那两行）。 A formed, networked C1 host is back in AE2's CPU list. In 1.2.8 we swapped the host's block entity for a subclass of eco's, to publish formed-appearance state, and that quietly removed it from AE2's machine table: AE2 files nodes under `owner.getClass()` only, while eco collects clusters with `getMachines(ECOComputationSystemBlockEntity.class)` -- a key lookup, not an `instanceof` test. Measured on one grid: eco's class 0, our class 1, both parent classes 0.
 - **老世界里被点亮成「有交换器」的 C1 会自愈**：我们的计算器整条替换了 eco 的 `verifyInternalStructure`，而 eco 只在那里面清 `network_switch` / `high_energy_network_switch`，所以 1.2.8 之前留下的 true 会一直留着，把 CPU 送进一条不存在的逻辑网络。现在每次集群重算都会投递一次纠正，方块在下一个 tick 把 true 写成 false（已经是 false 时一个字都不写）。守卫：把两个布尔人为设成 true 打在成型主机上，要求 120 tick 内被清掉。
+- **五个方块的方块状态不再空转四个朝向**：`energized_computation_core`（整方块、六面同图）、`fumo_reliqwq`（模型里没有元素，画面由渲染器给）、以及三件 Trinity 模块（`cube_all`）——它们的模型四个朝向看起来完全一样，却各写了 4 到 8 条带旋转的条目，合计 32 条永远不可能有差异的键。现在每个文件一条通配键。Five blocks enumerated four rotations their models cannot show; 32 entries became 5.
+
 - **两条新守卫**：接线可达性（玻璃线缆接在接口块外侧，能把主机、线缆、供电块并进同一个 92 节点 grid；主机自己六面都被结构占着，而 eco 不把它朝空气那一面暴露）与 CPU 列表可见性（成型主机必须出现在 `getCpus()` 里——这条从「记录缺陷」转回正式门禁）。
 
 ### 新增 / Added
