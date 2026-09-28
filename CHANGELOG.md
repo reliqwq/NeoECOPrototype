@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.2.9.2 (2026-09-28) - 主机上下两格不再白送成员
+
+### 修复 / Fixed
+
+- **C1 计算子系统与 F1 合成子系统可以被"多塞一颗核心"**：几何有四条外壳走位，但**没有一条经过主机自己所在的那一列**，所以主机正上方与正下方两格从来没被检查过；而集群是按边界框收编成员的，只要把线程核心（或并行核心）摆在那两格，机器照样成型、成员照样算数 —— 等于白送线程数与吞吐，而这两格是一键搭建永远不会产生的位置。现在这两格必须是外壳方块，与 L1 存储主机早就有的规则一致，三台机器行为统一。盈能强化计算机核心此前那条"只挡这一种方块"的特例被这条通用规则包含，不再单独存在。 Four geometry walks cover every shell column but the one the controller stands in, so the two cells above and below the host were never looked at while the cluster still adopted anything inside its bounds: parking a threading core or a parallel core there was free threads and free throughput. Those two cells are now shell, exactly as the storage host has always required, so all three machines behave the same.
+- **代价（玩家可见）**：老世界里如果有人把 C1 / F1 主机正上或正下方放过别的东西，升级后那台机器会**散架** —— 不是丢方块，是成型判定不再通过，把那一格换成对应的外壳方块即可重新成型。 Existing worlds that had a block above or below the computation or crafting host lose formation until that cell is a casing again.
+- **四条新守卫测试**：C1 上下各一条（放线程核心）、F1 上下各一条（放并行核心），都要求机器拒绝成型；测试会先确认那一格在搭建方案里确实是外壳，所以"换掉它"是唯一变量。
+
+### 需要 / Requires
+
+- NeoForge `21.1.x` on Minecraft `1.21.1`，Applied Energistics 2 `19.2.17` 或更新，**Neo ECO AE Extension `21.2.0` 或更新**。
+
 ## 1.2.9.1 (2026-09-28) - Startup Crash In Large Packs
 
 ### 修复 / Fixed
