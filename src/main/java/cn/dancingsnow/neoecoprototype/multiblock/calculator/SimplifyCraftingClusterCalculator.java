@@ -96,7 +96,7 @@ public class SimplifyCraftingClusterCalculator extends NECraftingClusterCalculat
                                        Direction interfaceSide, boolean mirrored) {
         BlockState interfaceState = level.getBlockState(interfaceCell(controllerPos, back, interfaceSide));
         return new StructureValidation(true, mirrored, controllerPos,
-                interfaceState.is(holder(ModRegistration.SIMPLIFY_CRAFTING_INTERFACE_BLOCK.get())));
+                interfaceState.is(holder(ModRegistration.SIMPLIFY_CRAFTING_NETWORK_INTERFACE_BLOCK.get())));
     }
 
     /** The one cell that carries the machine's interface, behind the controller and off to a hand. */

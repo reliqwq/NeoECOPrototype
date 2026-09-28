@@ -1920,6 +1920,18 @@ public final class NeoECOPrototypeGameTests {
                 "blockstates/simplify_storage_controller.json");
     }
 
+    /**
+     * The drive is the one block whose shipped blockstate came from outside this repository, and its
+     * keys arrived with a space after every comma -- which the game does not trim, so all twelve keys
+     * were dropped and the drive quietly kept the previous file. Coverage alone would not have caught
+     * that, which is why the helper also rejects any key naming a property the block lacks.
+     */
+    @GameTest(template = "empty", templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void driveBlockstateCoversEveryState(GameTestHelper helper) {
+        assertVariantsCoverEveryState(helper, ModRegistration.SIMPLIFY_DRIVE_BLOCK.get(),
+                "blockstates/simplify_drive.json");
+    }
+
     private static void assertVariantsCoverEveryState(GameTestHelper helper, Block block, String path) {
         var text = readShippedResource(ResourceLocation.fromNamespaceAndPath(NeoECOPrototype.MOD_ID, path));
         if (text == null) {
@@ -1942,6 +1954,22 @@ public final class NeoECOPrototypeGameTests {
                 var kv = pair.split("=", 2);
                 if (kv.length != 2) {
                     helper.fail("unparsable blockstate key \"" + entry.getKey() + "\"");
+                    return;
+                }
+                // A key that names a property the block does not have is dropped with a single warning
+                // line, and the state quietly keeps whatever a lower-priority pack or an older file
+                // provided -- so coverage alone can pass while the intended split never happens. A
+                // space after the comma is the usual cause, since the game does not trim the name.
+                var property = block.getStateDefinition().getProperty(kv[0]);
+                if (property == null) {
+                    helper.fail("key \"" + entry.getKey() + "\" in " + path + " names property \""
+                            + kv[0] + "\", which " + name(block) + " does not have; the game drops the "
+                            + "whole key and the state keeps some other model");
+                    return;
+                }
+                if (property.getValue(kv[1]).isEmpty()) {
+                    helper.fail("key \"" + entry.getKey() + "\" in " + path + " gives \"" + kv[1]
+                            + "\" for " + property.getName() + ", which is not one of its values");
                     return;
                 }
                 pairs.put(kv[0], kv[1]);
@@ -2273,27 +2301,28 @@ public final class NeoECOPrototypeGameTests {
      * A formed host has to say which of the two interface blocks it ended up with, because that is the
      * only handle a resource pack has for choosing the formed look. Both directions are measured per
      * machine: a flag stuck at its default and a flag hard-wired to true look identical right up to
-     * the point where an artist has drawn sheets nobody can ever reach.
+     * the point where an artist has drawn sheets nobody can ever reach. True means the cell holds the
+     * 通讯接口, the block with the GUI; the plain endpoint publishes false.
      */
     @GameTest(template = "l1_room", batch = "storage_comm_plain", timeoutTicks = 200,
             templateNamespace = NeoECOPrototype.MOD_ID)
-    public static void storageHostPublishesThePlainInterfaceItHolds(GameTestHelper helper) {
+    public static void storageHostPublishesTrueForTheNetworkInterfaceBlock(GameTestHelper helper) {
         assertStorageInterfacePublished(helper,
-                ModRegistration.SIMPLIFY_STORAGE_NETWORK_INTERFACE_BLOCK.get(), false);
+                ModRegistration.SIMPLIFY_STORAGE_NETWORK_INTERFACE_BLOCK.get(), true);
     }
 
     @GameTest(template = "l1_room", batch = "storage_comm_on", timeoutTicks = 200,
             templateNamespace = NeoECOPrototype.MOD_ID)
-    public static void storageHostPublishesTheCommunicationInterfaceItHolds(GameTestHelper helper) {
+    public static void storageHostPublishesFalseForThePlainInterfaceBlock(GameTestHelper helper) {
         assertStorageInterfacePublished(helper,
-                ModRegistration.SIMPLIFY_STORAGE_INTERFACE_BLOCK.get(), true);
+                ModRegistration.SIMPLIFY_STORAGE_INTERFACE_BLOCK.get(), false);
     }
 
     private static void assertStorageInterfacePublished(GameTestHelper helper, Block interfaceBlock,
                                                         boolean expected) {
         var controllerPos = new BlockPos(6, 3, 6);
         buildL1Room(helper, controllerPos, ModRegistration.SIMPLIFY_STORAGE_CONTROLLER_BLOCK.get(),
-                ModRegistration.SIMPLIFY_STORAGE_NETWORK_INTERFACE_BLOCK.get(), interfaceBlock, host -> {
+                ModRegistration.SIMPLIFY_STORAGE_INTERFACE_BLOCK.get(), interfaceBlock, host -> {
                     var state = helper.getLevel().getBlockState(helper.absolutePos(controllerPos));
                     if (!state.hasProperty(SimplifyStorageControllerBlock.COMMUNICATION_INTERFACE)) {
                         helper.fail("the L1 storage host has no communication_interface property at all: "
@@ -2301,26 +2330,26 @@ public final class NeoECOPrototypeGameTests {
                         return;
                     }
                     if (state.getValue(SimplifyStorageControllerBlock.COMMUNICATION_INTERFACE) != expected) {
-                        helper.fail("the machine holds " + name(interfaceBlock) + ", which is "
-                                + (expected ? "" : "not ") + "the communication interface, but the host "
-                                + "published communication_interface="
-                                + state.getValue(SimplifyStorageControllerBlock.COMMUNICATION_INTERFACE));
+                        helper.fail("the machine holds " + name(interfaceBlock) + ", but the host published "
+                                + "communication_interface="
+                                + state.getValue(SimplifyStorageControllerBlock.COMMUNICATION_INTERFACE)
+                                + "; only simplify_storage_network_interface should set it");
                     }
                 });
     }
 
     @GameTest(template = "l1_room", batch = "crafting_comm_plain", timeoutTicks = 200,
             templateNamespace = NeoECOPrototype.MOD_ID)
-    public static void craftingHostPublishesThePlainInterfaceItHolds(GameTestHelper helper) {
+    public static void craftingHostPublishesTrueForTheNetworkInterfaceBlock(GameTestHelper helper) {
         assertCraftingInterfacePublished(helper,
-                ModRegistration.SIMPLIFY_CRAFTING_NETWORK_INTERFACE_BLOCK.get(), false);
+                ModRegistration.SIMPLIFY_CRAFTING_NETWORK_INTERFACE_BLOCK.get(), true);
     }
 
     @GameTest(template = "l1_room", batch = "crafting_comm_on", timeoutTicks = 200,
             templateNamespace = NeoECOPrototype.MOD_ID)
-    public static void craftingHostPublishesTheCommunicationInterfaceItHolds(GameTestHelper helper) {
+    public static void craftingHostPublishesFalseForThePlainInterfaceBlock(GameTestHelper helper) {
         assertCraftingInterfacePublished(helper,
-                ModRegistration.SIMPLIFY_CRAFTING_INTERFACE_BLOCK.get(), true);
+                ModRegistration.SIMPLIFY_CRAFTING_INTERFACE_BLOCK.get(), false);
     }
 
     private static void assertCraftingInterfacePublished(GameTestHelper helper, Block interfaceBlock,
@@ -2335,10 +2364,10 @@ public final class NeoECOPrototypeGameTests {
                         return;
                     }
                     if (state.getValue(SimplifyCraftingSystemBlock.COMMUNICATION_INTERFACE) != expected) {
-                        helper.fail("the machine holds " + name(interfaceBlock) + ", which is "
-                                + (expected ? "" : "not ") + "the communication interface, but the host "
-                                + "published communication_interface="
-                                + state.getValue(SimplifyCraftingSystemBlock.COMMUNICATION_INTERFACE));
+                        helper.fail("the machine holds " + name(interfaceBlock) + ", but the host published "
+                                + "communication_interface="
+                                + state.getValue(SimplifyCraftingSystemBlock.COMMUNICATION_INTERFACE)
+                                + "; only simplify_crafting_network_interface should set it");
                     }
                 });
     }

@@ -28,9 +28,9 @@ public class SimplifyStorageControllerBlock extends NEBlock<SimplifyStorageHostB
     public static final DirectionProperty FACING = BlockStateProperties.HORIZONTAL_FACING;
     public static final BooleanProperty MIRRORED = BooleanProperty.create("mirrored");
     /**
-     * The interface cell holds the block named "...Communication Interface" rather than the plain
-     * one. Set by the calculator when the machine forms; a resource pack can pick a formed model per
-     * value instead of reading the world.
+     * True when the interface cell holds {@code simplify_storage_network_interface} -- the 通讯接口, the
+     * one with eco's UI. Set by the calculator when the machine forms; a resource pack can pick a formed
+     * model per value instead of reading the world.
      */
     public static final BooleanProperty COMMUNICATION_INTERFACE =
             BooleanProperty.create("communication_interface");

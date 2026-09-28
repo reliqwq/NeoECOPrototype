@@ -13,9 +13,9 @@ import net.minecraft.world.level.block.state.properties.BooleanProperty;
  */
 public class SimplifyCraftingSystemBlock extends ECOCraftingSystem {
     /**
-     * The interface cell holds {@code simplify_crafting_interface} -- the full interface block that
-     * opens eco's interface UI. Same rule as C1 and L1: the block without "network" in its name is the
-     * 通讯接口, matching eco's own {@code storage_interface} / {@code crafting_interface} lang names.
+     * True when the interface cell holds {@code simplify_crafting_network_interface} -- the 通讯接口, the
+     * one that opens eco's interface UI. Same rule as C1 and L1: the id with "network" in it is the panel
+     * the player uses, and the plain one is the endpoint the one-click builder places.
      */
     public static final BooleanProperty COMMUNICATION_INTERFACE =
             BooleanProperty.create("communication_interface");

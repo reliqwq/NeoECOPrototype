@@ -42,10 +42,10 @@ public class SimplifyStorageInterfaceBlockEntity extends ECOMachineInterfaceBloc
     /** Last bridge state emitted to the server log; avoids repeating identical tick/event messages. */
     private String lastLoggedBridgeState;
 
-    /** Only the communication interface exposes Eco's storage GUI. */
+    /** Only {@code simplify_storage_network_interface} -- the 通讯接口 -- exposes eco's storage GUI. */
     @Override
     public boolean supportsStorageInterfaceUi() {
-        return getBlockState().is(ModRegistration.SIMPLIFY_STORAGE_INTERFACE_BLOCK.get());
+        return getBlockState().is(ModRegistration.SIMPLIFY_STORAGE_NETWORK_INTERFACE_BLOCK.get());
     }
 
     public SimplifyStorageInterfaceBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState blockState) {

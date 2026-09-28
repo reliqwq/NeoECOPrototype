@@ -43,7 +43,7 @@ public final class SimplifyComputationDefinition {
                 .setBlock(pos(2, 2, 0), casing)
                 .setBlock(pos(1, 0, 1), casing)
                 .setBlock(pos(2, 0, 1), casing)
-                .setBlock(pos(2, 1, 1), ModRegistration.SIMPLIFY_COMPUTATION_NETWORK_INTERFACE_BLOCK.get().defaultBlockState())
+                .setBlock(pos(2, 1, 1), ModRegistration.SIMPLIFY_COMPUTATION_INTERFACE_BLOCK.get().defaultBlockState())
                 .setBlock(pos(1, 1, 1), casing)
                 .setBlock(pos(1, 2, 1), casing)
                 .setBlock(pos(2, 2, 1), casing)

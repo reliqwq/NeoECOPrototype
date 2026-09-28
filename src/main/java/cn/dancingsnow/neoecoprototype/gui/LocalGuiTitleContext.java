@@ -70,15 +70,14 @@ public final class LocalGuiTitleContext {
     }
 
     private static String localInterfaceTitle(ECOMachineInterfaceBlockEntity<?> blockEntity) {
-        if (blockEntity.getBlockState().is(ModRegistration.SIMPLIFY_STORAGE_INTERFACE_BLOCK.get())) {
-            return "block.neoecoprototype.simplify_storage_interface";
+        if (blockEntity.getBlockState().is(ModRegistration.SIMPLIFY_STORAGE_NETWORK_INTERFACE_BLOCK.get())) {
+            return "block.neoecoprototype.simplify_storage_network_interface";
         }
-        if (blockEntity.getBlockState().is(ModRegistration.SIMPLIFY_CRAFTING_INTERFACE_BLOCK.get())
-                || blockEntity.getBlockState().is(ModRegistration.SIMPLIFY_CRAFTING_NETWORK_INTERFACE_BLOCK.get())) {
-            return "block.neoecoprototype.simplify_crafting_interface";
+        if (blockEntity.getBlockState().is(ModRegistration.SIMPLIFY_CRAFTING_NETWORK_INTERFACE_BLOCK.get())) {
+            return "block.neoecoprototype.simplify_crafting_network_interface";
         }
-        if (blockEntity.getBlockState().is(ModRegistration.SIMPLIFY_COMPUTATION_INTERFACE_BLOCK.get())) {
-            return "block.neoecoprototype.simplify_computation_interface";
+        if (blockEntity.getBlockState().is(ModRegistration.SIMPLIFY_COMPUTATION_NETWORK_INTERFACE_BLOCK.get())) {
+            return "block.neoecoprototype.simplify_computation_network_interface";
         }
         return null;
     }

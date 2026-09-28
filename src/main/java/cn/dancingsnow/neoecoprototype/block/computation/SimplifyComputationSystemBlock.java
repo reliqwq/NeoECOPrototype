@@ -12,7 +12,7 @@ import net.minecraft.world.level.block.state.properties.BooleanProperty;
  * resource pack read the world. The calculator writes them; they are never set by placement.
  */
 public class SimplifyComputationSystemBlock extends ECOComputationSystem {
-    /** The interface cell holds a communication interface rather than a plain interface. */
+    /** True when the interface cell holds {@code simplify_computation_network_interface}, the GUI one. */
     public static final BooleanProperty COMMUNICATION_INTERFACE =
             BooleanProperty.create("communication_interface");
     public static final BooleanProperty ENERGIZED_THREADING_CORE =

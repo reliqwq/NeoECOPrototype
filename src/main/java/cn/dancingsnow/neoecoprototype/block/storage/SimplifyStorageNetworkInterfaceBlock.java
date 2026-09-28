@@ -1,12 +1,9 @@
 package cn.dancingsnow.neoecoprototype.block.storage;
 
 /**
- * Alternate L1 storage interface, the one the one-click builder puts in the cell.
- *
- * <p>Unlike the C1 and F1 pairs this one carries no behavioural difference at all: both blocks share
- * the full storage interface behaviour, including eco's interface UI (verified in game -- our
- * {@code ECOMachineInterfaceBlockEntityMixin} title wrapper, which only runs while a UI is actually
- * being built, logs for this block). The two ids exist so a pack can give them separate looks.
+ * The L1 storage subsystem communication interface: the block the player opens. Same cluster behaviour
+ * as {@code simplify_storage_interface} plus eco's interface UI, which is what the {@code ae2:terminal}
+ * in its recipe buys -- and the one {@code supportsStorageInterfaceUi()} answers true for.
  */
 public class SimplifyStorageNetworkInterfaceBlock extends SimplifyStorageInterfaceBlock {
     public SimplifyStorageNetworkInterfaceBlock(Properties properties) {

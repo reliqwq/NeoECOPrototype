@@ -124,9 +124,9 @@ public class SimplifyStorageClusterCalculator extends NEClusterCalculator<Simpli
                 || state.is(ModRegistration.SIMPLIFY_STORAGE_NETWORK_INTERFACE_BLOCK.get());
     }
 
-    /** Which of the two the cell actually holds: the plain one is the communication interface. */
+    /** The 通讯接口 is the GUI-bearing one: {@code simplify_storage_network_interface}. */
     private static boolean isCommunicationInterface(BlockState state) {
-        return state.is(ModRegistration.SIMPLIFY_STORAGE_INTERFACE_BLOCK.get());
+        return state.is(ModRegistration.SIMPLIFY_STORAGE_NETWORK_INTERFACE_BLOCK.get());
     }
 
     private void applyValidationState(ServerLevel level, StructureValidation result) {

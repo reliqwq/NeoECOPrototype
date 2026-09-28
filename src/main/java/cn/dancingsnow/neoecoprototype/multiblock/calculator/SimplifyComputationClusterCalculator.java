@@ -144,7 +144,7 @@ public class SimplifyComputationClusterCalculator extends NEComputationClusterCa
             return Optional.empty();
         }
         boolean communicationInterface = matchedInterface.get()
-                == ModRegistration.SIMPLIFY_COMPUTATION_INTERFACE_BLOCK.get();
+                == ModRegistration.SIMPLIFY_COMPUTATION_NETWORK_INTERFACE_BLOCK.get();
 
         BlockPos connectorStart = controllerPos.relative(expandSide).relative(expandSide);
         Optional<BlockPos> connectorEndResult = validateBlockLine(level, expandSide, connectorStart,

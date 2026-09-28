@@ -1,9 +1,24 @@
 {
-  "type": "minecraft:crafting_shapeless",
+  "type": "minecraft:crafting_shaped",
   "category": "misc",
-  "ingredients": [
-    { "item": "neoecoprototype:simplify_crafting_network_interface" },
-    { "item": "ae2:terminal" }
+  "key": {
+    "A": {
+      "item": "neoecoprototype:simplify_crafting_casing"
+    },
+    "B": {
+      "item": "ae2:engineering_processor"
+    },
+    "C": {
+      "item": "ae2:singularity"
+    },
+    "D": {
+      "item": "ae2:interface"
+    }
+  },
+  "pattern": [
+    "ABA",
+    "CDC",
+    "ABA"
   ],
   "result": {
     "count": 1,

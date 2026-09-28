@@ -2,11 +2,17 @@ package cn.dancingsnow.neoecoprototype.block.computation;
 
 import cn.dancingsnow.neoecoae.blocks.ECOMachineInterface;
 import cn.dancingsnow.neoecoae.multiblock.cluster.NEComputationCluster;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.BlockHitResult;
 
 /**
- * Keeps drawing once the structure forms so its blockstate can carry a formed model of its own; eco
- * hides interface blocks, which leaves the artist no JSON hook for the formed look. The formed model
- * pushes every face out by 1/16 because the shell next to it is invisible and does not occlude.
+ * C1 subsystem interface: the plain endpoint that joins the cluster but opens nothing. The GUI lives on
+ * {@code simplify_computation_network_interface}, which is what the lang files call 通讯接口 and what
+ * adding an {@code ae2:terminal} to this block produces.
  */
 public class SimplifyComputationInterfaceBlock extends ECOMachineInterface<NEComputationCluster> {
     public SimplifyComputationInterfaceBlock(Properties properties) {
@@ -14,7 +20,8 @@ public class SimplifyComputationInterfaceBlock extends ECOMachineInterface<NECom
     }
 
     @Override
-    protected boolean hideWhenFormed() {
-        return false;
+    protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos, Player player,
+                                               BlockHitResult hit) {
+        return InteractionResult.PASS;
     }
 }
