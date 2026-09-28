@@ -2068,34 +2068,54 @@ public final class NeoECOPrototypeGameTests {
      * the gate that used to hold it back was an appearance change, which is why this writes the stale
      * bits onto a lone, unformed host and requires the tick to take them back off.
      */
-    @GameTest(template = "empty", batch = "l1_stale_bits", timeoutTicks = 100,
+    @GameTest(template = "l1_room", batch = "l1_stale_bits", timeoutTicks = 300,
             templateNamespace = NeoECOPrototype.MOD_ID)
     public static void computationHostHealsStaleSwitchBits(GameTestHelper helper) {
-        var pos = new BlockPos(1, 1, 1);
-        helper.setBlock(pos, ModRegistration.SIMPLIFY_COMPUTATION_SYSTEM_BLOCK.get());
-        var absolute = helper.absolutePos(pos);
-        var stale = helper.getLevel().getBlockState(absolute)
-                .setValue(cn.dancingsnow.neoecoae.blocks.computation.ECOComputationSystem.NETWORK_SWITCH, true)
-                .setValue(cn.dancingsnow.neoecoae.blocks.computation.ECOComputationSystem
-                        .HIGH_ENERGY_NETWORK_SWITCH, true);
-        helper.getLevel().setBlockAndUpdate(absolute, stale);
-        if (!helper.getLevel().getBlockState(absolute).getValue(
-                cn.dancingsnow.neoecoae.blocks.computation.ECOComputationSystem.NETWORK_SWITCH)) {
-            helper.fail("the probe could not leave network_switch set, so this test measures nothing");
-            return;
-        }
-        waitUntil(helper, 10,
-                () -> {
-                    var state = helper.getLevel().getBlockState(absolute);
-                    return !state.getValue(
-                                    cn.dancingsnow.neoecoae.blocks.computation.ECOComputationSystem.NETWORK_SWITCH)
-                            && !state.getValue(cn.dancingsnow.neoecoae.blocks.computation.ECOComputationSystem
-                                    .HIGH_ENERGY_NETWORK_SWITCH);
-                },
-                () -> "the host kept eco's switch bits set after 100 ticks, so a machine saved that way "
-                        + "stays out of the network's CPU list forever: "
-                        + helper.getLevel().getBlockState(absolute),
-                helper::succeed);
+        var hostPos = new BlockPos(13, 3, 4);
+        buildComputationStructureKept(helper, hostPos,
+                ModRegistration.SIMPLIFY_COMPUTATION_THREADING_CORE_BLOCK.get(),
+                ModRegistration.SIMPLIFY_COMPUTATION_THREADING_CORE_BLOCK.get(), 0, false, 1,
+                (controller, finish) -> {
+                    var absolute = helper.absolutePos(hostPos);
+                    var stale = helper.getLevel().getBlockState(absolute)
+                            .setValue(cn.dancingsnow.neoecoae.blocks.computation.ECOComputationSystem
+                                    .NETWORK_SWITCH, true)
+                            .setValue(cn.dancingsnow.neoecoae.blocks.computation.ECOComputationSystem
+                                    .HIGH_ENERGY_NETWORK_SWITCH, true);
+                    helper.getLevel().setBlockAndUpdate(absolute, stale);
+                    if (!helper.getLevel().getBlockState(absolute).getValue(
+                            cn.dancingsnow.neoecoae.blocks.computation.ECOComputationSystem.NETWORK_SWITCH)) {
+                        var why = "the probe could not leave network_switch set, so this test measures"
+                                + " nothing";
+                        finish.run();
+                        helper.fail(why);
+                        return;
+                    }
+                    // A stale host only gets a fresh look when something around it moves, which is exactly
+                    // what an existing world does on load; ask for that neighbour pass rather than waiting
+                    // for a tick that nothing schedules.
+                    helper.getLevel().updateNeighborsAt(absolute, helper.getLevel()
+                            .getBlockState(absolute).getBlock());
+                    waitUntil(helper, 12,
+                            () -> {
+                                var state = helper.getLevel().getBlockState(absolute);
+                                return !state.getValue(cn.dancingsnow.neoecoae.blocks.computation
+                                                .ECOComputationSystem.NETWORK_SWITCH)
+                                        && !state.getValue(cn.dancingsnow.neoecoae.blocks.computation
+                                                .ECOComputationSystem.HIGH_ENERGY_NETWORK_SWITCH);
+                            },
+                            () -> {
+                                var why = "a formed host kept eco's switch bits set after 120 ticks, so a"
+                                        + " machine saved that way stays out of the network's CPU list: "
+                                        + helper.getLevel().getBlockState(absolute);
+                                finish.run();
+                                return why;
+                            },
+                            () -> {
+                                finish.run();
+                                helper.succeed();
+                            });
+                });
     }
 
     /**
@@ -2106,17 +2126,17 @@ public final class NeoECOPrototypeGameTests {
      * faces once formed ({@code ECOMachineInterfaceBlockEntity}) and every member node carries
      * {@code IGridMultiblock}. Measured here: host, cable and power on one 92-node grid.
      *
-     * <p>The CPU list is asserted too, because eco does feed it: its {@code CraftingServiceMixin} injects
-     * {@code onGetCpus}, appending {@code cluster.getActiveCPUs()} and, when
-     * {@code isNetworkRepresentative()} holds and {@code getActiveCPUCount() < getMaxThreads()}, one
-     * {@code getFakeCPU()} -- that placeholder is what an idle subsystem shows as in the crafting status
-     * panel. Today our host never reaches it, and this stays {@code required = false}: AE2 files each node
-     * under {@code owner.getClass()} exactly ({@code Grid.add} has a single {@code put} and no superclass
-     * walk), so eco's {@code getMachines(ECOComputationSystemBlockEntity.class)} cannot see an addon
-     * subclass host. The failure message names the numbers that decide it; until that gap is bridged this
-     * records the defect instead of gating on it.
+     * <p>The CPU list is asserted as well, and it is the reason the host's block entity is eco's own class
+     * rather than a subclass: eco's {@code CraftingServiceMixin.onGetCpus} appends
+     * {@code cluster.getActiveCPUs()} plus, when {@code isNetworkRepresentative()} holds and
+     * {@code getActiveCPUCount() < getMaxThreads()}, one {@code getFakeCPU()} -- the placeholder an idle
+     * subsystem shows as in the crafting status panel. It collects clusters through
+     * {@code getMachines(ECOComputationSystemBlockEntity.class)}, and AE2 files nodes under
+     * {@code owner.getClass()} only ({@code Grid.add} has a single {@code put} and no superclass walk), so
+     * a subclass host is invisible to both the panel and the execution path behind it. This test is the
+     * guard against ever needing that subclass again.
      */
-    @GameTest(template = "l1_room", batch = "l1_cpu_grid", timeoutTicks = 300, required = false,
+    @GameTest(template = "l1_room", batch = "l1_cpu_grid", timeoutTicks = 300,
             templateNamespace = NeoECOPrototype.MOD_ID)
     public static void formedComputationHostAppearsInTheCpuList(GameTestHelper helper) {
         var hostPos = new BlockPos(13, 3, 4);
@@ -2226,8 +2246,7 @@ public final class NeoECOPrototypeGameTests {
     private static String machineKeyReport(IGrid grid) {
         return "asEcoHost=" + grid.getMachines(cn.dancingsnow.neoecoae.blocks.entity.computation
                 .ECOComputationSystemBlockEntity.class).size()
-                + " asOurClass=" + grid.getMachines(cn.dancingsnow.neoecoprototype.blockentity.computation
-                .SimplifyComputationSystemBlockEntity.class).size()
+
                 + " asNEBlockEntity=" + grid.getMachines(cn.dancingsnow.neoecoae.blocks.entity
                 .NEBlockEntity.class).size()
                 + " asAENetworked=" + grid.getMachines(appeng.blockentity.grid.AENetworkedBlockEntity.class)

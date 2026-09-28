@@ -8,7 +8,6 @@ import cn.dancingsnow.neoecoae.blocks.entity.computation.ECOComputationSystemBlo
 import cn.dancingsnow.neoecoae.blocks.entity.computation.ECOComputationThreadingCoreBlockEntity;
 import cn.dancingsnow.neoecoae.multiblock.calculator.NEComputationClusterCalculator;
 import cn.dancingsnow.neoecoprototype.api.SimplifyMultiblockConfig;
-import cn.dancingsnow.neoecoprototype.blockentity.computation.SimplifyComputationSystemBlockEntity;
 import cn.dancingsnow.neoecoae.multiblock.cluster.NEComputationCluster;
 import cn.dancingsnow.neoecoprototype.registration.ModRegistration;
 import net.minecraft.core.BlockPos;
@@ -110,8 +109,12 @@ public class SimplifyComputationClusterCalculator extends NEComputationClusterCa
         if (result.controllerPos() != null
                 && level.getBlockEntity(result.controllerPos()) instanceof ECOComputationSystemBlockEntity controller) {
             controller.setMirrored(result.mirrored());
-            if (controller instanceof SimplifyComputationSystemBlockEntity host) {
-                host.setPublishedCommunicationInterface(result.communicationInterface());
+            // The shape goes to the block rather than being written here: this stack is inside AE2's
+            // cluster recalculation, where a block change would wedge every multiblock.
+            if (level.getBlockState(result.controllerPos()).getBlock()
+                    instanceof cn.dancingsnow.neoecoprototype.block.computation
+                            .SimplifyComputationSystemBlock host) {
+                host.publishShape(level, result.controllerPos(), result.communicationInterface());
             }
         }
         if (result.coolerPos() != null

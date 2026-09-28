@@ -75,7 +75,6 @@ import cn.dancingsnow.neoecoprototype.blockentity.storage.SimplifyStorageHostBlo
 import cn.dancingsnow.neoecoprototype.blockentity.storage.SimplifyStorageInterfaceBlockEntity;
 import cn.dancingsnow.neoecoprototype.blockentity.storage.SimplifyStorageVentBlockEntity;
 import cn.dancingsnow.neoecoprototype.blockentity.computation.SimplifyComputationDriveBlockEntity;
-import cn.dancingsnow.neoecoprototype.blockentity.computation.SimplifyComputationSystemBlockEntity;
 import cn.dancingsnow.neoecoprototype.items.PigcatStorageMatrixHousingItem;
 import cn.dancingsnow.neoecoprototype.items.SimplifyComputationCellItem;
 import cn.dancingsnow.neoecoprototype.items.SimplifyConcreteStorageCellItem;
@@ -914,7 +913,7 @@ private static Supplier<BlockEntityType<SimplifyStorageVentBlockEntity>> registe
     private static Supplier<BlockEntityType<ECOComputationSystemBlockEntity>> registerComputationSystemBe() {
         return (Supplier) BLOCK_ENTITIES.register("simplify_computation_system",
                 () -> BlockEntityType.Builder.of(
-                        (pos, state) -> new SimplifyComputationSystemBlockEntity(
+                        (pos, state) -> new ECOComputationSystemBlockEntity(
                                 SIMPLIFY_COMPUTATION_SYSTEM_BE.get(), pos, state, cn.dancingsnow.neoecoprototype.api.SimplifyTier.L1),
                         SIMPLIFY_COMPUTATION_SYSTEM_BLOCK.get()).build(null));
     }
