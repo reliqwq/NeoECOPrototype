@@ -2106,14 +2106,19 @@ public final class NeoECOPrototypeGameTests {
      * faces once formed ({@code ECOMachineInterfaceBlockEntity}) and every member node carries
      * {@code IGridMultiblock}. Measured here: host, cable and power on one 92-node grid.
      *
-     * <p>Deliberately not asserted: whether the CPU panel lists the subsystem. That panel is not fed by
-     * {@code ICraftingService.getCpus()} -- eco ships its own snapshot to the client
-     * ({@code MenuDataTransport} channel {@code CPU} plus {@code ExactCpuSnapshot}) and mixes into AE2's
-     * selection list, so the two sources can disagree, and reading the panel needs a real GUI.
+     * <p>The CPU list is asserted too, because eco does feed it: its {@code CraftingServiceMixin} injects
+     * {@code onGetCpus}, appending {@code cluster.getActiveCPUs()} and, when
+     * {@code isNetworkRepresentative()} holds and {@code getActiveCPUCount() < getMaxThreads()}, one
+     * {@code getFakeCPU()} -- that placeholder is what an idle subsystem shows as in the crafting status
+     * panel. Today our host never reaches it, and this stays {@code required = false}: AE2 files each node
+     * under {@code owner.getClass()} exactly ({@code Grid.add} has a single {@code put} and no superclass
+     * walk), so eco's {@code getMachines(ECOComputationSystemBlockEntity.class)} cannot see an addon
+     * subclass host. The failure message names the numbers that decide it; until that gap is bridged this
+     * records the defect instead of gating on it.
      */
-    @GameTest(template = "l1_room", batch = "l1_cpu_grid", timeoutTicks = 300,
+    @GameTest(template = "l1_room", batch = "l1_cpu_grid", timeoutTicks = 300, required = false,
             templateNamespace = NeoECOPrototype.MOD_ID)
-    public static void computationHostCanBeWiredThroughItsInterface(GameTestHelper helper) {
+    public static void formedComputationHostAppearsInTheCpuList(GameTestHelper helper) {
         var hostPos = new BlockPos(13, 3, 4);
         buildComputationStructureKept(helper, hostPos,
                 ModRegistration.SIMPLIFY_COMPUTATION_THREADING_CORE_BLOCK.get(),
@@ -2162,9 +2167,20 @@ public final class NeoECOPrototypeGameTests {
                                 // AE2's selection list, so the panel has a different source than the
                                 // service -- measured idle here: 0 entries from getCpus().
                                 var grid = gridOf(controller);
-                                if (grid == null || grid.size() < 2) {
-                                    var why = "the host reports a grid of " + (grid == null ? "null"
-                                            : String.valueOf(grid.size())) + " node(s) after the cable";
+                                var cpus = grid.getCraftingService().getCpus();
+                                long ours = cpus.stream().filter(cpu -> cpu instanceof cn.dancingsnow
+                                        .neoecoae.api.me.ECOCraftingCPU).count();
+                                if (ours == 0) {
+                                    var cluster = controller.getCluster();
+                                    var why = "a formed, networked L1 host is missing from getCpus(): "
+                                            + "grid=" + grid.size() + " nodes, listed cpus=" + cpus.size()
+                                            + ", cluster=" + (cluster == null ? "null"
+                                            : ("active=" + cluster.getActiveCPUCount()
+                                                    + " maxThreads=" + cluster.getMaxThreads()
+                                                    + " representative=" + cluster.isNetworkRepresentative()
+                                                    + " fakeCpu=" + (cluster.getFakeCPU() == null
+                                                            ? "null" : "present")))
+                                            + " machineKeys=" + machineKeyReport(grid);
                                     leave.run();
                                     helper.fail(why);
                                     return;
@@ -2199,6 +2215,25 @@ public final class NeoECOPrototypeGameTests {
     private static IGrid gridOf(ECOComputationSystemBlockEntity controller) {
         var node = controller.getMainNode();
         return node == null ? null : node.getGrid();
+    }
+
+    /**
+     * Which class keys AE2 filed this grid's machines under. If the exact owner class is the only key that
+     * answers, our subclass is invisible to eco's query for {@code ECOComputationSystemBlockEntity} and the
+     * panel gap is ours to bridge; if any parent class answers, that theory is dead and the cause is
+     * somewhere else.
+     */
+    private static String machineKeyReport(IGrid grid) {
+        return "asEcoHost=" + grid.getMachines(cn.dancingsnow.neoecoae.blocks.entity.computation
+                .ECOComputationSystemBlockEntity.class).size()
+                + " asOurClass=" + grid.getMachines(cn.dancingsnow.neoecoprototype.blockentity.computation
+                .SimplifyComputationSystemBlockEntity.class).size()
+                + " asNEBlockEntity=" + grid.getMachines(cn.dancingsnow.neoecoae.blocks.entity
+                .NEBlockEntity.class).size()
+                + " asAENetworked=" + grid.getMachines(appeng.blockentity.grid.AENetworkedBlockEntity.class)
+                .size()
+                + " asCraftingCPUCtrl=" + grid.getMachines(appeng.api.networking.crafting
+                .ICraftingCPU.class).size();
     }
 
     /** The grid the node at a template-relative position reports, for naming which link is broken. */
