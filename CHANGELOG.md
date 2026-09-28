@@ -1,5 +1,32 @@
 # Changelog
 
+## 1.2.10 (2026-09-29) - 计算主机回到 eco 的方块实体，CPU 面板恢复
+
+### 修复 / Fixed
+
+- **成型并且接了网的 C1 计算主机重新出现在 AE2 的 CPU 列表里**：1.2.8 我们把主机的方块实体换成 eco 那个类的子类，为的是在主机自己的方块状态上发布成型外观；这一换让它从 AE2 的机器表里消失了。原因是 AE2 登记节点的键就是 `node.getOwner().getClass()`，**只有这一个键**（`Grid.add` 里只有一个 `put`，不沿父类链登记），而 eco 收集计算集群用的是 `getMachines(ECOComputationSystemBlockEntity.class)`——Map 的键相等查找，不是 `instanceof`。同一台主机、同一个 grid 换四个键实测：按 eco 的类查 = 0，按我们的子类查 = 1，再往上的两层父类查 = 0。现在主机的方块实体退回 eco 的类，那两件事改由 `publishShape()` 加方块自己的 scheduled tick 接手（发布 `communication_interface`、把 eco 的两个交换布尔钉成 false）——写方块不能发生在 AE2 的集群重算栈里。附带回来的还有：eco 在节点入网时按同一个类读的「快速规划 / 循环规划」开关，现在在我们的主机上也生效了（tooltip 里能看到那两行）。 A formed, networked C1 host is back in AE2's CPU list. In 1.2.8 we swapped the host's block entity for a subclass of eco's, to publish formed-appearance state, and that quietly removed it from AE2's machine table: AE2 files nodes under `owner.getClass()` only, while eco collects clusters with `getMachines(ECOComputationSystemBlockEntity.class)` -- a key lookup, not an `instanceof` test. Measured on one grid: eco's class 0, our class 1, both parent classes 0.
+- **老世界里被点亮成「有交换器」的 C1 会自愈**：我们的计算器整条替换了 eco 的 `verifyInternalStructure`，而 eco 只在那里面清 `network_switch` / `high_energy_network_switch`，所以 1.2.8 之前留下的 true 会一直留着，把 CPU 送进一条不存在的逻辑网络。现在每次集群重算都会投递一次纠正，方块在下一个 tick 把 true 写成 false（已经是 false 时一个字都不写）。守卫：把两个布尔人为设成 true 打在成型主机上，要求 120 tick 内被清掉。
+- **两条新守卫**：接线可达性（玻璃线缆接在接口块外侧，能把主机、线缆、供电块并进同一个 92 节点 grid；主机自己六面都被结构占着，而 eco 不把它朝空气那一面暴露）与 CPU 列表可见性（成型主机必须出现在 `getCpus()` 里——这条从「记录缺陷」转回正式门禁）。
+
+### 新增 / Added
+
+- **F1 合成主机的稀有脸 `has_mind`**：每台主机成型时掷一次 1/16，结果存进主机，重新成型不重掷；掷中的那台成型面改用美术新加的 `_face` 贴图（4 张新模型：镜像 × 是否通讯接口）。
+- **美术重绘的 F1 合成子系统整套并入**：外壳、监视器、总线、通风口、样板总线、成型面等 51 个贴图文件（28 张替换现有路径，23 张新增）。
+
+### 变更 / Changed
+
+- **C1 不再发布 `energized_threading_core` / `energized_parallel_core` 两个方块状态属性**（**这条更正 1.2.9 里「资源包与覆写」一节的说法**）。它们从来没有选出过不同的外观——那 14 张组合模型都是普通成型面的复制——换来的只有一个 512 条键的 blockstate 文件（其中 20 条说的是同一件事）和两个资源包可能撞上的属性名。现在成型面只按「镜像 × 是否通讯接口」选，文件 79 行 / 20 条键。带这两个键的第三方条目会匹配不到任何状态（键是子集匹配，没写的属性是通配），所以不报错，只是那层区分失效。
+- **盈能强化计算机核心从主机旁边的外壳位挪到主机正后方**。旁边那一格是 eco 探测网络交换器的位置，核心站在那儿会让上游把主机点亮成「有交换器」。**玩家可见代价**：老世界里把核心摆在主机旁边的 C1 会散架（不是丢方块，是成型判定不再通过），把那一格换成对应外壳方块、或把核心挪到主机正后方即可。
+
+### 资源包与覆写 / For resource pack authors
+
+- C1 的成型外观只按 `formed` / `mirrored` / `communication_interface` 三个键选，`energized_threading_core` 与 `energized_parallel_core` 已删除。F1 新增 `has_mind`：`true` 且 `formed=true` 时选 `_face` 那张。
+- 成员方块成型后仍然一律不画自己，外观由主机的方块状态决定。
+
+### 需要 / Requires
+
+- NeoForge `21.1.x` on Minecraft `1.21.1`，Applied Energistics 2 `19.2.17` 或更新，**Neo ECO AE Extension `21.2.0` 或更新**。依赖门槛与 1.2.8 相同，本版没有变化。
+
 ## 1.2.9.2 (2026-09-28) - 主机上下两格不再白送成员
 
 ### 修复 / Fixed
