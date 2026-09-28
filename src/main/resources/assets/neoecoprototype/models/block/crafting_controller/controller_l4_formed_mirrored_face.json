@@ -3,6 +3,6 @@
     "textures": {
         "light": "neoecoprototype:block/crafting_recolor/controller_formed/controller_formed_light_a_switch",
 		"screen_light": "neoecoprototype:block/crafting_recolor/controller_formed/screen_a_light",
-        "screen_display": "neoecoprototype:block/crafting_recolor/controller/screen_on_a"
+        "screen_display": "neoecoprototype:block/crafting_recolor/controller/screen_on_a_face"
     }
 }

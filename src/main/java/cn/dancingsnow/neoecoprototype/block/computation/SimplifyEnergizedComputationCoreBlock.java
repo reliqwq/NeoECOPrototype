@@ -3,17 +3,13 @@ package cn.dancingsnow.neoecoprototype.block.computation;
 import cn.dancingsnow.neoecoae.api.IECOTier;
 
 /**
- * The energized core takes a slot in the machine's outer shell, and a shell cell must not draw
- * itself: the controller's own formed model already covers the whole 3x3 face (measured:
- * {@code controller_formed_base} spans x/y -16..32), so a member cube at 0..16 sits coplanar with
- * it and the two quads fight over depth. eco uses exactly this lever for every shell member it ships
- * (interface, fluid hatches, network switch), while column members such as the plain parallel core
- * keep drawing because their neighbours are solid and cull normally.
+ * The energized core takes the one cell directly behind the computation host. It still hides itself once
+ * the machine forms, like every eco shell member: the host's formed model carries a glass quad at the
+ * plane between the two cells, so a member face drawn there is strictly coplanar with it and the two
+ * fight over depth. Measured - the formed model's own elements sit at z=1, exactly the boundary.
  *
- * <p>Consequence worth knowing before changing it: this block is accepted both in the shell and in
- * the parallel column, and one block has one render shape, so it disappears in both once formed.
- * The artwork for "an energized core is here" therefore belongs on the host's
- * {@code energized_parallel_core} blockstate variant, not on this block.
+ * <p>What the move bought is that the cell is no longer eco's network-switch position, so a core standing
+ * there can no longer make eco report a switch the machine does not have.
  */
 public class SimplifyEnergizedComputationCoreBlock extends SimplifyComputationParallelCoreBlock {
     public SimplifyEnergizedComputationCoreBlock(Properties properties, IECOTier tier) {

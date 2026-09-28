@@ -20,14 +20,23 @@ public class SimplifyCraftingSystemBlock extends ECOCraftingSystem {
     public static final BooleanProperty COMMUNICATION_INTERFACE =
             BooleanProperty.create("communication_interface");
 
+    /**
+     * The easter egg: once per host, the machine rolls a one-in-sixteen chance to grow a face, and the
+     * result is saved into the host so re-forming never re-rolls it. Only meaningful with
+     * {@code formed=true}, which is where the blockstate hands over to the {@code *_face} models.
+     */
+    public static final BooleanProperty HAS_MIND = BooleanProperty.create("has_mind");
+
     public SimplifyCraftingSystemBlock(Properties properties) {
         super(properties);
-        registerDefaultState(defaultBlockState().setValue(COMMUNICATION_INTERFACE, false));
+        registerDefaultState(defaultBlockState()
+                .setValue(COMMUNICATION_INTERFACE, false)
+                .setValue(HAS_MIND, false));
     }
 
     @Override
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
         super.createBlockStateDefinition(builder);
-        builder.add(COMMUNICATION_INTERFACE);
+        builder.add(COMMUNICATION_INTERFACE, HAS_MIND);
     }
 }

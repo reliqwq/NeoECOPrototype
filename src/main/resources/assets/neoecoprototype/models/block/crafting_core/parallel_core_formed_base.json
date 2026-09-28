@@ -7,7 +7,9 @@
 		"north": "neoecoprototype:block/crafting_recolor/core/parallel_core_north_formed",
 		"top": "neoecoprototype:block/crafting_recolor/casing_formed",
 		"south": "neoecoprototype:block/crafting_recolor/casing_back",
-		"particle": "neoecoprototype:block/crafting_recolor/casing"
+		"particle": "neoecoprototype:block/crafting_recolor/casing",
+		"side": "neoecoprototype:block/crafting_recolor/casing_side",
+		"bottom": "neoecoprototype:block/crafting_recolor/casing_bottom_formed"
 	},
 	"elements": [
 		{
@@ -15,11 +17,11 @@
 			"to": [16, 16, 16],
 			"faces": {
 				"north": {"uv": [0, 0, 16, 16], "texture": "#north", "cullface": "north"},
-				"east": {"uv": [0, 0, 16, 16], "texture": "#side", "cullface": "east"},
+				"east": {"uv": [16, 0, 0, 16], "texture": "#side", "cullface": "east"},
 				"south": {"uv": [0, 0, 16, 16], "texture": "#south", "cullface": "south"},
 				"west": {"uv": [0, 0, 16, 16], "texture": "#side", "cullface": "west"},
 				"up": {"uv": [0, 0, 16, 16], "texture": "#top", "cullface": "up"},
-				"down": {"uv": [0, 0, 16, 16], "texture": "#top", "cullface": "down"}
+				"down": {"uv": [0, 0, 16, 16], "texture": "#bottom", "cullface": "down"}
 			}
 		},
 		{

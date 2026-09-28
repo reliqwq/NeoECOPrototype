@@ -44,7 +44,8 @@
         "facing": "north",
         "formed": "true",
         "mirrored": "false",
-        "communication_interface": "false"
+        "communication_interface": "false",
+        "has_mind": "false"
       },
       "apply": {
         "model": "neoecoprototype:block/crafting_controller/controller_l4_formed"
@@ -55,10 +56,11 @@
         "facing": "north",
         "formed": "true",
         "mirrored": "false",
-        "communication_interface": "true"
+        "communication_interface": "false",
+        "has_mind": "true"
       },
       "apply": {
-        "model": "neoecoprototype:block/crafting_controller/controller_l4_formed_c"
+        "model": "neoecoprototype:block/crafting_controller/controller_l4_formed_face"
       }
     },
     {
@@ -66,7 +68,8 @@
         "facing": "east",
         "formed": "true",
         "mirrored": "false",
-        "communication_interface": "false"
+        "communication_interface": "false",
+        "has_mind": "false"
       },
       "apply": {
         "model": "neoecoprototype:block/crafting_controller/controller_l4_formed",
@@ -78,10 +81,11 @@
         "facing": "east",
         "formed": "true",
         "mirrored": "false",
-        "communication_interface": "true"
+        "communication_interface": "false",
+        "has_mind": "true"
       },
       "apply": {
-        "model": "neoecoprototype:block/crafting_controller/controller_l4_formed_c",
+        "model": "neoecoprototype:block/crafting_controller/controller_l4_formed_face",
         "y": 90
       }
     },
@@ -90,7 +94,8 @@
         "facing": "south",
         "formed": "true",
         "mirrored": "false",
-        "communication_interface": "false"
+        "communication_interface": "false",
+        "has_mind": "false"
       },
       "apply": {
         "model": "neoecoprototype:block/crafting_controller/controller_l4_formed",
@@ -102,10 +107,11 @@
         "facing": "south",
         "formed": "true",
         "mirrored": "false",
-        "communication_interface": "true"
+        "communication_interface": "false",
+        "has_mind": "true"
       },
       "apply": {
-        "model": "neoecoprototype:block/crafting_controller/controller_l4_formed_c",
+        "model": "neoecoprototype:block/crafting_controller/controller_l4_formed_face",
         "y": 180
       }
     },
@@ -114,7 +120,8 @@
         "facing": "west",
         "formed": "true",
         "mirrored": "false",
-        "communication_interface": "false"
+        "communication_interface": "false",
+        "has_mind": "false"
       },
       "apply": {
         "model": "neoecoprototype:block/crafting_controller/controller_l4_formed",
@@ -126,10 +133,11 @@
         "facing": "west",
         "formed": "true",
         "mirrored": "false",
-        "communication_interface": "true"
+        "communication_interface": "false",
+        "has_mind": "true"
       },
       "apply": {
-        "model": "neoecoprototype:block/crafting_controller/controller_l4_formed_c",
+        "model": "neoecoprototype:block/crafting_controller/controller_l4_formed_face",
         "y": 270
       }
     },
@@ -138,7 +146,8 @@
         "facing": "north",
         "formed": "true",
         "mirrored": "true",
-        "communication_interface": "false"
+        "communication_interface": "false",
+        "has_mind": "false"
       },
       "apply": {
         "model": "neoecoprototype:block/crafting_controller/controller_l4_formed_mirrored"
@@ -149,10 +158,11 @@
         "facing": "north",
         "formed": "true",
         "mirrored": "true",
-        "communication_interface": "true"
+        "communication_interface": "false",
+        "has_mind": "true"
       },
       "apply": {
-        "model": "neoecoprototype:block/crafting_controller/controller_l4_formed_c_mirrored"
+        "model": "neoecoprototype:block/crafting_controller/controller_l4_formed_mirrored_face"
       }
     },
     {
@@ -160,7 +170,8 @@
         "facing": "east",
         "formed": "true",
         "mirrored": "true",
-        "communication_interface": "false"
+        "communication_interface": "false",
+        "has_mind": "false"
       },
       "apply": {
         "model": "neoecoprototype:block/crafting_controller/controller_l4_formed_mirrored",
@@ -172,10 +183,11 @@
         "facing": "east",
         "formed": "true",
         "mirrored": "true",
-        "communication_interface": "true"
+        "communication_interface": "false",
+        "has_mind": "true"
       },
       "apply": {
-        "model": "neoecoprototype:block/crafting_controller/controller_l4_formed_c_mirrored",
+        "model": "neoecoprototype:block/crafting_controller/controller_l4_formed_mirrored_face",
         "y": 90
       }
     },
@@ -184,7 +196,8 @@
         "facing": "south",
         "formed": "true",
         "mirrored": "true",
-        "communication_interface": "false"
+        "communication_interface": "false",
+        "has_mind": "false"
       },
       "apply": {
         "model": "neoecoprototype:block/crafting_controller/controller_l4_formed_mirrored",
@@ -196,10 +209,11 @@
         "facing": "south",
         "formed": "true",
         "mirrored": "true",
-        "communication_interface": "true"
+        "communication_interface": "false",
+        "has_mind": "true"
       },
       "apply": {
-        "model": "neoecoprototype:block/crafting_controller/controller_l4_formed_c_mirrored",
+        "model": "neoecoprototype:block/crafting_controller/controller_l4_formed_mirrored_face",
         "y": 180
       }
     },
@@ -208,7 +222,8 @@
         "facing": "west",
         "formed": "true",
         "mirrored": "true",
-        "communication_interface": "false"
+        "communication_interface": "false",
+        "has_mind": "false"
       },
       "apply": {
         "model": "neoecoprototype:block/crafting_controller/controller_l4_formed_mirrored",
@@ -220,10 +235,215 @@
         "facing": "west",
         "formed": "true",
         "mirrored": "true",
-        "communication_interface": "true"
+        "communication_interface": "false",
+        "has_mind": "true"
       },
       "apply": {
-        "model": "neoecoprototype:block/crafting_controller/controller_l4_formed_c_mirrored",
+        "model": "neoecoprototype:block/crafting_controller/controller_l4_formed_mirrored_face",
+        "y": 270
+      }
+    },
+    {
+      "when": {
+        "facing": "north",
+        "formed": "true",
+        "mirrored": "false",
+        "communication_interface": "true",
+        "has_mind": "false"
+      },
+      "apply": {
+        "model": "neoecoprototype:block/crafting_controller/controller_l4_formed_network"
+      }
+    },
+    {
+      "when": {
+        "facing": "north",
+        "formed": "true",
+        "mirrored": "false",
+        "communication_interface": "true",
+        "has_mind": "true"
+      },
+      "apply": {
+        "model": "neoecoprototype:block/crafting_controller/controller_l4_formed_network_face"
+      }
+    },
+    {
+      "when": {
+        "facing": "east",
+        "formed": "true",
+        "mirrored": "false",
+        "communication_interface": "true",
+        "has_mind": "false"
+      },
+      "apply": {
+        "model": "neoecoprototype:block/crafting_controller/controller_l4_formed_network",
+        "y": 90
+      }
+    },
+    {
+      "when": {
+        "facing": "east",
+        "formed": "true",
+        "mirrored": "false",
+        "communication_interface": "true",
+        "has_mind": "true"
+      },
+      "apply": {
+        "model": "neoecoprototype:block/crafting_controller/controller_l4_formed_network_face",
+        "y": 90
+      }
+    },
+    {
+      "when": {
+        "facing": "south",
+        "formed": "true",
+        "mirrored": "false",
+        "communication_interface": "true",
+        "has_mind": "false"
+      },
+      "apply": {
+        "model": "neoecoprototype:block/crafting_controller/controller_l4_formed_network",
+        "y": 180
+      }
+    },
+    {
+      "when": {
+        "facing": "south",
+        "formed": "true",
+        "mirrored": "false",
+        "communication_interface": "true",
+        "has_mind": "true"
+      },
+      "apply": {
+        "model": "neoecoprototype:block/crafting_controller/controller_l4_formed_network_face",
+        "y": 180
+      }
+    },
+    {
+      "when": {
+        "facing": "west",
+        "formed": "true",
+        "mirrored": "false",
+        "communication_interface": "true",
+        "has_mind": "false"
+      },
+      "apply": {
+        "model": "neoecoprototype:block/crafting_controller/controller_l4_formed_network",
+        "y": 270
+      }
+    },
+    {
+      "when": {
+        "facing": "west",
+        "formed": "true",
+        "mirrored": "false",
+        "communication_interface": "true",
+        "has_mind": "true"
+      },
+      "apply": {
+        "model": "neoecoprototype:block/crafting_controller/controller_l4_formed_network_face",
+        "y": 270
+      }
+    },
+    {
+      "when": {
+        "facing": "north",
+        "formed": "true",
+        "mirrored": "true",
+        "communication_interface": "true",
+        "has_mind": "false"
+      },
+      "apply": {
+        "model": "neoecoprototype:block/crafting_controller/controller_l4_formed_network_mirrored"
+      }
+    },
+    {
+      "when": {
+        "facing": "north",
+        "formed": "true",
+        "mirrored": "true",
+        "communication_interface": "true",
+        "has_mind": "true"
+      },
+      "apply": {
+        "model": "neoecoprototype:block/crafting_controller/controller_l4_formed_network_mirrored_face"
+      }
+    },
+    {
+      "when": {
+        "facing": "east",
+        "formed": "true",
+        "mirrored": "true",
+        "communication_interface": "true",
+        "has_mind": "false"
+      },
+      "apply": {
+        "model": "neoecoprototype:block/crafting_controller/controller_l4_formed_network_mirrored",
+        "y": 90
+      }
+    },
+    {
+      "when": {
+        "facing": "east",
+        "formed": "true",
+        "mirrored": "true",
+        "communication_interface": "true",
+        "has_mind": "true"
+      },
+      "apply": {
+        "model": "neoecoprototype:block/crafting_controller/controller_l4_formed_network_mirrored_face",
+        "y": 90
+      }
+    },
+    {
+      "when": {
+        "facing": "south",
+        "formed": "true",
+        "mirrored": "true",
+        "communication_interface": "true",
+        "has_mind": "false"
+      },
+      "apply": {
+        "model": "neoecoprototype:block/crafting_controller/controller_l4_formed_network_mirrored",
+        "y": 180
+      }
+    },
+    {
+      "when": {
+        "facing": "south",
+        "formed": "true",
+        "mirrored": "true",
+        "communication_interface": "true",
+        "has_mind": "true"
+      },
+      "apply": {
+        "model": "neoecoprototype:block/crafting_controller/controller_l4_formed_network_mirrored_face",
+        "y": 180
+      }
+    },
+    {
+      "when": {
+        "facing": "west",
+        "formed": "true",
+        "mirrored": "true",
+        "communication_interface": "true",
+        "has_mind": "false"
+      },
+      "apply": {
+        "model": "neoecoprototype:block/crafting_controller/controller_l4_formed_network_mirrored",
+        "y": 270
+      }
+    },
+    {
+      "when": {
+        "facing": "west",
+        "formed": "true",
+        "mirrored": "true",
+        "communication_interface": "true",
+        "has_mind": "true"
+      },
+      "apply": {
+        "model": "neoecoprototype:block/crafting_controller/controller_l4_formed_network_mirrored_face",
         "y": 270
       }
     }

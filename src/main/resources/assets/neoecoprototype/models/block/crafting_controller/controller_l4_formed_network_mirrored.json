@@ -1,0 +1,9 @@
+{
+    "parent": "neoecoprototype:block/crafting_controller/controller_formed_base_mirrored",
+    "textures": {
+        "base": "neoecoprototype:block/crafting_recolor/controller_formed/controller_formed_network_switch",
+        "light": "neoecoprototype:block/crafting_recolor/controller_formed/controller_formed_light_a_network_switch",
+		"screen_light": "neoecoprototype:block/crafting_recolor/controller_formed/screen_a_light_network",
+        "screen_display": "neoecoprototype:block/crafting_recolor/controller/screen_on_a"
+    }
+}

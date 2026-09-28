@@ -1694,20 +1694,31 @@ public final class NeoECOPrototypeGameTests {
     }
 
     /**
-     * The energized core is sold as "exactly one, in the shell to the host's left". The geometry
-     * enforces it by allotting a single cell, so nothing has to be counted afterwards. These tests
-     * each build the structure once: swapping members in and out of one standing structure walks
-     * into AE2 refusing to re-initialise a grid node.
+     * The energized core is sold as "exactly one, directly behind the host". The geometry enforces it by
+     * allotting a single cell, so nothing has to be counted afterwards. These tests each build the
+     * structure once: swapping members in and out of one standing structure walks into AE2 refusing to
+     * re-initialise a grid node.
      */
-    @GameTest(template = "l1_room", batch = "l1_core_left", timeoutTicks = 140, templateNamespace = NeoECOPrototype.MOD_ID)
-    public static void energizedCoreInShellLeftOfHostAddsItsParallelism(GameTestHelper helper) {
-        buildWithEnergizedCoreInShell(helper, true);
+    @GameTest(template = "l1_room", batch = "l1_core_behind", timeoutTicks = 140, templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void energizedCoreBehindTheHostAddsItsParallelism(GameTestHelper helper) {
+        // The cell comes from the production rule, so the test cannot pass by agreeing with a wrong
+        // reading of where the core is supposed to go.
+        buildWithEnergizedCore(helper, absolute -> SimplifyComputationClusterCalculator.energizedCoreCell(
+                absolute, helper.getLevel().getBlockState(absolute)), true, "the cell behind the host");
     }
 
-    /** The mirrored cell has to refuse the same block, which is what keeps "exactly one" honest. */
-    @GameTest(template = "l1_room", batch = "l1_core_right", timeoutTicks = 140, templateNamespace = NeoECOPrototype.MOD_ID)
-    public static void energizedCoreOnTheShellsOtherSideIsRejected(GameTestHelper helper) {
-        buildWithEnergizedCoreInShell(helper, false);
+    /**
+     * The shell cell beside the host used to be the allotted one; it has to refuse the same block now,
+     * which is what keeps "exactly one" honest and keeps the core out of eco's network-switch cell.
+     */
+    @GameTest(template = "l1_room", batch = "l1_core_beside", timeoutTicks = 140, templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void energizedCoreBesideTheHostIsRejected(GameTestHelper helper) {
+        buildWithEnergizedCore(helper, absolute -> absolute.relative(
+                        appeng.api.orientation.IOrientationStrategy
+                                .get(helper.getLevel().getBlockState(absolute))
+                                .getSide(helper.getLevel().getBlockState(absolute),
+                                        appeng.api.orientation.RelativeSide.RIGHT)),
+                false, "the shell cell beside the host");
     }
 
     /**
@@ -1724,18 +1735,6 @@ public final class NeoECOPrototypeGameTests {
     @GameTest(template = "l1_room", batch = "l1_core_below", timeoutTicks = 140, templateNamespace = NeoECOPrototype.MOD_ID)
     public static void energizedCoreBelowTheHostIsRejected(GameTestHelper helper) {
         buildWithEnergizedCoreInHostColumn(helper, Direction.DOWN);
-    }
-
-    /**
-     * Builds the minimum L1 structure, then replaces the shell casing on one side of the controller
-     * with an energized core: the allotted cell when {@code left} is true, its mirror otherwise.
-     */
-    private static void buildWithEnergizedCoreInShell(GameTestHelper helper, boolean left) {
-        // Both hands come from the production rule, so the negative case is genuinely "the other
-        // shell cell of this same build" rather than a direction this file guessed at.
-        buildWithEnergizedCore(helper, absolute -> SimplifyComputationClusterCalculator.energizedCoreCell(
-                absolute, helper.getLevel().getBlockState(absolute), !left), left,
-                left ? "the allotted shell cell" : "the shell cell on the other side");
     }
 
     /**
@@ -1820,23 +1819,21 @@ public final class NeoECOPrototypeGameTests {
                                     + "cluster reports " + cluster.getCPUAccelerators());
                             return;
                         }
-                        // The formed look is chosen from the host's block state, so a machine that
-                        // works but never publishes what it holds would ship as one frozen skin.
-                        var hostState = helper.getLevel().getBlockState(controller.getBlockPos());
-                        if (!hostState.hasProperty(
-                                SimplifyComputationSystemBlock.ENERGIZED_PARALLEL_CORE)) {
-                            helper.fail("the host block state has no energized_parallel_core property "
-                                    + "at all: " + hostState);
+                        // The host's formed model carries a glass quad on the plane between the two
+                        // cells, so the core must stop drawing itself once formed or the two fight over
+                        // depth - measured as a flicker from outside the machine.
+                        var coreState = helper.getLevel().getBlockState(cell);
+                        if (coreState.getRenderShape()
+                                != net.minecraft.world.level.block.RenderShape.INVISIBLE) {
+                            helper.fail(where + " still draws the energized core once formed, and the host's "
+                                    + "formed face has a quad on that shared plane, so the two flicker: "
+                                    + coreState);
                             return;
                         }
-                        if (!hostState.getValue(SimplifyComputationSystemBlock.ENERGIZED_PARALLEL_CORE)) {
-                            helper.fail("the machine runs on the energized core, but the host did not "
-                                    + "publish energized_parallel_core, so no formed skin can select it");
-                            return;
-                        }
-                        if (hostState.getValue(SimplifyComputationSystemBlock.ENERGIZED_THREADING_CORE)) {
-                            helper.fail("the host claims an energized threading core that this build "
-                                    + "does not contain");
+                        if (coreState.hasProperty(cn.dancingsnow.neoecoae.blocks.NEBlock.FORMED)
+                                && !coreState.getValue(cn.dancingsnow.neoecoae.blocks.NEBlock.FORMED)) {
+                            helper.fail(where + " holds the core but the core itself never took formed=true,"
+                                    + " so it is showing its unformed grey model: " + coreState);
                             return;
                         }
                     } else if (controller.isFormed()) {
@@ -1988,15 +1985,101 @@ public final class NeoECOPrototypeGameTests {
                                     == plain * SimplifyTier.L1.getCPUThreads() + ours * 16,
                             "the threading line should total " + (plain * SimplifyTier.L1.getCPUThreads()
                                     + ours * 16) + " threads, got " + cluster.getMaxThreads());
-                    var hostState = helper.getLevel().getBlockState(controller.getBlockPos());
-                    if (!hostState.getValue(SimplifyComputationSystemBlock.ENERGIZED_THREADING_CORE)) {
-                        helper.fail("the threading line runs on the energized core, but the host did not "
-                                + "publish energized_threading_core, so no formed skin can select it");
+                    // The threading core draws itself, so the artwork hook for "this line runs on the
+                    // energized one" is on the core's own block state, not on the host's.
+                    var energized = cluster.getThreadingCores().stream()
+                            .filter(core -> core.getTier() == ourTier).findFirst().orElseThrow();
+                    var coreState = helper.getLevel().getBlockState(energized.getBlockPos());
+                    if (coreState.hasProperty(cn.dancingsnow.neoecoae.blocks.NEBlock.FORMED)
+                            && !coreState.getValue(cn.dancingsnow.neoecoae.blocks.NEBlock.FORMED)) {
+                        helper.fail("the threading line runs on the energized core, but that core never "
+                                + "took formed=true, so it is still showing its unformed model: " + coreState);
                         return;
                     }
-                    if (hostState.getValue(SimplifyComputationSystemBlock.ENERGIZED_PARALLEL_CORE)) {
-                        helper.fail("the host claims an energized parallel core that this build does not "
-                                + "contain");
+                    if (coreState.getRenderShape()
+                            == net.minecraft.world.level.block.RenderShape.INVISIBLE) {
+                        helper.fail("the energized threading core hides itself once formed, so nothing "
+                                + "draws it and its artwork has nowhere to live: " + coreState);
+                    }
+                });
+    }
+
+    /**
+     * eco writes {@code network_switch} / {@code high_energy_network_switch} onto every computation host
+     * by inspecting one shell cell beside the controller, and its tooltip then reads "高能网络交换 x8"
+     * off those bits. Our energized core used to stand in exactly that cell, so a plain L1 machine ended
+     * up claiming a switch mode it does not have. The core now goes behind the host; this guard fails if
+     * either bit ever comes up true, and names whatever block is sitting in eco's switch cell.
+     */
+    @GameTest(template = "l1_room", batch = "l1_switch_claim", timeoutTicks = 140, templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void computationHostNeverClaimsEcosNetworkSwitch(GameTestHelper helper) {
+        buildComputationStructure(helper, new BlockPos(13, 3, 4),
+                ModRegistration.SIMPLIFY_COMPUTATION_THREADING_CORE_BLOCK.get(),
+                ModRegistration.SIMPLIFY_COMPUTATION_THREADING_CORE_BLOCK.get(), 0, false, 1,
+                controller -> {
+                    var hostPos = controller.getBlockPos();
+                    var state = helper.getLevel().getBlockState(hostPos);
+                    if (!state.hasProperty(cn.dancingsnow.neoecoae.blocks.computation.ECOComputationSystem.NETWORK_SWITCH)) {
+                        helper.fail("the host has no network_switch property, so this test cannot read it: "
+                                + state);
+                        return;
+                    }
+                    var normal = state.getValue(
+                            cn.dancingsnow.neoecoae.blocks.computation.ECOComputationSystem.NETWORK_SWITCH);
+                    var high = state.getValue(
+                            cn.dancingsnow.neoecoae.blocks.computation.ECOComputationSystem.HIGH_ENERGY_NETWORK_SWITCH);
+                    if (!normal && !high) {
+                        return;
+                    }
+                    var where = new StringBuilder();
+                    for (boolean mirrored : new boolean[]{false, true}) {
+                        var cell = cn.dancingsnow.neoecoae.multiblock.network.NENetworkSwitchUtil
+                                .switchPosition(hostPos, state, mirrored);
+                        where.append(" mirrored=").append(mirrored).append(" -> ")
+                                .append(name(helper.getLevel().getBlockState(cell).getBlock()));
+                    }
+                    helper.fail("an L1 machine with no eco network switch reported network_switch=" + normal
+                            + " high_energy_network_switch=" + high + "; eco reads the cell beside the host"
+                            + where + ", and our energized core must not stand there");
+                });
+    }
+
+    /**
+     * The face is a once-per-host decision, not a once-per-check one: geometry validation re-runs on
+     * neighbour changes, chunk loads and rebuilds, so a per-check roll would flip the model back and
+     * forth instead of staying rare. This asserts the roll happened and that further checks leave it
+     * alone - the property the 1/16 rate is defined against.
+     */
+    @GameTest(template = "l1_room", batch = "f1_mind_once", timeoutTicks = 200, templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void craftingHostRollsItsFaceOnceAndNeverAgain(GameTestHelper helper) {
+        var controllerPos = new BlockPos(6, 3, 6);
+        buildL1Room(helper, controllerPos, ModRegistration.SIMPLIFY_CRAFTING_SYSTEM_BLOCK.get(),
+                ModRegistration.SIMPLIFY_CRAFTING_INTERFACE_BLOCK.get(),
+                ModRegistration.SIMPLIFY_CRAFTING_INTERFACE_BLOCK.get(), host -> {
+                    if (!(host instanceof cn.dancingsnow.neoecoprototype.blockentity.crafting
+                            .SimplifyCraftingSystemBlockEntity f1)) {
+                        helper.fail("the F1 host is not our block entity: " + host.getClass());
+                        return;
+                    }
+                    if (!f1.mindRolled()) {
+                        helper.fail("the F1 host formed without rolling for its face, so the blockstate "
+                                + "can never show one");
+                        return;
+                    }
+                    var rolled = f1.hasMind();
+                    for (int i = 0; i < 8; i++) {
+                        f1.updateState(false);
+                    }
+                    if (f1.hasMind() != rolled) {
+                        helper.fail("repeated checks re-rolled the face (" + rolled + " -> "
+                                + f1.hasMind() + "), so the chance is per-check, not per host");
+                        return;
+                    }
+                    var state = helper.getLevel().getBlockState(f1.getBlockPos());
+                    if (state.getValue(SimplifyCraftingSystemBlock.HAS_MIND) != (rolled && f1.isFormed())) {
+                        helper.fail("the host block state says has_mind=" + state.getValue(
+                                SimplifyCraftingSystemBlock.HAS_MIND) + " but the machine reports hasMind="
+                                + rolled + " formed=" + f1.isFormed());
                     }
                 });
     }

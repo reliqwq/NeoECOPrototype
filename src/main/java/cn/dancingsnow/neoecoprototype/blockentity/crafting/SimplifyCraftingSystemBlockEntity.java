@@ -19,8 +19,19 @@ import net.minecraft.world.level.block.state.BlockState;
  * and applied on the next server tick instead.
  */
 public class SimplifyCraftingSystemBlockEntity extends ECOCraftingSystemBlockEntity {
+    /**
+     * The host rolls for the face once, the first time it forms, and keeps the answer: geometry checks
+     * re-run on neighbour changes, chunk loads and rebuilds, so a per-check roll would flip the look
+     * back and forth instead of being rare. One in sixteen.
+     */
+    private static final int MIND_CHANCE_ONE_IN = 16;
+    private static final String HAS_MIND_TAG = "neoecoprototype:has_mind";
+    private static final String MIND_ROLLED_TAG = "neoecoprototype:mind_rolled";
+
     private boolean communicationInterface;
     private boolean appearancePending;
+    private boolean hasMind;
+    private boolean mindRolled;
 
     public SimplifyCraftingSystemBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state,
                                              IECOTier tier) {
@@ -59,10 +70,43 @@ public class SimplifyCraftingSystemBlockEntity extends ECOCraftingSystemBlockEnt
         if (!state.hasProperty(SimplifyCraftingSystemBlock.COMMUNICATION_INTERFACE)) {
             return;
         }
+        if (isFormed() && !mindRolled) {
+            mindRolled = true;
+            hasMind = level.random.nextInt(MIND_CHANCE_ONE_IN) == 0;
+            setChanged();
+        }
         BlockState next = state.setValue(SimplifyCraftingSystemBlock.COMMUNICATION_INTERFACE,
-                isFormed() && communicationInterface);
+                        isFormed() && communicationInterface)
+                .setValue(SimplifyCraftingSystemBlock.HAS_MIND, isFormed() && hasMind);
         if (next != state) {
             level.setBlock(worldPosition, next, Block.UPDATE_CLIENTS);
         }
+    }
+
+    /** Whether this host grew a face. Read by the blockstate write above and by the game tests. */
+    public boolean hasMind() {
+        return hasMind;
+    }
+
+    /** Whether the once-per-host roll has already happened. */
+    public boolean mindRolled() {
+        return mindRolled;
+    }
+
+    @Override
+    public void saveAdditional(net.minecraft.nbt.CompoundTag tag,
+                               net.minecraft.core.HolderLookup.Provider registries) {
+        super.saveAdditional(tag, registries);
+        tag.putBoolean(MIND_ROLLED_TAG, mindRolled);
+        tag.putBoolean(HAS_MIND_TAG, hasMind);
+    }
+
+    @Override
+    public void loadTag(net.minecraft.nbt.CompoundTag tag,
+                        net.minecraft.core.HolderLookup.Provider registries) {
+        // AE2 declares loadAdditional final and routes it here, so loadTag is the hook for extra fields.
+        super.loadTag(tag, registries);
+        mindRolled = tag.getBoolean(MIND_ROLLED_TAG);
+        hasMind = tag.getBoolean(HAS_MIND_TAG);
     }
 }

@@ -69,5 +69,5 @@
             ]
         }
     },
-    "credit": "Formed C1 host: communication=False energized_threading=True energized_parallel=True. Overwrite the PNG named below to change this combination; no JSON edit needed."
+    "credit": "Formed C1 host with simplify_computation_network_interface in the interface cell. Overwrite the PNG named in the textures below to change this look; no JSON edit needed."
 }

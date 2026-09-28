@@ -8,20 +8,21 @@
 		"1": "neoecoprototype:block/crafting_recolor/core/working_core_light",
 		"2": "neoecoprototype:block/crafting_recolor/casing",
 		"3": "neoecoprototype:block/crafting_recolor/casing_back",
-		"4": "neoecoprototype:block/crafting_recolor/core/core_side",
-		"particle": "neoecoprototype:block/crafting_recolor/core/core_side"
+		"4": "neoecoprototype:block/crafting_recolor/casing_side",
+		"5": "neoecoprototype:block/crafting_recolor/casing_bottom",
+		"particle": "neoecoprototype:block/crafting_recolor/casing_side"
 	},
 	"elements": [
 		{
 			"from": [0, 0, 0],
 			"to": [16, 16, 16],
 			"faces": {
-				"north": {"uv": [0, 0, 16, 16], "texture": "#0", "cullface":"north" },
-				"east": {"uv": [0, 0, 16, 16], "texture": "#4", "cullface": "east"},
+				"north": {"uv": [0, 0, 16, 16], "texture": "#0", "cullface": "north"},
+				"east": {"uv": [16, 0, 0, 16], "texture": "#4", "cullface": "east"},
 				"south": {"uv": [0, 0, 16, 16], "texture": "#3", "cullface": "south"},
-				"west": {"uv": [0, 0, 16, 16], "texture": "#4", "cullface":"west"},
+				"west": {"uv": [0, 0, 16, 16], "texture": "#4", "cullface": "west"},
 				"up": {"uv": [0, 0, 16, 16], "texture": "#2", "cullface": "up"},
-				"down": {"uv": [0, 0, 16, 16], "texture": "#2", "cullface": "down"}
+				"down": {"uv": [0, 0, 16, 16], "texture": "#5", "cullface": "down"}
 			}
 		},
 		{

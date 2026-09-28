@@ -19,8 +19,6 @@ import net.minecraft.world.level.block.state.BlockState;
  */
 public class SimplifyComputationSystemBlockEntity extends ECOComputationSystemBlockEntity {
     private boolean communicationInterface;
-    private boolean energizedThreadingCore;
-    private boolean energizedParallelCore;
     private boolean appearancePending;
 
     public SimplifyComputationSystemBlockEntity(BlockEntityType<?> type, BlockPos pos,
@@ -28,17 +26,12 @@ public class SimplifyComputationSystemBlockEntity extends ECOComputationSystemBl
         super(type, pos, state, tier);
     }
 
-    /** Records the machine's shape for the next {@link #updateState(boolean)}. */
-    public void setPublishedShape(boolean communicationInterface, boolean energizedThreadingCore,
-                                  boolean energizedParallelCore) {
-        if (this.communicationInterface == communicationInterface
-                && this.energizedThreadingCore == energizedThreadingCore
-                && this.energizedParallelCore == energizedParallelCore) {
+    /** Records which interface the machine turned out to hold, for the next {@link #updateState(boolean)}. */
+    public void setPublishedCommunicationInterface(boolean communicationInterface) {
+        if (this.communicationInterface == communicationInterface) {
             return;
         }
         this.communicationInterface = communicationInterface;
-        this.energizedThreadingCore = energizedThreadingCore;
-        this.energizedParallelCore = energizedParallelCore;
         this.appearancePending = true;
         setChanged();
     }
@@ -66,16 +59,23 @@ public class SimplifyComputationSystemBlockEntity extends ECOComputationSystemBl
         if (!state.hasProperty(SimplifyComputationSystemBlock.COMMUNICATION_INTERFACE)) {
             return;
         }
-        boolean formed = isFormed();
-        BlockState next = state
-                .setValue(SimplifyComputationSystemBlock.COMMUNICATION_INTERFACE,
-                        formed && communicationInterface)
-                .setValue(SimplifyComputationSystemBlock.ENERGIZED_THREADING_CORE,
-                        formed && energizedThreadingCore)
-                .setValue(SimplifyComputationSystemBlock.ENERGIZED_PARALLEL_CORE,
-                        formed && energizedParallelCore);
+        var next = state.setValue(SimplifyComputationSystemBlock.COMMUNICATION_INTERFACE,
+                isFormed() && communicationInterface);
+        // eco lights these two from a cell beside the host and reads them back to decide whether the
+        // cluster registers its CPUs through a switch frequency. An L1 machine has no switch block and so
+        // no frequency, and leaving them set sent our CPUs into a logical network that does not exist -
+        // the machine looked connected but never appeared in the network's CPU list. Measured: both came
+        // up true with plain casings in both candidate cells.
+        next = pinSwitchBit(next, cn.dancingsnow.neoecoae.blocks.computation.ECOComputationSystem.NETWORK_SWITCH);
+        next = pinSwitchBit(next,
+                cn.dancingsnow.neoecoae.blocks.computation.ECOComputationSystem.HIGH_ENERGY_NETWORK_SWITCH);
         if (next != state) {
             level.setBlock(worldPosition, next, Block.UPDATE_CLIENTS);
         }
+    }
+
+    private static BlockState pinSwitchBit(BlockState state,
+                                           net.minecraft.world.level.block.state.properties.BooleanProperty bit) {
+        return state.hasProperty(bit) && state.getValue(bit) ? state.setValue(bit, false) : state;
     }
 }

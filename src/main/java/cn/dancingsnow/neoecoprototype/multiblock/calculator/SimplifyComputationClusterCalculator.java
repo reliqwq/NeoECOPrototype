@@ -30,16 +30,14 @@ public class SimplifyComputationClusterCalculator extends NEComputationClusterCa
     /** Side-effect-free result of the computation geometry check. */
     public record StructureValidation(boolean valid, boolean mirrored,
                                       BlockPos controllerPos, BlockPos coolerPos,
-                                      boolean communicationInterface, boolean energizedThreadingCore,
-                                      boolean energizedParallelCore) {
+                                      boolean communicationInterface) {
         public static StructureValidation invalid(BlockPos controllerPos) {
-            return new StructureValidation(false, false, controllerPos, null, false, false, false);
+            return new StructureValidation(false, false, controllerPos, null, false);
         }
     }
 
     /** What {@link #verifyStructure} reports when one hand of the machine checks out. */
-    private record Formed(BlockPos coolerPos, boolean communicationInterface,
-                          boolean energizedThreadingCore, boolean energizedParallelCore) { }
+    private record Formed(BlockPos coolerPos, boolean communicationInterface) { }
 
     public SimplifyComputationClusterCalculator(NEBlockEntity<NEComputationCluster, ?> blockEntity) {
         super(blockEntity);
@@ -85,28 +83,25 @@ public class SimplifyComputationClusterCalculator extends NEComputationClusterCa
         Direction down = context.down();
         Direction left = context.left();
         Direction right = context.right();
-        // The one cell an energized core may stand in for a casing. Left and right are AE2's own
-        // RelativeSide, read off the controller's orientation, and the mirrored attempt has to look at
-        // the other hand or a mirrored build could never include the cell at all.
+        // The one cell an energized core may stand in for a casing. It sits directly behind the host, so
+        // it is the same cell for both hands and for a mirrored build - which is also why it no longer
+        // needs a per-hand argument.
         net.minecraft.world.level.block.state.BlockState controllerState = level.getBlockState(controllerPos);
-        BlockPos energizedCoreLeft = energizedCoreCell(controllerPos, controllerState, false);
-        BlockPos energizedCoreRight = energizedCoreCell(controllerPos, controllerState, true);
+        BlockPos energizedCoreCell = energizedCoreCell(controllerPos, controllerState);
 
         Optional<Formed> formed = verifyStructure(
-                level, controllerPos, tier, front, back, top, down, right, left, energizedCoreLeft, min, max);
+                level, controllerPos, tier, front, back, top, down, right, left, energizedCoreCell, min, max);
         if (formed.isPresent()) {
             var shape = formed.get();
             return new StructureValidation(true, false, controllerPos, shape.coolerPos(),
-                    shape.communicationInterface(), shape.energizedThreadingCore(),
-                    shape.energizedParallelCore());
+                    shape.communicationInterface());
         }
         formed = verifyStructure(level, controllerPos, tier, front, back, top, down, left, right,
-                energizedCoreRight, min, max);
+                energizedCoreCell, min, max);
         if (formed.isPresent()) {
             var shape = formed.get();
             return new StructureValidation(true, true, controllerPos, shape.coolerPos(),
-                    shape.communicationInterface(), shape.energizedThreadingCore(),
-                    shape.energizedParallelCore());
+                    shape.communicationInterface());
         }
         return StructureValidation.invalid(controllerPos);
     }
@@ -116,8 +111,7 @@ public class SimplifyComputationClusterCalculator extends NEComputationClusterCa
                 && level.getBlockEntity(result.controllerPos()) instanceof ECOComputationSystemBlockEntity controller) {
             controller.setMirrored(result.mirrored());
             if (controller instanceof SimplifyComputationSystemBlockEntity host) {
-                host.setPublishedShape(result.communicationInterface(), result.energizedThreadingCore(),
-                        result.energizedParallelCore());
+                host.setPublishedCommunicationInterface(result.communicationInterface());
             }
         }
         if (result.coolerPos() != null
@@ -222,14 +216,11 @@ public class SimplifyComputationClusterCalculator extends NEComputationClusterCa
                 return Optional.empty();
             }
         }
-        // The two energized members each have exactly one cell they may occupy, so "is this machine
-        // carrying one" is a lookup at a known position rather than a count over the structure.
-        boolean energizedThreadingCore = level.getBlockState(threadingCoreStart)
-                .is(holder(ModRegistration.ENERGIZED_COMPUTATION_THREADING_CORE_BLOCK.get()));
-        boolean energizedParallelCore = level.getBlockState(energizedCorePos)
-                .is(holder(ModRegistration.ENERGIZED_COMPUTATION_CORE_BLOCK.get()));
-        return Optional.of(new Formed(coolerPos, communicationInterface,
-                energizedThreadingCore, energizedParallelCore));
+        // Whether the machine carries an energized member is no longer reported anywhere: both of them
+        // draw themselves once formed, so the only consumer would have been the host's block state, and
+        // the host's formed face looks the same either way. The allotted cell above still has to be
+        // checked, because that is what holds the structure to at most one energized core.
+        return Optional.of(new Formed(coolerPos, communicationInterface));
     }
 
     /**
@@ -252,20 +243,25 @@ public class SimplifyComputationClusterCalculator extends NEComputationClusterCa
     }
 
     /**
-     * The one shell cell an energized core may occupy, for a host at {@code controllerPos}. Left and
-     * right are taken from AE2's orientation API so they mean what a player facing the host sees, and
-     * they swap with the machine's mirror -- the same rule eco uses for its network switch
-     * ({@code NENetworkSwitchUtil.switchPosition}). Public and shared with the game tests so a test
-     * cannot pass by agreeing with a wrong reading of the rule.
+     * The one cell an energized core may occupy, for a host at {@code controllerPos}: directly behind
+     * it. Read through AE2's orientation API so it means "behind the host" from whichever way the
+     * machine faces, and identical for a mirrored build.
+     *
+     * <p>Two reasons this cell rather than the shell column beside the host, which is where it used to
+     * go: the host's formed model covers that whole 3x3 face, so a member cube beside the host is
+     * strictly coplanar with it and the two quads fight over depth - the core had to stop drawing
+     * itself to stop flickering. Behind the host is a different plane, so it can draw its own (and
+     * animated) look. And the side column is exactly where eco puts its own network switch
+     * ({@code NENetworkSwitchUtil.switchPosition}), so a core standing there made eco report
+     * {@code high_energy_network_switch=true} on a machine that has no switch.
+     *
+     * <p>Public and shared with the game tests so a test cannot pass by agreeing with a wrong reading
+     * of the rule.
      */
     public static BlockPos energizedCoreCell(BlockPos controllerPos,
-                                             net.minecraft.world.level.block.state.BlockState controllerState,
-                                             boolean mirrored) {
-        appeng.api.orientation.RelativeSide side = mirrored
-                ? appeng.api.orientation.RelativeSide.LEFT
-                : appeng.api.orientation.RelativeSide.RIGHT;
+                                             net.minecraft.world.level.block.state.BlockState controllerState) {
         return controllerPos.relative(appeng.api.orientation.IOrientationStrategy
-                .get(controllerState).getSide(controllerState, side));
+                .get(controllerState).getSide(controllerState, appeng.api.orientation.RelativeSide.BACK));
     }
 
     /**

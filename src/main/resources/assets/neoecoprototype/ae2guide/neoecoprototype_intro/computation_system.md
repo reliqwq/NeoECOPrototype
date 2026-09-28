@@ -47,11 +47,12 @@ The concept matches eco's Computation System: the base provides **1 crafting thr
 
 Two extra parts lift an L1 subsystem above what eco's own members give it:
 
-- **Energized Computation Core** (`energized_computation_core`) adds **1024 co-processors**. It fits a
-  parallel core column or a shell casing cell. In the shell it stops drawing its own model once the
-  structure forms, the way every eco shell member does: formed casings are invisible and no longer
-  cull their neighbours, so a member that kept drawing there would be seen from both sides at once.
-  The face is painted back by a renderer instead.
+- **Energized Computation Core** (`energized_computation_core`) adds **1024 co-processors**. It fits
+  exactly one cell: directly behind the controller, in place of the casing there. Like every shell
+  member it stops drawing itself once the structure forms - the host's formed face carries a quad on the
+  plane the two share, so a member drawn there fights it over depth and flickers. The formed look is
+  the host's alone. The cell it used to occupy, in the shell beside the host, is also where eco puts its
+  own network switch, which is why it moved behind the controller.
 - **Energized Computation Threading Core** (`energized_computation_threading_core`) adds **16 crafting
   threads**, and is only accepted in the cell nearest the controller. Anywhere else that line fails to
   validate and the whole structure stays unformed. The threads are real: eco sizes its CPU array from
