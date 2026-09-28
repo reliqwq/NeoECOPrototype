@@ -122,7 +122,12 @@ public class SimplifyCraftingClusterCalculator extends NECraftingClusterCalculat
         if (!validateCasing(level, controllerPos, top, down, interfaceSide)
                 || !validateCasing(level, controllerPos, top, down, expandSide)
                 || !validateCasing(level, controllerPos, top, down, back)
-                || !validateCasing(level, controllerPos.relative(back).relative(expandSide), top, down)) {
+                || !validateCasing(level, controllerPos.relative(back).relative(expandSide), top, down)
+                // The column the controller itself stands in is the one no walk above visits, and the
+                // cluster adopts anything inside its bounds, so a core parked above or below the host
+                // used to be free throughput. The storage host already reads these two cells as shell.
+                || !level.getBlockState(controllerPos.relative(top)).is(casing())
+                || !level.getBlockState(controllerPos.relative(down)).is(casing())) {
             return false;
         }
 

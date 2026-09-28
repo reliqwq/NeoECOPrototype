@@ -1856,6 +1856,112 @@ public final class NeoECOPrototypeGameTests {
     }
 
     /**
+     * The column the controller itself stands in is the only one the geometry walks never look at, and
+     * the cluster adopts anything inside its bounds, so a member parked above or below the host joined
+     * the machine from a cell no build plan can produce. This builds the minimum machine, swaps exactly
+     * one casing out of that column, and requires the machine to refuse - the rest of the structure is
+     * the same plan the forming tests already pass.
+     */
+    private static void memberInHostColumnIsRejected(GameTestHelper helper, Block hostBlock,
+                                                     BlockPos controllerPos, Direction lift,
+                                                     Block casingBlock, Block member) {
+        helper.setBlock(controllerPos, hostBlock);
+        BlockPos absolute = helper.absolutePos(controllerPos);
+        helper.runAfterDelay(5, () -> {
+            if (!(helper.getLevel().getBlockEntity(absolute) instanceof MultiBlockBuildController.Host host)) {
+                helper.fail(name(hostBlock) + " has no one-click builder at " + absolute);
+                return;
+            }
+            host.setSelectedBuildLength(host.getMinBuildLength());
+            var plan = new MultiBlockBuildController(host).createLocalPreviewPlan();
+            if (plan == null || plan.getAllBlocks().isEmpty()) {
+                helper.fail("the builder produced no placement plan for " + name(hostBlock));
+                return;
+            }
+            List<BlockPos> built = new ArrayList<>();
+            for (var planned : plan.getAllBlocks()) {
+                BlockPos rel = planned.worldPos().subtract(helper.absolutePos(BlockPos.ZERO));
+                if (rel.getX() < 0 || rel.getY() < 0 || rel.getZ() < 0 || rel.getX() >= L1_ROOM_SIZE
+                        || rel.getY() >= L1_ROOM_SIZE || rel.getZ() >= L1_ROOM_SIZE) {
+                    helper.fail("the " + name(hostBlock) + " build plan leaves the "
+                            + L1_ROOM_SIZE + "^3 template at " + rel);
+                    return;
+                }
+                helper.getLevel().setBlockAndUpdate(planned.worldPos(), planned.targetState());
+                built.add(planned.worldPos());
+            }
+
+            BlockPos cell = absolute.relative(lift);
+            var here = helper.getLevel().getBlockState(cell);
+            String where = "the cell " + (lift == Direction.UP ? "above" : "below") + " the host";
+            if (!here.is(casingBlock)) {
+                helper.fail(where + " is " + here.getBlock() + " at " + cell + ", not a "
+                        + name(casingBlock) + ", so this test cannot speak about it");
+                return;
+            }
+            helper.getLevel().setBlockAndUpdate(cell, member.defaultBlockState());
+            host.rebuildAfterBuild();
+            helper.runAfterDelay(20, () -> {
+                try {
+                    if (helper.getLevel().getBlockEntity(absolute)
+                            instanceof cn.dancingsnow.neoecoae.blocks.entity.NEBlockEntity<?, ?> ne
+                            && ne.isFormed()) {
+                        helper.fail(name(hostBlock) + " formed while holding " + name(member) + " in "
+                                + where + ", which is a position no build plan places anything");
+                        return;
+                    }
+                } finally {
+                    for (BlockPos pos : built) {
+                        helper.getLevel().setBlockAndUpdate(pos, Blocks.AIR.defaultBlockState());
+                    }
+                    helper.getLevel().setBlockAndUpdate(absolute, Blocks.AIR.defaultBlockState());
+                }
+                helper.succeed();
+            });
+        });
+    }
+
+    /** A threading core above the C1 host is extra threads nobody paid the geometry for. */
+    @GameTest(template = "l1_room", batch = "l1_threading_above", timeoutTicks = 140, templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void threadingCoreAboveTheComputationHostIsRejected(GameTestHelper helper) {
+        memberInHostColumnIsRejected(helper, ModRegistration.SIMPLIFY_COMPUTATION_SYSTEM_BLOCK.get(),
+                new BlockPos(13, 3, 4), Direction.UP,
+                ModRegistration.SIMPLIFY_COMPUTATION_CASING_BLOCK.get(),
+                ModRegistration.SIMPLIFY_COMPUTATION_THREADING_CORE_BLOCK.get());
+    }
+
+    /** The same column seen from underneath. */
+    @GameTest(template = "l1_room", batch = "l1_threading_below", timeoutTicks = 140, templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void threadingCoreBelowTheComputationHostIsRejected(GameTestHelper helper) {
+        memberInHostColumnIsRejected(helper, ModRegistration.SIMPLIFY_COMPUTATION_SYSTEM_BLOCK.get(),
+                new BlockPos(13, 3, 4), Direction.DOWN,
+                ModRegistration.SIMPLIFY_COMPUTATION_CASING_BLOCK.get(),
+                ModRegistration.SIMPLIFY_COMPUTATION_THREADING_CORE_BLOCK.get());
+    }
+
+    /**
+     * F1's geometry walks the same four columns and left the host's own column unlooked at, so it gets
+     * the same guard and the same test - here with its own parallel core, which is the free-throughput
+     * version of the same hole.
+     */
+    @GameTest(template = "l1_room", batch = "f1_core_above", timeoutTicks = 140, templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void parallelCoreAboveTheCraftingHostIsRejected(GameTestHelper helper) {
+        memberInHostColumnIsRejected(helper, ModRegistration.SIMPLIFY_CRAFTING_SYSTEM_BLOCK.get(),
+                new BlockPos(6, 3, 6), Direction.UP,
+                ModRegistration.SIMPLIFY_CRAFTING_CASING_BLOCK.get(),
+                ModRegistration.SIMPLIFY_CRAFTING_PARALLEL_CORE_BLOCK.get());
+    }
+
+    /** The same column seen from underneath. */
+    @GameTest(template = "l1_room", batch = "f1_core_below", timeoutTicks = 140, templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void parallelCoreBelowTheCraftingHostIsRejected(GameTestHelper helper) {
+        memberInHostColumnIsRejected(helper, ModRegistration.SIMPLIFY_CRAFTING_SYSTEM_BLOCK.get(),
+                new BlockPos(6, 3, 6), Direction.DOWN,
+                ModRegistration.SIMPLIFY_CRAFTING_CASING_BLOCK.get(),
+                ModRegistration.SIMPLIFY_CRAFTING_PARALLEL_CORE_BLOCK.get());
+    }
+
+    /**
      * The energized threading core gives sixteen real threads -- sixteen {@code ECOCraftingCPU} objects,
      * because eco sizes that array from the tier in the constructor.
      */

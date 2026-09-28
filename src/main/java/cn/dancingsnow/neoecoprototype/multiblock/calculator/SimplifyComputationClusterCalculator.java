@@ -212,12 +212,13 @@ public class SimplifyComputationClusterCalculator extends NEComputationClusterCa
                 || !tailCasings.stream().allMatch(tail -> level.getBlockState(tail).is(casing()))) {
             return Optional.empty();
         }
-        // The host stands in a column no shell walk visits, so a core directly above or below it
-        // passes every check above and is still adopted by the cluster's bounding-box scan. Those two
-        // cells are the whole hole; the allotted cell is already covered by the shell walk.
+        // The host stands in a column no shell walk visits, so the two cells above and below it are the
+        // only cells of the structure nothing above looks at. They sit inside the bounds the cluster is
+        // built from, so whatever stands there gets adopted without ever passing a geometry test - which
+        // is how a threading core, or a second energized core, used to join the machine from a position
+        // no build plan can produce. The column is shell like every other column, so it is casing.
         for (Direction lift : new Direction[]{top, down}) {
-            if (level.getBlockState(controllerPos.relative(lift))
-                    .is(holder(ModRegistration.ENERGIZED_COMPUTATION_CORE_BLOCK.get()))) {
+            if (!level.getBlockState(controllerPos.relative(lift)).is(casing())) {
                 return Optional.empty();
             }
         }
