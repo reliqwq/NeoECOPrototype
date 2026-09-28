@@ -1582,6 +1582,27 @@ public final class NeoECOPrototypeGameTests {
     private static void buildComputationStructure(GameTestHelper helper, BlockPos controllerPos,
             Block replaceThis, Block replaceWith, int replaceNth, boolean rotateFacing, int buildLength,
             java.util.function.Consumer<ECOComputationSystemBlockEntity> onBuilt) {
+        buildComputationStructureKept(helper, controllerPos, replaceThis, replaceWith, replaceNth,
+                rotateFacing, buildLength, (controller, finish) -> {
+                    try {
+                        onBuilt.accept(controller);
+                    } finally {
+                        finish.run();
+                    }
+                    helper.succeed();
+                });
+    }
+
+    /**
+     * As {@link #buildComputationStructure}, but hands the caller the teardown: {@code finish} clears the
+     * machine and leaves the test running, so the caller decides when to end it. A caller that has to
+     * watch more than one tick -- waiting for an ME network to take a node, for instance -- cannot do
+     * that through the plain {@code onBuilt} shape, because that one clears the structure the moment the
+     * callback returns. {@code helper.fail} throws, so every exit path has to call {@code finish} itself.
+     */
+    private static void buildComputationStructureKept(GameTestHelper helper, BlockPos controllerPos,
+            Block replaceThis, Block replaceWith, int replaceNth, boolean rotateFacing, int buildLength,
+            java.util.function.BiConsumer<ECOComputationSystemBlockEntity, Runnable> onBuilt) {
         helper.setBlock(controllerPos, ModRegistration.SIMPLIFY_COMPUTATION_SYSTEM_BLOCK.get());
         BlockPos absolute = helper.absolutePos(controllerPos);
         helper.runAfterDelay(5, () -> {
@@ -1632,21 +1653,16 @@ public final class NeoECOPrototypeGameTests {
                             + BuiltInRegistries.BLOCK.getKey(replaceThis).getPath()
                             + ", so this test would prove nothing");
             controller.rebuildMultiblock();
-            helper.runAfterDelay(20, () -> {
-                try {
-                    onBuilt.accept(controller);
-                } finally {
-                    // Batches run one after another but the framework does not reliably restore one
-                    // batch before starting the next, and two of these structures seven blocks apart
-                    // make every controller "not unique". Clear our own blocks so the next test is
-                    // measuring its own build.
-                    for (BlockPos pos : built) {
-                        helper.getLevel().setBlockAndUpdate(pos, Blocks.AIR.defaultBlockState());
-                    }
-                    helper.getLevel().setBlockAndUpdate(absolute, Blocks.AIR.defaultBlockState());
+            helper.runAfterDelay(20, () -> onBuilt.accept(controller, () -> {
+                // Batches run one after another but the framework does not reliably restore one
+                // batch before starting the next, and two of these structures seven blocks apart
+                // make every controller "not unique". Clear our own blocks so the next test is
+                // measuring its own build.
+                for (BlockPos pos : built) {
+                    helper.getLevel().setBlockAndUpdate(pos, Blocks.AIR.defaultBlockState());
                 }
-                helper.succeed();
-            });
+                helper.getLevel().setBlockAndUpdate(absolute, Blocks.AIR.defaultBlockState());
+            }));
         });
     }
 
@@ -2052,7 +2068,8 @@ public final class NeoECOPrototypeGameTests {
      * the gate that used to hold it back was an appearance change, which is why this writes the stale
      * bits onto a lone, unformed host and requires the tick to take them back off.
      */
-    @GameTest(template = "empty", templateNamespace = NeoECOPrototype.MOD_ID, timeoutTicks = 100)
+    @GameTest(template = "empty", batch = "l1_stale_bits", timeoutTicks = 100,
+            templateNamespace = NeoECOPrototype.MOD_ID)
     public static void computationHostHealsStaleSwitchBits(GameTestHelper helper) {
         var pos = new BlockPos(1, 1, 1);
         helper.setBlock(pos, ModRegistration.SIMPLIFY_COMPUTATION_SYSTEM_BLOCK.get());
@@ -2079,6 +2096,158 @@ public final class NeoECOPrototypeGameTests {
                         + "stays out of the network's CPU list forever: "
                         + helper.getLevel().getBlockState(absolute),
                 helper::succeed);
+    }
+
+    /**
+     * eco collects a subsystem's CPUs by walking the grid the host sits on -- its crafting service mixin
+     * goes through {@code IGrid.getMachines} and {@code IGridNode.getOwner} -- so a host that is not on
+     * an ME network cannot show up in the CPU list whatever its switch bits say. That is why this test
+     * needs power and a cable, and why the same machine read as "the CPU is missing" when it was standing
+     * in a field with no network at all.
+     *
+     * <p>The geometry comes from eco's own plan, and the network from our superconductive interface,
+     * which carries AE2's passive generator service on its node -- so no controller or energy cell is
+     * needed to get a live grid.
+     *
+     * <p>It is marked {@code required = false} because it currently reports an open question rather than
+     * a regression: wiring the machine's interface leaves the host on its own one-node grid, since every
+     * face of the host belongs to the structure. How a player is supposed to put the host itself on his
+     * network is undecided, and until it is, "the CPU is missing" cannot be told apart from "the host was
+     * never reachable".
+     */
+    @GameTest(template = "l1_room", batch = "l1_cpu_grid", timeoutTicks = 300, required = false,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void formedComputationHostPutsItsCpuOnTheNetwork(GameTestHelper helper) {
+        var hostPos = new BlockPos(13, 3, 4);
+        buildComputationStructureKept(helper, hostPos,
+                ModRegistration.SIMPLIFY_COMPUTATION_THREADING_CORE_BLOCK.get(),
+                ModRegistration.SIMPLIFY_COMPUTATION_THREADING_CORE_BLOCK.get(), 0, false, 1,
+                (controller, finish) -> {
+                    Wiring[] wired = new Wiring[1];
+                    // helper.fail throws, so teardown has to happen on the way out rather than after it:
+                    // a live host left standing in this room wedges the tests that run after it.
+                    Runnable leave = () -> {
+                        if (wired[0] != null) {
+                            helper.setBlock(wired[0].cable(), Blocks.AIR);
+                            helper.setBlock(wired[0].power(), Blocks.AIR);
+                        }
+                        finish.run();
+                    };
+                    if (!controller.isFormed()) {
+                        leave.run();
+                        helper.fail("the L1 machine did not form, so it has no CPU to publish: "
+                                + helper.getLevel().getBlockState(helper.absolutePos(hostPos)));
+                        return;
+                    }
+                    wired[0] = wireTheInterfaceCell(helper, hostPos);
+                    if (wired[0] == null) {
+                        leave.run();
+                        helper.fail("no interface in the built machine had two free cells on a side, so"
+                                + " this test has no way to reach the host's grid");
+                        return;
+                    }
+                    // Two quite different situations both read as "no CPU", so the wait pins down the one
+                    // this test builds: the power block has to land on the host's grid, not merely on a
+                    // grid of its own.
+                    waitUntil(helper, 12,
+                            () -> sharesGridWithPower(helper, controller, wired[0].power()),
+                            () -> {
+                                var why = "the superconductive interface at " + at(wired[0].power())
+                                        + " never joined the host's grid (" + gridOf(controller)
+                                        + "), so this test never had a network to read";
+                                leave.run();
+                                return why;
+                            },
+                            () -> {
+                                int cells = controller.insertComputationCells(new ItemStack(
+                                        ModRegistration.ENERGIZED_COMPUTATION_CELL_4M.get()));
+                                helper.runAfterDelay(20, () -> {
+                                    var grid = gridOf(controller);
+                                    var cpus = grid.getCraftingService().getCpus();
+                                    long ours = cpus.stream().filter(cpu -> cpu instanceof cn.dancingsnow
+                                            .neoecoae.api.me.ECOCraftingCPU).count();
+                                    if (ours == 0) {
+                                        var why = "a formed L1 host on a " + grid.size() + "-node grid, with"
+                                                + " " + cells + " computation cell(s) inserted, still"
+                                                + " published no eco CPU: the crafting service lists "
+                                                + cpus.size() + " cpu(s) ["
+                                                + cpus.stream().map(cpu -> cpu.getClass().getSimpleName())
+                                                        .distinct()
+                                                        .collect(java.util.stream.Collectors.joining(", "))
+                                                + "]";
+                                        leave.run();
+                                        helper.fail(why);
+                                        return;
+                                    }
+                                    leave.run();
+                                    helper.succeed();
+                                });
+                            });
+                });
+    }
+
+    /** True once the host and the power block at {@code power} sit on the same ME grid. */
+    private static boolean sharesGridWithPower(GameTestHelper helper,
+                                               ECOComputationSystemBlockEntity controller, BlockPos power) {
+        var hostGrid = gridOf(controller);
+        if (!(helper.getLevel().getBlockEntity(helper.absolutePos(power))
+                instanceof IInWorldGridNodeHost nodeHost)) {
+            return false;
+        }
+        var node = nodeHost.getGridNode(null);
+        return hostGrid != null && node != null && node.getGrid() == hostGrid;
+    }
+
+    private static IGrid gridOf(ECOComputationSystemBlockEntity controller) {
+        var node = controller.getMainNode();
+        return node == null ? null : node.getGrid();
+    }
+
+    /** The two cells {@link #wireTheInterfaceCell} writes, so the caller can take them back. */
+    private record Wiring(BlockPos cable, BlockPos power) { }
+
+    /**
+     * Stands a glass cable and then our superconductive interface in the first two free cells outside an
+     * interface block of the machine, or returns null when the geometry leaves no room to wire it. Only
+     * these two cells are written, and the caller's teardown clears them along with the machine.
+     */
+    private static Wiring wireTheInterfaceCell(GameTestHelper helper, BlockPos hostPos) {
+        var player = helper.makeMockPlayer(GameType.CREATIVE);
+        for (int x = -8; x <= 8; x++) {
+            for (int y = -3; y <= 3; y++) {
+                for (int z = -8; z <= 8; z++) {
+                    var cell = hostPos.offset(x, y, z);
+                    var absolute = helper.absolutePos(cell);
+                    var block = helper.getLevel().getBlockState(absolute).getBlock();
+                    if (block != ModRegistration.SIMPLIFY_COMPUTATION_INTERFACE_BLOCK.get()
+                            && block != ModRegistration.SIMPLIFY_COMPUTATION_NETWORK_INTERFACE_BLOCK.get()) {
+                        continue;
+                    }
+                    for (var side : Direction.values()) {
+                        var cable = cell.relative(side);
+                        var power = cable.relative(side);
+                        if (!freeTemplateCell(helper, cable) || !freeTemplateCell(helper, power)) {
+                            continue;
+                        }
+                        if (!placeCableAgainst(helper, player, cell, side)) {
+                            continue;
+                        }
+                        helper.setBlock(power, ModRegistration.SUPERCONDUCTIVE_INTERFACE_BLOCK.get());
+                        return new Wiring(cable, power);
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
+    /** True when {@code pos} is inside the template and holds nothing. */
+    private static boolean freeTemplateCell(GameTestHelper helper, BlockPos pos) {
+        if (pos.getX() < 0 || pos.getY() < 0 || pos.getZ() < 0 || pos.getX() >= L1_ROOM_SIZE
+                || pos.getY() >= L1_ROOM_SIZE || pos.getZ() >= L1_ROOM_SIZE) {
+            return false;
+        }
+        return helper.getLevel().getBlockState(helper.absolutePos(pos)).isAir();
     }
 
     /**
