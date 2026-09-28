@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.2.9.1 (2026-09-28) - Startup Crash In Large Packs
+
+### 修复 / Fixed
+
+- **修好 1.2.9 在大整合包里进不去游戏的启动崩溃**：我们把三个 AE2 部件模型注册放在 `FMLClientSetupEvent` 里，而 AE2 的 `PartModels.registerModels` 一旦集合被冻结就抛 `Cannot register models after the pre-initialization phase!`。关键点是**那个冻结是惰性发生的**（AE2 自己的 `ModelEvent.RegisterAdditional` 处理器，或任何一次 `CableBusModel.getDependencies()` 解析模型），而 NeoForge **并行派发 setup 事件**（崩溃报告里的 `ModLoader.dispatchParallelEvent`），所以"我们跑在冻结之前"从来不是保证，只是开发环境里抢跑赢了；包里有 `quick-pack` / RenderJS / KubeJS 这类会提前碰模型的模组时就会输。注册现在挪到 `FMLCommonSetupEvent` —— 所有模组的 common setup 必然早于任何模组的 client setup，也就必然早于任何模型解析，这是生命周期顺序给的保证而不是运气。旁证：MegaCells 在注册表定义期注册部件模型，ExtendedAE 也在更早的专用处理器里注册，没有人在 client setup 做这件事。**1.2.9 的用户请直接升这一版。**
+
+### 说明 / Notes
+
+- 依赖没有变化：NeoForge `21.1.x` / Minecraft `1.21.1`、Applied Energistics 2 `19.2.17` 或更新、Neo ECO AE Extension `21.2.0` 或更新。
+- 这一版没有内容改动，1.2.9 的其余说明（接口语义互换、L1 新美术、内置旧美术回退包）仍然适用。
+
 ## 1.2.9 (2026-09-28) - Interface Roles Aligned With Their Names, L1 Artwork Replaced
 
 ### 变更 / Changed
