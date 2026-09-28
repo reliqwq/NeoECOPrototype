@@ -1,12 +1,8 @@
 {
   "variants": {
-    "facing=north,formed=false": {"model":"neoecoprototype:block/energized_computation_core"},
-    "facing=east,formed=false": {"model":"neoecoprototype:block/energized_computation_core","y":90},
-    "facing=south,formed=false": {"model":"neoecoprototype:block/energized_computation_core","y":180},
-    "facing=west,formed=false": {"model":"neoecoprototype:block/energized_computation_core","y":270},
-    "facing=north,formed=true": {"model":"neoecoprototype:block/energized_computation_core_formed"},
-    "facing=east,formed=true": {"model":"neoecoprototype:block/energized_computation_core_formed","y":90},
-    "facing=south,formed=true": {"model":"neoecoprototype:block/energized_computation_core_formed","y":180},
-    "facing=west,formed=true": {"model":"neoecoprototype:block/energized_computation_core_formed","y":270}
+    "facing=north": {"model":"neoecoprototype:block/energized_computation_core"},
+    "facing=east": {"model":"neoecoprototype:block/energized_computation_core","y":90},
+    "facing=south": {"model":"neoecoprototype:block/energized_computation_core","y":180},
+    "facing=west": {"model":"neoecoprototype:block/energized_computation_core","y":270}
   }
 }
