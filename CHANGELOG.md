@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.2.11 (2026-09-29) - 主机不再带着成型状态落地，镜像主机的动画转向改正
+
+### 修复 / Fixed
+
+- **手放计算主机不再闪一下"已成型"的外壳**：`SimplifyComputationSystemBlock` 之前用 `registerDefaultState(getStateDefinition().any().setValue(COMMUNICATION_INTERFACE, false))` 注册默认状态，而 `StateDefinition.any()` 给每个属性的是它值列表的**第一个值**，对布尔量就是 `true` —— 于是主机自己的默认状态就是 `formed=true / mirrored=true / network_switch=true / high_energy_network_switch=true`，放进空气那一刻带着这四个旗标落地，集群下一帧才纠正回去，玩家看到的就是"一块从没成型过的主机闪了一下成型面"。判据指纹：落地状态里唯一为 false 的布尔，恰好是我们自己写的那一个。F1 的合成主机早就用的 `defaultBlockState()`（继承父类注册好的默认值），所以它从来不闪；1.2.7 的主机方块是 6 行空壳、根本没有这个覆盖 —— 这条回归是 1.2.8 加 `communication_interface` 时带进来的。新增一条常驻守卫：我们注册的任何一个方块，默认状态里不许有布尔量为 true。 A hand-placed C1 host no longer flashes a formed face: `StateDefinition.any()` gives every property the first value in its list, which for a boolean is `true`, so the host's own default state claimed all four of `formed / mirrored / network_switch / high_energy_network_switch` and the cluster had to correct them a frame later. F1 was written against `defaultBlockState()` and never flickered; 1.2.7 had no override at all, which dates the regression to 1.2.8.
+- **镜像的 C1 主机动画转向改正**：`controller_formed_base_mirrored` 把两张动画贴图（`#coolant`、`#screen`）按 `u0 > u1` 采样，等于把动图水平翻转 —— 翻转一张转动的图就是反转转向，所以镜像机转的方向和正装机不一样。现在几何与静态底图继续镜像，8 个动画面改用正装机那套 uv，镜像机就和正装机同向。**这一条是故意偏离 eco**：成型面底图与 eco 差 0 像素、55 个面连同 uv 全等、11 张动画 `.mcmeta` 全同、`mirrored` 判定与 eco 发布 jar 字节码同序 —— eco 自己的 C4 镜像机同样会反，是他拍板"镜像机也该正转"。散热控制器的 mirrored 模型有同一处翻转，但它是另画的一套几何（面板从 z=2/30 挪到 z=14/-14、north/south 互换），要逐面重新配对，这次没动。 A mirrored C1 host now turns the same way as a plain one: the mirrored model sampled both animated textures with flipped uv, and flipping a turning picture reverses the turn. This one is a deliberate divergence from upstream, whose own C4 behaves the same way.
+
+### 已知 / Known
+
+- **成型后机壳仍然全部不画**（计算家族）：`NEComputationCluster.hideAllCasingsWhenFormed()` 在发布 jar 里编的是 `iconst_1`，而 eco 的存储簇/合成簇走的是另一条（`getCasingHideOrigin()` + 距主机 `distSqr <= 3`，只藏够得着的）。我们试过把计算簇也换成那条规则（簇子类 + 一个注到 `createCluster` 的 mixin，并且有一条"不生效就会红"的测试证明它确实生效了），结果是**远端那列机壳画成了一整块普通立方，和散热控制器成型模型外伸的面板共面 -> 闪烁 + 贴图不对**。原因是两家的机壳 blockstate 都只有一条通配键、只有一个模型，`formed`/`invisible` 根本不参与选模型。所以"成型后全藏机壳"在计算家族是**承重**的，改动已撤回。要真修，得先给远端机壳一个成型后可看的模型（美术活），或者让散热控制器的成型模型不伸进那一格。
+
 ## 1.2.10 (2026-09-29) - 计算主机回到 eco 的方块实体，CPU 面板恢复
 
 ### 修复 / Fixed
