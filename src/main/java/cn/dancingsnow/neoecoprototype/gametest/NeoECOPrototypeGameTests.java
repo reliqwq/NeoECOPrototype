@@ -2454,6 +2454,30 @@ public final class NeoECOPrototypeGameTests {
                 }
             }
         }
+        // No block may default one of its own booleans to true. A block that rebuilds its default state
+        // from getStateDefinition().any() silently takes the first value of every property, and for a
+        // BooleanProperty that is true -- which is how the C1 host was placed already carrying
+        // formed=true, mirrored=true and eco's two switch bits, only for the cluster to correct it a
+        // frame later. What the player saw was a flash of the formed face on a block that had never
+        // formed. F1 was written against defaultBlockState() and never flickered.
+        var badDefaults = new ArrayList<String>();
+        for (var registered : BuiltInRegistries.BLOCK) {
+            if (!NeoECOPrototype.MOD_ID.equals(BuiltInRegistries.BLOCK.getKey(registered).getNamespace())) {
+                continue;
+            }
+            var owned = registered.defaultBlockState();
+            for (var property : owned.getProperties()) {
+                if (property instanceof net.minecraft.world.level.block.state.properties.BooleanProperty flag
+                        && owned.getValue(flag)) {
+                    badDefaults.add(name(registered) + " defaults " + flag.getName() + "=true");
+                }
+            }
+        }
+        if (!badDefaults.isEmpty()) {
+            helper.fail(badDefaults.size() + " of our blocks default a boolean to true, first: "
+                    + badDefaults.get(0));
+            return;
+        }
         if (!problems.isEmpty()) {
             helper.fail(problems.size() + " collapsed blockstate(s) broken, first: " + problems.get(0));
             return;

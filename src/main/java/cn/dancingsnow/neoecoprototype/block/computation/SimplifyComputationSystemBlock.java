@@ -49,7 +49,7 @@ public class SimplifyComputationSystemBlock extends ECOComputationSystem {
 
     public SimplifyComputationSystemBlock(Properties properties) {
         super(properties);
-        registerDefaultState(getStateDefinition().any()
+        registerDefaultState(defaultBlockState()
                 .setValue(COMMUNICATION_INTERFACE, false));
     }
 
