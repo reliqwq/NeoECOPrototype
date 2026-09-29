@@ -107,3 +107,6 @@ __pycache__/
 
 # 从 assets 里清掉的零引用贴图备份（与 legacy_art 回退包逐字节相同，只在本地留一份）
 /_removed_textures/
+
+# 删掉的死源码副本（只作本地留档，不进仓库也不进 jar）
+/_removed_sources/
