@@ -15,14 +15,14 @@
 ### 变更 / Changed
 
 - **依赖地板抬到 Neo ECO AE Extension 21.2.1、Applied Energistics 2 19.2.18**。抬地板不是偏好而是必须：我们现在 implements 上游的 `gui.GuiTitleProvider`，在 21.2.0 上那个接口根本不存在，加载我们的方块类就会失败。AE2 那侧是上游自己先抬的，我们跟着它，而不是在自己的声明里重复一遍更低的区间。 AE2 19.2.18 与 eco 21.2.1 是硬要求。
-- **mixin 从 16 条降到 11 条**：五个界面标题注入 + 只为它们服务的那个上下文类全部删掉。留下的 11 条里有 7 条与这次升级无关——上游没有为它们要改的行为提供新入口；其中两条注入的 AE2 目标类（`appeng.helpers.InterfaceLogic`、`appeng.me.cluster.MBCalculator`）在 19.2.17 与 19.2.18 之间 javap 逐字节相同，所以换 AE2 版本也不会让它们失效。
+- **mixin 从 16 条降到 10 条**：五个界面标题注入 + 只为它们服务的那个上下文类全部删掉，计算家族那条几何注入换成上游的登记口（见「已知」第一条）。留下的 10 条里有 7 条与这次升级无关——上游没有为它们要改的行为提供新入口，其中两条注入的 AE2 目标类（`appeng.helpers.InterfaceLogic`、`appeng.me.cluster.MBCalculator`）在 19.2.17 与 19.2.18 之间 javap 逐字节相同，所以换 AE2 版本不会让它们失效；另外 3 条是相关的、这一版没动的：C1 主机的 `getBuildDefinition`（C1 的方块实体类**就是** eco 的，那是为了留在 AE2 机器表里故意退回去的，所以只能注入），F1 主机的 `getBuildDefinition` / `onReady`（F1 保留着自己的子类，理论上可以改成覆写而不是注入，这一版没试），以及合成家族的几何注入（照抄计算家族那一刀，要单独验）。
 - **`green_pattern_provider_slots` 配置项删除**：L1 样板供应器的样板槽固定 27 个，因为贴图就画了三行九格，这个数字在代码里只有 `createLogic()` 一处。旧配置项无论填什么都不可能被贴图正确表达（别的值只会让槽位飘在面板画面上），所以删掉而不是加注释。旧配置文件里残留的那一行不再有作用。 The pattern-provider slot count is hardcoded to 27 because that is what the texture draws; the config key could not express any other correct value, so it is gone rather than documented.
 
 ### 已知 / Known
 
 - **上面那条"槽位行位"修的是 JSON，不是贴图**。三份 JSON 现在描述的是**目标行位**（贴图应该把凹槽画在哪），不是旧贴图实际画在哪。两张接口的贴图比目标行低 2–3 像素，那三张 PNG 由美术重画；**在重画之前，运行时看到的偏差还在，甚至对某些行会更明显**。重画完成后要重新量一次"JSON 想要的行 vs PNG 画出的行 = 0"再撤掉这条。 The three JSONs now state the rows the art *should* be drawn at; the textures have not been repainted yet, so this is not a visual fix until the PNGs move.
 - **玩偶 tooltip 只写夜视**：那一行「戴在头上时：夜视（30 秒）」是所有玩偶共用的，TedXenon 的生命恢复目前只在指南正文里写明。护甲值与韧性不受影响（原版会自动列在属性行里）。
-- **两条多方块几何注入仍然保留**（`NEComputationClusterCalculatorMixin`、`NECraftingClusterCalculatorMixin`）。已实测它们是**承重的**：把计算那条从 mixin 清单里摘掉之后 5 项游戏测试变红，其中两项直接写着「机器不成型」。上游 21.2.1 给的替代入口 `registerCalculatorFactory` 是按方块实体类型登记的，所以换法要给计算家族逐个数 9 个方块实体类型（按游戏内名字：C1 可扩展计算子系统主机、C1晶阵驱动器、CM1A 线程核心、盈能强化线程核心、CT1 并行核心、冷却系统控制器 - C1、C1 超导晶振传输总线、C1 计算子系统接口、C1 计算子结构外壳），漏掉机壳那一类是**看不出来的**——因此这轮先把守卫建好了：机壳自己的 calculator 必须认得它所在的那段 L1 布局。换掉它们是下一个独立改动。 Both geometry injections stay; this release only adds the assertion that has to stay green when they go.
+- **计算家族的多方块几何注入已经换成上游的登记口**（`registerCalculatorFactory`），`NEComputationClusterCalculatorMixin` 删除，mixin 11→10；**合成家族那条仍然保留**（`NECraftingClusterCalculatorMixin`）。之所以不是两条一起换：上游 21.2.1 自己加了"把检查转给范围内那台主机的计算器"的路由（`NEComputationClusterCalculator#controllerCalculator`），所以计算家族只需要登记主机这一个方块实体类型；合成家族要照抄这一刀得单独验，两边一起改就成了两个变量。过程中量到并否证了一条担心：`publishShape` 的 `scheduleTick` 会不会形成重算反馈环——同一 tick 内 160 次几何检查 + 160 次 publishShape，**装不装这条改动数字一模一样**。新增的机壳守卫 `computationCasingCalculatorKnowsL1Geometry` 问的就是机壳自己的计算器，它只有在新的路由下才为真。仍有一处可以更进一步：把覆写从 `verifyInternalStructure` 缩到上游新增的 `protected verifyStructure(...)`，那样 `setMirrored` / 冷却控制器 / `network_switch` 的写回就交回上游（我们现在必须自己写，因为检查一旦路由给我们，上游那半段不跑）。
 - **这是预发布的原因**：上游最新的公开发布仍然是 21.2.0（2026-09-26），21.2.1 目前没有任何公开下载文件（这轮用的 jar 是上游作者直接给的）。也就是说玩家装不到我们要求的依赖，所以第一个吃这条基线的版本只能标 beta。 Upstream has not published a 21.2.1 file anywhere yet, which is exactly why the first addon build on it is a prerelease.
 - 旧现象，未改：`/prototypefumo` 手打能执行但不出现在 Tab 补全里。
 
