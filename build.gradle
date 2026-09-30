@@ -3,7 +3,7 @@ plugins {
     id 'net.neoforged.moddev' version '2.0.78'
 }
 
-version = '1.2.11'
+version = '3.0.0-beta1'
 group = 'cn.dancingsnow.neoecoprototype'
 
 base {
@@ -37,18 +37,17 @@ dependencies {
     implementation "net.neoforged:neoforge:21.1.251"
 
     // 三个运行时 mod 全部本地化到 libs/（沙箱/离线构建需要）：
-    implementation files("libs/ae2-19.2.17.jar")               // AE2 (modId: ae2)
+    implementation files("libs/ae2-19.2.18.jar")               // AE2 (modId: ae2)
     implementation files("libs/guideme-21.1.1.jar")            // GuideME (AE2 强制依赖, modId: guideme)
     implementation files("libs/ldlib2-2.2.8.jar")              // LDLib2 (eco 预览运行依赖, modId: ldlib2)
     implementation "dev.vfyjxf:taffy:1.1.3"
     implementation "org.appliedenergistics.yoga:yoga:1.0.0"
-    // ABI target: eco 21.2.0, the first stable release. It changed the last component of
-    // StorageHostActionUI.Config from Runnable to Consumer<Boolean>, which is what crashed 1.2.7 for
-    // players who updated - the two call sites now pass the shift flag through.
-    // beta5 also inserted a lambda into StorageInterfaceUI#create, renumbering lambda$create$N so our
-    // title redirects stop matching: not a crash (they are require = 0) but those GUIs keep eco's
-    // default title until LocalGuiTitleContext warns in the log.
-    implementation files("neoecobeta/neoecoae-21.2.0.jar")
+    // ABI target: eco 21.2.1-beta1. It raises its own AE2 floor to 19.2.18 (upstream commit
+    // "适配 AE2 19.2.18 CPU 列表兼容性") and is the first build carrying our merged PRs, so
+    // cn.dancingsnow.neoecoae.gui.GuiTitleProvider (PR #110) and grid.NEMachineLookup (PR #109)
+    // exist here and not in the 21.2.0 stable jar. GuiTitleProvider is what retires the five
+    // lambda-name title redirects above; until the floor moves, nothing may call them.
+    implementation files("neoecobeta/neoecoae-21.2.1-beta1.jar")
     // MegaCells 4.11.0 is the supported optional integration version.
     implementation files("libs/megacells-4.11.0.jar")
     // Temporary local runtime dependencies for client inspection; restore compileOnly after viewing.
@@ -89,6 +88,22 @@ dependencies {
 
     testImplementation platform("org.junit:junit-bom:5.10.2")
     testImplementation "org.junit.jupiter:junit-jupiter"
+}
+
+// Every mod dependency resolves from a local file so a build needs no network, and none of those files
+// are committed (see THIRD_PARTY_NOTICES.md). A fresh clone used to fail as a wall of unresolved
+// symbols; this names the paths instead. Reading the declarations back out of this file is deliberate:
+// a second list would be a second truth and would drift.
+def declaredLocalJars = file('build.gradle').readLines().collectMany { line ->
+    def matcher = (line =~ /^\s*(?:implementation|compileOnly|runtimeOnly)\s+files\("([^"]+\.jar)"\)/)
+    matcher.find() ? [matcher.group(1)] : []
+}.unique()
+def absentLocalJars = declaredLocalJars.findAll { !file(it).exists() }
+if (!absentLocalJars.isEmpty()) {
+    throw new GradleException("Missing local dependency JARs, which this repository does not " +
+            "redistribute:\n  " + absentLocalJars.join("\n  ") +
+            "\nPlace lawful copies of these exact files, then run again. Sources are listed per mod in " +
+            "THIRD_PARTY_NOTICES.md; the neoecoae baseline may need to come from its author.")
 }
 
 tasks.named('test', Test) {

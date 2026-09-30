@@ -4,7 +4,7 @@ license = "GPL-3.0-only"
 
 [[mods]]
 modId = "neoecoprototype"
-version = "1.2.11"
+version = "3.0.0-beta1"
 displayName = "Neo ECO Prototype"
 authors = "reliqwq"
 description = "A unified Trinity addon for Neo ECO AE Extension and AE2: multiblock storage, network crafting entry, task diagnostics, and UI below eco's L4 tier."
@@ -34,17 +34,19 @@ versionRange = "[19.2.17,)"
 ordering = "NONE"
 side = "BOTH"
 
-# Floor is the first stable eco, 21.2.0, because that release changed the type of the last component
-# of StorageHostActionUI.Config from Runnable to Consumer<Boolean> (it now carries the shift state of
-# the right-click that triggers bulk marking). Compiled against it, so the whole beta line is binary
-# incompatible in the other direction and must stay out.
+# Floor is 21.2.1, the build that carries our merged PRs. This addon's four communication-interface
+# and pattern-bus blocks now implement eco.gui.GuiTitleProvider, which decides who owns the GUI header
+# (PR #110); on an older eco that interface does not exist, so loading those block classes fails.
+# The beta self-reports as plain "21.2.1", so this range already accepts it and needs no edit when the
+# author publishes it. Note eco 21.2.1 raises its own AE2 floor to 19.2.18, which the loader enforces
+# from eco's side - ours stays at 19.2.17 because nothing of ours needs more than that.
 # Do not treat a range as a safety net: 1.2.7 shipped an upper bound that should have excluded
 # 21.2.0, a player still loaded it with that eco and got NoSuchMethodError when opening the L1
 # storage host GUI. ABI surprises are caught by compiling against the target, not by bounding it.
 [[dependencies.neoecoprototype]]
 modId = "neoecoae"
 mandatory = true
-versionRange = "[21.2.0,)"
+versionRange = "[21.2.1,)"
 ordering = "NONE"
 side = "BOTH"
 

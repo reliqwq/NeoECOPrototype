@@ -25,8 +25,10 @@ import appeng.core.definitions.AEParts;
 import appeng.helpers.InterfaceLogicHost;
 import appeng.helpers.patternprovider.PatternProviderLogicHost;
 import appeng.me.helpers.IGridConnectedBlockEntity;
+import cn.dancingsnow.neoecoae.blocks.entity.NEBlockEntity;
 import cn.dancingsnow.neoecoae.blocks.entity.computation.ECOComputationSystemBlockEntity;
 import cn.dancingsnow.neoecoae.api.storage.ECOStorageCells;
+import cn.dancingsnow.neoecoae.gui.GuiTitleProvider;
 import cn.dancingsnow.neoecoae.integration.megacells.backend.ECOMegaLongBulkStorageCell;
 import cn.dancingsnow.neoecoae.multiblock.cluster.NEComputationCluster;
 import cn.dancingsnow.neoecoae.multiblock.placement.MultiBlockBuildController;
@@ -40,7 +42,6 @@ import cn.dancingsnow.neoecoprototype.blockentity.trinity.SimplifyTrinityControl
 import cn.dancingsnow.neoecoprototype.blockentity.trinity.SimplifyTrinityCraftingModuleBlockEntity;
 import cn.dancingsnow.neoecoprototype.blockentity.trinity.SimplifyTrinityStorageModuleBlockEntity;
 import cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig;
-import cn.dancingsnow.neoecoprototype.gui.LocalGuiTitleContext;
 import cn.dancingsnow.neoecoprototype.integration.ae2.OversizeInterfaceLogic;
 import cn.dancingsnow.neoecoprototype.integration.ae2.SimplifyGridFacade;
 import cn.dancingsnow.neoecoprototype.items.SimplifySmallBulkStorageCellItem;
@@ -53,6 +54,8 @@ import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.contents.TranslatableContents;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.player.Player;
@@ -1372,10 +1375,10 @@ public final class NeoECOPrototypeGameTests {
     }
     /**
      * Guards the 1.2.5 regression: loading eco's interface UI classes must never abort with a fatal
-     * mixin injection error. The title redirects aim at compiler generated lambda names, so an added
-     * lambda upstream used to turn "open eco's storage interface" into a crash for every player on a
-     * different eco build. Loading with initialize = false still runs the transformer, which is the
-     * part we care about, without touching client-only static state.
+     * mixin injection error. Loading with initialize = false still runs the transformer, which is the
+     * part we care about, without touching client-only static state. The five title redirects that
+     * used to be the fragile part are gone - eco 21.2.1 asks the block itself - so what is left here
+     * is the guard for whichever mixins we still apply to those classes.
      */
     @GameTest(template = "empty", templateNamespace = NeoECOPrototype.MOD_ID)
     public static void ecoInterfaceUiClassesLoadWithoutFatalMixinError(GameTestHelper helper) {
@@ -1384,13 +1387,51 @@ public final class NeoECOPrototypeGameTests {
                 "cn.dancingsnow.neoecoae.gui.crafting.CraftingInterfaceUI",
                 "cn.dancingsnow.neoecoae.gui.computation.ComputationInterfaceUI"}) {
             try {
-                Class.forName(name, false, LocalGuiTitleContext.class.getClassLoader());
+                Class.forName(name, false, NeoECOPrototypeGameTests.class.getClassLoader());
             } catch (Throwable failure) {
                 helper.fail("loading " + name + " threw " + failure);
                 return;
             }
         }
         helper.succeed();
+    }
+
+    /**
+     * eco 21.2.1 hands the GUI header to {@link GuiTitleProvider} on the block, so our four blocks must
+     * answer with their own name and eco's fallback must survive everywhere else. This is the
+     * assertion that goes red if a block stops implementing the interface - the old mixins were
+     * require = 0, so losing a title there was silent for four releases.
+     */
+    @GameTest(template = "empty", templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void ourBlocksOwnTheirGuiTitle(GameTestHelper helper) {
+        var titled = new net.minecraft.world.level.block.Block[]{
+                ModRegistration.SIMPLIFY_STORAGE_NETWORK_INTERFACE_BLOCK.get(),
+                ModRegistration.SIMPLIFY_CRAFTING_NETWORK_INTERFACE_BLOCK.get(),
+                ModRegistration.SIMPLIFY_COMPUTATION_NETWORK_INTERFACE_BLOCK.get(),
+                ModRegistration.SIMPLIFY_CRAFTING_PATTERN_BUS_BLOCK.get()};
+        for (var block : titled) {
+            Component resolved = GuiTitleProvider.title(block.defaultBlockState(),
+                    Component.translatable("gui.neoecoae.interface.title"));
+            if (!block.getDescriptionId().equals(titleKey(resolved))) {
+                helper.fail(block.getDescriptionId() + " GUI title resolved to " + titleKey(resolved)
+                        + ", expected its own key - the eco 21.2.1 GuiTitleProvider hook is not answering");
+                return;
+            }
+        }
+        // The plain interfaces keep eco's own header, so the hook cannot be blanket applied.
+        Component kept = GuiTitleProvider.title(
+                ModRegistration.SIMPLIFY_STORAGE_INTERFACE_BLOCK.get().defaultBlockState(),
+                Component.translatable("gui.neoecoae.storage_interface.title"));
+        if (!"gui.neoecoae.storage_interface.title".equals(titleKey(kept))) {
+            helper.fail("the non-network storage interface claimed a GUI title: " + titleKey(kept));
+            return;
+        }
+        helper.succeed();
+    }
+
+    private static String titleKey(Component component) {
+        return component.getContents() instanceof TranslatableContents contents
+                ? contents.getKey() : "<" + component.getString() + ">";
     }
 
     /**
@@ -1599,6 +1640,10 @@ public final class NeoECOPrototypeGameTests {
      * watch more than one tick -- waiting for an ME network to take a node, for instance -- cannot do
      * that through the plain {@code onBuilt} shape, because that one clears the structure the moment the
      * callback returns. {@code helper.fail} throws, so every exit path has to call {@code finish} itself.
+     *
+     * <p>{@code replaceThis} has to name a block whose planned state carries {@code HORIZONTAL_FACING}:
+     * the replacement copies that facing, so passing e.g. the computation casing throws
+     * "Cannot get property facing ... in ECOMachineCasing" before the callback ever runs.
      */
     private static void buildComputationStructureKept(GameTestHelper helper, BlockPos controllerPos,
             Block replaceThis, Block replaceWith, int replaceNth, boolean rotateFacing, int buildLength,
@@ -2116,6 +2161,73 @@ public final class NeoECOPrototypeGameTests {
                                 helper.succeed();
                             });
                 });
+    }
+
+    /**
+     * The casing side of formation. Every member of an eco multiblock owns an {@code MBCalculator}, and
+     * our computation family reuses eco's block entity classes, so which geometry a *casing*-triggered
+     * check uses is decided today by {@code NEComputationClusterCalculatorMixin} re-dispatching on the
+     * range it is handed; eco 21.2.1's {@code registerCalculatorFactory} would decide it per block entity
+     * type instead, and forget the casing type there and this goes red.
+     *
+     * <p>Measured before settling on this form: pulling a casing out of a formed L1 machine does not
+     * un-form the host within 20 ticks, so "break it and see it re-form" cannot state its own baseline.
+     * Asking the casing's calculator about the range the build plan produced is deterministic and is the
+     * same entry point AE2 walks.
+     */
+    @GameTest(template = "l1_room", batch = "l1_casing_geometry", timeoutTicks = 220,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void computationCasingCalculatorKnowsL1Geometry(GameTestHelper helper) {
+        var hostPos = new BlockPos(13, 3, 4);
+        buildComputationStructureKept(helper, hostPos,
+                ModRegistration.SIMPLIFY_COMPUTATION_THREADING_CORE_BLOCK.get(),
+                ModRegistration.SIMPLIFY_COMPUTATION_THREADING_CORE_BLOCK.get(), 0, false, 1,
+                (controller, finish) -> {
+                    BlockPos casing = firstComputationCasing(helper);
+                    if (casing == null) {
+                        finish.run();
+                        helper.fail("the built machine contains no computation casing to ask");
+                        return;
+                    }
+                    // The bounds come off the live cluster: a build plan for an already formed machine is
+                    // empty, because there is nothing left to plan.
+                    var cluster = controller.getCluster();
+                    if (cluster == null || !controller.isFormed()) {
+                        finish.run();
+                        helper.fail("the L1 machine did not form, so it has no cluster bounds");
+                        return;
+                    }
+                    BlockPos min = cluster.getBoundsMin();
+                    BlockPos max = cluster.getBoundsMax();
+                    if (!(helper.getLevel().getBlockEntity(casing) instanceof NEBlockEntity<?, ?> be)) {
+                        finish.run();
+                        helper.fail(at(casing) + " holds no NEBlockEntity, so it has no calculator");
+                        return;
+                    }
+                    var calculator = be.getCalculator();
+                    boolean verdict = calculator.verifyInternalStructure(helper.getLevel(), min, max);
+                    var which = calculator.getClass().getName();
+                    finish.run();
+                    if (!verdict) {
+                        helper.fail("the casing at " + at(casing) + " rejected the L1 layout it stands in,"
+                                + " through " + which + " over " + min + "..." + max);
+                        return;
+                    }
+                    helper.succeed();
+                });
+    }
+
+    /** The first computation casing standing anywhere inside this test room. */
+    private static BlockPos firstComputationCasing(GameTestHelper helper) {
+        BlockPos origin = helper.absolutePos(BlockPos.ZERO);
+        for (BlockPos pos : BlockPos.betweenClosed(origin,
+                origin.offset(L1_ROOM_SIZE - 1, L1_ROOM_SIZE - 1, L1_ROOM_SIZE - 1))) {
+            if (helper.getLevel().getBlockState(pos)
+                    .is(ModRegistration.SIMPLIFY_COMPUTATION_CASING_BLOCK.get())) {
+                return pos.immutable();
+            }
+        }
+        return null;
     }
 
     /**
