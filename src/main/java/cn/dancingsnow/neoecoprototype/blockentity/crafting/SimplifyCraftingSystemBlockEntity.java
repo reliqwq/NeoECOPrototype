@@ -2,7 +2,10 @@ package cn.dancingsnow.neoecoprototype.blockentity.crafting;
 
 import cn.dancingsnow.neoecoae.api.IECOTier;
 import cn.dancingsnow.neoecoae.blocks.entity.crafting.ECOCraftingSystemBlockEntity;
+import cn.dancingsnow.neoecoae.multiblock.definition.MultiBlockDefinition;
+import cn.dancingsnow.neoecoprototype.api.SimplifyPowerProfile;
 import cn.dancingsnow.neoecoprototype.block.crafting.SimplifyCraftingSystemBlock;
+import cn.dancingsnow.neoecoprototype.multiblock.definition.SimplifyCraftingDefinition;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
@@ -44,6 +47,19 @@ public class SimplifyCraftingSystemBlockEntity extends ECOCraftingSystemBlockEnt
     public SimplifyCraftingSystemBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state,
                                              IECOTier tier) {
         super(type, pos, state, tier);
+    }
+
+    /** F1 is a shell of addon blocks, so its geometry is our own definition, not eco's L4 layout. */
+    @Override
+    public MultiBlockDefinition getBuildDefinition() {
+        return SimplifyCraftingDefinition.L1;
+    }
+
+    @Override
+    public void onReady() {
+        super.onReady();
+        // Deliberately after eco's own number, which is where the injection this replaces sat too.
+        getMainNode().setIdlePowerUsage(SimplifyPowerProfile.L1.craftingControllerIdlePower());
     }
 
     /** Records what the interface cell turned out to hold, for the next {@link #tick}. */

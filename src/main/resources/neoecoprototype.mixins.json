@@ -5,12 +5,9 @@
   "compatibilityLevel": "JAVA_21",
   "mixins": [
     "ECOComputationSystemBlockEntityMixin",
-    "ECOCraftingSystemBlockEntityMixin",
     "NEBlockEntityPowerMixin",
     "ECOCraftingHighPowerMixin",
     "ECOClientUIBridgeMixin",
-    "MBCalculatorTargetAccessor",
-    "NECraftingClusterCalculatorMixin",
     "InterfaceLogicAccess"
   ],
   "client": [

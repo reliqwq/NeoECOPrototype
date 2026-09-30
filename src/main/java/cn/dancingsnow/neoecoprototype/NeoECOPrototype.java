@@ -156,6 +156,11 @@ public class NeoECOPrototype {
         cn.dancingsnow.neoecoae.blocks.entity.NEBlockEntity.registerCalculatorFactory(
                 ModRegistration.SIMPLIFY_COMPUTATION_SYSTEM_BE.get(),
                 cn.dancingsnow.neoecoprototype.multiblock.calculator.SimplifyComputationClusterCalculator::new);
+        // Same on the crafting side: NECraftingClusterCalculator has the same controllerCalculator
+        // routing, so naming the addon calculator against the F1 host covers the whole machine.
+        cn.dancingsnow.neoecoae.blocks.entity.NEBlockEntity.registerCalculatorFactory(
+                ModRegistration.SIMPLIFY_CRAFTING_SYSTEM_BE.get(),
+                cn.dancingsnow.neoecoprototype.multiblock.calculator.SimplifyCraftingClusterCalculator::new);
         // AE2 only lets a card into a machine when the card is associated with that machine's item,
         // and the machine tooltip is generated from the same association. The slot count mirrors the
         // inherited molecular assembler, which allows five cards.
