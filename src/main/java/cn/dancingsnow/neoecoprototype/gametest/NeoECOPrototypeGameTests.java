@@ -1585,6 +1585,113 @@ public final class NeoECOPrototypeGameTests {
     }
 
     /**
+     * The mixin list is the one registry a compile error cannot police. Delete a mixin class and leave
+     * its name in {@code neoecoprototype.mixins.json} and Sponge only logs a load-time failure that is
+     * easy to scroll past; delete the JSON entry and leave the class, and the behaviour that mixin
+     * pinned quietly comes back. Both directions are checked against the class files actually present,
+     * so tightening the list from 16 entries to 7 cannot half-land. Enumerating class files never loads
+     * them, which keeps the two client mixins out of this server JVM.
+     */
+    @GameTest(template = "empty", templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void mixinListMatchesShippedMixinClasses(GameTestHelper helper) {
+        String json = readResource("/neoecoprototype.mixins.json", helper);
+        if (json == null) return;
+        var root = com.google.gson.JsonParser.parseString(json).getAsJsonObject();
+        String packageName = root.get("package").getAsString();
+        var registered = new java.util.TreeSet<String>();
+        int declaredEntries = 0;
+        for (String field : List.of("mixins", "client")) {
+            var array = root.getAsJsonArray(field);
+            if (array == null) continue;
+            for (var entry : array) {
+                registered.add(entry.getAsString());
+                declaredEntries++;
+            }
+        }
+        java.util.SortedSet<String> present;
+        try {
+            present = classNamesInPackage(packageName);
+        } catch (Exception failure) {
+            helper.fail("could not enumerate " + packageName + " on the classpath: " + failure);
+            return;
+        }
+        if (present.isEmpty()) {
+            helper.fail("found no class files for " + packageName + ", so this guard checked nothing; classpath="
+                    + System.getProperty("java.class.path").substring(0, Math.min(200,
+                            System.getProperty("java.class.path").length())));
+            return;
+        }
+        var classesNotRegistered = new java.util.TreeSet<String>(present);
+        classesNotRegistered.removeAll(registered);
+        var registeredWithoutClass = new java.util.TreeSet<String>(registered);
+        registeredWithoutClass.removeAll(present);
+        if (!classesNotRegistered.isEmpty() || !registeredWithoutClass.isEmpty()
+                || declaredEntries != registered.size()) {
+            helper.fail("mixin list out of sync: json declares " + declaredEntries + " entries ("
+                    + registered.size() + " distinct) but " + packageName + " holds " + present.size()
+                    + " classes; not registered=" + classesNotRegistered
+                    + ", no such class=" + registeredWithoutClass
+                    + ", duplicated=" + (declaredEntries - registered.size()));
+            return;
+        }
+        helper.succeed();
+    }
+
+    /**
+     * Top-level class names present under {@code packageName}, named the way {@code mixins.json} names
+     * them: relative to {@code package}, dots for separators. Nested and synthetic classes are skipped,
+     * since Sponge is only ever given top-level ones. The JVM's own classpath is walked rather than
+     * {@code getClassLoader().getResources()}, because the dev launch hands our classes to NeoForge's
+     * mod folder loader and that loader returns nothing for the directory even though
+     * {@code build/classes/java/main} sits on {@code -cp}; a guard that silently sees zero classes is
+     * worse than no guard at all.
+     */
+    private static java.util.SortedSet<String> classNamesInPackage(String packageName)
+            throws java.io.IOException {
+        String packagePath = packageName.replace('.', '/') + "/";
+        var names = new java.util.TreeSet<String>();
+        for (String entry : System.getProperty("java.class.path")
+                .split(java.util.regex.Pattern.quote(java.io.File.pathSeparator))) {
+            java.nio.file.Path path = java.nio.file.Path.of(entry).toAbsolutePath();
+            if (java.nio.file.Files.isDirectory(path)) {
+                collectFromDirectory(names, packagePath, path);
+            } else if (entry.toLowerCase(java.util.Locale.ROOT).endsWith(".jar")) {
+                collectFromJar(names, packagePath, path);
+            }
+        }
+        return names;
+    }
+
+    private static void collectFromDirectory(java.util.SortedSet<String> names, String packagePath,
+            java.nio.file.Path classRoot) throws java.io.IOException {
+        var packageRoot = classRoot.resolve(packagePath);
+        if (!java.nio.file.Files.isDirectory(packageRoot)) return;
+        try (var paths = java.nio.file.Files.walk(packageRoot)) {
+            paths.filter(java.nio.file.Files::isRegularFile).forEach(path -> addClassName(names,
+                    packageRoot.relativize(path).toString().replace(java.io.File.separator, "/")));
+        }
+    }
+
+    private static void collectFromJar(java.util.SortedSet<String> names, String packagePath,
+            java.nio.file.Path jar) throws java.io.IOException {
+        if (!java.nio.file.Files.isRegularFile(jar)) return;
+        try (var zip = new java.util.zip.ZipFile(jar.toFile())) {
+            for (var entry : java.util.Collections.list(zip.entries())) {
+                if (entry.getName().startsWith(packagePath)) {
+                    addClassName(names, entry.getName().substring(packagePath.length()));
+                }
+            }
+        }
+    }
+
+    private static void addClassName(java.util.SortedSet<String> names, String relativeName) {
+        if (!relativeName.endsWith(".class")) return;
+        String className = relativeName.substring(0, relativeName.length() - ".class".length());
+        if (className.indexOf('$') >= 0) return;
+        names.add(className.replace('/', '.'));
+    }
+
+    /**
      * Reproduces the placement-order report: put one of our machines down first, then a glass cable
      * against it, and the cable never joins that machine's grid, while the reverse order connects. AE2
      * registers the node-host block capability for its own block entity types only, so an addon machine
