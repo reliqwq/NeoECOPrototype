@@ -1,5 +1,36 @@
 # Changelog
 
+## 3.0.0-beta1 (2026-09-30) - 界面标题交回方块自己，依赖抬到 eco 21.2.1 与 AE2 19.2.18
+
+### 新增 / Added
+
+- **TedXenon 玩偶**：创造物品栏里第四只具名玩偶。戴在头上是 +6 护甲值、+1 护甲韧性，并且在所有玩偶共有的夜视之外额外给予生命恢复（30 秒，戴着自动续期）。这一条的效果图标和粒子是**故意显示**的，和夜视相反：夜视有绿幕所以藏图标，而一个看不见的恢复效果只会被当成"没生效"。**它暂时没有配方**，所以指南里具名玩偶是四个、可合成的是三个。 A fourth named doll in the creative tab: +6 armour / +1 toughness plus Regeneration on top of the night vision every doll grants, drawn with its icon on purpose so the wearer can see it working. No recipe yet, deliberately.
+
+### 修复 / Fixed
+
+- **创造栏的具名玩偶不再共用一张脸**（之前四只全是同一款默认皮肤，看起来就是"都变成 Alex"）：`FumoItem.ownedBy()` 建的 profile 只有名字、id 是空的，原版于是把它们当成同一个玩家，共用**同一张**兜底皮肤。现在按 `OfflinePlayer:<名字>` 生成离线 UUID，与单机离线玩家用的是同一个算法，默认皮肤随名字而变。**真人皮肤仍然只有 `/prototypefumo <玩家名>` 那条路能拿到** —— 那里走的是原版的 profile 解析（会联网），创造栏建标签页时不能阻塞在这上面。 The creative-tab dolls no longer share one fallback skin: the profile was built with an empty id, so vanilla resolved all four names to the same default skin. They now carry an offline-player UUID, which makes the default vary per name the way it does for an offline singleplayer player - a real skin still only comes from the command, which asks the session service.
+- **L1 存储子系统通讯接口的界面标题**：这个 GUI 一直显示上游的默认标题，因为我们注入的目标 lambda 在上游给它加了一个 lambda 之后就改了编号，而注入是可选的（不报错，只是不生效）。现在标题由方块自己给（上游 21.2.1 的 `GuiTitleProvider`），**L1 存储子系统通讯接口 / C1 计算子系统通讯接口 / F1 合成子系统通讯接口 / F1 智能样板总线** 四个界面都显示自己的名字。 The storage interface's title had been silently falling back to upstream's default because our injection aimed at a renumbered compiler-generated lambda; the blocks now answer for their own headers.
+- **三个界面的槽位行位**：L1 样板供应器、L1 供能接口、盈能超导接口的槽位段按贴图凹槽实测重排（画出来的凹槽是 16 像素高、18 像素一行，而 AE2 的 `bottom` 是从区块**顶边**量的）。L1 样板供应器 另外补上了一个被漏掉的标签段：`includes` 是按键合并的，覆盖槽位段并不会连带覆盖它上面的 `interface_config` 标签。 Slot rows re-measured against the drawn grooves; the pattern provider also regained its `interface_config` label section, which an override of the slot section does not inherit.
+
+### 变更 / Changed
+
+- **依赖地板抬到 Neo ECO AE Extension 21.2.1、Applied Energistics 2 19.2.18**。抬地板不是偏好而是必须：我们现在 implements 上游的 `gui.GuiTitleProvider`，在 21.2.0 上那个接口根本不存在，加载我们的方块类就会失败。AE2 那侧是上游自己先抬的，我们跟着它，而不是在自己的声明里重复一遍更低的区间。 AE2 19.2.18 与 eco 21.2.1 是硬要求。
+- **mixin 从 16 条降到 11 条**：五个界面标题注入 + 只为它们服务的那个上下文类全部删掉。留下的 11 条里有 7 条与这次升级无关——上游没有为它们要改的行为提供新入口；其中两条注入的 AE2 目标类（`appeng.helpers.InterfaceLogic`、`appeng.me.cluster.MBCalculator`）在 19.2.17 与 19.2.18 之间 javap 逐字节相同，所以换 AE2 版本也不会让它们失效。
+- **`green_pattern_provider_slots` 配置项删除**：L1 样板供应器的样板槽固定 27 个，因为贴图就画了三行九格，这个数字在代码里只有 `createLogic()` 一处。旧配置项无论填什么都不可能被贴图正确表达（别的值只会让槽位飘在面板画面上），所以删掉而不是加注释。旧配置文件里残留的那一行不再有作用。 The pattern-provider slot count is hardcoded to 27 because that is what the texture draws; the config key could not express any other correct value, so it is gone rather than documented.
+
+### 已知 / Known
+
+- **上面那条"槽位行位"修的是 JSON，不是贴图**。三份 JSON 现在描述的是**目标行位**（贴图应该把凹槽画在哪），不是旧贴图实际画在哪。两张接口的贴图比目标行低 2–3 像素，那三张 PNG 由美术重画；**在重画之前，运行时看到的偏差还在，甚至对某些行会更明显**。重画完成后要重新量一次"JSON 想要的行 vs PNG 画出的行 = 0"再撤掉这条。 The three JSONs now state the rows the art *should* be drawn at; the textures have not been repainted yet, so this is not a visual fix until the PNGs move.
+- **玩偶 tooltip 只写夜视**：那一行「戴在头上时：夜视（30 秒）」是所有玩偶共用的，TedXenon 的生命恢复目前只在指南正文里写明。护甲值与韧性不受影响（原版会自动列在属性行里）。
+- **两条多方块几何注入仍然保留**（`NEComputationClusterCalculatorMixin`、`NECraftingClusterCalculatorMixin`）。已实测它们是**承重的**：把计算那条从 mixin 清单里摘掉之后 5 项游戏测试变红，其中两项直接写着「机器不成型」。上游 21.2.1 给的替代入口 `registerCalculatorFactory` 是按方块实体类型登记的，所以换法要给计算家族逐个数 9 个方块实体类型（按游戏内名字：C1 可扩展计算子系统主机、C1晶阵驱动器、CM1A 线程核心、盈能强化线程核心、CT1 并行核心、冷却系统控制器 - C1、C1 超导晶振传输总线、C1 计算子系统接口、C1 计算子结构外壳），漏掉机壳那一类是**看不出来的**——因此这轮先把守卫建好了：机壳自己的 calculator 必须认得它所在的那段 L1 布局。换掉它们是下一个独立改动。 Both geometry injections stay; this release only adds the assertion that has to stay green when they go.
+- **这是预发布的原因**：上游最新的公开发布仍然是 21.2.0（2026-09-26），21.2.1 目前没有任何公开下载文件（这轮用的 jar 是上游作者直接给的）。也就是说玩家装不到我们要求的依赖，所以第一个吃这条基线的版本只能标 beta。 Upstream has not published a 21.2.1 file anywhere yet, which is exactly why the first addon build on it is a prerelease.
+- 旧现象，未改：`/prototypefumo` 手打能执行但不出现在 Tab 补全里。
+
+### 工程侧 / For development
+
+- 从干净克隆构建时，缺哪个本地依赖 jar 会**在配置阶段就报出精确路径**（这个仓库不重分发任何依赖 jar，README 与 CONTRIBUTING 都是这么定的）。清单只在 `build.gradle` 里存在一份，文档里不再抄一遍，避免两份真相漂开。
+- 新增两项会红的游戏测试：具名界面方块必须自己给出标题（不带 hook 的普通接口作为反向对照，防止 hook 被 blanket 应用），以及上面提到的机壳几何守卫。 58/58 通过。
+
 ## 1.2.11 (2026-09-29) - 主机不再带着成型状态落地，镜像主机的动画转向改正
 
 ### 修复 / Fixed
