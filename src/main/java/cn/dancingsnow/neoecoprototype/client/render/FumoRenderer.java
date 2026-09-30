@@ -23,8 +23,13 @@ public class FumoRenderer implements BlockEntityRenderer<FumoBlockEntity> {
     /** Bundled skin used when a doll carries no owner profile; original art, ships in the jar. */
     public static final ResourceLocation DEFAULT_TEXTURE =
             NeoECOPrototype.id("textures/block/fumo/placeholder_skin.png");
-    /** Pack `<name>.png` (lowercase) here to override a downloaded skin after editing it. */
+    /**
+     * Pack `<name>.png` (lowercase) here to ship a doll skin in the jar instead of resolving one, e.g.
+     * `textures/block/fumo/skins/reliqwq.png`. A skin whose arms are 3 pixels wide takes the file name
+     * `<name>_slim.png`; see {@link #skinOf} for why the file decides that and the profile cannot.
+     */
     private static final String LOCAL_SKIN_PREFIX = "textures/block/fumo/skins/";
+    private static final String LOCAL_SKIN_SLIM_SUFFIX = "_slim";
 
     /** Which skin to draw with, and whether its arm columns are the slim 3/4/3/4 widths. */
     public record Skin(ResourceLocation texture, boolean slim) {
@@ -32,17 +37,29 @@ public class FumoRenderer implements BlockEntityRenderer<FumoBlockEntity> {
 
     public static Skin skinOf(@Nullable GameProfile profile) {
         if (profile == null) return new Skin(DEFAULT_TEXTURE, false);
-        PlayerSkin resolved = Minecraft.getInstance().getSkinManager().getInsecureSkin(profile);
         ResourceLocation local = localSkin(profile.getName());
-        return new Skin(local != null ? local : resolved.texture(),
-                resolved.model() == PlayerSkin.Model.SLIM);
+        if (local != null) {
+            // A bundled skin is authored by us, so it carries its own wrist width. Taking the model from
+            // the vanilla lookup instead would pair a 4-pixel arm texture with the 3-pixel model, or the
+            // other way around, because that lookup keys off the profile's uuid and not off this file.
+            return new Skin(local, local.getPath().endsWith(LOCAL_SKIN_SLIM_SUFFIX));
+        }
+        PlayerSkin resolved = Minecraft.getInstance().getSkinManager().getInsecureSkin(profile);
+        return new Skin(resolved.texture(), resolved.model() == PlayerSkin.Model.SLIM);
     }
 
     @Nullable
     private static ResourceLocation localSkin(String name) {
         if (name == null || name.isEmpty()) return null;
-        ResourceLocation location = NeoECOPrototype.id(LOCAL_SKIN_PREFIX + name.toLowerCase(Locale.ROOT) + ".png");
-        return Minecraft.getInstance().getResourceManager().getResource(location).isPresent() ? location : null;
+        var resources = Minecraft.getInstance().getResourceManager();
+        String base = name.toLowerCase(Locale.ROOT);
+        for (String suffix : new String[]{"", LOCAL_SKIN_SLIM_SUFFIX}) {
+            ResourceLocation location = NeoECOPrototype.id(LOCAL_SKIN_PREFIX + base + suffix + ".png");
+            if (resources.getResource(location).isPresent()) {
+                return location;
+            }
+        }
+        return null;
     }
 
     private final FumoModel classic;

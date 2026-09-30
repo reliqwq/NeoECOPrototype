@@ -1459,6 +1459,16 @@ public final class NeoECOPrototypeGameTests {
                 // SimplifyTier / SimplifyCraftingTier badge, drawn on every drive panel row
                 ResourceLocation.fromNamespaceAndPath(NeoECOPrototype.MOD_ID,
                         "textures/gui/tier/l1.png"),
+                // FumoRenderer.localSkin: the named dolls carry their owner's skin inside the jar. A
+                // missing file is not an error at runtime - the doll silently falls back to whatever
+                // default face its uuid hashes to, which is precisely the kind of regression nobody
+                // would notice until a player points at it.
+                ResourceLocation.fromNamespaceAndPath(NeoECOPrototype.MOD_ID,
+                        "textures/block/fumo/skins/reliqwq.png"),
+                ResourceLocation.fromNamespaceAndPath(NeoECOPrototype.MOD_ID,
+                        "textures/block/fumo/skins/yang120.png"),
+                ResourceLocation.fromNamespaceAndPath(NeoECOPrototype.MOD_ID,
+                        "textures/block/fumo/skins/kouooki.png"),
                 // PartModel base models, frozen by PartModels.registerModels
                 ResourceLocation.fromNamespaceAndPath(NeoECOPrototype.MOD_ID,
                         "models/part/powered_me_interface.json"),

@@ -45,7 +45,7 @@ The command can be switched off with the server config option `fumo_command_enab
 The doll fits in the helmet slot:
 
 - **Every doll**: Night Vision, 30 seconds, refreshed automatically while worn.
-- **The named dolls (reliqwq, Yang120, kouooki, TedXenon)**: bonus armour while worn on the head, and a green name. reliqwq and Yang120 give +4 armour / +2 toughness; kouooki gives +1 armour / +5 toughness; TedXenon gives +6 armour / +1 toughness.
+- **The named dolls (reliqwq, Yang120, kouooki, TedXenon)**: bonus armour while worn on the head, and a green name. reliqwq and Yang120 give +4 armour / +2 toughness; kouooki gives +1 armour / +5 toughness; TedXenon gives +6 armour / +1 toughness. The named dolls' skins ship inside the jar, so they show the right face even on a server that cannot reach the session service.
 - **TedXenon doll** additionally grants Regeneration, 30 seconds, refreshed the same way as the night vision.
 
 Right-click places the block, so to wear the doll drag it into the helmet slot.
