@@ -1467,10 +1467,22 @@ public final class NeoECOPrototypeGameTests {
         if (loot == null) {
             return;
         }
-        if (!loot.contains("copy_components") || !loot.contains("block_entity")
+        if (!loot.contains("\"function\": \"minecraft:copy_components\"")
+                || !loot.contains("\"source\": \"block_entity\"")
                 || !loot.contains("neoecoprototype:fumo_owner")) {
             helper.fail("the doll's loot table does not copy neoecoprototype:fumo_owner from the"
                     + " block entity, so breaking one drops an anonymous doll");
+            return;
+        }
+        // The real check, though: the loader wants the key to be "function", and a table that does not
+        // parse is simply left out of the registry - the block then drops nothing while every test
+        // still reports green. Asking the loaded keys is the only way to see that from here.
+        var ourLoot = cn.dancingsnow.neoecoprototype.NeoECOPrototype.id("blocks/fumo_reliqwq");
+        boolean loaded = helper.getLevel().getServer().reloadableRegistries()
+                .getKeys(net.minecraft.core.registries.Registries.LOOT_TABLE).contains(ourLoot);
+        if (!loaded) {
+            helper.fail("loot table " + ourLoot + " is not among the loaded keys, so it failed to parse"
+                    + " and the doll block drops nothing");
             return;
         }
         helper.succeed();
