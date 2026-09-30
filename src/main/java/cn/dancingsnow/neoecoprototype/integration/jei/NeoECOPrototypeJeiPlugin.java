@@ -103,6 +103,18 @@ public final class NeoECOPrototypeJeiPlugin implements IModPlugin {
         }
     }
 
+    /**
+     * Our own encode handler, registered per category so it wins over ae2jeiintegration's universal one --
+     * that handler collects inputs into a set keyed by item, which collapses two identical ingredients into
+     * one slot and produces a pattern the assembler rightly refuses.
+     */
+    @Override
+    public void registerRecipeTransferHandlers(mezz.jei.api.registration.IRecipeTransferRegistration registration) {
+        registration.addRecipeTransferHandler(
+                new ProcessorAssemblerTransferHandler(registration.getTransferHelper()),
+                ProcessorAssemblerCategory.TYPE);
+    }
+
     @Override
     public void onRuntimeAvailable(IJeiRuntime runtime) {
         if (TRINITY_VISIBLE_IN_JEI) {
