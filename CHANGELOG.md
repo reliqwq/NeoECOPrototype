@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.2.12 (2026-10-01) - 扳手不再吞掉机器，装配室接受含重复原料与翻倍的样板
+
+### 修复 / Fixed
+
+- **十个方块被拆掉时什么都不掉，机器凭空消失**：`simplify_storage_network_interface`、`simplify_computation_network_interface`、`simplify_crafting_network_interface`、`simplify_powered_me_interface`、`superconductive_interface`、`simplify_pattern_provider`、`simplify_stonecutting_assembler`、`energized_computation_core`、`energized_computation_threading_core`、`simplify_green_aluminum_casing` —— 我们注册 38 个方块，只带了 28 张方块战利品表，缺的这十个**挖掘和扳手右键都掉落为空**。这一族是靠战利品表出掉落的：AE2 自带 100 张方块表、其中只有 1 张用到 loot function，机器自身的内容是 `AEBaseEntityBlock.getDrops` 在代码里带走的，所以"继承了 AE2/eco 的机器方块"并不会替你补上缺的文件。玩家报的是"我们的接口用扳手右键后消失了"。 Ten registered blocks shipped no block loot table at all, so mining or wrenching them deleted the machine with no drop; AE2's own family resolves drops through the table (100 tables, exactly one using a loot function) and the machine contents are attached in code, so inheriting the base class does not cover a missing file.
+- **L1 处理器装配室拒收"含两张相同原料"的样板**：AE2 把两件不同的事存在同一个 `IInput` 字段里 —— 这一槽每次合成要几件、以及整张样板一次跑几遍。把重复原料并成一槽的样板是"该槽 multiplier 2、其余 1、输出 1"，而翻倍的处理器样板是"每槽 multiplier 64、输出 64"。我们只读候选物品的 `amount`，于是前者被数成 2 件去比 3 条原料 → 拒收；而合成任务早已被样板供应器宣告为可合成，CPU 接了单却推不进去，玩家看到的就是**材料明明在存储里、任务一直不动**（这条是玩家反馈，最初被报成"C1 矩阵不能合成"）。修法是按输出量归一化：每槽件数 = `amount × multiplier ÷ 样板输出量`，两种形状同时成立。 The processor assembler refused any pattern that repeats one ingredient, because AE2 stores both "this slot needs two of the item" and "this pattern crafts 64 at once" in the same per-slot multiplier; what tells them apart is the pattern's own output amount. Reading only the candidate amount counted a 3-ingredient recipe as 2 units and dropped the pattern silently, after the pattern provider had already advertised the job as craftable.
+- **顺带修掉同一字段上的另外三处**：`fillCraftingGrid` 与 `assemble` 也漏读倍数（前者会少投原料，后者会让 64 倍的样板只吐 1 个成品、吞掉 63 个），以及一个槽现在允许列出多种候选（标签原料在整合包里展开成多件就是这种形状；我们的开发环境里 `c:silicon` 只有 `ae2:silicon` 一件，所以这一半只能靠测试替身覆盖，本地复现不出来）。另外，拒收过去是**完全静默**的，现在每台机器对每个输出会打一行带槽位形状的 WARN —— 三次误诊都是被这个静默拖出来的。 Three sibling reads of the same field are fixed too: the grid fill under-consumed, `assemble` answered a 64x pattern with a single processor, and a slot may now offer several candidate items (what a tag ingredient becomes once a pack adds a second one). Refusals also log once per machine per output instead of vanishing silently.
+
 ## 1.2.11 (2026-09-29) - 主机不再带着成型状态落地，镜像主机的动画转向改正
 
 ### 修复 / Fixed
