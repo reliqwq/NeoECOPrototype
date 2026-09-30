@@ -701,7 +701,10 @@ public final class NeoECOPrototypeGameTests {
                     for (int i = 0; i < patternInputs.length; i++) {
                         KeyCounter counter = new KeyCounter();
                         for (GenericStack stack : patternInputs[i].getPossibleInputs()) {
-                            counter.add(stack.what(), stack.amount());
+                            // Stock what the slot actually demands: AE2 keeps a repeated ingredient as one
+                            // slot with a multiplier, so seeding only the candidate amount would starve
+                            // this dispatch the moment a pattern carries two of the same item.
+                            counter.add(stack.what(), stack.amount() * patternInputs[i].getMultiplier());
                         }
                         inputs[i] = counter;
                     }
@@ -1273,7 +1276,131 @@ public final class NeoECOPrototypeGameTests {
             helper.assertTrue(!match.value().matches(wrong),
                     "recipe for " + expectation.result() + " accepted " + describe(wrong));
         }
+
+        // A pattern for a recipe that repeats one ingredient: two slots carrying the same item plus the
+        // third ingredient. This is the case the assembler used to refuse outright, because the old guard
+        // demanded one candidate per slot AND a slot count equal to the ingredient count, so any pattern
+        // that merged or reordered the repeats was dropped before the recipes were even looked up.
+        var cell = new GenericStack(AEItemKey.of(stackOf("neoecoprototype:simplify_computation_cell_1m")), 1);
+        var component = new GenericStack(
+                AEItemKey.of(stackOf("neoecoprototype:simplify_storage_component_4m")), 1);
+        var output = stackOf("neoecoprototype:energized_computation_cell_4m");
+        var repeated = new HandmadePattern(AEItemKey.of(output),
+                List.of(new HandmadeInput(1, cell), new HandmadeInput(1, cell), new HandmadeInput(1, component)),
+                List.of(new GenericStack(AEItemKey.of(output), 1)));
+        if (cn.dancingsnow.neoecoprototype.recipe.ProcessorAssemblerRecipes.resolve(helper.getLevel(), repeated,
+                output.getItem()) == null) {
+            helper.fail("a pattern with two slots carrying the same item was refused for a recipe that needs"
+                    + " two of it");
+            return;
+        }
+
+        // AE2's own shape for the same recipe when the player fills the encoding grid with two of one item:
+        // it merges them into a single slot whose multiplier is 2, leaving the other slot at 1, while the
+        // output stays 1. This is the pattern a player actually reports, and it is told apart from a batched
+        // pattern by that output amount -- the two share the multiplier field.
+        var merged = new HandmadePattern(AEItemKey.of(output),
+                List.of(new HandmadeInput(2, cell), new HandmadeInput(1, component)),
+                List.of(new GenericStack(AEItemKey.of(output), 1)));
+        if (cn.dancingsnow.neoecoprototype.recipe.ProcessorAssemblerRecipes.resolve(helper.getLevel(), merged,
+                output.getItem()) == null) {
+            helper.fail("a pattern carrying the repeated ingredient as one slot with multiplier 2 was refused"
+                    + " -- this is the shape AE2 stores when a recipe needs two of the same item");
+            return;
+        }
+
+        // AE2's multiplier is a batch factor for the whole pattern (a 64x pattern crafts 64 at once), not
+        // a per-slot repeat count. Matching must ignore it -- folding it in rejects every batched pattern,
+        // which is exactly the regression a doubled processor pattern hit.
+        var batched = new HandmadePattern(AEItemKey.of(output),
+                List.of(new HandmadeInput(64, cell), new HandmadeInput(64, cell), new HandmadeInput(64, component)),
+                List.of(new GenericStack(AEItemKey.of(output), 64)));
+        var batchedMatch = cn.dancingsnow.neoecoprototype.recipe.ProcessorAssemblerRecipes.resolve(
+                helper.getLevel(), batched, output.getItem());
+        if (batchedMatch == null) {
+            helper.fail("a 64x batched processing pattern was refused: the multiplier belongs to the"
+                    + " consuming side, not to the recipe comparison");
+            return;
+        }
+
+        // Short by one ingredient: still has to be refused, or the machine would craft from less than the
+        // recipe asks for.
+        var shortOfOne = new HandmadePattern(AEItemKey.of(output),
+                List.of(new HandmadeInput(1, cell), new HandmadeInput(1, component)),
+                List.of(new GenericStack(AEItemKey.of(output), 1)));
+        if (cn.dancingsnow.neoecoprototype.recipe.ProcessorAssemblerRecipes.resolve(helper.getLevel(), shortOfOne,
+                output.getItem()) != null) {
+            helper.fail("a pattern asking for a single computation cell was accepted by a recipe that needs two");
+            return;
+        }
+
+        // The multiplier does have to be applied where items are actually taken: a 64x pattern must pull
+        // 128 cells and 64 components into the grid, or the craft under-consumes and never completes.
+        var patternInputs = batched.getInputs();
+        KeyCounter[] supplied = new KeyCounter[patternInputs.length];
+        for (int slot = 0; slot < patternInputs.length; slot++) {
+            KeyCounter counter = new KeyCounter();
+            for (GenericStack candidate : patternInputs[slot].getPossibleInputs()) {
+                counter.add(candidate.what(), candidate.amount() * patternInputs[slot].getMultiplier());
+            }
+            supplied[slot] = counter;
+        }
+        var grid = new java.util.HashMap<Integer, ItemStack>();
+        new cn.dancingsnow.neoecoprototype.blockentity.crafting.ProcessorAssemblyPattern(batched, batchedMatch)
+                .fillCraftingGrid(supplied, grid::put);
+        long cellsInGrid = grid.values().stream()
+                .mapToLong(stack -> stack.is(((AEItemKey) cell.what()).getItem()) ? stack.getCount() : 0L).sum();
+        if (cellsInGrid != 128) {
+            helper.fail("fillCraftingGrid put " + cellsInGrid + " computation cells into the grid for a 64x"
+                    + " pattern of a recipe that needs two per craft");
+            return;
+        }
         helper.succeed();
+    }
+
+    /** A pattern built by hand, laid out the way AE2's own processing patterns store their slots. */
+    private record HandmadePattern(AEItemKey definition, List<HandmadeInput> slots,
+            List<GenericStack> outputs) implements IPatternDetails {
+        @Override
+        public AEItemKey getDefinition() {
+            return definition;
+        }
+
+        @Override
+        public IPatternDetails.IInput[] getInputs() {
+            return slots.toArray(new HandmadeInput[0]);
+        }
+
+        @Override
+        public List<GenericStack> getOutputs() {
+            return outputs;
+        }
+    }
+
+    private record HandmadeInput(long multiplier, GenericStack... possibleInputs)
+            implements IPatternDetails.IInput {
+        @Override
+        public GenericStack[] getPossibleInputs() {
+            return possibleInputs;
+        }
+
+        @Override
+        public long getMultiplier() {
+            return multiplier;
+        }
+
+        @Override
+        public boolean isValid(appeng.api.stacks.AEKey what, net.minecraft.world.level.Level level) {
+            for (GenericStack candidate : possibleInputs) {
+                if (candidate.what().equals(what)) return true;
+            }
+            return false;
+        }
+
+        @Override
+        public appeng.api.stacks.AEKey getRemainingKey(appeng.api.stacks.AEKey template) {
+            return possibleInputs[0].what();
+        }
     }
 
     /**
@@ -1578,6 +1705,25 @@ public final class NeoECOPrototypeGameTests {
                 }
             } catch (java.io.IOException failure) {
                 helper.fail("could not read " + location + ": " + failure);
+                return;
+            }
+        }
+        // Every block we register has to ship a block loot table, or breaking it drops nothing. AE2's own
+        // family does this through the table (100 tables, exactly one of them using a loot function), so
+        // this is not a path a subclass inherits from MolecularAssemblerBlockEntity. Two incidents came
+        // from ignoring it: the doll's table was unparsable because it keyed the function "type", and ten
+        // blocks - three network interfaces, the powered ME and superconductive interfaces, the pattern
+        // provider, the assembler, two energized cores and the green aluminium casing - had no file at all,
+        // which is what makes a wrench right-click delete a machine.
+        var resourceManager = helper.getLevel().getServer().getResourceManager();
+        for (var entry : BuiltInRegistries.BLOCK.entrySet()) {
+            var id = entry.getKey().location();
+            if (!id.getNamespace().equals(NeoECOPrototype.MOD_ID)) continue;
+            var table = ResourceLocation.fromNamespaceAndPath(id.getNamespace(),
+                    "loot_table/blocks/" + id.getPath() + ".json");
+            if (resourceManager.getResource(table).isEmpty()) {
+                helper.fail("block " + id + " has no " + table + ", so breaking or wrenching it drops "
+                        + "nothing and the machine is destroyed silently");
                 return;
             }
         }

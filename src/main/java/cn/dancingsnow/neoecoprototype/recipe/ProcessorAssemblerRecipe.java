@@ -16,6 +16,8 @@ import net.minecraft.world.item.crafting.RecipeSerializer;
 import net.minecraft.world.item.crafting.RecipeType;
 import net.minecraft.world.level.Level;
 
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 /** Shapeless processor recipe: three or four inputs may be inserted in any order. */
@@ -39,20 +41,31 @@ public record ProcessorAssemblerRecipe(List<Ingredient> ingredients, ItemStack r
 
     /** True when the stacks can be assigned to the ingredients one-to-one, in any order. */
     public boolean matches(ItemStack[] stacks) {
-        return stacks.length == ingredients.size()
-                && stacks.length >= MIN_INPUTS
-                && stacks.length <= MAX_INPUTS
-                && assign(0, stacks, new boolean[stacks.length]);
+        List<ItemStack[]> units = new ArrayList<>(stacks.length);
+        for (ItemStack stack : stacks) units.add(new ItemStack[] { stack });
+        return matchesUnits(units);
     }
 
-    private boolean assign(int index, ItemStack[] stacks, boolean[] taken) {
+    /**
+     * True when the ingredients can take the pattern's units one-to-one, in any order.
+     *
+     * <p>A unit is one item the pattern demands, not one pattern slot: AE2 merges repeated ingredients
+     * into a single slot carrying an amount, and one slot may offer alternative items. Matching on slot
+     * count therefore rejected perfectly good patterns, which the assembler then silently refused.
+     */
+    public boolean matchesUnits(List<ItemStack[]> units) {
+        return units.size() == ingredients.size() && assign(0, units, new boolean[units.size()]);
+    }
+
+    /** A unit satisfies an ingredient when any of its alternative items does; which one is chosen later. */
+    private boolean assign(int index, List<ItemStack[]> units, boolean[] taken) {
         if (index == ingredients.size()) return true;
         Ingredient ingredient = ingredients.get(index);
-        for (int slot = 0; slot < stacks.length; slot++) {
-            if (taken[slot] || !ingredient.test(stacks[slot])) continue;
-            taken[slot] = true;
-            if (assign(index + 1, stacks, taken)) return true;
-            taken[slot] = false;
+        for (int unit = 0; unit < units.size(); unit++) {
+            if (taken[unit] || Arrays.stream(units.get(unit)).noneMatch(ingredient::test)) continue;
+            taken[unit] = true;
+            if (assign(index + 1, units, taken)) return true;
+            taken[unit] = false;
         }
         return false;
     }
