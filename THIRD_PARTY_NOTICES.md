@@ -5,10 +5,13 @@ Neo ECO Prototype is an addon. It does not include the dependency JARs in this r
 ## Neo ECO AE Extension
 
 - Mod ID: `neoecoae`
-- Current development compatibility baseline: published `21.2.0-beta4` (local JAR under `neoecobeta/`)
-- Previous published compatibility baseline: `21.2.0-beta2`
+- Current development compatibility baseline: `21.2.1-beta1` (local JAR under `neoecobeta/`), which declares its own version as `21.2.1`
+- Declared compatibility floor: `[21.2.1,)`, raised from `21.2.0` in `3.0.0-beta1` because addon blocks implement upstream's `gui.GuiTitleProvider`
+- Earlier baselines this addon was built against: `21.2.0-beta2`, `21.2.0-beta4` (first build exposing `IECOBulkMarkableCellItem`), `21.2.0-beta6`, `21.2.0`
 - License declared by the upstream mod: GNU GPLv3
 - Upstream authors listed by the upstream metadata: DancingSnow, ZhuRuoLing, and Yang120231
+
+Upstream has not published a `21.2.1` file anywhere public as of `2026-09-30`; the JAR used for this baseline came directly from the upstream author, so a fresh clone cannot obtain it from download sites and must ask for it. That is the reason the first addon build on this baseline is published as a prerelease rather than as a stable `3.0.0`.
 
 Neo ECO Prototype is an independent addon and is not the Neo ECO AE Extension project. The local development JAR used during testing is intentionally not redistributed by this repository.
 
@@ -47,7 +50,7 @@ Some visual resources are adapted from Neo ECO AE Extension assets. Those assets
 ## Applied Energistics 2
 
 - Mod ID: `ae2`
-- Version tested: `19.2.17`
+- Version tested: `19.2.18` (`19.2.17` before the addon moved to the `21.2.1` baseline; upstream Neo ECO AE Extension requires `19.2.18` from that version on, so this addon follows it instead of re-declaring a lower range)
 - License: see the upstream project and the `NOTICE` file distributed with AE2
 - Project: <https://github.com/AppliedEnergistics/Applied-Energistics-2>
 
@@ -85,6 +88,12 @@ Minecraft, Minecraft Forge/NeoForge, and their names and trademarks belong to th
 
 - NeoForge: <https://neoforged.net/>
 - Minecraft usage guidelines: <https://www.minecraft.net/en-us/usage-guidelines>
+
+## Local development JARs (not redistributed)
+
+`build.gradle` resolves every dependency from local files under `libs/` and `neoecobeta/` so a build needs no network, and this repository intentionally contains none of them. A fresh clone therefore cannot compile until those files are placed, and the build says so explicitly: any Gradle task stops with the exact missing paths instead of failing later as unresolved symbols. The list itself is not copied into this file on purpose - the declarations in `build.gradle` are the only version of it, and a duplicate here would drift.
+
+Where each one comes from is the section above named for that mod. Two exceptions are worth stating: the `neoecoae` baseline this addon compiles against is a build the upstream author handed over directly and is not downloadable anywhere yet, and the Mekanism / Applied Mekanistics / AE2-JEI-Integration jars are in the local runtime only so the client can be inspected with them - they are not compile dependencies of this addon.
 
 ## Distribution rule
 

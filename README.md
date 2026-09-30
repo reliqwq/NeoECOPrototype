@@ -21,8 +21,8 @@ Neo ECO Prototype is an unofficial addon for Neo ECO AE Extension and Applied En
 | --- | --- |
 | Minecraft | 1.21.1 |
 | NeoForge | 21.1.251 or compatible 21.1.x release |
-| Applied Energistics 2 | 19.2.17 or compatible 19.2.x release |
-| Neo ECO AE Extension | 21.2.0-beta6 or a compatible beta release |
+| Applied Energistics 2 | 19.2.18 or compatible 19.2.x release |
+| Neo ECO AE Extension | 21.2.1 or a compatible later release |
 | MegaCells (optional; required for the small bulk matrix family) | 4.11.0 or later |
 | Java | 21 |
 
@@ -58,7 +58,7 @@ KubeJS is optional. Matrix texture recoloring is handled offline by `tools/gener
 
 ## Development Build
 
-The current development setup uses the published Neo ECO AE Extension `21.2.0-beta6` JAR under `neoecobeta/` for offline compatibility testing; the released compatibility floor stays at `21.2.0-beta4`, which is the first build exposing `IECOBulkMarkableCellItem`. The local development copy is intentionally excluded from GitHub.
+The current development setup compiles against the Neo ECO AE Extension `21.2.1-beta1` JAR under `neoecobeta/`, which declares itself as plain `21.2.1` - the same version string the eventual stable release will carry, so the declared floor needs no edit when it lands. `3.0.0-beta1` raised that floor from `21.2.0` to `[21.2.1,)` because our communication-interface and pattern-bus blocks now implement upstream's `gui.GuiTitleProvider`, which does not exist in `21.2.0`; upstream has not published a `21.2.1` release yet, which is why the first build carrying it is a prerelease. Upstream's own floor moved to Applied Energistics 2 `19.2.18` in the same version, and this addon follows it rather than re-declaring it. The local development copy is intentionally excluded from GitHub.
 
 Required local development files are listed in `build.gradle`. Place lawful copies of the exact compatible dependencies in `libs/`, then run:
 
@@ -66,7 +66,9 @@ Required local development files are listed in `build.gradle`. Place lawful copi
 .\gradlew.bat build --offline
 ```
 
-The output is written to `build/libs/neoecoprototype-1.2.11.jar`.
+The output is written to `build/libs/neoecoprototype-3.0.0-beta1.jar`. A
+build started from a fresh clone stops with the names of the exact files
+it is looking for, because none of these JARs are redistributed here.
 
 Do not commit `libs/`, `run/`, `build/`, reference checkouts, or local world data. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for dependency licensing information.
 
