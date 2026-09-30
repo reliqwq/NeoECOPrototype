@@ -1022,6 +1022,7 @@ private static Supplier<BlockEntityType<SimplifyStorageVentBlockEntity>> registe
                          output.accept(FumoItem.ownedBy("reliqwq"));
                          output.accept(FumoItem.ownedBy("Yang120"));
                          output.accept(FumoItem.ownedBy("kouooki"));
+                         output.accept(FumoItem.ownedBy("TedXenon"));
                          if (OPTIONAL_SMALL_BULK_CHEMICAL_CELL != null) {
                              output.accept(OPTIONAL_SMALL_BULK_CHEMICAL_CELL.get());
                              output.accept(OPTIONAL_SMALL_BULK_CHEMICAL_CELL_EXPANDED.get());

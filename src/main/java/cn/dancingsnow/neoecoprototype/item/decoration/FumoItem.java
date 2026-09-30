@@ -5,10 +5,13 @@ import cn.dancingsnow.neoecoprototype.client.render.FumoItemRenderer;
 import cn.dancingsnow.neoecoprototype.registration.ModRegistration;
 import com.mojang.authlib.properties.PropertyMap;
 import net.minecraft.ChatFormatting;
+import net.minecraft.core.Holder;
 import net.minecraft.client.renderer.BlockEntityWithoutLevelRenderer;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.effect.MobEffect;
+import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.EquipmentSlotGroup;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
@@ -23,10 +26,12 @@ import net.minecraft.world.item.component.ResolvableProfile;
 import net.minecraft.world.level.block.Block;
 import net.neoforged.neoforge.client.extensions.common.IClientItemExtensions;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.function.Consumer;
 import org.jetbrains.annotations.Nullable;
 
@@ -38,14 +43,15 @@ import org.jetbrains.annotations.Nullable;
 public class FumoItem extends BlockItem implements Equipable {
     /** The dolls the guide book documents; only these are named, green and armoured. */
     private static final Map<String, DollStats> NAMED_DOLLS = Map.of(
-            "reliqwq", new DollStats(4.0F, 2.0F),
-            "yang120", new DollStats(4.0F, 2.0F),
-            "kouooki", new DollStats(1.0F, 5.0F));
+            "reliqwq", new DollStats(4.0F, 2.0F, null),
+            "yang120", new DollStats(4.0F, 2.0F, null),
+            "kouooki", new DollStats(1.0F, 5.0F, null),
+            "tedxenon", new DollStats(6.0F, 1.0F, MobEffects.REGENERATION));
     private static final ResourceLocation ARMOR_ID = NeoECOPrototype.id("fumo_armor");
     private static final ResourceLocation TOUGHNESS_ID = NeoECOPrototype.id("fumo_armor_toughness");
 
-    /** Armour a named doll grants while worn on the head. */
-    private record DollStats(float armor, float toughness) {
+    /** Armour a named doll grants while worn on the head, plus the effect only some of them carry. */
+    private record DollStats(float armor, float toughness, @Nullable Holder<MobEffect> extraEffect) {
     }
 
     public FumoItem(Block block, Properties properties) {
@@ -60,6 +66,13 @@ public class FumoItem extends BlockItem implements Equipable {
     /** True for the dolls of the honoured players, false for a plain or ad-hoc named doll. */
     public static boolean isNamedDoll(ItemStack stack) {
         return namedDollStats(stack) != null;
+    }
+
+    /** What a particular named doll grants on top of the night vision every doll gives. */
+    @Nullable
+    public static Holder<MobEffect> extraEffect(ItemStack stack) {
+        DollStats stats = namedDollStats(stack);
+        return stats == null ? null : stats.extraEffect();
     }
 
     @Nullable
@@ -95,8 +108,12 @@ public class FumoItem extends BlockItem implements Equipable {
     /** A doll that already wears the given player's skin, for the creative tab and testing. */
     public static ItemStack ownedBy(String name) {
         ItemStack stack = new ItemStack(ModRegistration.FUMO_RELIQWQ_ITEM.get());
-        stack.set(ModRegistration.FUMO_OWNER.get(),
-                new ResolvableProfile(Optional.of(name), Optional.empty(), new PropertyMap()));
+        // Without an id every name-only profile shares vanilla's single fallback skin, which is how
+        // all the creative-tab dolls ended up on the Alex model. The offline UUID makes the default
+        // vary per name the way it does for an offline player.
+        stack.set(ModRegistration.FUMO_OWNER.get(), new ResolvableProfile(Optional.of(name),
+                Optional.of(UUID.nameUUIDFromBytes(("OfflinePlayer:" + name).getBytes(StandardCharsets.UTF_8))),
+                new PropertyMap()));
         return stack;
     }
 
