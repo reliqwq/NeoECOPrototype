@@ -12,6 +12,9 @@
 - **L1 存储子系统通讯接口的界面标题**：这个 GUI 一直显示上游的默认标题，因为我们注入的目标 lambda 在上游给它加了一个 lambda 之后就改了编号，而注入是可选的（不报错，只是不生效）。现在标题由方块自己给（上游 21.2.1 的 `GuiTitleProvider`），**L1 存储子系统通讯接口 / C1 计算子系统通讯接口 / F1 合成子系统通讯接口 / F1 智能样板总线** 四个界面都显示自己的名字。 The storage interface's title had been silently falling back to upstream's default because our injection aimed at a renumbered compiler-generated lambda; the blocks now answer for their own headers.
 - **三个界面的槽位行位**：L1 样板供应器、L1 供能接口、盈能超导接口的槽位段按贴图凹槽实测重排（画出来的凹槽是 16 像素高、18 像素一行，而 AE2 的 `bottom` 是从区块**顶边**量的）。L1 样板供应器 另外补上了一个被漏掉的标签段：`includes` 是按键合并的，覆盖槽位段并不会连带覆盖它上面的 `interface_config` 标签。 Slot rows re-measured against the drawn grooves; the pattern provider also regained its `interface_config` label section, which an override of the slot section does not inherit.
 
+- **挖掉放下去的玩偶，掉出来的仍是同一只**：以前掉落物不带主人组件，于是它成了匿名玩偶——没有绿色名字、没有护甲、也没有额外效果。放下那一步一直是好的（方块实体会从物品拿到主人组件），坏的只有"拿回来"：原版 `Block#getCloneItemStack` 不会去问方块实体要组件，只有蜂箱/潜影盒那几个方块自己做了这件事。现在生存挖掘靠战利品表加 `copy_components`（source = `block_entity`），创造中键靠覆写 `getCloneItemStack`。
+- **具名玩偶的 tooltip 会说清它的第二样效果**：原来那行「戴在头上时：夜视（30 秒）」所有玩偶共用，TedXenon 的生命恢复只写在指南里，所以"戴上没反应"其实是"没写"。新那一行直接用效果自身的显示名，以后加效果不必再加 lang 键，文字也不会和实际施加的效果脱节。
+
 ### 变更 / Changed
 
 - **依赖地板抬到 Neo ECO AE Extension 21.2.1、Applied Energistics 2 19.2.18**。抬地板不是偏好而是必须：我们现在 implements 上游的 `gui.GuiTitleProvider`，在 21.2.0 上那个接口根本不存在，加载我们的方块类就会失败。AE2 那侧是上游自己先抬的，我们跟着它，而不是在自己的声明里重复一遍更低的区间。 AE2 19.2.18 与 eco 21.2.1 是硬要求。
@@ -21,7 +24,6 @@
 ### 已知 / Known
 
 - **上面那条"槽位行位"修的是 JSON，不是贴图**。三份 JSON 现在描述的是**目标行位**（贴图应该把凹槽画在哪），不是旧贴图实际画在哪。两张接口的贴图比目标行低 2–3 像素，那三张 PNG 由美术重画；**在重画之前，运行时看到的偏差还在，甚至对某些行会更明显**。重画完成后要重新量一次"JSON 想要的行 vs PNG 画出的行 = 0"再撤掉这条。 The three JSONs now state the rows the art *should* be drawn at; the textures have not been repainted yet, so this is not a visual fix until the PNGs move.
-- **玩偶 tooltip 只写夜视**：那一行「戴在头上时：夜视（30 秒）」是所有玩偶共用的，TedXenon 的生命恢复目前只在指南正文里写明。护甲值与韧性不受影响（原版会自动列在属性行里）。
 - **计算家族的多方块几何注入已经换成上游的登记口**（`registerCalculatorFactory`），`NEComputationClusterCalculatorMixin` 删除，mixin 11→10；**合成家族那条仍然保留**（`NECraftingClusterCalculatorMixin`）。之所以不是两条一起换：上游 21.2.1 自己加了"把检查转给范围内那台主机的计算器"的路由（`NEComputationClusterCalculator#controllerCalculator`），所以计算家族只需要登记主机这一个方块实体类型；合成家族要照抄这一刀得单独验，两边一起改就成了两个变量。过程中量到并否证了一条担心：`publishShape` 的 `scheduleTick` 会不会形成重算反馈环——同一 tick 内 160 次几何检查 + 160 次 publishShape，**装不装这条改动数字一模一样**。新增的机壳守卫 `computationCasingCalculatorKnowsL1Geometry` 问的就是机壳自己的计算器，它只有在新的路由下才为真。仍有一处可以更进一步：把覆写从 `verifyInternalStructure` 缩到上游新增的 `protected verifyStructure(...)`，那样 `setMirrored` / 冷却控制器 / `network_switch` 的写回就交回上游（我们现在必须自己写，因为检查一旦路由给我们，上游那半段不跑）。
 - **这是预发布的原因**：上游最新的公开发布仍然是 21.2.0（2026-09-26），21.2.1 目前没有任何公开下载文件（这轮用的 jar 是上游作者直接给的）。也就是说玩家装不到我们要求的依赖，所以第一个吃这条基线的版本只能标 beta。 Upstream has not published a 21.2.1 file anywhere yet, which is exactly why the first addon build on it is a prerelease.
 - 旧现象，未改：`/prototypefumo` 手打能执行但不出现在 Tab 补全里。
@@ -29,7 +31,7 @@
 ### 工程侧 / For development
 
 - 从干净克隆构建时，缺哪个本地依赖 jar 会**在配置阶段就报出精确路径**（这个仓库不重分发任何依赖 jar，README 与 CONTRIBUTING 都是这么定的）。清单只在 `build.gradle` 里存在一份，文档里不再抄一遍，避免两份真相漂开。
-- 新增两项会红的游戏测试：具名界面方块必须自己给出标题（不带 hook 的普通接口作为反向对照，防止 hook 被 blanket 应用），以及上面提到的机壳几何守卫。 58/58 通过。
+- 新增三项会红的游戏测试：具名界面方块必须自己给出标题（不带 hook 的普通接口作反向对照，防止 hook 被 blanket 应用）、机壳那一侧的几何守卫、以及玩偶那条（会给出生命恢复 + 两种 lang 都有描述键 + 战利品表会复制主人组件）。 59/59 通过。
 
 ## 1.2.11 (2026-09-29) - 主机不再带着成型状态落地，镜像主机的动画转向改正
 
