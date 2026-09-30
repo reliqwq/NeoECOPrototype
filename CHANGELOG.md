@@ -4,6 +4,7 @@
 
 ### 新增 / Added
 
+- **苦力怕怕玩偶**：戴着玩偶、或者把它拿在任一只手里，苦力怕会像遇到猫一样躲开——用的就是原版对猫和野猫的那条目标，同样优先级 3、半径 6 格、逃跑速度 1.2/1.2，所以躲开的方式（含下水与转头）不会和猫走偏。**放在地上的玩偶没有这个效果**：那条目标只看得见实体，方块版本得另写一个目标。所有玩偶都算，与夜视同一口径。 Creepers flee from anyone wearing or holding a plushie, using vanilla's own cat goal - the same priority, the same 6 blocks and the same 1.2/1.2 speeds - while a placed doll does not count, because that goal only sees entities.
 - **TedXenon 玩偶**：创造物品栏里第四只具名玩偶。戴在头上是 +6 护甲值、+1 护甲韧性，并且在所有玩偶共有的夜视之外额外给予生命恢复（30 秒，戴着自动续期）。这一条的效果图标和粒子是**故意显示**的，和夜视相反：夜视有绿幕所以藏图标，而一个看不见的恢复效果只会被当成"没生效"。**它暂时没有配方**，所以指南里具名玩偶是四个、可合成的是三个。 A fourth named doll in the creative tab: +6 armour / +1 toughness plus Regeneration on top of the night vision every doll grants, drawn with its icon on purpose so the wearer can see it working. No recipe yet, deliberately.
 
 ### 修复 / Fixed
