@@ -1485,6 +1485,20 @@ public final class NeoECOPrototypeGameTests {
                     + " and the doll block drops nothing");
             return;
         }
+        // Creepers have to be born afraid of a plushie. The handler is an entity-join event, so it is
+        // fired here against a fresh creeper rather than by spawning one: a creeper wandering the shared
+        // test room could decide to detonate while unrelated tests are reading the same chunks.
+        var creeper = new net.minecraft.world.entity.monster.Creeper(
+                net.minecraft.world.entity.EntityType.CREEPER, helper.getLevel());
+        cn.dancingsnow.neoecoprototype.event.FumoEquipmentEffects.onEntityJoin(
+                new net.neoforged.neoforge.event.entity.EntityJoinLevelEvent(creeper, helper.getLevel()));
+        boolean fleesPlushies = creeper.goalSelector.getAvailableGoals().stream()
+                .anyMatch(goal -> goal.getGoal() instanceof cn.dancingsnow.neoecoprototype.event
+                        .FumoEquipmentEffects.DollFleeGoal);
+        if (!fleesPlushies) {
+            helper.fail("a fresh creeper has no DollFleeGoal, so creepers ignore plushies entirely");
+            return;
+        }
         helper.succeed();
     }
 
