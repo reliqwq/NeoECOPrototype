@@ -117,6 +117,7 @@
   "block.neoecoprototype.fumo_reliqwq": "reliqwq's Fumo Doll",
   "block.neoecoprototype.fumo_reliqwq.named": "%s's Doll",
   "block.neoecoprototype.fumo_reliqwq.worn_hint": "While worn: Night Vision (30s)",
+  "block.neoecoprototype.fumo_reliqwq.worn_extra": "While worn, also grants %s",
   "cmd.neoecoprototype.fumo.searching": "Looking up %s's skin...",
   "cmd.neoecoprototype.fumo.given": "Received %s's Fumo Doll",
   "cmd.neoecoprototype.fumo.invalid": "Not a valid player name: %s",

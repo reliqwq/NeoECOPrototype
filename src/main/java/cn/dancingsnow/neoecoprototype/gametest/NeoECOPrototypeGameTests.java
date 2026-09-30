@@ -1435,6 +1435,61 @@ public final class NeoECOPrototypeGameTests {
     }
 
     /**
+     * The three things that made TedXenon's doll look broken in three different ways, each of which is
+     * invisible to the compiler: the extra effect the doll has to hand out, the tooltip line that
+     * describes it (it was silently missing, and "没回血" was really "没说"), and the loot table that has
+     * to copy the owner component off the block entity so a broken doll comes back wearing the same
+     * face instead of an anonymous one. Reads everything through the mod classloader, so it costs no
+     * plot and touches no world.
+     */
+    @GameTest(template = "empty", templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void namedDollDescribesAndKeepsItsOwner(GameTestHelper helper) {
+        ItemStack stack = cn.dancingsnow.neoecoprototype.item.decoration.FumoItem.ownedBy("TedXenon");
+        net.minecraft.core.Holder<net.minecraft.world.effect.MobEffect> extra =
+                cn.dancingsnow.neoecoprototype.item.decoration.FumoItem.extraEffect(stack);
+        if (extra != net.minecraft.world.effect.MobEffects.REGENERATION) {
+            helper.fail("TedXenon's doll hands out " + extra + " instead of Regeneration");
+            return;
+        }
+        // The tooltip line is built from this key with the effect's own display name; if the key is
+        // gone the doll stops advertising what it does and there is no error anywhere to notice.
+        for (String lang : new String[]{"en_us", "zh_cn"}) {
+            String json = readResource("/assets/neoecoprototype/lang/" + lang + ".json", helper);
+            if (json == null) {
+                return;
+            }
+            if (!json.contains("fumo_reliqwq.worn_extra")) {
+                helper.fail("lang/" + lang + ".json has no fumo_reliqwq.worn_extra key");
+                return;
+            }
+        }
+        String loot = readResource("/data/neoecoprototype/loot_table/blocks/fumo_reliqwq.json", helper);
+        if (loot == null) {
+            return;
+        }
+        if (!loot.contains("copy_components") || !loot.contains("block_entity")
+                || !loot.contains("neoecoprototype:fumo_owner")) {
+            helper.fail("the doll's loot table does not copy neoecoprototype:fumo_owner from the"
+                    + " block entity, so breaking one drops an anonymous doll");
+            return;
+        }
+        helper.succeed();
+    }
+
+    private static String readResource(String path, GameTestHelper helper) {
+        try (var stream = NeoECOPrototype.class.getResourceAsStream(path)) {
+            if (stream == null) {
+                helper.fail("missing " + path + " on the classpath");
+                return null;
+            }
+            return new String(stream.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+        } catch (java.io.IOException failure) {
+            helper.fail("reading " + path + " threw " + failure);
+            return null;
+        }
+    }
+
+    /**
      * Guards the resources that code only names inside a string, which is the one set an
      * "unreferenced file" cleanup cannot see: deleting the assembler style JSON made every player
      * leave the world when the processor assembly GUI opened. Part models are whitelisted by AE2 at
@@ -1469,6 +1524,8 @@ public final class NeoECOPrototypeGameTests {
                         "textures/block/fumo/skins/yang120.png"),
                 ResourceLocation.fromNamespaceAndPath(NeoECOPrototype.MOD_ID,
                         "textures/block/fumo/skins/kouooki.png"),
+                ResourceLocation.fromNamespaceAndPath(NeoECOPrototype.MOD_ID,
+                        "textures/block/fumo/skins/tedxenon.png"),
                 // PartModel base models, frozen by PartModels.registerModels
                 ResourceLocation.fromNamespaceAndPath(NeoECOPrototype.MOD_ID,
                         "models/part/powered_me_interface.json"),

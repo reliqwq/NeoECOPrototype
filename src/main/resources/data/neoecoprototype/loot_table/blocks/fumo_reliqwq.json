@@ -3,7 +3,12 @@
   "pools": [{
     "bonus_rolls": 0.0,
     "conditions": [{ "condition": "minecraft:survives_explosion" }],
-    "entries": [{ "type": "minecraft:item", "name": "neoecoprototype:fumo_reliqwq" }],
+    "entries": [{ "type": "minecraft:item", "name": "neoecoprototype:fumo_reliqwq",
+      "functions": [{
+        "type": "minecraft:copy_components",
+        "source": "block_entity",
+        "include": ["neoecoprototype:fumo_owner"]
+      }] }],
     "rolls": 1.0
   }],
   "random_sequence": "neoecoprototype:blocks/fumo_reliqwq"

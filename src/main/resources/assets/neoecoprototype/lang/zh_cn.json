@@ -118,6 +118,7 @@
   "block.neoecoprototype.fumo_reliqwq": "reliqwq 的 Fumo 玩偶",
   "block.neoecoprototype.fumo_reliqwq.named": "%s 玩偶",
   "block.neoecoprototype.fumo_reliqwq.worn_hint": "戴在头上时：夜视（30 秒）",
+  "block.neoecoprototype.fumo_reliqwq.worn_extra": "戴在头上时还会给予：%s",
   "cmd.neoecoprototype.fumo.searching": "正在查询 %s 的皮肤…",
   "cmd.neoecoprototype.fumo.given": "已获得 %s 的 Fumo 玩偶",
   "cmd.neoecoprototype.fumo.invalid": "不是有效的玩家名：%s",

@@ -103,6 +103,14 @@ public class FumoItem extends BlockItem implements Equipable {
         super.appendHoverText(stack, context, tooltip, flag);
         tooltip.add(Component.translatable("block.neoecoprototype.fumo_reliqwq.worn_hint")
                 .withStyle(ChatFormatting.GRAY));
+        Holder<MobEffect> extra = extraEffect(stack);
+        if (extra != null) {
+            // Named after the effect itself, so a future DollStats entry needs no new lang key and the
+            // line cannot drift from what FumoEquipmentEffects actually applies.
+            tooltip.add(Component.translatable("block.neoecoprototype.fumo_reliqwq.worn_extra",
+                            extra.value().getDisplayName())
+                    .withStyle(ChatFormatting.GRAY));
+        }
     }
 
     /** A doll that already wears the given player's skin, for the creative tab and testing. */

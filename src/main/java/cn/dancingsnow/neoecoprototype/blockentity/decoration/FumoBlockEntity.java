@@ -35,6 +35,12 @@ public class FumoBlockEntity extends BlockEntity {
         return owner == null ? null : owner.gameProfile();
     }
 
+    /** The profile this doll was placed with, for the block's own drop and its pick-block clone. */
+    @Nullable
+    public ResolvableProfile owner() {
+        return owner;
+    }
+
     public void setOwner(@Nullable ResolvableProfile profile) {
         if (owner == null ? profile == null : owner.equals(profile)) return;
         owner = profile;
