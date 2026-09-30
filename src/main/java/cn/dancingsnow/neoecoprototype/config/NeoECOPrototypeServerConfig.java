@@ -13,8 +13,6 @@ public final class NeoECOPrototypeServerConfig {
      */
     public static final ModConfigSpec.ConfigValue<List<? extends String>> L1_ADDITIONAL_STORAGE_CELLS;
     public static final ModConfigSpec.LongValue MEGA_BULK_AUTO_MARK_THRESHOLD;
-    /** Number of pattern slots in the green pattern provider. */
-    public static final ModConfigSpec.IntValue GREEN_PATTERN_PROVIDER_SLOTS;
     /** Whether the processor assembler also accepts recipes derived from AE2's inscriber. */
     public static final ModConfigSpec.BooleanValue DERIVE_PROCESSOR_RECIPES_FROM_INSCRIBER;
     /** Processor outputs the assembler must refuse, from either the JSON recipes or the derivation. */
@@ -49,9 +47,6 @@ public final class NeoECOPrototypeServerConfig {
                 .comment("Enable the /prototypefumo command, which hands out a plushie wearing any player's skin.",
                         "The command still needs OP level 2 or creative mode; turn this off and it refuses every use.")
                 .define("fumo_command_enabled", true);
-        GREEN_PATTERN_PROVIDER_SLOTS = builder
-                .comment("Number of pattern slots in the green pattern provider. Default: 9.")
-                .defineInRange("green_pattern_provider_slots", 9, 1, 9_999);
         DERIVE_PROCESSOR_RECIPES_FROM_INSCRIBER = builder
                 .comment("Also accept processor recipes derived from AE2's inscriber (press-mode recipes, with",
                         "printed parts unfolded into the material inscribed into them).",

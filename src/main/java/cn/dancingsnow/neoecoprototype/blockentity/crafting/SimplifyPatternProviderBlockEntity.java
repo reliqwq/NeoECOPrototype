@@ -27,6 +27,7 @@ public class SimplifyPatternProviderBlockEntity extends PatternProviderBlockEnti
 
     @Override
     protected PatternProviderLogic createLogic() {
+        // Three rows of nine: l1_pattern_provider.png draws exactly this many pattern slots.
         return new PatternProviderLogic(getMainNode(), this, 27);
     }
 }

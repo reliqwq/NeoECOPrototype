@@ -15,23 +15,23 @@
   "slots": {
     "CONFIG": {
       "left": 8,
-      "top": 51,
+      "top": 53,
       "grid": "BREAK_AFTER_9COLS",
       "$comment": "row 2 (slots 10-18) is moved +36 in code by PoweredInterfaceScreen.moveSecondRow"
     },
     "STORAGE": {
       "left": 8,
-      "top": 69,
+      "top": 71,
       "grid": "BREAK_AFTER_9COLS"
     },
     "PLAYER_INVENTORY": {
       "left": 8,
-      "bottom": 81,
+      "bottom": 78,
       "grid": "BREAK_AFTER_9COLS"
     },
     "PLAYER_HOTBAR": {
       "left": 8,
-      "bottom": 23,
+      "bottom": 21,
       "grid": "HORIZONTAL"
     }
   },
@@ -51,7 +51,7 @@
       },
       "position": {
         "left": 105,
-        "top": 147
+        "top": 149
       }
     },
     "player_inventory_title": {
@@ -60,62 +60,62 @@
       },
       "position": {
         "left": 8,
-        "top": 168
+        "top": 171
       }
     }
   },
   "widgets": {
     "amtButton10": {
       "left": 8,
-      "top": 87,
+      "top": 89,
       "width": 16,
       "height": 16
     },
     "amtButton11": {
       "left": 26,
-      "top": 87,
+      "top": 89,
       "width": 16,
       "height": 16
     },
     "amtButton12": {
       "left": 44,
-      "top": 87,
+      "top": 89,
       "width": 16,
       "height": 16
     },
     "amtButton13": {
       "left": 62,
-      "top": 87,
+      "top": 89,
       "width": 16,
       "height": 16
     },
     "amtButton14": {
       "left": 80,
-      "top": 87,
+      "top": 89,
       "width": 16,
       "height": 16
     },
     "amtButton15": {
       "left": 98,
-      "top": 87,
+      "top": 89,
       "width": 16,
       "height": 16
     },
     "amtButton16": {
       "left": 116,
-      "top": 87,
+      "top": 89,
       "width": 16,
       "height": 16
     },
     "amtButton17": {
       "left": 134,
-      "top": 87,
+      "top": 89,
       "width": 16,
       "height": 16
     },
     "amtButton18": {
       "left": 152,
-      "top": 87,
+      "top": 89,
       "width": 16,
       "height": 16
     }
