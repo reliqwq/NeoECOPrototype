@@ -10,7 +10,6 @@
     "ECOCraftingHighPowerMixin",
     "ECOClientUIBridgeMixin",
     "MBCalculatorTargetAccessor",
-    "NEComputationClusterCalculatorMixin",
     "NECraftingClusterCalculatorMixin",
     "InterfaceLogicAccess"
   ],

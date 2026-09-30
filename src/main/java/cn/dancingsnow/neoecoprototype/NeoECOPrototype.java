@@ -149,6 +149,13 @@ public class NeoECOPrototype {
     private static void commonSetup(final FMLCommonSetupEvent event) {
         // Bind each block to its BlockEntityType (AE2's AEBaseEntityBlock#setBlockEntity).
         ModRegistration.linkBlockEntityTypes();
+        // eco 21.2.1 routes a structure check to the calculator of the controller it finds in the range
+        // (NEComputationClusterCalculator#controllerCalculator), so naming L1 geometry against the host's
+        // block entity type covers every member block of the machine. This replaces the mixin that built a
+        // throwaway calculator on every check - including for eco's own L2-L4 machines.
+        cn.dancingsnow.neoecoae.blocks.entity.NEBlockEntity.registerCalculatorFactory(
+                ModRegistration.SIMPLIFY_COMPUTATION_SYSTEM_BE.get(),
+                cn.dancingsnow.neoecoprototype.multiblock.calculator.SimplifyComputationClusterCalculator::new);
         // AE2 only lets a card into a machine when the card is associated with that machine's item,
         // and the machine tooltip is generated from the same association. The slot count mirrors the
         // inherited molecular assembler, which allows five cards.
