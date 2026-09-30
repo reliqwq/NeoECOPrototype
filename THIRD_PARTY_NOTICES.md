@@ -38,8 +38,16 @@ Special thanks to `Yang120` for substantial help from the original Neo ECO AE Ex
 - Version: `1.21-2.2.28` (compile-time reference dependency, `compileOnly`); the addon builds and runs without it and never redistributes it.
 - ExtendedAE by GlodBlock, GNU LGPLv3.
 
-## Artwork and model assets
+## Player skins bundled for the named dolls
 
+`src/main/resources/assets/neoecoprototype/textures/block/fumo/skins/{reliqwq,yang120,kouooki,tedxenon}.png` are the actual player skins of four named people, shipped inside this GPL-3 jar so their dolls show the right face without reaching the session service.
+
+- reliqwq, yang120, kouooki: collected locally on 2026-09-19/2026-09-20 into `fumo_skins/` (not redistributed by this file) and copied byte-for-byte into the jar on 2026-09-30.
+- tedxenon: fetched on 2026-09-30 from Mojang's public texture CDN for profile `82af1b07-f745-4c9e-8a1f-8836e084980f`. That profile publishes only a classic `SKIN` (no `SLIM`), which is why the file is named without the `_slim` suffix.
+- A player skin is that player's own content and Mojang's usage terms do not license us to redistribute it, so each file here stands on the person's own say-so, recorded on 2026-09-30 by this addon's maintainer. Adding another doll's face requires asking first - not fetching.
+- Arm width is decided by the file name, not by the profile: `<name>.png` is 4-pixel wrists, `<name>_slim.png` is 3-pixel. `FumoRenderer#skinOf` explains why the profile's uuid cannot answer that for a bundled skin.
+
+## Artwork and model assets
 - `Neo-TiX`: original lead artist and artwork contributor; attribution retained with permission.
 - `寒冰`: original artwork contributor; attribution retained with permission.
 
