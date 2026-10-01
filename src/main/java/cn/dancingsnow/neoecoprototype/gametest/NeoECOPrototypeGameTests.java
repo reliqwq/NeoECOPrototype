@@ -2226,15 +2226,16 @@ public final class NeoECOPrototypeGameTests {
                                     + "cluster reports " + cluster.getCPUAccelerators());
                             return;
                         }
-                        // The host's formed model carries a glass quad on the plane between the two
-                        // cells, so the core must stop drawing itself once formed or the two fight over
-                        // depth - measured as a flicker from outside the machine.
+                        // The core's formed artwork only earns its place if the block still draws itself.
+                        // This assertion used to demand the opposite, on the theory that the host's formed
+                        // model paints a quad on the shared plane -- but that model's quads land at z=1 and
+                        // z=32 while the core's front face is at z=16, and eco ships this same cube shape
+                        // as a formed core without hiding it.
                         var coreState = helper.getLevel().getBlockState(cell);
                         if (coreState.getRenderShape()
-                                != net.minecraft.world.level.block.RenderShape.INVISIBLE) {
-                            helper.fail(where + " still draws the energized core once formed, and the host's "
-                                    + "formed face has a quad on that shared plane, so the two flicker: "
-                                    + coreState);
+                                == net.minecraft.world.level.block.RenderShape.INVISIBLE) {
+                            helper.fail(where + " hides the energized core once formed, so the formed model "
+                                    + "its blockstate offers can never be drawn: " + coreState);
                             return;
                         }
                         if (coreState.hasProperty(cn.dancingsnow.neoecoae.blocks.NEBlock.FORMED)
@@ -2856,6 +2857,8 @@ public final class NeoECOPrototypeGameTests {
     public static void collapsedBlockstatesStillCoverEveryState(GameTestHelper helper) {
         var files = new Object[][]{
                 {ModRegistration.ENERGIZED_COMPUTATION_CORE_BLOCK.get(), "energized_computation_core"},
+                {ModRegistration.ENERGIZED_COMPUTATION_THREADING_CORE_BLOCK.get(),
+                        "energized_computation_threading_core"},
                 {ModRegistration.FUMO_BLOCK.get(), "fumo_reliqwq"},
                 {ModRegistration.SIMPLIFY_TRINITY_STORAGE_MODULE_BLOCK.get(), "simplify_trinity_storage_module"},
                 {ModRegistration.SIMPLIFY_TRINITY_COMPUTATION_MODULE_BLOCK.get(),
@@ -3149,6 +3152,17 @@ public final class NeoECOPrototypeGameTests {
             if (document == null) {
                 missing.add("blockstate " + blockstate);
                 continue;
+            }
+            // A formed model that ships in a blockstate still has to be reachable: a block that reports
+            // INVISIBLE once formed never draws it, so the artwork is dead and nobody notices in a compile.
+            if (document.contains("formed=true")
+                    && block.defaultBlockState()
+                    .hasProperty(cn.dancingsnow.neoecoae.blocks.NEBlock.FORMED)
+                    && block.defaultBlockState()
+                    .setValue(cn.dancingsnow.neoecoae.blocks.NEBlock.FORMED, true)
+                    .getRenderShape() == net.minecraft.world.level.block.RenderShape.INVISIBLE) {
+                missing.add(id + " ships a formed=true model in its blockstate but renders INVISIBLE once"
+                        + " formed, so that model can never be drawn");
             }
             for (var matcher = MODEL_REFERENCE.matcher(document); matcher.find();) {
                 var model = ResourceLocation.tryParse(matcher.group(1));
