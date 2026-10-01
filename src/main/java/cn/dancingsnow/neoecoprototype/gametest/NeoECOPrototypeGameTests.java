@@ -1727,7 +1727,94 @@ public final class NeoECOPrototypeGameTests {
                 return;
             }
         }
+        // An animation strip is only a strip if its .mcmeta came along. Blockbench exports the frames
+        // stacked inside the png, and the metadata file beside it is what tells the game to walk them; drop
+        // that file and every frame gets stretched into the face at once, so a light that animates in the
+        // editor ships as one still picture. Two of TedXenon's 10-01 sheets came in that state.
+        java.util.SortedSet<String> unanimated;
+        try {
+            unanimated = animationStripsWithoutMetadata();
+        } catch (java.io.IOException failure) {
+            helper.fail("could not enumerate our textures: " + failure);
+            return;
+        }
+        if (unanimated == null) {
+            var classpath = System.getProperty("java.class.path");
+            helper.fail("found no textures under assets/" + NeoECOPrototype.MOD_ID + "/textures, so the"
+                    + " animation guard checked nothing; classpath="
+                    + classpath.substring(0, Math.min(200, classpath.length())));
+            return;
+        }
+        if (!unanimated.isEmpty()) {
+            helper.fail("animation strip(s) with no .mcmeta beside them: " + unanimated);
+            return;
+        }
         helper.succeed();
+    }
+
+    /**
+     * Our textures that are a whole number of frames tall and have no {@code .mcmeta} next to them. Read
+     * straight off the classpath because the resource manager will happily hand back a png that is missing
+     * nothing it claims to need -- the missing file is the one nobody asks for. Null when the scan found no
+     * texture at all, which means the apparatus is blind rather than the assets clean.
+     */
+    private static java.util.SortedSet<String> animationStripsWithoutMetadata() throws java.io.IOException {
+        var folder = "assets/" + NeoECOPrototype.MOD_ID + "/textures";
+        var present = new java.util.TreeSet<String>();
+        var frames = new java.util.HashMap<String, int[]>();
+        for (var entry : System.getProperty("java.class.path")
+                .split(java.util.regex.Pattern.quote(java.io.File.pathSeparator))) {
+            java.nio.file.Path root = java.nio.file.Path.of(entry).toAbsolutePath();
+            java.nio.file.Path start = root.resolve(folder);
+            if (java.nio.file.Files.isDirectory(start)) {
+                try (var walk = java.nio.file.Files.walk(start)) {
+                    for (var path : (Iterable<java.nio.file.Path>) walk
+                            .filter(java.nio.file.Files::isRegularFile)::iterator) {
+                        var name = folder + "/" + start.relativize(path).toString()
+                                .replace(java.io.File.separator, "/");
+                        present.add(name);
+                        if (name.endsWith(".png")) {
+                            try (var in = java.nio.file.Files.newInputStream(path)) {
+                                rememberSize(name, in.readNBytes(24), frames);
+                            }
+                        }
+                    }
+                }
+            } else if (entry.toLowerCase(java.util.Locale.ROOT).endsWith(".jar")
+                    && java.nio.file.Files.isRegularFile(root)) {
+                try (var zip = new java.util.zip.ZipFile(root.toFile())) {
+                    for (var file : java.util.Collections.list(zip.entries())) {
+                        if (!file.getName().startsWith(folder + "/") || file.isDirectory()) continue;
+                        present.add(file.getName());
+                        if (file.getName().endsWith(".png")) {
+                            try (var in = zip.getInputStream(file)) {
+                                rememberSize(file.getName(), in.readNBytes(24), frames);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        if (frames.isEmpty()) return null;
+        var missing = new java.util.TreeSet<String>();
+        for (var size : frames.entrySet()) {
+            int width = size.getValue()[0], height = size.getValue()[1];
+            if (height > width && height % width == 0 && !present.contains(size.getKey() + ".mcmeta")) {
+                missing.add(size.getKey() + " is " + width + "x" + height + ", " + height / width
+                        + " frames tall, with nothing to animate it");
+            }
+        }
+        return missing;
+    }
+
+    /** PNG width and height live in the IHDR chunk, at fixed offsets, in big-endian. */
+    private static void rememberSize(String name, byte[] header, java.util.Map<String, int[]> sizes) {
+        if (header.length < 24 || header[1] != 'P' || header[2] != 'N' || header[3] != 'G') return;
+        sizes.put(name, new int[]{
+                (header[16] & 0xFF) << 24 | (header[17] & 0xFF) << 16
+                        | (header[18] & 0xFF) << 8 | header[19] & 0xFF,
+                (header[20] & 0xFF) << 24 | (header[21] & 0xFF) << 16
+                        | (header[22] & 0xFF) << 8 | header[23] & 0xFF});
     }
 
     /**
@@ -2244,9 +2331,25 @@ public final class NeoECOPrototypeGameTests {
                                     + " so it is showing its unformed grey model: " + coreState);
                             return;
                         }
+                        // The host has to publish the same fact in its own block state: that is the only
+                        // handle the formed face has for choosing the energized sheets.
+                        var hostState = helper.getLevel().getBlockState(absolute);
+                        if (!hostState.hasProperty(
+                                SimplifyComputationSystemBlock.ENERGIZED_PARALLEL_CORE)
+                                || !hostState.getValue(SimplifyComputationSystemBlock.ENERGIZED_PARALLEL_CORE)) {
+                            helper.fail(where + " holds the energized core, but the host published "
+                                    + "energized_parallel_core=false, so the formed face still draws the "
+                                    + "plain sheets: " + hostState);
+                            return;
+                        }
                     } else if (controller.isFormed()) {
                         helper.fail(where + " took the energized core too, so nothing limits the "
                                 + "machine to one");
+                        return;
+                    } else if (helper.getLevel().getBlockState(absolute)
+                            .getValue(SimplifyComputationSystemBlock.ENERGIZED_PARALLEL_CORE)) {
+                        helper.fail(where + " was refused, yet the host still claims an energized core: "
+                                + helper.getLevel().getBlockState(absolute));
                         return;
                     }
                 } finally {
@@ -2427,6 +2530,14 @@ public final class NeoECOPrototypeGameTests {
                 controller -> {
                     var hostPos = controller.getBlockPos();
                     var state = helper.getLevel().getBlockState(hostPos);
+                    // The same host reads its own cell: a plain build keeps the energized face unreachable.
+                    if (controller.isFormed() && state.getValue(
+                            SimplifyComputationSystemBlock.ENERGIZED_PARALLEL_CORE)) {
+                        helper.fail("a plain L1 build, casing in the allotted cell, still published "
+                                + "energized_parallel_core=true, so the formed face would draw artwork for "
+                                + "a member the machine does not have: " + state);
+                        return;
+                    }
                     if (!state.hasProperty(cn.dancingsnow.neoecoae.blocks.computation.ECOComputationSystem.NETWORK_SWITCH)) {
                         helper.fail("the host has no network_switch property, so this test cannot read it: "
                                 + state);

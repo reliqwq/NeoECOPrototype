@@ -29,14 +29,15 @@ public class SimplifyComputationClusterCalculator extends NEComputationClusterCa
     /** Side-effect-free result of the computation geometry check. */
     public record StructureValidation(boolean valid, boolean mirrored,
                                       BlockPos controllerPos, BlockPos coolerPos,
-                                      boolean communicationInterface) {
+                                      boolean communicationInterface, boolean energizedParallelCore) {
         public static StructureValidation invalid(BlockPos controllerPos) {
-            return new StructureValidation(false, false, controllerPos, null, false);
+            return new StructureValidation(false, false, controllerPos, null, false, false);
         }
     }
 
     /** What {@link #verifyStructure} reports when one hand of the machine checks out. */
-    private record Formed(BlockPos coolerPos, boolean communicationInterface) { }
+    private record Formed(BlockPos coolerPos, boolean communicationInterface,
+                          boolean energizedParallelCore) { }
 
     public SimplifyComputationClusterCalculator(NEBlockEntity<NEComputationCluster, ?> blockEntity) {
         super(blockEntity);
@@ -93,14 +94,14 @@ public class SimplifyComputationClusterCalculator extends NEComputationClusterCa
         if (formed.isPresent()) {
             var shape = formed.get();
             return new StructureValidation(true, false, controllerPos, shape.coolerPos(),
-                    shape.communicationInterface());
+                    shape.communicationInterface(), shape.energizedParallelCore());
         }
         formed = verifyStructure(level, controllerPos, tier, front, back, top, down, left, right,
                 energizedCoreCell, min, max);
         if (formed.isPresent()) {
             var shape = formed.get();
             return new StructureValidation(true, true, controllerPos, shape.coolerPos(),
-                    shape.communicationInterface());
+                    shape.communicationInterface(), shape.energizedParallelCore());
         }
         return StructureValidation.invalid(controllerPos);
     }
@@ -114,7 +115,9 @@ public class SimplifyComputationClusterCalculator extends NEComputationClusterCa
             if (level.getBlockState(result.controllerPos()).getBlock()
                     instanceof cn.dancingsnow.neoecoprototype.block.computation
                             .SimplifyComputationSystemBlock host) {
-                host.publishShape(level, result.controllerPos(), result.communicationInterface());
+                host.publishShape(level, result.controllerPos(),
+                        new cn.dancingsnow.neoecoprototype.block.computation.SimplifyComputationSystemBlock
+                                .Shape(result.communicationInterface(), result.energizedParallelCore()));
             }
         }
         if (result.coolerPos() != null
@@ -219,11 +222,12 @@ public class SimplifyComputationClusterCalculator extends NEComputationClusterCa
                 return Optional.empty();
             }
         }
-        // Whether the machine carries an energized member is no longer reported anywhere: both of them
-        // draw themselves once formed, so the only consumer would have been the host's block state, and
-        // the host's formed face looks the same either way. The allotted cell above still has to be
-        // checked, because that is what holds the structure to at most one energized core.
-        return Optional.of(new Formed(coolerPos, communicationInterface));
+        // The host wears a different formed face when the energized core is in, so the one cell allotted to
+        // it is also the whole answer -- no counting, because geometry refuses that block everywhere else.
+        // The energized threading core is not reported: it draws its own advanced face.
+        boolean energizedParallelCore = level.getBlockState(energizedCorePos)
+                .is(holder(ModRegistration.ENERGIZED_COMPUTATION_CORE_BLOCK.get()));
+        return Optional.of(new Formed(coolerPos, communicationInterface, energizedParallelCore));
     }
 
     /**
