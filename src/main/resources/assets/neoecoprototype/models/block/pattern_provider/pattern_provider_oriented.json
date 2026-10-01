@@ -3,7 +3,7 @@
   "textures": {
     "particle": "neoecoprototype:block/green_pattern_provider",
     "down": "neoecoprototype:block/green_pattern_provider_alternate",
-    "up": "neoecoprototype:block/green_pattern_provider_alternate_front",
+    "up": "neoecoprototype:block/green_pattern_provider",
     "north": "neoecoprototype:block/green_pattern_provider_alternate_arrow",
     "south": "neoecoprototype:block/green_pattern_provider_alternate_arrow",
     "east": "neoecoprototype:block/green_pattern_provider_alternate_arrow",
