@@ -2,6 +2,7 @@
 	"format_version": "1.9.0",
 	"credit": "Made with Blockbench",
 	"parent": "block/block",
+	"render_type": "cutout",
 	"textures": {
 		"0": "neoecoprototype:block/crafting_recolor/casing",
 		"1": "neoecoprototype:block/crafting_recolor/casing_side",
