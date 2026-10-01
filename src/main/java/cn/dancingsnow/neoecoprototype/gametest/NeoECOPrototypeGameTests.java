@@ -3057,6 +3057,145 @@ public final class NeoECOPrototypeGameTests {
         helper.succeed();
     }
 
+    /**
+     * A blockstate row chooses a model by name, so a row can pin {@code mirrored=true} and still be
+     * handed the un-mirrored artwork without anything complaining -- both files exist, both load, and the
+     * machine simply renders the other hand. The C1 host did exactly that on the sixteen rows where the
+     * mirrored flag and the communication interface disagreed: a mirrored machine drew the plain face, so
+     * its 2x3 end cap landed on the interface side and the end the module line runs out of stayed open.
+     * Every row that pins {@code formed=true} has to name the flags it pins.
+     *
+     * <p>Each convention is only enforced on a file that uses it, so this walks the shipped files rather
+     * than a hand-written expectation -- which is also why it counts what it checked and refuses to pass
+     * having checked nothing.
+     */
+    @GameTest(template = "empty", batch = "host_row_tokens", timeoutTicks = 100,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void formedHostRowsNameTheirOwnFlags(GameTestHelper helper) {
+        var files = new String[]{
+                "blockstates/simplify_computation_system.json",
+                "blockstates/simplify_computation_cooling_controller.json",
+                "blockstates/simplify_storage_controller.json",
+                "blockstates/simplify_crafting_system.json",
+        };
+        var conventions = new String[][]{
+                {"mirrored", "mirrored"},
+                {"communication_interface", "network"},
+                {"energized_parallel_core", "energized"},
+        };
+        var problems = new ArrayList<String>();
+        var checked = new int[]{0};
+        for (var path : files) {
+            var text = readShippedResource(
+                    ResourceLocation.fromNamespaceAndPath(NeoECOPrototype.MOD_ID, path));
+            if (text == null) {
+                problems.add(path + ": unreadable");
+                continue;
+            }
+            var document = com.google.gson.JsonParser.parseString(text).getAsJsonObject();
+            var flags = new ArrayList<java.util.Map<String, String>>();
+            var models = new ArrayList<String>();
+            if (document.has("variants")) {
+                for (var entry : document.getAsJsonObject("variants").entrySet()) {
+                    var pinned = new java.util.HashMap<String, String>();
+                    for (var pair : entry.getKey().split(",")) {
+                        if (pair.isEmpty()) {
+                            continue;
+                        }
+                        var kv = pair.split("=", 2);
+                        pinned.put(kv[0], kv.length == 2 ? kv[1] : "");
+                    }
+                    collectModels(entry.getValue(), pinned, flags, models);
+                }
+            } else if (document.has("multipart")) {
+                for (var element : document.getAsJsonArray("multipart")) {
+                    var part = element.getAsJsonObject();
+                    var pinned = new java.util.HashMap<String, String>();
+                    var when = part.get("when");
+                    if (when != null && when.isJsonObject()) {
+                        for (var clause : when.getAsJsonObject().entrySet()) {
+                            if (!clause.getValue().isJsonArray()) {
+                                pinned.put(clause.getKey(), clause.getValue().getAsString());
+                            }
+                        }
+                    }
+                    collectModels(part.get("apply"), pinned, flags, models);
+                }
+            } else {
+                problems.add(path + ": neither variants nor multipart");
+                continue;
+            }
+            for (var convention : conventions) {
+                var property = convention[0];
+                var token = convention[1];
+                if (models.stream().noneMatch(model -> namesSegment(model, token))) {
+                    continue;
+                }
+                for (var row = 0; row < flags.size(); row++) {
+                    var pinned = flags.get(row);
+                    if (!"true".equals(pinned.get("formed")) || !pinned.containsKey(property)) {
+                        continue;
+                    }
+                    var wanted = "true".equals(pinned.get(property));
+                    var model = models.get(row);
+                    var published = namesSegment(model, token);
+                    checked[0]++;
+                    if (wanted != published) {
+                        problems.add(path + " pins " + property + "=" + pinned.get(property)
+                                + " for " + pinned + " but hands the row to " + model);
+                    }
+                }
+            }
+        }
+        if (!problems.isEmpty()) {
+            helper.fail(problems.size() + " formed row(s) render the wrong hand, first: " + problems.get(0));
+            return;
+        }
+        if (checked[0] == 0) {
+            helper.fail("no formed row pins any of the flags this guard knows about, so it checked "
+                    + "nothing: " + java.util.Arrays.deepToString(conventions));
+            return;
+        }
+        NeoECOPrototype.LOGGER.info("formed row / model-name agreement: {} rows checked across {} files",
+                checked[0], files.length);
+        helper.succeed();
+    }
+
+    /**
+     * Whether a model's file name carries {@code segment} as one of its underscore-separated words. Name
+     * matching rather than substring matching, because F1's mirrored artwork is
+     * {@code controller_l4_formed_mirrored_face} -- the hand is in the middle of the name, and a plain
+     * contains() would also let an unrelated word like {@code energized_network} borrow a match.
+     */
+    private static boolean namesSegment(String model, String segment) {
+        for (var word : model.substring(model.lastIndexOf('/') + 1).split("_")) {
+            if (word.equals(segment)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static void collectModels(com.google.gson.JsonElement apply,
+                                      java.util.Map<String, String> pinned,
+                                      ArrayList<java.util.Map<String, String>> flags,
+                                      ArrayList<String> models) {
+        if (apply == null) {
+            return;
+        }
+        if (apply.isJsonArray()) {
+            for (var element : apply.getAsJsonArray()) {
+                collectModels(element, pinned, flags, models);
+            }
+            return;
+        }
+        var model = apply.getAsJsonObject().get("model");
+        if (model != null) {
+            flags.add(pinned);
+            models.add(model.getAsString());
+        }
+    }
+
     private static void assertVariantsCoverEveryState(GameTestHelper helper, Block block, String path) {
         var text = readShippedResource(ResourceLocation.fromNamespaceAndPath(NeoECOPrototype.MOD_ID, path));
         if (text == null) {
