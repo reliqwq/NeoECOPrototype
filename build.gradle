@@ -50,12 +50,18 @@ dependencies {
     implementation files("neoecobeta/neoecoae-21.2.1-beta1.jar")
     // MegaCells 4.11.0 is the supported optional integration version.
     implementation files("libs/megacells-4.11.0.jar")
-    // Kept compileOnly: these three are only for co-existence checks in runClient. Shipping them as
-    // implementation would turn three optional integrations into required runtime deps for whoever
-    // loads the jar (see the packaging note in memory), so nothing may promote them without a decision.
+    // Dev-runtime only: keep them off the compile classpath but on the runtime classpath.
+    // compileOnly alone broke runGameTestServer outright -- with Applied-Mekanistics gone, the
+    // mekanismgenerators:reactor_glass inputs sitting in the run/ data fail KubeJS's registry pass
+    // (ClassNotFoundException: me.ramidzkh.mekae2.ae2.MekanismKey) and the server never boots.
+    // There is no shadow plugin here, so implementation never bundled anything into our jar either;
+    // the shipped jar was verified byte-free of all three either way. Same shape as ae2omnicells below.
     compileOnly files("libs/Mekanism-1.21.1-10.7.19.85.jar")
     compileOnly files("libs/Applied-Mekanistics-1.6.3.jar")
     compileOnly files("libs/ae2jeiintegration-1.2.1.jar")
+    runtimeOnly files("libs/Mekanism-1.21.1-10.7.19.85.jar")
+    runtimeOnly files("libs/Applied-Mekanistics-1.6.3.jar")
+    runtimeOnly files("libs/ae2jeiintegration-1.2.1.jar")
     // Optional OmniCells API is needed by the eco-native Omni adapter.
     compileOnly files("libs/ae2omnicells-1.1.6.jar")
     compileOnly files("libs/Registrate-MC1.21.1-1.4.8.jar")
