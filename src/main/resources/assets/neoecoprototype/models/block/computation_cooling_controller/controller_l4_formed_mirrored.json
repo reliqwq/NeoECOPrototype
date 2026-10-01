@@ -8,8 +8,11 @@
 		"base": {
 			"parent": "neoecoprototype:block/computation_cooling_controller/controller_formed_base_mirrored",
 			"textures": {
-				"base": "neoecoprototype:block/computation_recolor/cooling_controller/controller_a_formed",
-				"particle": "neoecoprototype:block/computation_recolor/cooling_controller/controller_east_a"
+				"base": "neoecoprototype:block/computation_recolor/cooling_controller/controller_a_formed_switch",
+		        "screen": "neoecoprototype:block/computation_recolor/cooling_controller/screen_a_on",
+                "controller_light": "neoecoprototype:block/computation_recolor/cooling_controller/controller_light",
+		        "screen_light": "neoecoprototype:block/computation_recolor/cooling_controller/screen_light_a_on",
+                "particle": "neoecoprototype:block/computation_recolor/cooling_controller/controller_east_a"
 			}
 		},
 		"glass": {
@@ -20,83 +23,26 @@
 			"elements": [
 				{
 					"name": "front_a",
-					"from": [
-						5,
-						-12,
-						15
-					],
-					"to": [
-						11,
-						28,
-						15
-					],
+					"from": [5, -12, 15],
+					"to": [11, 28, 15],
 					"faces": {
-						"south": {
-							"uv": [
-								5.375,
-								0.5,
-								4.625,
-								5.5
-							],
-							"texture": "#base"
-						}
+						"south": {"uv": [5.375, 0.5, 4.625, 5.5], "texture": "#base"}
 					}
 				},
 				{
 					"name": "front_b",
-					"from": [
-						11,
-						6,
-						15
-					],
-					"to": [
-						15,
-						10,
-						15
-					],
+					"from": [11, 6, 15],
+					"to": [15, 10, 15],
 					"faces": {
-						"south": {
-							"uv": [
-								4.625,
-								2.75,
-								4.125,
-								3.25
-							],
-							"texture": "#base"
-						}
+						"south": {"uv": [4.625, 2.75, 4.125, 3.25], "texture": "#base"}
 					}
 				},
 				{
 					"name": "back_a",
-					"from": [
-						5,
-						-12,
-						-15
-					],
-					"to": [
-						11,
-						28,
-						-15
-					],
-					"rotation": {
-						"angle": 0,
-						"axis": "y",
-						"origin": [
-							0,
-							0,
-							0
-						]
-					},
+					"from": [5, -12, -15],
+					"to": [11, 28, -15],
 					"faces": {
-						"north": {
-							"uv": [
-								7.375,
-								0.5,
-								6.625,
-								5.5
-							],
-							"texture": "#base"
-						}
+						"north": {"uv": [7.375, 0.5, 6.625, 5.5], "texture": "#base"}
 					}
 				}
 			]

@@ -7,7 +7,8 @@
 		"particle": "neoecoprototype:block/computation_recolor/casing",
 		"top": "neoecoprototype:block/computation_recolor/casing",
 		"back": "neoecoprototype:block/computation_recolor/casing_back",
-		"front": "neoecoprototype:block/computation_recolor/core/parallel_core_north"
+		"front": "neoecoprototype:block/computation_recolor/core/parallel_core_north",
+		"side": "neoecoprototype:block/computation_recolor/casing_side"
 	},
 	"elements": [
 		{
@@ -15,7 +16,7 @@
 			"to": [16, 16, 16],
 			"faces": {
 				"north": {"uv": [0, 0, 16, 16], "texture": "#front", "cullface": "north"},
-				"east": {"uv": [0, 0, 16, 16], "texture": "#side", "cullface": "east"},
+				"east": {"uv": [16, 0, 0, 16], "texture": "#side", "cullface": "east"},
 				"south": {"uv": [0, 0, 16, 16], "texture": "#back", "cullface": "south"},
 				"west": {"uv": [0, 0, 16, 16], "texture": "#side", "cullface": "west"},
 				"up": {"uv": [0, 0, 16, 16], "texture": "#top", "cullface": "up"},

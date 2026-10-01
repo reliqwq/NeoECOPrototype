@@ -2,7 +2,7 @@
 	"loader": "neoforge:composite",
 	"parent": "block/block",
 	"textures": {
-		"particle": "neoecoprototype:block/computation_recolor/transmitter/transmitter_side_east"
+		"particle": "neoecoprototype:block/computation_recolor/transmitter/transmitter_side"
 	},
 	"children": {
 		"base": {
@@ -15,25 +15,14 @@
 			},
 			"elements": [
 				{
-					"from": [0, 0, 0],
-					"to": [16, 6, 6],
-					"faces": {
-						"up": {"uv": [0, 0, 16, 6], "texture": "#glass"}
-					}
-				},
-				{
-					"from": [0, 10, 0],
-					"to": [16, 16, 6],
-					"faces": {
-						"down": {"uv": [0, 6, 16, 0], "texture": "#glass"}
-					}
-				},
-				{
+					"name": "glass",
 					"from": [1, 6, 1],
-					"to": [15, 10, 1],
+					"to": [15, 10, 2],
+					"rotation": {"angle": 0, "axis": "y", "origin": [1, 6, 1]},
 					"faces": {
 						"north": {"uv": [1, 6, 15, 10], "texture": "#glass"},
-						"south": {"uv": [1, 6, 15, 10], "texture": "#glass"}
+						"up": {"uv": [1, 10, 15, 11], "texture": "#glass"},
+						"down": {"uv": [1, 11, 15, 12], "texture": "#glass"}
 					}
 				}
 			]
@@ -41,7 +30,7 @@
 		"coolant": {
 			"render_type": "cutout",
 			"textures": {
-				"coolant": "neoecoprototype:block/computation_recolor/coolant"
+				"coolant": "neoecoprototype:block/computation_recolor/coolant_still"
 			},
 			"elements": [
 				{

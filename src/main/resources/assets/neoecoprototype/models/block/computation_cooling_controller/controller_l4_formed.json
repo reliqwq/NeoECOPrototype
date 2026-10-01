@@ -9,6 +9,9 @@
             "parent": "neoecoprototype:block/computation_cooling_controller/controller_formed_base",
             "textures": {
                 "base": "neoecoprototype:block/computation_recolor/cooling_controller/controller_a_formed",
+		        "screen": "neoecoprototype:block/computation_recolor/cooling_controller/screen_a_on",
+                "controller_light": "neoecoprototype:block/computation_recolor/cooling_controller/controller_light",
+		        "screen_light": "neoecoprototype:block/computation_recolor/cooling_controller/screen_light_a_on",
                 "particle": "neoecoprototype:block/computation_recolor/cooling_controller/controller_east_a"
             }
         },

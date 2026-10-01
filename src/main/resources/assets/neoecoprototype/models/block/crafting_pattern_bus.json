@@ -7,6 +7,7 @@
 		"1": "neoecoprototype:block/crafting_recolor/casing_side",
 		"2": "neoecoprototype:block/crafting_recolor/pattern_bus",
 		"3": "neoecoprototype:block/crafting_recolor/casing_back",
+		"5": "neoecoprototype:block/crafting_recolor/pattern_bus_formed_light",
 		"particle": "neoecoprototype:block/crafting_recolor/casing",
 		"bottom": "neoecoprototype:block/crafting_recolor/casing_bottom"
 	},
@@ -21,6 +22,13 @@
 				"west": {"uv": [0, 0, 16, 16], "texture": "#1", "cullface": "west"},
 				"up": {"uv": [0, 0, 16, 16], "texture": "#0", "cullface": "up"},
 				"down": {"uv": [0, 0, 16, 16], "texture": "#bottom", "cullface": "down"}
+			}
+		},
+		{
+			"from": [0, 0, -0.01],
+			"to": [16, 16, -0.01],
+			"faces": {
+				"north": {"uv": [0, 0, 16, 16], "texture": "#5", "cullface": "north"}
 			}
 		}
 	]

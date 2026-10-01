@@ -1,73 +1,32 @@
 {
-    "loader": "neoforge:composite",
-    "parent": "block/block",
-    "textures": {
-        "particle": "neoecoprototype:block/computation_recolor/casing"
-    },
+    "loader":"neoforge:composite",
+	"parent":"block/block",
+	"textures": {
+		"particle": "neoecoprototype:block/computation_recolor/casing"
+	},
     "children": {
         "base": {
             "parent": "neoecoprototype:block/computation_controller/controller_formed_base_mirrored",
             "textures": {
-                "base": "neoecoprototype:block/computation_recolor/controller_formed/controller_formed_a",
-                "screen": "neoecoprototype:block/computation_recolor/controller/screen_on_a"
+                "light": "neoecoprototype:block/computation_recolor/controller_formed/controller_formed_light_a_switch",
+                "screen_light": "neoecoprototype:block/computation_recolor/controller/screen_on_a"
             }
         },
         "glass": {
-            "render_type": "translucent",
-            "textures": {
-                "base": "neoecoprototype:block/computation_recolor/controller_formed/controller_formed_a"
-            },
+            "render_type":"translucent",
+			"textures":{
+				"base": "neoecoprototype:block/computation_recolor/controller_formed/controller_formed_switch"
+			},
             "elements": [
                 {
                     "name": "glass_a",
-                    "from": [
-                        21,
-                        -12,
-                        1
-                    ],
-                    "to": [
-                        27,
-                        28,
-                        1
-                    ],
+                    "from": [19, 3, 1],
+                    "to": [31, 13, 1],
                     "faces": {
-                        "north": {
-                            "uv": [
-                                5.375,
-                                0.5,
-                                4.625,
-                                5.5
-                            ],
-                            "texture": "#base"
-                        }
-                    }
-                },
-                {
-                    "name": "glass_b",
-                    "from": [
-                        27,
-                        6,
-                        1
-                    ],
-                    "to": [
-                        31,
-                        10,
-                        1
-                    ],
-                    "faces": {
-                        "north": {
-                            "uv": [
-                                5.875,
-                                2.75,
-                                5.375,
-                                3.25
-                            ],
-                            "texture": "#base"
-                        }
+                        "north": {"uv": [0.125, 2.375, 1.625, 3.625], "texture": "#base"}
                     }
                 }
             ]
         }
-    },
-    "credit": "Formed C1 host: communication=False energized_threading=False energized_parallel=False. Overwrite the PNG named below to change this combination; no JSON edit needed."
+    }
 }
