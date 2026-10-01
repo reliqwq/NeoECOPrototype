@@ -31,33 +31,33 @@
       "y": 270
     },
     "facing=north,formed=true,mirrored=false,communication_interface=true,energized_parallel_core=false": {
-      "model": "neoecoprototype:block/computation_controller/controller_l4_formed_mirrored"
+      "model": "neoecoprototype:block/computation_controller/controller_l4_formed_network"
     },
     "facing=east,formed=true,mirrored=false,communication_interface=true,energized_parallel_core=false": {
-      "model": "neoecoprototype:block/computation_controller/controller_l4_formed_mirrored",
+      "model": "neoecoprototype:block/computation_controller/controller_l4_formed_network",
       "y": 90
     },
     "facing=south,formed=true,mirrored=false,communication_interface=true,energized_parallel_core=false": {
-      "model": "neoecoprototype:block/computation_controller/controller_l4_formed_mirrored",
+      "model": "neoecoprototype:block/computation_controller/controller_l4_formed_network",
       "y": 180
     },
     "facing=west,formed=true,mirrored=false,communication_interface=true,energized_parallel_core=false": {
-      "model": "neoecoprototype:block/computation_controller/controller_l4_formed_mirrored",
+      "model": "neoecoprototype:block/computation_controller/controller_l4_formed_network",
       "y": 270
     },
     "facing=north,formed=true,mirrored=true,communication_interface=false,energized_parallel_core=false": {
-      "model": "neoecoprototype:block/computation_controller/controller_l4_formed_network"
+      "model": "neoecoprototype:block/computation_controller/controller_l4_formed_mirrored"
     },
     "facing=east,formed=true,mirrored=true,communication_interface=false,energized_parallel_core=false": {
-      "model": "neoecoprototype:block/computation_controller/controller_l4_formed_network",
+      "model": "neoecoprototype:block/computation_controller/controller_l4_formed_mirrored",
       "y": 90
     },
     "facing=south,formed=true,mirrored=true,communication_interface=false,energized_parallel_core=false": {
-      "model": "neoecoprototype:block/computation_controller/controller_l4_formed_network",
+      "model": "neoecoprototype:block/computation_controller/controller_l4_formed_mirrored",
       "y": 180
     },
     "facing=west,formed=true,mirrored=true,communication_interface=false,energized_parallel_core=false": {
-      "model": "neoecoprototype:block/computation_controller/controller_l4_formed_network",
+      "model": "neoecoprototype:block/computation_controller/controller_l4_formed_mirrored",
       "y": 270
     },
     "facing=north,formed=true,mirrored=true,communication_interface=true,energized_parallel_core=false": {
@@ -91,33 +91,33 @@
       "y": 270
     },
     "facing=north,formed=true,mirrored=false,communication_interface=true,energized_parallel_core=true": {
-      "model": "neoecoprototype:block/computation_controller/controller_l4_formed_energized_mirrored"
+      "model": "neoecoprototype:block/computation_controller/controller_l4_formed_energized_network"
     },
     "facing=east,formed=true,mirrored=false,communication_interface=true,energized_parallel_core=true": {
-      "model": "neoecoprototype:block/computation_controller/controller_l4_formed_energized_mirrored",
+      "model": "neoecoprototype:block/computation_controller/controller_l4_formed_energized_network",
       "y": 90
     },
     "facing=south,formed=true,mirrored=false,communication_interface=true,energized_parallel_core=true": {
-      "model": "neoecoprototype:block/computation_controller/controller_l4_formed_energized_mirrored",
+      "model": "neoecoprototype:block/computation_controller/controller_l4_formed_energized_network",
       "y": 180
     },
     "facing=west,formed=true,mirrored=false,communication_interface=true,energized_parallel_core=true": {
-      "model": "neoecoprototype:block/computation_controller/controller_l4_formed_energized_mirrored",
+      "model": "neoecoprototype:block/computation_controller/controller_l4_formed_energized_network",
       "y": 270
     },
     "facing=north,formed=true,mirrored=true,communication_interface=false,energized_parallel_core=true": {
-      "model": "neoecoprototype:block/computation_controller/controller_l4_formed_energized_network"
+      "model": "neoecoprototype:block/computation_controller/controller_l4_formed_energized_mirrored"
     },
     "facing=east,formed=true,mirrored=true,communication_interface=false,energized_parallel_core=true": {
-      "model": "neoecoprototype:block/computation_controller/controller_l4_formed_energized_network",
+      "model": "neoecoprototype:block/computation_controller/controller_l4_formed_energized_mirrored",
       "y": 90
     },
     "facing=south,formed=true,mirrored=true,communication_interface=false,energized_parallel_core=true": {
-      "model": "neoecoprototype:block/computation_controller/controller_l4_formed_energized_network",
+      "model": "neoecoprototype:block/computation_controller/controller_l4_formed_energized_mirrored",
       "y": 180
     },
     "facing=west,formed=true,mirrored=true,communication_interface=false,energized_parallel_core=true": {
-      "model": "neoecoprototype:block/computation_controller/controller_l4_formed_energized_network",
+      "model": "neoecoprototype:block/computation_controller/controller_l4_formed_energized_mirrored",
       "y": 270
     },
     "facing=north,formed=true,mirrored=true,communication_interface=true,energized_parallel_core=true": {
