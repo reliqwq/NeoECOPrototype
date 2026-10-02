@@ -103,8 +103,6 @@ public class CryotheumMeteoriteStructure extends Structure {
         public void postProcess(WorldGenLevel level, net.minecraft.world.level.StructureManager manager,
                                 net.minecraft.world.level.chunk.ChunkGenerator generator, RandomSource random,
                                 BoundingBox restriction, ChunkPos chunkPos, BlockPos pivot) {
-            Block core = BuiltInRegistries.BLOCK.get(
-                    ResourceLocation.fromNamespaceAndPath("neoecoae", "energized_crystal_block"));
             for (int dx = -radius; dx <= radius; dx++) {
                 for (int dy = -radius; dy <= radius; dy++) {
                     for (int dz = -radius; dz <= radius; dz++) {
@@ -116,7 +114,7 @@ public class CryotheumMeteoriteStructure extends Structure {
                         if (!restriction.isInside(pos)) {
                             continue;
                         }
-                        level.setBlock(pos, stateFor(distance, core, dx, dy, dz, pos), Block.UPDATE_KNOWN_SHAPE);
+                        level.setBlock(pos, stateFor(dx, dy, dz), Block.UPDATE_KNOWN_SHAPE);
                     }
                 }
             }
@@ -125,22 +123,23 @@ public class CryotheumMeteoriteStructure extends Structure {
         /**
          * The bands are a function of the world position, not of the shared worldgen random: a structure is
          * written one chunk at a time, and anything random per call would come out different in every chunk.
+         *
+         * <p>The rock is AE2's sky stone rather than end stone because a floating End rock made of the
+         * End's own ground reads as a piece of scenery that was always there; sky stone is what tells the
+         * player this fell in from somewhere else.
          */
-        private BlockState stateFor(double distance, Block core, int dx, int dy, int dz, BlockPos pos) {
-            if (distance > radius - 1.5) {
-                return Blocks.END_STONE.defaultBlockState();
-            }
-            if (distance < 1.9) {
-                return core.defaultBlockState();
+        private BlockState stateFor(int dx, int dy, int dz) {
+            if (Math.abs(dx) <= 1 && Math.abs(dy) <= 1 && Math.abs(dz) <= 1) {
+                return state("neoecoae", "energized_crystal_block", Blocks.END_STONE);
             }
             double band = Math.sin(dx * 0.78 + center.getX() * 0.11)
                     + Math.cos(dz * 0.71 + center.getZ() * 0.13)
                     + Math.sin(dy * 0.9);
             if (band > 1.55) {
-                return ore("neoecoae", "tungsten_ore");
+                return state("neoecoae", "tungsten_ore", Blocks.END_STONE);
             }
             if (band > 0.85) {
-                return ore("neoecoae", "aluminum_ore");
+                return state("neoecoae", "aluminum_ore", Blocks.END_STONE);
             }
             if (band < -1.35) {
                 return cn.dancingsnow.neoecoprototype.registration.ModRegistration
@@ -150,13 +149,13 @@ public class CryotheumMeteoriteStructure extends Structure {
                 return cn.dancingsnow.neoecoprototype.registration.ModRegistration
                         .END_CRYOTHEUM_ORE_BLOCK.get().defaultBlockState();
             }
-            return Blocks.END_STONE.defaultBlockState();
+            return state("ae2", "sky_stone_block", Blocks.END_STONE);
         }
 
-        private static BlockState ore(String namespace, String path) {
-            Block block = BuiltInRegistries.BLOCK.get(ResourceLocation.fromNamespaceAndPath(namespace, path));
-            return block == null || block == Blocks.AIR ? Blocks.END_STONE.defaultBlockState()
-                    : block.defaultBlockState();
+        /** A block from a mod we depend on; end stone stands in if the id is ever gone. */
+        private static BlockState state(String namespace, String path, Block fallback) {
+            Block found = BuiltInRegistries.BLOCK.get(ResourceLocation.fromNamespaceAndPath(namespace, path));
+            return (found == null || found == Blocks.AIR ? fallback : found).defaultBlockState();
         }
     }
 }
