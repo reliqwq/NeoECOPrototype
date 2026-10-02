@@ -1,9 +1,0 @@
-{
-  "type": "neoforge:add_features",
-  "biomes": "#minecraft:is_overworld",
-  "features": [
-    "neoecoprototype:cryotheum_ore",
-    "neoecoprototype:deepslate_cryotheum_ore"
-  ],
-  "step": "underground_ores"
-}

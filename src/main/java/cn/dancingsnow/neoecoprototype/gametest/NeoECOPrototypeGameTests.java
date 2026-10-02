@@ -3738,11 +3738,10 @@ public final class NeoECOPrototypeGameTests {
             templateNamespace = NeoECOPrototype.MOD_ID)
     public static void cryotheumOreWorldgenDataIsLoaded(GameTestHelper helper) {
         var resourceManager = helper.getLevel().getServer().getResourceManager();
-        var modifiers = List.of("cryotheum_ore_nether", "cryotheum_ore_end", "cryotheum_ore_overworld");
+        var modifiers = List.of("cryotheum_ore_nether", "cryotheum_ore_end");
         var missing = new ArrayList<String>();
         var paths = new ArrayList<String>();
-        for (var ore : List.of("nether_cryotheum_ore", "end_cryotheum_ore", "cryotheum_ore",
-                "deepslate_cryotheum_ore")) {
+        for (var ore : List.of("nether_cryotheum_ore", "end_cryotheum_ore")) {
             paths.add("worldgen/configured_feature/" + ore + ".json");
             paths.add("worldgen/placed_feature/" + ore + ".json");
         }
@@ -3793,10 +3792,23 @@ public final class NeoECOPrototypeGameTests {
         var asked = new ArrayList<String>();
         expectFeature(asked, biomes, registries, "minecraft:nether_wastes", "nether_cryotheum_ore");
         expectFeature(asked, biomes, registries, "minecraft:end_highlands", "end_cryotheum_ore");
-        expectFeature(asked, biomes, registries, "minecraft:plains", "cryotheum_ore");
-        expectFeature(asked, biomes, registries, "minecraft:plains", "deepslate_cryotheum_ore");
         helper.assertTrue(asked.isEmpty(),
                 "the ore is authored but no biome asks for it at underground_ores: " + asked);
+        // The two overworld variants are blocks with no worldgen on purpose: they are waiting on a
+        // floating End meteorite to live in, and 1.21.1 has no placement modifier that anchors to a
+        // structure. Pin the absence so they cannot come back as a silent everywhere-ore.
+        var placedRegistry = registries.registryOrThrow(
+                net.minecraft.core.registries.Registries.PLACED_FEATURE);
+        var stillGenerated = new ArrayList<String>();
+        for (var idle : List.of("cryotheum_ore", "deepslate_cryotheum_ore")) {
+            if (placedRegistry.get(ResourceLocation.fromNamespaceAndPath(NeoECOPrototype.MOD_ID, idle))
+                    != null) {
+                stillGenerated.add(idle);
+            }
+        }
+        helper.assertTrue(stillGenerated.isEmpty(),
+                "the overworld cryotheum variants have placed features again - they are meant to stay "
+                        + "ungenerated until the End meteorite exists: " + stillGenerated);
         helper.succeed();
     }
 
