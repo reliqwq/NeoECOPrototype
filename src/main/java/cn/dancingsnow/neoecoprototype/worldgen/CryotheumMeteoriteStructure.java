@@ -70,13 +70,15 @@ public class CryotheumMeteoriteStructure extends Structure {
 
     /** The floating rock itself: a shell of end stone, banded ore inside, one crystal block at the core. */
     public static class MeteoritePiece extends net.minecraft.world.level.levelgen.structure.StructurePiece {
+        /** Half-width of the frost field around the rock: 16x16 columns, matching how he asked for it. */
+        private static final int FROST_HALF = 8;
         private final BlockPos center;
         private final int radius;
 
         MeteoritePiece(BlockPos center, int radius) {
             this(ModWorldgen.METEORITE_PIECE.get(), center, radius,
-                    BoundingBox.fromCorners(center.offset(-radius - 1, -radius - 1, -radius - 1),
-                            center.offset(radius, radius, radius)));
+                    BoundingBox.fromCorners(center.offset(-FROST_HALF, -radius - 1, -FROST_HALF),
+                            center.offset(FROST_HALF, radius, FROST_HALF)));
         }
 
         private MeteoritePiece(StructurePieceType type, BlockPos center, int radius, BoundingBox box) {
@@ -116,6 +118,35 @@ public class CryotheumMeteoriteStructure extends Structure {
                         }
                         level.setBlock(pos, stateFor(dx, dy, dz), Block.UPDATE_KNOWN_SHAPE);
                     }
+                }
+            }
+            scatterFrost(level, restriction);
+        }
+
+        /**
+         * Blue ice floating around the rock. The field is drawn from a random seeded by the centre and the
+         * draw loop never looks at which chunk is writing, so a rock that spans several chunks lays down the
+         * same 72-105 blocks in total rather than that many per chunk.
+         */
+        private void scatterFrost(WorldGenLevel level, BoundingBox restriction) {
+            var random = net.minecraft.util.RandomSource.create(Mth.getSeed(center));
+            var wanted = 72 + random.nextInt(34);
+            var taken = new java.util.HashSet<BlockPos>();
+            int attempts = 0;
+            for (int drawn = 0; drawn < wanted && attempts++ < wanted * 6; ) {
+                int dx = random.nextInt(FROST_HALF * 2 + 1) - FROST_HALF;
+                int dy = random.nextInt(radius * 2 + 1) - radius;
+                int dz = random.nextInt(FROST_HALF * 2 + 1) - FROST_HALF;
+                if (Math.sqrt(dx * dx + dy * dy + dz * dz) <= radius + 0.9) {
+                    continue;
+                }
+                var pos = center.offset(dx, dy, dz);
+                if (!taken.add(pos)) {
+                    continue;
+                }
+                drawn++;
+                if (restriction.isInside(pos)) {
+                    level.setBlock(pos, Blocks.BLUE_ICE.defaultBlockState(), Block.UPDATE_KNOWN_SHAPE);
                 }
             }
         }
