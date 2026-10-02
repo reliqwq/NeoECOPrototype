@@ -1,0 +1,14 @@
+{
+  "placement": {
+    "type": "minecraft:random_spread",
+    "salt": 981234567,
+    "separation": 6,
+    "spacing": 26
+  },
+  "structures": [
+    {
+      "structure": "neoecoprototype:cryotheum_meteorite",
+      "weight": 1
+    }
+  ]
+}

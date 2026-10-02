@@ -1,0 +1,8 @@
+{
+  "type": "neoecoprototype:cryotheum_meteorite",
+  "biomes": "minecraft:small_end_islands",
+  "step": "top_layer_modification",
+  "spawn_overrides": {},
+  "radius": 6,
+  "center_y": 140
+}

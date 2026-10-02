@@ -3835,6 +3835,48 @@ public final class NeoECOPrototypeGameTests {
         complaints.add(biome + " has no " + placed + " on underground_ores");
     }
 
+    /**
+     * The floating rock is our own structure rather than a hook into AE2's meteorite, so everything about
+     * it has to be checked on our side: the type and piece are registered, the two data files decoded into
+     * the dynamic registries (a field name that disagrees with the codec drops the element and the game
+     * only logs it), and the biome set it names actually contains the void biome it is meant to float in.
+     */
+    @GameTest(template = "empty", batch = "cryotheum_meteorite", timeoutTicks = 100,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void cryotheumMeteoriteIsRegisteredAndLoaded(GameTestHelper helper) {
+        var id = ResourceLocation.fromNamespaceAndPath(NeoECOPrototype.MOD_ID, "cryotheum_meteorite");
+        if (!BuiltInRegistries.STRUCTURE_TYPE.containsKey(id)
+                || !BuiltInRegistries.STRUCTURE_PIECE.containsKey(id)) {
+            helper.fail("the structure type or its piece is not registered, so the data file cannot decode");
+            return;
+        }
+        var registries = helper.getLevel().registryAccess();
+        var structures = registries.registryOrThrow(net.minecraft.core.registries.Registries.STRUCTURE);
+        var structure = structures.get(id);
+        if (structure == null) {
+            helper.fail("worldgen/structure/cryotheum_meteorite.json did not load - a field name that "
+                    + "disagrees with the codec shows up exactly like this");
+            return;
+        }
+        var sets = registries.registryOrThrow(net.minecraft.core.registries.Registries.STRUCTURE_SET);
+        var set = sets.get(id);
+        helper.assertTrue(set != null && set.structures().stream()
+                        .anyMatch(entry -> entry.structure().value() == structure),
+                "the structure exists but no structure_set places it, so it can never generate and "
+                        + "/locate cannot find it");
+        var voidBiome = registries.registryOrThrow(net.minecraft.core.registries.Registries.BIOME)
+                .getHolderOrThrow(net.minecraft.resources.ResourceKey.create(
+                        net.minecraft.core.registries.Registries.BIOME,
+                        ResourceLocation.withDefaultNamespace("small_end_islands")));
+        helper.assertTrue(structure.biomes().contains(voidBiome),
+                "the meteorite is not allowed in small_end_islands: " + structure.biomes());
+        helper.assertTrue(structure.step()
+                        == net.minecraft.world.level.levelgen.GenerationStep.Decoration.TOP_LAYER_MODIFICATION,
+                "the meteorite is on step " + structure.step() + "; below that the island noise "
+                        + "has already run, above it the rock would be overwritten");
+        helper.succeed();
+    }
+
     /** Places a glass cable into the empty cell next to {@code clickedPos} on {@code face}. */
     private static boolean placeCableAgainst(GameTestHelper helper, Player player, BlockPos clickedPos,
                                              Direction face) {

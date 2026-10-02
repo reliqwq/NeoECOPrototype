@@ -48,6 +48,8 @@ public class NeoECOPrototype {
         ModRegistration.RECIPE_TYPES.register(modBus);
         ModRegistration.RECIPE_SERIALIZERS.register(modBus);
         ModRegistration.FEATURES.register(modBus);
+        cn.dancingsnow.neoecoprototype.worldgen.ModWorldgen.STRUCTURE_TYPES.register(modBus);
+        cn.dancingsnow.neoecoprototype.worldgen.ModWorldgen.STRUCTURE_PIECES.register(modBus);
         ModRegistration.CREATIVE_TABS.register(modBus);
         ModRegistration.DATA_COMPONENTS.register(modBus);
         ModRegistration.MENU_TYPES.register(modBus);
