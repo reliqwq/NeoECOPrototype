@@ -3645,8 +3645,7 @@ public final class NeoECOPrototypeGameTests {
         }
         var ores = List.of(ModRegistration.NETHER_CRYOTHEUM_ORE_BLOCK.get(),
                 ModRegistration.END_CRYOTHEUM_ORE_BLOCK.get(),
-                ModRegistration.CRYOTHEUM_ORE_BLOCK.get(),
-                ModRegistration.DEEPSLATE_CRYOTHEUM_ORE_BLOCK.get());
+                ModRegistration.CRYOTHEUM_ORE_BLOCK.get());
         var breaker = helper.makeMockPlayer(net.minecraft.world.level.GameType.SURVIVAL);
         for (var i = 0; i < ores.size(); i++) {
             helper.setBlock(new BlockPos(i, 1, 0), ores.get(i));
@@ -3794,13 +3793,13 @@ public final class NeoECOPrototypeGameTests {
         expectFeature(asked, biomes, registries, "minecraft:end_highlands", "end_cryotheum_ore");
         helper.assertTrue(asked.isEmpty(),
                 "the ore is authored but no biome asks for it at underground_ores: " + asked);
-        // The two overworld variants are blocks with no worldgen on purpose: they are waiting on a
-        // floating End meteorite to live in, and 1.21.1 has no placement modifier that anchors to a
-        // structure. Pin the absence so they cannot come back as a silent everywhere-ore.
+        // The plain stone variant is a block with no worldgen on purpose: the overworld meteorite idea
+        // was dropped, so it is waiting for a home. Pin the absence so it cannot come back as a silent
+        // everywhere-ore.
         var placedRegistry = registries.registryOrThrow(
                 net.minecraft.core.registries.Registries.PLACED_FEATURE);
         var stillGenerated = new ArrayList<String>();
-        for (var idle : List.of("cryotheum_ore", "deepslate_cryotheum_ore")) {
+        for (var idle : List.of("cryotheum_ore")) {
             if (placedRegistry.get(ResourceLocation.fromNamespaceAndPath(NeoECOPrototype.MOD_ID, idle))
                     != null) {
                 stillGenerated.add(idle);

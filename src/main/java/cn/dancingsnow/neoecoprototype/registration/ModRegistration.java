@@ -301,12 +301,6 @@ public class ModRegistration {
                             .instrument(net.minecraft.world.level.block.state.properties
                                     .NoteBlockInstrument.BASEDRUM)
                             .strength(3.0F, 3.0F).requiresCorrectToolForDrops()));
-    public static final Supplier<SimplifyCryotheumOreBlock> DEEPSLATE_CRYOTHEUM_ORE_BLOCK =
-            BLOCKS.register("deepslate_cryotheum_ore", () -> new SimplifyCryotheumOreBlock(
-                    BlockBehaviour.Properties.of().mapColor(MapColor.DEEPSLATE)
-                            .instrument(net.minecraft.world.level.block.state.properties
-                                    .NoteBlockInstrument.BASEDRUM)
-                            .strength(4.5F, 3.0F).requiresCorrectToolForDrops()));
 
     // ============================ L1 crafting blocks ============================
 
@@ -447,9 +441,6 @@ public class ModRegistration {
     public static final Supplier<BlockItem> CRYOTHEUM_ORE_ITEM =
             ITEMS.register("cryotheum_ore",
                     () -> new BlockItem(CRYOTHEUM_ORE_BLOCK.get(), new Item.Properties()));
-    public static final Supplier<BlockItem> DEEPSLATE_CRYOTHEUM_ORE_ITEM =
-            ITEMS.register("deepslate_cryotheum_ore",
-                    () -> new BlockItem(DEEPSLATE_CRYOTHEUM_ORE_BLOCK.get(), new Item.Properties()));
 
     public static final Supplier<BlockItem> SIMPLIFY_STONECUTTING_ASSEMBLER_ITEM = ITEMS.register("simplify_stonecutting_assembler", () -> new BlockItem(SIMPLIFY_STONECUTTING_ASSEMBLER_BLOCK.get(), coloredName(SIMPLIFY_STONECUTTING_ASSEMBLER_BLOCK, NAME_THEME_GREEN)));
      public static final Supplier<BlockItem> SIMPLIFY_PATTERN_PROVIDER_ITEM = ITEMS.register("simplify_pattern_provider", () -> new BlockItem(SIMPLIFY_PATTERN_PROVIDER_BLOCK.get(), coloredName(SIMPLIFY_PATTERN_PROVIDER_BLOCK, NAME_THEME_GREEN)));
@@ -1056,7 +1047,6 @@ private static Supplier<BlockEntityType<SimplifyStorageVentBlockEntity>> registe
                         output.accept(NETHER_CRYOTHEUM_ORE_ITEM.get());
                         output.accept(END_CRYOTHEUM_ORE_ITEM.get());
                         output.accept(CRYOTHEUM_ORE_ITEM.get());
-                        output.accept(DEEPSLATE_CRYOTHEUM_ORE_ITEM.get());
                         output.accept(SIMPLIFY_STORAGE_INTERFACE_ITEM.get());
                         output.accept(SIMPLIFY_STORAGE_NETWORK_INTERFACE_ITEM.get());
                         output.accept(SIMPLIFY_STORAGE_VENT_ITEM.get());
