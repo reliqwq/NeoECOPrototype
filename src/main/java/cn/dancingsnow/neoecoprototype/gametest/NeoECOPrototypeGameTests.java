@@ -3449,6 +3449,168 @@ public final class NeoECOPrototypeGameTests {
         }
     }
 
+    /**
+     * Both packs we ship have to be self-contained. A model that names a texture nobody carries shows up
+     * in game as the missing-texture cube and in a compile as nothing at all, and the artwork arrives as
+     * Blockbench exports, where renaming one file silently breaks every model that names it -- which is the
+     * exact risk the pending {@code l4} to {@code l1} rename runs through.
+     *
+     * <p>Each reference is resolved inside the pack that carries the file making it. Resolving everything
+     * against the live tree instead calls 21 of the fallback pack's models missing, because it ships its own
+     * copies of the artwork it names on purpose.
+     */
+    @GameTest(template = "empty", batch = "asset_references", timeoutTicks = 200,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void shippedAssetReferencesResolve(GameTestHelper helper) {
+        var packs = List.of("assets/" + NeoECOPrototype.MOD_ID,
+                "legacy_art/assets/" + NeoECOPrototype.MOD_ID);
+        var problems = new ArrayList<String>();
+        var jsonFiles = new int[]{0};
+        var checked = new int[]{0};
+        for (var pack : packs) {
+            java.util.SortedSet<String> present;
+            try {
+                present = shippedFilesUnder(pack);
+            } catch (java.io.IOException failure) {
+                helper.fail("could not enumerate " + pack + " on the classpath: " + failure);
+                return;
+            }
+            if (present.isEmpty()) {
+                var classpath = System.getProperty("java.class.path");
+                helper.fail("found nothing under " + pack + ", so this guard checked nothing; classpath="
+                        + classpath.substring(0, Math.min(200, classpath.length())));
+                return;
+            }
+            for (var path : present) {
+                if (!path.endsWith(".json")) {
+                    continue;
+                }
+                jsonFiles[0]++;
+                var text = readClasspathResource("/" + path);
+                if (text == null) {
+                    problems.add(path + ": enumerated but not readable");
+                    continue;
+                }
+                com.google.gson.JsonElement document;
+                try {
+                    document = com.google.gson.JsonParser.parseString(text);
+                } catch (com.google.gson.JsonSyntaxException failure) {
+                    problems.add(path + ": does not parse, " + failure.getMessage());
+                    continue;
+                }
+                var references = new ArrayList<String[]>();
+                collectAssetReferences(document, references);
+                for (var reference : references) {
+                    var wanted = pack + "/" + ("texture".equals(reference[0]) ? "textures/" : "models/")
+                            + reference[1] + ("texture".equals(reference[0]) ? ".png" : ".json");
+                    checked[0]++;
+                    if (!present.contains(wanted)) {
+                        problems.add(path + " names " + reference[0] + " " + NeoECOPrototype.MOD_ID + ":"
+                                + reference[1] + ", no " + wanted);
+                    }
+                }
+            }
+        }
+        if (jsonFiles[0] == 0 || checked[0] == 0) {
+            helper.fail("walked " + jsonFiles[0] + " json file(s) and resolved " + checked[0]
+                    + " reference(s), so this guard saw nothing it could check");
+            return;
+        }
+        if (!problems.isEmpty()) {
+            helper.fail(problems.size() + " asset reference(s) name a file that is not shipped, first: "
+                    + problems.get(0));
+            return;
+        }
+        NeoECOPrototype.LOGGER.info("asset references resolved inside their own pack: {} of {} json file(s)",
+                checked[0], jsonFiles[0]);
+        helper.succeed();
+    }
+
+    /**
+     * Every file under {@code folder} on the JVM classpath, keyed as {@code folder/<relative path>}. The
+     * classpath is walked rather than the resource manager because a dedicated server never indexes
+     * {@code assets/}, so the files a broken reference names are invisible to it.
+     */
+    private static java.util.SortedSet<String> shippedFilesUnder(String folder) throws java.io.IOException {
+        var present = new java.util.TreeSet<String>();
+        for (var entry : System.getProperty("java.class.path")
+                .split(java.util.regex.Pattern.quote(java.io.File.pathSeparator))) {
+            java.nio.file.Path root = java.nio.file.Path.of(entry).toAbsolutePath();
+            java.nio.file.Path start = root.resolve(folder);
+            if (java.nio.file.Files.isDirectory(start)) {
+                try (var walk = java.nio.file.Files.walk(start)) {
+                    for (var path : (Iterable<java.nio.file.Path>) walk
+                            .filter(java.nio.file.Files::isRegularFile)::iterator) {
+                        present.add(folder + "/" + start.relativize(path).toString()
+                                .replace(java.io.File.separator, "/"));
+                    }
+                }
+            } else if (entry.toLowerCase(java.util.Locale.ROOT).endsWith(".jar")
+                    && java.nio.file.Files.isRegularFile(root)) {
+                try (var zip = new java.util.zip.ZipFile(root.toFile())) {
+                    for (var file : java.util.Collections.list(zip.entries())) {
+                        if (file.getName().startsWith(folder + "/") && !file.isDirectory()) {
+                            present.add(file.getName());
+                        }
+                    }
+                }
+            }
+        }
+        return present;
+    }
+
+    /** Our-namespace texture and model references anywhere in a blockstate, model or item JSON. */
+    private static void collectAssetReferences(com.google.gson.JsonElement node, List<String[]> sink) {
+        if (node == null) {
+            return;
+        }
+        if (node.isJsonArray()) {
+            for (var child : node.getAsJsonArray()) {
+                collectAssetReferences(child, sink);
+            }
+            return;
+        }
+        if (!node.isJsonObject()) {
+            return;
+        }
+        for (var member : node.getAsJsonObject().entrySet()) {
+            var value = member.getValue();
+            if ("textures".equals(member.getKey()) && value.isJsonObject()) {
+                // The map binds keys to texture paths; "#key" values point back into the same map.
+                for (var binding : value.getAsJsonObject().entrySet()) {
+                    rememberReference(sink, "texture", binding.getValue());
+                }
+            } else if (("parent".equals(member.getKey()) || "model".equals(member.getKey())
+                    || "apply".equals(member.getKey())) && value.isJsonObject()) {
+                collectAssetReferences(value, sink);
+            } else if ("parent".equals(member.getKey()) || "model".equals(member.getKey())
+                    || "apply".equals(member.getKey())) {
+                rememberReference(sink, "model", value);
+            } else {
+                collectAssetReferences(value, sink);
+            }
+        }
+    }
+
+    private static void rememberReference(List<String[]> sink, String kind, com.google.gson.JsonElement value) {
+        if (value == null || !value.isJsonPrimitive() || !value.getAsJsonPrimitive().isString()) {
+            return;
+        }
+        var location = ResourceLocation.tryParse(value.getAsString());
+        if (location != null && NeoECOPrototype.MOD_ID.equals(location.getNamespace())) {
+            sink.add(new String[]{kind, location.getPath()});
+        }
+    }
+
+    private static String readClasspathResource(String path) {
+        try (var stream = NeoECOPrototype.class.getResourceAsStream(path)) {
+            return stream == null ? null : new String(stream.readAllBytes(),
+                    java.nio.charset.StandardCharsets.UTF_8);
+        } catch (java.io.IOException failure) {
+            return null;
+        }
+    }
+
     /** Places a glass cable into the empty cell next to {@code clickedPos} on {@code face}. */
     private static boolean placeCableAgainst(GameTestHelper helper, Player player, BlockPos clickedPos,
                                              Direction face) {
