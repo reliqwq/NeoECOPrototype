@@ -155,10 +155,13 @@ public final class NeoECOPrototypeClient {
         }
         ECOCellModels.runDeferredRegistration();
 
+        // TedXenon's split, by cell item rather than by drive: the CE1 array shows the cell_l1 face and
+        // the CE1R shows cell_l4. eco's registry holds exactly these two slots per item (normal = not
+        // working, formed = working), so the distinction needs no renderer change.
         ECOComputationModels.registerCellModel(
                 BuiltInRegistries.ITEM.wrapAsHolder(ModRegistration.SIMPLIFY_COMPUTATION_CELL_1M.get()),
-                ResourceLocation.fromNamespaceAndPath(NeoECOPrototype.MOD_ID, "block/computation_cell/cell_l4"),
-                ResourceLocation.fromNamespaceAndPath(NeoECOPrototype.MOD_ID, "block/computation_cell/cell_l4_formed"));
+                ResourceLocation.fromNamespaceAndPath(NeoECOPrototype.MOD_ID, "block/computation_cell/cell_l1"),
+                ResourceLocation.fromNamespaceAndPath(NeoECOPrototype.MOD_ID, "block/computation_cell/cell_l1_formed"));
         ECOComputationModels.registerCellModel(
                 BuiltInRegistries.ITEM.wrapAsHolder(ModRegistration.ENERGIZED_COMPUTATION_CELL_4M.get()),
                 ResourceLocation.fromNamespaceAndPath(NeoECOPrototype.MOD_ID, "block/computation_cell/cell_l4"),
@@ -198,6 +201,10 @@ public final class NeoECOPrototypeClient {
                 NeoECOPrototype.MOD_ID, "block/computation_cell/cell_l4")));
         event.register(ModelResourceLocation.standalone(ResourceLocation.fromNamespaceAndPath(
                 NeoECOPrototype.MOD_ID, "block/computation_cell/cell_l4_formed")));
+        event.register(ModelResourceLocation.standalone(ResourceLocation.fromNamespaceAndPath(
+                NeoECOPrototype.MOD_ID, "block/computation_cell/cell_l1")));
+        event.register(ModelResourceLocation.standalone(ResourceLocation.fromNamespaceAndPath(
+                NeoECOPrototype.MOD_ID, "block/computation_cell/cell_l1_formed")));
         // Cell models are only loaded when registered as additional models.
         event.register(ModelResourceLocation.standalone(ResourceLocation.fromNamespaceAndPath(
                 NeoECOPrototype.MOD_ID, "block/cell/storage_cell_l1_item")));
