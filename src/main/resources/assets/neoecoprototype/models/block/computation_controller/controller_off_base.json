@@ -9,7 +9,7 @@
 		"south": "neoecoprototype:block/computation_recolor/controller/controller_back",
 		"top": "neoecoprototype:block/computation_recolor/controller/controller_top",
 		"screen": "neoecoprototype:block/computation_recolor/controller/screen_off",
-		"particle": "neoecoprototype:block/computation_recolor/casing"
+		"particle": "neoecoprototype:block/computation_recolor/controller/controller_north"
 	},
 	"elements": [
 		{

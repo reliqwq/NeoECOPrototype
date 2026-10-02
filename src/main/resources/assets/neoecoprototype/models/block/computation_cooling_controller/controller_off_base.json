@@ -6,7 +6,7 @@
 	"textures": {
 		"north": "neoecoprototype:block/computation_recolor/cooling_controller/controller_north",
 		"back": "neoecoprototype:block/computation_recolor/casing_back",
-		"particle": "neoecoprototype:block/computation_recolor/casing",
+		"particle": "neoecoprototype:block/computation_recolor/cooling_controller/controller_north",
 		"top": "neoecoprototype:block/computation_recolor/casing",
 		"side": "neoecoprototype:block/computation_recolor/cooling_controller/controller_east_a"
 	},

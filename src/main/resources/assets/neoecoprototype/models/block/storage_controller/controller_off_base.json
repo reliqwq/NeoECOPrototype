@@ -5,7 +5,7 @@
 	"render_type": "cutout",
 	"textures": {
 		"south": "neoecoprototype:block/storage_recolor/casing_back",
-		"particle": "neoecoprototype:block/storage_recolor/casing",
+		"particle": "neoecoprototype:block/storage_recolor/controller/controller_north_a",
 		"top": "neoecoprototype:block/storage_recolor/casing",
 		"screen": "neoecoprototype:block/storage_recolor/controller/screen",
 		"side": "neoecoprototype:block/storage_recolor/casing_side"
