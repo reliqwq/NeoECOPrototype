@@ -1732,23 +1732,28 @@ public final class NeoECOPrototypeGameTests {
         // that file and every frame gets stretched into the face at once, so a light that animates in the
         // editor ships as one still picture. Two of TedXenon's 10-01 sheets came in that state.
         java.util.SortedSet<String> unanimated;
+        int strips;
         try {
-            unanimated = animationStripsWithoutMetadata();
+            var scan = animationStripsWithoutMetadata();
+            if (scan == null) {
+                var classpath = System.getProperty("java.class.path");
+                helper.fail("found no textures under " + "assets/" + NeoECOPrototype.MOD_ID + "/textures or its"
+                        + " fallback-pack twin, so the animation guard checked nothing; classpath="
+                        + classpath.substring(0, Math.min(200, classpath.length())));
+                return;
+            }
+            unanimated = scan.missing();
+            strips = scan.strips();
         } catch (java.io.IOException failure) {
             helper.fail("could not enumerate our textures: " + failure);
-            return;
-        }
-        if (unanimated == null) {
-            var classpath = System.getProperty("java.class.path");
-            helper.fail("found no textures under assets/" + NeoECOPrototype.MOD_ID + "/textures, so the"
-                    + " animation guard checked nothing; classpath="
-                    + classpath.substring(0, Math.min(200, classpath.length())));
             return;
         }
         if (!unanimated.isEmpty()) {
             helper.fail("animation strip(s) with no .mcmeta beside them: " + unanimated);
             return;
         }
+        NeoECOPrototype.LOGGER.info("animation strips, both packs: {} of them, every one with its .mcmeta",
+                strips);
         helper.succeed();
     }
 
@@ -1758,37 +1763,45 @@ public final class NeoECOPrototypeGameTests {
      * nothing it claims to need -- the missing file is the one nobody asks for. Null when the scan found no
      * texture at all, which means the apparatus is blind rather than the assets clean.
      */
-    private static java.util.SortedSet<String> animationStripsWithoutMetadata() throws java.io.IOException {
-        var folder = "assets/" + NeoECOPrototype.MOD_ID + "/textures";
+    /** Strips found, and the ones missing their metadata. Null when the scan saw no texture at all. */
+    private record AnimationScan(java.util.SortedSet<String> missing, int strips) { }
+
+    private static AnimationScan animationStripsWithoutMetadata() throws java.io.IOException {
+        // The built-in fallback pack ships its own copies of the animated sheets, and it lost one of the
+        // two .mcmeta files when it was copied over -- a strip without metadata is a still picture.
+        var folders = List.of("assets/" + NeoECOPrototype.MOD_ID + "/textures",
+                "legacy_art/assets/" + NeoECOPrototype.MOD_ID + "/textures");
         var present = new java.util.TreeSet<String>();
         var frames = new java.util.HashMap<String, int[]>();
         for (var entry : System.getProperty("java.class.path")
                 .split(java.util.regex.Pattern.quote(java.io.File.pathSeparator))) {
             java.nio.file.Path root = java.nio.file.Path.of(entry).toAbsolutePath();
-            java.nio.file.Path start = root.resolve(folder);
-            if (java.nio.file.Files.isDirectory(start)) {
-                try (var walk = java.nio.file.Files.walk(start)) {
-                    for (var path : (Iterable<java.nio.file.Path>) walk
-                            .filter(java.nio.file.Files::isRegularFile)::iterator) {
-                        var name = folder + "/" + start.relativize(path).toString()
-                                .replace(java.io.File.separator, "/");
-                        present.add(name);
-                        if (name.endsWith(".png")) {
-                            try (var in = java.nio.file.Files.newInputStream(path)) {
-                                rememberSize(name, in.readNBytes(24), frames);
+            for (var folder : folders) {
+                java.nio.file.Path start = root.resolve(folder);
+                if (java.nio.file.Files.isDirectory(start)) {
+                    try (var walk = java.nio.file.Files.walk(start)) {
+                        for (var path : (Iterable<java.nio.file.Path>) walk
+                                .filter(java.nio.file.Files::isRegularFile)::iterator) {
+                            var name = folder + "/" + start.relativize(path).toString()
+                                    .replace(java.io.File.separator, "/");
+                            present.add(name);
+                            if (name.endsWith(".png")) {
+                                try (var in = java.nio.file.Files.newInputStream(path)) {
+                                    rememberSize(name, in.readNBytes(24), frames);
+                                }
                             }
                         }
                     }
-                }
-            } else if (entry.toLowerCase(java.util.Locale.ROOT).endsWith(".jar")
-                    && java.nio.file.Files.isRegularFile(root)) {
-                try (var zip = new java.util.zip.ZipFile(root.toFile())) {
-                    for (var file : java.util.Collections.list(zip.entries())) {
-                        if (!file.getName().startsWith(folder + "/") || file.isDirectory()) continue;
-                        present.add(file.getName());
-                        if (file.getName().endsWith(".png")) {
-                            try (var in = zip.getInputStream(file)) {
-                                rememberSize(file.getName(), in.readNBytes(24), frames);
+                } else if (entry.toLowerCase(java.util.Locale.ROOT).endsWith(".jar")
+                        && java.nio.file.Files.isRegularFile(root)) {
+                    try (var zip = new java.util.zip.ZipFile(root.toFile())) {
+                        for (var file : java.util.Collections.list(zip.entries())) {
+                            if (!file.getName().startsWith(folder + "/") || file.isDirectory()) continue;
+                            present.add(file.getName());
+                            if (file.getName().endsWith(".png")) {
+                                try (var in = zip.getInputStream(file)) {
+                                    rememberSize(file.getName(), in.readNBytes(24), frames);
+                                }
                             }
                         }
                     }
@@ -1797,14 +1810,19 @@ public final class NeoECOPrototypeGameTests {
         }
         if (frames.isEmpty()) return null;
         var missing = new java.util.TreeSet<String>();
+        var strips = 0;
         for (var size : frames.entrySet()) {
             int width = size.getValue()[0], height = size.getValue()[1];
-            if (height > width && height % width == 0 && !present.contains(size.getKey() + ".mcmeta")) {
+            if (height <= width || height % width != 0) {
+                continue;
+            }
+            strips++;
+            if (!present.contains(size.getKey() + ".mcmeta")) {
                 missing.add(size.getKey() + " is " + width + "x" + height + ", " + height / width
                         + " frames tall, with nothing to animate it");
             }
         }
-        return missing;
+        return new AnimationScan(missing, strips);
     }
 
     /** PNG width and height live in the IHDR chunk, at fixed offsets, in big-endian. */
