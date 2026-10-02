@@ -279,14 +279,34 @@ public class ModRegistration {
              BLOCKS.register("simplify_green_aluminum_casing", () -> new SimplifyCasingBlock(GREEN_CASING_PROPS));
 
     /**
-     * eco has no ore for its 天外寒冰 - the crystal only comes out of a crafting grid - so this is the
-     * world-side entry point for it. The drop is eco's item, not a copy of it.
+     * eco has no ore for its 天外寒冰 - the crystal only comes out of a crafting grid - so these are the
+     * world-side entry points for it. Every one of them drops eco's item, not a copy of it, and the four
+     * host stones follow vanilla's naming so a player can tell where to dig.
      */
-    public static final Supplier<SimplifyCryotheumOreBlock> SIMPLIFY_CRYOTHEUM_ORE_BLOCK =
-            BLOCKS.register("simplify_cryotheum_ore", () -> new SimplifyCryotheumOreBlock(
-                    BlockBehaviour.Properties.of().mapColor(MapColor.METAL)
-                            .instrument(net.minecraft.world.level.block.state.properties.NoteBlockInstrument.BASEDRUM)
+    public static final Supplier<SimplifyCryotheumOreBlock> NETHER_CRYOTHEUM_ORE_BLOCK =
+            BLOCKS.register("nether_cryotheum_ore", () -> new SimplifyCryotheumOreBlock(
+                    BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_RED)
+                            .instrument(net.minecraft.world.level.block.state.properties
+                                    .NoteBlockInstrument.BASEDRUM)
                             .strength(3.0F, 3.0F).requiresCorrectToolForDrops()));
+    public static final Supplier<SimplifyCryotheumOreBlock> END_CRYOTHEUM_ORE_BLOCK =
+            BLOCKS.register("end_cryotheum_ore", () -> new SimplifyCryotheumOreBlock(
+                    BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_YELLOW)
+                            .instrument(net.minecraft.world.level.block.state.properties
+                                    .NoteBlockInstrument.BASEDRUM)
+                            .strength(3.0F, 3.0F).requiresCorrectToolForDrops()));
+    public static final Supplier<SimplifyCryotheumOreBlock> CRYOTHEUM_ORE_BLOCK =
+            BLOCKS.register("cryotheum_ore", () -> new SimplifyCryotheumOreBlock(
+                    BlockBehaviour.Properties.of().mapColor(MapColor.STONE)
+                            .instrument(net.minecraft.world.level.block.state.properties
+                                    .NoteBlockInstrument.BASEDRUM)
+                            .strength(3.0F, 3.0F).requiresCorrectToolForDrops()));
+    public static final Supplier<SimplifyCryotheumOreBlock> DEEPSLATE_CRYOTHEUM_ORE_BLOCK =
+            BLOCKS.register("deepslate_cryotheum_ore", () -> new SimplifyCryotheumOreBlock(
+                    BlockBehaviour.Properties.of().mapColor(MapColor.DEEPSLATE)
+                            .instrument(net.minecraft.world.level.block.state.properties
+                                    .NoteBlockInstrument.BASEDRUM)
+                            .strength(4.5F, 3.0F).requiresCorrectToolForDrops()));
 
     // ============================ L1 crafting blocks ============================
 
@@ -418,9 +438,18 @@ public class ModRegistration {
      public static final Supplier<BlockItem> SIMPLIFY_GREEN_ALUMINUM_CASING_ITEM =
              ITEMS.register("simplify_green_aluminum_casing",
                      () -> new BlockItem(SIMPLIFY_GREEN_ALUMINUM_CASING_BLOCK.get(), new Item.Properties()));
-    public static final Supplier<BlockItem> SIMPLIFY_CRYOTHEUM_ORE_ITEM =
-            ITEMS.register("simplify_cryotheum_ore",
-                    () -> new BlockItem(SIMPLIFY_CRYOTHEUM_ORE_BLOCK.get(), new Item.Properties()));
+    public static final Supplier<BlockItem> NETHER_CRYOTHEUM_ORE_ITEM =
+            ITEMS.register("nether_cryotheum_ore",
+                    () -> new BlockItem(NETHER_CRYOTHEUM_ORE_BLOCK.get(), new Item.Properties()));
+    public static final Supplier<BlockItem> END_CRYOTHEUM_ORE_ITEM =
+            ITEMS.register("end_cryotheum_ore",
+                    () -> new BlockItem(END_CRYOTHEUM_ORE_BLOCK.get(), new Item.Properties()));
+    public static final Supplier<BlockItem> CRYOTHEUM_ORE_ITEM =
+            ITEMS.register("cryotheum_ore",
+                    () -> new BlockItem(CRYOTHEUM_ORE_BLOCK.get(), new Item.Properties()));
+    public static final Supplier<BlockItem> DEEPSLATE_CRYOTHEUM_ORE_ITEM =
+            ITEMS.register("deepslate_cryotheum_ore",
+                    () -> new BlockItem(DEEPSLATE_CRYOTHEUM_ORE_BLOCK.get(), new Item.Properties()));
 
     public static final Supplier<BlockItem> SIMPLIFY_STONECUTTING_ASSEMBLER_ITEM = ITEMS.register("simplify_stonecutting_assembler", () -> new BlockItem(SIMPLIFY_STONECUTTING_ASSEMBLER_BLOCK.get(), coloredName(SIMPLIFY_STONECUTTING_ASSEMBLER_BLOCK, NAME_THEME_GREEN)));
      public static final Supplier<BlockItem> SIMPLIFY_PATTERN_PROVIDER_ITEM = ITEMS.register("simplify_pattern_provider", () -> new BlockItem(SIMPLIFY_PATTERN_PROVIDER_BLOCK.get(), coloredName(SIMPLIFY_PATTERN_PROVIDER_BLOCK, NAME_THEME_GREEN)));
@@ -1024,7 +1053,10 @@ private static Supplier<BlockEntityType<SimplifyStorageVentBlockEntity>> registe
                         output.accept(SIMPLIFY_ENERGY_CELL_ITEM.get());
                         output.accept(SIMPLIFY_STORAGE_CASING_ITEM.get());
                          output.accept(SIMPLIFY_GREEN_ALUMINUM_CASING_ITEM.get());
-                        output.accept(SIMPLIFY_CRYOTHEUM_ORE_ITEM.get());
+                        output.accept(NETHER_CRYOTHEUM_ORE_ITEM.get());
+                        output.accept(END_CRYOTHEUM_ORE_ITEM.get());
+                        output.accept(CRYOTHEUM_ORE_ITEM.get());
+                        output.accept(DEEPSLATE_CRYOTHEUM_ORE_ITEM.get());
                         output.accept(SIMPLIFY_STORAGE_INTERFACE_ITEM.get());
                         output.accept(SIMPLIFY_STORAGE_NETWORK_INTERFACE_ITEM.get());
                         output.accept(SIMPLIFY_STORAGE_VENT_ITEM.get());

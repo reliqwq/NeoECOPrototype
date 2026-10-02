@@ -3634,23 +3634,32 @@ public final class NeoECOPrototypeGameTests {
      * point is that it drops someone else's item, so an eco rename has to fail loudly here instead of
      * silently dropping air in a cave.
      */
-    @GameTest(template = "empty", batch = "cryotheum_ore_drop", timeoutTicks = 140,
+    @GameTest(template = "empty", batch = "cryotheum_ore_drop", timeoutTicks = 160,
             templateNamespace = NeoECOPrototype.MOD_ID)
     public static void cryotheumOreDropsTheEcoCrystal(GameTestHelper helper) {
         var crystal = BuiltInRegistries.ITEM.get(ResourceLocation.fromNamespaceAndPath("neoecoae",
                 "cryotheum_crystal"));
         if (crystal == null || crystal == net.minecraft.world.item.Items.AIR) {
-            helper.fail("neoecoae:cryotheum_crystal is not registered, so the ore drops nothing");
+            helper.fail("neoecoae:cryotheum_crystal is not registered, so the ores drop nothing");
             return;
         }
-        var pos = new BlockPos(0, 1, 0);
-        helper.setBlock(pos, ModRegistration.SIMPLIFY_CRYOTHEUM_ORE_BLOCK.get());
+        var ores = List.of(ModRegistration.NETHER_CRYOTHEUM_ORE_BLOCK.get(),
+                ModRegistration.END_CRYOTHEUM_ORE_BLOCK.get(),
+                ModRegistration.CRYOTHEUM_ORE_BLOCK.get(),
+                ModRegistration.DEEPSLATE_CRYOTHEUM_ORE_BLOCK.get());
         var breaker = helper.makeMockPlayer(net.minecraft.world.level.GameType.SURVIVAL);
+        for (var i = 0; i < ores.size(); i++) {
+            helper.setBlock(new BlockPos(i, 1, 0), ores.get(i));
+        }
         helper.runAfterDelay(2, () -> {
             // helper.destroyBlock drops nothing, so drive the drop path by hand.
-            helper.getLevel().destroyBlock(helper.absolutePos(pos), true, breaker);
+            for (var i = 0; i < ores.size(); i++) {
+                helper.getLevel().destroyBlock(helper.absolutePos(new BlockPos(i, 1, 0)), true, breaker);
+            }
             helper.runAfterDelay(6, () -> {
-                helper.assertItemEntityPresent(crystal, pos, 2.0);
+                for (var i = 0; i < ores.size(); i++) {
+                    helper.assertItemEntityPresent(crystal, new BlockPos(i, 1, 0), 2.0);
+                }
                 helper.succeed();
             });
         });
@@ -3670,7 +3679,7 @@ public final class NeoECOPrototypeGameTests {
     @GameTest(template = "empty", batch = "cryotheum_ore_freeze", timeoutTicks = 140,
             templateNamespace = NeoECOPrototype.MOD_ID)
     public static void cryotheumOreChillsTheBreakerOncePerTick(GameTestHelper helper) {
-        var ore = ModRegistration.SIMPLIFY_CRYOTHEUM_ORE_BLOCK.get();
+        var ore = ModRegistration.CRYOTHEUM_ORE_BLOCK.get();
         helper.setBlock(new BlockPos(0, 1, 0), ore);
         helper.setBlock(new BlockPos(1, 1, 0), ore);
         var breaker = helper.makeMockPlayer(net.minecraft.world.level.GameType.SURVIVAL);
@@ -3692,7 +3701,10 @@ public final class NeoECOPrototypeGameTests {
 
     /**
      * Generation is a config choice, not a datapack, so the predicate that makes it one is worth pinning:
-     * the shipped default is the nether alone, and an empty list means nowhere rather than everywhere.
+     * an empty list means nowhere rather than everywhere, and a typo has to read as off.
+     *
+     * <p>The shipped default is deliberately not asserted here - a config file written by an earlier run
+     * wins over the built-in default, so reading it in a test would fail for reasons nobody can see.
      */
     @GameTest(template = "empty", batch = "cryotheum_ore_gate", timeoutTicks = 100,
             templateNamespace = NeoECOPrototype.MOD_ID)
@@ -3700,45 +3712,43 @@ public final class NeoECOPrototypeGameTests {
         var nether = net.minecraft.world.level.Level.NETHER;
         var end = net.minecraft.world.level.Level.END;
         var overworld = net.minecraft.world.level.Level.OVERWORLD;
-        var defaults = List.of("minecraft:the_nether");
-        helper.assertTrue(cn.dancingsnow.neoecoprototype.worldgen.ConfigGatedOreFeature
-                        .dimensionAllowed(nether, defaults),
-                "the nether must generate the ore under the shipped default");
-        helper.assertTrue(!cn.dancingsnow.neoecoprototype.worldgen.ConfigGatedOreFeature
-                        .dimensionAllowed(end, defaults)
-                        && !cn.dancingsnow.neoecoprototype.worldgen.ConfigGatedOreFeature
-                        .dimensionAllowed(overworld, defaults),
-                "the shipped default must name the nether and nothing else");
-        helper.assertTrue(cn.dancingsnow.neoecoprototype.worldgen.ConfigGatedOreFeature
-                        .dimensionAllowed(end, List.of("minecraft:the_end", "minecraft:overworld")),
-                "a config that names the end must let the end place the ore");
-        helper.assertTrue(!cn.dancingsnow.neoecoprototype.worldgen.ConfigGatedOreFeature
-                        .dimensionAllowed(nether, List.of("the_nether")),
+        java.util.function.BiPredicate<net.minecraft.resources.ResourceKey<net.minecraft.world.level.Level>,
+                List<? extends String>> gate =
+                cn.dancingsnow.neoecoprototype.worldgen.ConfigGatedOreFeature::dimensionAllowed;
+        helper.assertTrue(gate.test(nether, List.of("minecraft:the_nether")),
+                "a dimension named by the config must be allowed");
+        helper.assertTrue(!gate.test(overworld, List.of("minecraft:the_nether")),
+                "a dimension the config does not name must place nothing");
+        helper.assertTrue(gate.test(end, List.of("minecraft:the_end", "minecraft:overworld")),
+                "a list with several entries must allow each of them");
+        helper.assertTrue(!gate.test(nether, List.of("the_nether")),
                 "a bare path without a namespace must not match, or a typo reads as enabled");
-        helper.assertTrue(NeoECOPrototypeServerConfig.CRYOTHEUM_ORE_DIMENSIONS.get().size() >= 0
-                        && NeoECOPrototypeServerConfig.CRYOTHEUM_ORE_FREEZE_TICKS.get() >= 0,
-                "the cryotheum config entries are unreadable");
+        helper.assertTrue(!gate.test(nether, List.<String>of()),
+                "an empty list must switch generation off, not open it up");
         helper.succeed();
     }
 
     /**
-     * Worldgen data that fails to parse is a log line nobody reads, and a biome tag spelled wrong means
-     * the ore simply never appears. Check the three files loaded and that every biome entry in the
-     * modifier names something that exists.
+     * Worldgen data that fails to parse is a log line nobody reads, and a biome that never asks for the
+     * feature means the ore simply does not exist in the world. Check the files loaded, that every biome
+     * entry names something real, and - the part that actually matters - that each dimension's biome got
+     * its own ore on the ore generation step.
      */
     @GameTest(template = "empty", batch = "cryotheum_ore_data", timeoutTicks = 100,
             templateNamespace = NeoECOPrototype.MOD_ID)
     public static void cryotheumOreWorldgenDataIsLoaded(GameTestHelper helper) {
         var resourceManager = helper.getLevel().getServer().getResourceManager();
-        var modifiers = List.of(
-                "neoforge/biome_modifier/simplify_cryotheum_ore_nether.json",
-                "neoforge/biome_modifier/simplify_cryotheum_ore_end.json",
-                "neoforge/biome_modifier/simplify_cryotheum_ore_overworld.json");
+        var modifiers = List.of("cryotheum_ore_nether", "cryotheum_ore_end", "cryotheum_ore_overworld");
         var missing = new ArrayList<String>();
-        var paths = new ArrayList<>(List.of(
-                "worldgen/configured_feature/simplify_cryotheum_ore.json",
-                "worldgen/placed_feature/simplify_cryotheum_ore.json"));
-        paths.addAll(modifiers);
+        var paths = new ArrayList<String>();
+        for (var ore : List.of("nether_cryotheum_ore", "end_cryotheum_ore", "cryotheum_ore",
+                "deepslate_cryotheum_ore")) {
+            paths.add("worldgen/configured_feature/" + ore + ".json");
+            paths.add("worldgen/placed_feature/" + ore + ".json");
+        }
+        for (var modifier : modifiers) {
+            paths.add("neoforge/biome_modifier/" + modifier + ".json");
+        }
         for (var path : paths) {
             if (resourceManager.getResource(ResourceLocation.fromNamespaceAndPath(NeoECOPrototype.MOD_ID,
                     path)).isEmpty()) {
@@ -3751,15 +3761,16 @@ public final class NeoECOPrototypeGameTests {
         }
         if (!BuiltInRegistries.FEATURE.containsKey(
                 ResourceLocation.fromNamespaceAndPath(NeoECOPrototype.MOD_ID, "configurable_ore"))) {
-            helper.fail("the configured feature names a feature type that is not registered, so the file "
+            helper.fail("the configured features name a feature type that is not registered, so the files "
                     + "would be dropped at load");
             return;
         }
-        var biomes = helper.getLevel().registryAccess()
-                .registryOrThrow(net.minecraft.core.registries.Registries.BIOME);
+        var registries = helper.getLevel().registryAccess();
+        var biomes = registries.registryOrThrow(net.minecraft.core.registries.Registries.BIOME);
         var unresolved = new ArrayList<String>();
         for (var modifier : modifiers) {
-            var text = readClasspathResource("/data/neoecoprototype/" + modifier);
+            var text = readClasspathResource("/data/neoecoprototype/neoforge/biome_modifier/"
+                    + modifier + ".json");
             if (text == null) {
                 helper.fail(modifier + " is on the pack but not on the classpath");
                 return;
@@ -3777,37 +3788,40 @@ public final class NeoECOPrototypeGameTests {
             }
         }
         helper.assertTrue(unresolved.isEmpty(),
-                "the cryotheum biome modifier names biomes or tags that do not exist: " + unresolved);
-        // The files parsing is not the same statement as the world asking for them: a modifier that loads
-        // but never lands on a biome's ore step means the ore simply does not exist in the world.
-        var placed = helper.getLevel().registryAccess()
-                .registryOrThrow(net.minecraft.core.registries.Registries.PLACED_FEATURE)
-                .getHolderOrThrow(net.minecraft.resources.ResourceKey.create(
-                        net.minecraft.core.registries.Registries.PLACED_FEATURE,
-                        ResourceLocation.fromNamespaceAndPath(NeoECOPrototype.MOD_ID,
-                                "simplify_cryotheum_ore")));
-        var netherWastes = helper.getLevel().registryAccess()
-                .registryOrThrow(net.minecraft.core.registries.Registries.BIOME)
-                .get(ResourceLocation.withDefaultNamespace("nether_wastes"));
-        if (netherWastes == null) {
-            helper.fail("minecraft:nether_wastes is gone, so the biome modifier has nothing to attach to");
+                "a cryotheum biome modifier names biomes or tags that do not exist: " + unresolved);
+        // The files parsing is not the same statement as the world asking for them.
+        var asked = new ArrayList<String>();
+        expectFeature(asked, biomes, registries, "minecraft:nether_wastes", "nether_cryotheum_ore");
+        expectFeature(asked, biomes, registries, "minecraft:end_highlands", "end_cryotheum_ore");
+        expectFeature(asked, biomes, registries, "minecraft:plains", "cryotheum_ore");
+        expectFeature(asked, biomes, registries, "minecraft:plains", "deepslate_cryotheum_ore");
+        helper.assertTrue(asked.isEmpty(),
+                "the ore is authored but no biome asks for it at underground_ores: " + asked);
+        helper.succeed();
+    }
+
+    /** True when {@code biome} asks for {@code placed} on the ore step; otherwise a complaint is added. */
+    private static void expectFeature(List<String> complaints,
+                                      net.minecraft.core.Registry<net.minecraft.world.level.biome.Biome> biomes,
+                                      net.minecraft.core.RegistryAccess registries, String biome,
+                                      String placed) {
+        var holder = biomes.get(ResourceLocation.tryParse(biome));
+        if (holder == null) {
+            complaints.add(biome + " does not exist");
             return;
         }
-        var steps = netherWastes.getGenerationSettings().features();
-        var wantedStep = net.minecraft.world.level.levelgen.GenerationStep.Decoration
-                .UNDERGROUND_ORES.ordinal();
-        var foundStep = -1;
+        var wanted = registries.registryOrThrow(net.minecraft.core.registries.Registries.PLACED_FEATURE)
+                .getHolderOrThrow(net.minecraft.resources.ResourceKey.create(
+                        net.minecraft.core.registries.Registries.PLACED_FEATURE,
+                        ResourceLocation.fromNamespaceAndPath(NeoECOPrototype.MOD_ID, placed)));
+        var steps = holder.getGenerationSettings().features();
+        var step = net.minecraft.world.level.levelgen.GenerationStep.Decoration.UNDERGROUND_ORES.ordinal();
         for (var i = 0; i < steps.size(); i++) {
-            if (steps.get(i).contains(placed)) {
-                foundStep = i;
-                break;
+            if (i == step && steps.get(i).contains(wanted)) {
+                return;
             }
         }
-        helper.assertTrue(foundStep == wantedStep,
-                "the nether's biome does not ask for our placed feature at underground_ores (it is on step "
-                        + foundStep + " of " + steps.size() + "), so the ore would never generate even"
-                        + " though every file loaded");
-        helper.succeed();
+        complaints.add(biome + " has no " + placed + " on underground_ores");
     }
 
     /** Places a glass cable into the empty cell next to {@code clickedPos} on {@code face}. */

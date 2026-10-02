@@ -1,8 +1,8 @@
 {
   "type": "neoforge:add_features",
-  "biomes": "#minecraft:is_end",
+  "biomes": "#minecraft:is_nether",
   "features": [
-    "neoecoprototype:simplify_cryotheum_ore"
+    "neoecoprototype:nether_cryotheum_ore"
   ],
   "step": "underground_ores"
 }

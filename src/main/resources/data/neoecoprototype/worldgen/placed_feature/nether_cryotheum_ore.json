@@ -1,0 +1,47 @@
+{
+  "feature": "neoecoprototype:nether_cryotheum_ore",
+  "placement": [
+    {
+      "type": "minecraft:count",
+      "count": 3
+    },
+    {
+      "type": "minecraft:in_square"
+    },
+    {
+      "type": "minecraft:height_range",
+      "height": {
+        "type": "minecraft:weighted_list",
+        "distribution": [
+          {
+            "weight": 3,
+            "data": {
+              "type": "minecraft:uniform",
+              "min_inclusive": {
+                "absolute": 118
+              },
+              "max_inclusive": {
+                "below_top": 1
+              }
+            }
+          },
+          {
+            "weight": 1,
+            "data": {
+              "type": "minecraft:uniform",
+              "min_inclusive": {
+                "absolute": 100
+              },
+              "max_inclusive": {
+                "absolute": 117
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "minecraft:biome"
+    }
+  ]
+}

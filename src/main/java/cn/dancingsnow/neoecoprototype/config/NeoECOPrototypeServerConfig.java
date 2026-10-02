@@ -81,11 +81,13 @@ public final class NeoECOPrototypeServerConfig {
                         && net.minecraft.resources.ResourceLocation.tryParse(id) != null);
         builder.push("cryotheum_ore");
         CRYOTHEUM_ORE_DIMENSIONS = builder
-                .comment("Dimensions the cryotheum ore generates in, by full ID, e.g. [\"minecraft:the_end\"].",
-                        "The shipped biome modifier already covers overworld, nether and end biomes; this list is",
-                        "what decides which of them actually place, so moving the ore is a config edit and not a",
-                        "datapack. An empty list turns generation off. Default: [\"minecraft:the_nether\"].")
-                .defineListAllowEmpty("dimensions", () -> List.of("minecraft:the_nether"),
+                .comment("Dimensions the cryotheum ores generate in, by full ID. Each dimension has its own",
+                        "ore and its own biome modifier, so removing one entry only switches that ore off.",
+                        "An empty list turns all four off. Moving an ore to a dimension it was not authored",
+                        "for needs a datapack, because the host stone is chosen by the feature.",
+                        "Default: [\"minecraft:the_nether\", \"minecraft:the_end\", \"minecraft:overworld\"].")
+                .defineListAllowEmpty("dimensions",
+                        () -> List.of("minecraft:the_nether", "minecraft:the_end", "minecraft:overworld"),
                         value -> value instanceof String id
                         && net.minecraft.resources.ResourceLocation.tryParse(id) != null);
         CRYOTHEUM_ORE_FREEZE_TICKS = builder

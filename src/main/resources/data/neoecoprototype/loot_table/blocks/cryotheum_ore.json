@@ -26,7 +26,7 @@
                   }
                 }
               ],
-              "name": "neoecoprototype:simplify_cryotheum_ore"
+              "name": "neoecoprototype:cryotheum_ore"
             },
             {
               "type": "minecraft:item",
@@ -48,5 +48,5 @@
       "rolls": 1.0
     }
   ],
-  "random_sequence": "neoecoprototype:blocks/simplify_cryotheum_ore"
+  "random_sequence": "neoecoprototype:blocks/cryotheum_ore"
 }
