@@ -3164,7 +3164,7 @@ public final class NeoECOPrototypeGameTests {
     /**
      * Whether a model's file name carries {@code segment} as one of its underscore-separated words. Name
      * matching rather than substring matching, because F1's mirrored artwork is
-     * {@code controller_l4_formed_mirrored_face} -- the hand is in the middle of the name, and a plain
+     * {@code controller_l1_formed_mirrored_face} -- the hand is in the middle of the name, and a plain
      * contains() would also let an unrelated word like {@code energized_network} borrow a match.
      */
     private static boolean namesSegment(String model, String segment) {
@@ -3453,7 +3453,7 @@ public final class NeoECOPrototypeGameTests {
      * Both packs we ship have to be self-contained. A model that names a texture nobody carries shows up
      * in game as the missing-texture cube and in a compile as nothing at all, and the artwork arrives as
      * Blockbench exports, where renaming one file silently breaks every model that names it -- which is the
-     * exact risk the pending {@code l4} to {@code l1} rename runs through.
+     * exact risk the {@code l4} to {@code l1} rename ran through, and the reason it could be done at all.
      *
      * <p>Each reference is resolved inside the pack that carries the file making it. Resolving everything
      * against the live tree instead calls 21 of the fallback pack's models missing, because it ships its own

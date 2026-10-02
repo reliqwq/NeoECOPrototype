@@ -168,15 +168,15 @@ public final class NeoECOPrototypeClient {
                 ResourceLocation.fromNamespaceAndPath(NeoECOPrototype.MOD_ID, "block/computation_cell/cell_l4_formed"));
         ECOComputationModels.registerCableModel(
                 cn.dancingsnow.neoecoprototype.api.SimplifyTier.L1,
-                ResourceLocation.fromNamespaceAndPath(NeoECOPrototype.MOD_ID, "block/computation_cable/cable_l4_dis"),
-                ResourceLocation.fromNamespaceAndPath(NeoECOPrototype.MOD_ID, "block/computation_cable/cable_l4"));
+                ResourceLocation.fromNamespaceAndPath(NeoECOPrototype.MOD_ID, "block/computation_cable/cable_l1_dis"),
+                ResourceLocation.fromNamespaceAndPath(NeoECOPrototype.MOD_ID, "block/computation_cable/cable_l1"));
         // The drive renderer adopts the working cell's tier before asking for cable models
         // (SimplifyComputationDriveRenderer#renderFixed), so every tier a cell can carry needs an entry
         // here or chunk rendering throws an NPE inside eco's lookup.
         ECOComputationModels.registerCableModel(
                 cn.dancingsnow.neoecoprototype.api.SimplifyTier.L1_REINFORCED,
-                ResourceLocation.fromNamespaceAndPath(NeoECOPrototype.MOD_ID, "block/computation_cable/cable_l4_dis"),
-                ResourceLocation.fromNamespaceAndPath(NeoECOPrototype.MOD_ID, "block/computation_cable/cable_l4"));
+                ResourceLocation.fromNamespaceAndPath(NeoECOPrototype.MOD_ID, "block/computation_cable/cable_l1_dis"),
+                ResourceLocation.fromNamespaceAndPath(NeoECOPrototype.MOD_ID, "block/computation_cable/cable_l1"));
         ECOComputationModels.runDeferredRegistration();
 
         FixedBlockEntityRenderers.register(ModRegistration.SIMPLIFY_DRIVE_BE.get(),
@@ -194,9 +194,9 @@ public final class NeoECOPrototypeClient {
     @SubscribeEvent
     public static void onRegisterAdditionalModels(ModelEvent.RegisterAdditional event) {
         event.register(ModelResourceLocation.standalone(ResourceLocation.fromNamespaceAndPath(
-                NeoECOPrototype.MOD_ID, "block/computation_cable/cable_l4")));
+                NeoECOPrototype.MOD_ID, "block/computation_cable/cable_l1")));
         event.register(ModelResourceLocation.standalone(ResourceLocation.fromNamespaceAndPath(
-                NeoECOPrototype.MOD_ID, "block/computation_cable/cable_l4_dis")));
+                NeoECOPrototype.MOD_ID, "block/computation_cable/cable_l1_dis")));
         event.register(ModelResourceLocation.standalone(ResourceLocation.fromNamespaceAndPath(
                 NeoECOPrototype.MOD_ID, "block/computation_cell/cell_l4")));
         event.register(ModelResourceLocation.standalone(ResourceLocation.fromNamespaceAndPath(

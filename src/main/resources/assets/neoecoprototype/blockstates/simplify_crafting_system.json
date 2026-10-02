@@ -6,7 +6,7 @@
         "formed": "false"
       },
       "apply": {
-        "model": "neoecoprototype:block/crafting_controller/controller_l4_off"
+        "model": "neoecoprototype:block/crafting_controller/controller_l1_off"
       }
     },
     {
@@ -15,7 +15,7 @@
         "formed": "false"
       },
       "apply": {
-        "model": "neoecoprototype:block/crafting_controller/controller_l4_off",
+        "model": "neoecoprototype:block/crafting_controller/controller_l1_off",
         "y": 90
       }
     },
@@ -25,7 +25,7 @@
         "formed": "false"
       },
       "apply": {
-        "model": "neoecoprototype:block/crafting_controller/controller_l4_off",
+        "model": "neoecoprototype:block/crafting_controller/controller_l1_off",
         "y": 180
       }
     },
@@ -35,7 +35,7 @@
         "formed": "false"
       },
       "apply": {
-        "model": "neoecoprototype:block/crafting_controller/controller_l4_off",
+        "model": "neoecoprototype:block/crafting_controller/controller_l1_off",
         "y": 270
       }
     },
@@ -48,7 +48,7 @@
         "has_mind": "false"
       },
       "apply": {
-        "model": "neoecoprototype:block/crafting_controller/controller_l4_formed"
+        "model": "neoecoprototype:block/crafting_controller/controller_l1_formed"
       }
     },
     {
@@ -60,7 +60,7 @@
         "has_mind": "true"
       },
       "apply": {
-        "model": "neoecoprototype:block/crafting_controller/controller_l4_formed_face"
+        "model": "neoecoprototype:block/crafting_controller/controller_l1_formed_face"
       }
     },
     {
@@ -72,7 +72,7 @@
         "has_mind": "false"
       },
       "apply": {
-        "model": "neoecoprototype:block/crafting_controller/controller_l4_formed",
+        "model": "neoecoprototype:block/crafting_controller/controller_l1_formed",
         "y": 90
       }
     },
@@ -85,7 +85,7 @@
         "has_mind": "true"
       },
       "apply": {
-        "model": "neoecoprototype:block/crafting_controller/controller_l4_formed_face",
+        "model": "neoecoprototype:block/crafting_controller/controller_l1_formed_face",
         "y": 90
       }
     },
@@ -98,7 +98,7 @@
         "has_mind": "false"
       },
       "apply": {
-        "model": "neoecoprototype:block/crafting_controller/controller_l4_formed",
+        "model": "neoecoprototype:block/crafting_controller/controller_l1_formed",
         "y": 180
       }
     },
@@ -111,7 +111,7 @@
         "has_mind": "true"
       },
       "apply": {
-        "model": "neoecoprototype:block/crafting_controller/controller_l4_formed_face",
+        "model": "neoecoprototype:block/crafting_controller/controller_l1_formed_face",
         "y": 180
       }
     },
@@ -124,7 +124,7 @@
         "has_mind": "false"
       },
       "apply": {
-        "model": "neoecoprototype:block/crafting_controller/controller_l4_formed",
+        "model": "neoecoprototype:block/crafting_controller/controller_l1_formed",
         "y": 270
       }
     },
@@ -137,7 +137,7 @@
         "has_mind": "true"
       },
       "apply": {
-        "model": "neoecoprototype:block/crafting_controller/controller_l4_formed_face",
+        "model": "neoecoprototype:block/crafting_controller/controller_l1_formed_face",
         "y": 270
       }
     },
@@ -150,7 +150,7 @@
         "has_mind": "false"
       },
       "apply": {
-        "model": "neoecoprototype:block/crafting_controller/controller_l4_formed_mirrored"
+        "model": "neoecoprototype:block/crafting_controller/controller_l1_formed_mirrored"
       }
     },
     {
@@ -162,7 +162,7 @@
         "has_mind": "true"
       },
       "apply": {
-        "model": "neoecoprototype:block/crafting_controller/controller_l4_formed_mirrored_face"
+        "model": "neoecoprototype:block/crafting_controller/controller_l1_formed_mirrored_face"
       }
     },
     {
@@ -174,7 +174,7 @@
         "has_mind": "false"
       },
       "apply": {
-        "model": "neoecoprototype:block/crafting_controller/controller_l4_formed_mirrored",
+        "model": "neoecoprototype:block/crafting_controller/controller_l1_formed_mirrored",
         "y": 90
       }
     },
@@ -187,7 +187,7 @@
         "has_mind": "true"
       },
       "apply": {
-        "model": "neoecoprototype:block/crafting_controller/controller_l4_formed_mirrored_face",
+        "model": "neoecoprototype:block/crafting_controller/controller_l1_formed_mirrored_face",
         "y": 90
       }
     },
@@ -200,7 +200,7 @@
         "has_mind": "false"
       },
       "apply": {
-        "model": "neoecoprototype:block/crafting_controller/controller_l4_formed_mirrored",
+        "model": "neoecoprototype:block/crafting_controller/controller_l1_formed_mirrored",
         "y": 180
       }
     },
@@ -213,7 +213,7 @@
         "has_mind": "true"
       },
       "apply": {
-        "model": "neoecoprototype:block/crafting_controller/controller_l4_formed_mirrored_face",
+        "model": "neoecoprototype:block/crafting_controller/controller_l1_formed_mirrored_face",
         "y": 180
       }
     },
@@ -226,7 +226,7 @@
         "has_mind": "false"
       },
       "apply": {
-        "model": "neoecoprototype:block/crafting_controller/controller_l4_formed_mirrored",
+        "model": "neoecoprototype:block/crafting_controller/controller_l1_formed_mirrored",
         "y": 270
       }
     },
@@ -239,7 +239,7 @@
         "has_mind": "true"
       },
       "apply": {
-        "model": "neoecoprototype:block/crafting_controller/controller_l4_formed_mirrored_face",
+        "model": "neoecoprototype:block/crafting_controller/controller_l1_formed_mirrored_face",
         "y": 270
       }
     },
@@ -252,7 +252,7 @@
         "has_mind": "false"
       },
       "apply": {
-        "model": "neoecoprototype:block/crafting_controller/controller_l4_formed_network"
+        "model": "neoecoprototype:block/crafting_controller/controller_l1_formed_network"
       }
     },
     {
@@ -264,7 +264,7 @@
         "has_mind": "true"
       },
       "apply": {
-        "model": "neoecoprototype:block/crafting_controller/controller_l4_formed_network_face"
+        "model": "neoecoprototype:block/crafting_controller/controller_l1_formed_network_face"
       }
     },
     {
@@ -276,7 +276,7 @@
         "has_mind": "false"
       },
       "apply": {
-        "model": "neoecoprototype:block/crafting_controller/controller_l4_formed_network",
+        "model": "neoecoprototype:block/crafting_controller/controller_l1_formed_network",
         "y": 90
       }
     },
@@ -289,7 +289,7 @@
         "has_mind": "true"
       },
       "apply": {
-        "model": "neoecoprototype:block/crafting_controller/controller_l4_formed_network_face",
+        "model": "neoecoprototype:block/crafting_controller/controller_l1_formed_network_face",
         "y": 90
       }
     },
@@ -302,7 +302,7 @@
         "has_mind": "false"
       },
       "apply": {
-        "model": "neoecoprototype:block/crafting_controller/controller_l4_formed_network",
+        "model": "neoecoprototype:block/crafting_controller/controller_l1_formed_network",
         "y": 180
       }
     },
@@ -315,7 +315,7 @@
         "has_mind": "true"
       },
       "apply": {
-        "model": "neoecoprototype:block/crafting_controller/controller_l4_formed_network_face",
+        "model": "neoecoprototype:block/crafting_controller/controller_l1_formed_network_face",
         "y": 180
       }
     },
@@ -328,7 +328,7 @@
         "has_mind": "false"
       },
       "apply": {
-        "model": "neoecoprototype:block/crafting_controller/controller_l4_formed_network",
+        "model": "neoecoprototype:block/crafting_controller/controller_l1_formed_network",
         "y": 270
       }
     },
@@ -341,7 +341,7 @@
         "has_mind": "true"
       },
       "apply": {
-        "model": "neoecoprototype:block/crafting_controller/controller_l4_formed_network_face",
+        "model": "neoecoprototype:block/crafting_controller/controller_l1_formed_network_face",
         "y": 270
       }
     },
@@ -354,7 +354,7 @@
         "has_mind": "false"
       },
       "apply": {
-        "model": "neoecoprototype:block/crafting_controller/controller_l4_formed_network_mirrored"
+        "model": "neoecoprototype:block/crafting_controller/controller_l1_formed_network_mirrored"
       }
     },
     {
@@ -366,7 +366,7 @@
         "has_mind": "true"
       },
       "apply": {
-        "model": "neoecoprototype:block/crafting_controller/controller_l4_formed_network_mirrored_face"
+        "model": "neoecoprototype:block/crafting_controller/controller_l1_formed_network_mirrored_face"
       }
     },
     {
@@ -378,7 +378,7 @@
         "has_mind": "false"
       },
       "apply": {
-        "model": "neoecoprototype:block/crafting_controller/controller_l4_formed_network_mirrored",
+        "model": "neoecoprototype:block/crafting_controller/controller_l1_formed_network_mirrored",
         "y": 90
       }
     },
@@ -391,7 +391,7 @@
         "has_mind": "true"
       },
       "apply": {
-        "model": "neoecoprototype:block/crafting_controller/controller_l4_formed_network_mirrored_face",
+        "model": "neoecoprototype:block/crafting_controller/controller_l1_formed_network_mirrored_face",
         "y": 90
       }
     },
@@ -404,7 +404,7 @@
         "has_mind": "false"
       },
       "apply": {
-        "model": "neoecoprototype:block/crafting_controller/controller_l4_formed_network_mirrored",
+        "model": "neoecoprototype:block/crafting_controller/controller_l1_formed_network_mirrored",
         "y": 180
       }
     },
@@ -417,7 +417,7 @@
         "has_mind": "true"
       },
       "apply": {
-        "model": "neoecoprototype:block/crafting_controller/controller_l4_formed_network_mirrored_face",
+        "model": "neoecoprototype:block/crafting_controller/controller_l1_formed_network_mirrored_face",
         "y": 180
       }
     },
@@ -430,7 +430,7 @@
         "has_mind": "false"
       },
       "apply": {
-        "model": "neoecoprototype:block/crafting_controller/controller_l4_formed_network_mirrored",
+        "model": "neoecoprototype:block/crafting_controller/controller_l1_formed_network_mirrored",
         "y": 270
       }
     },
@@ -443,7 +443,7 @@
         "has_mind": "true"
       },
       "apply": {
-        "model": "neoecoprototype:block/crafting_controller/controller_l4_formed_network_mirrored_face",
+        "model": "neoecoprototype:block/crafting_controller/controller_l1_formed_network_mirrored_face",
         "y": 270
       }
     }
