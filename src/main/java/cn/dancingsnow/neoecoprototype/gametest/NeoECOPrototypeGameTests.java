@@ -3778,6 +3778,35 @@ public final class NeoECOPrototypeGameTests {
         }
         helper.assertTrue(unresolved.isEmpty(),
                 "the cryotheum biome modifier names biomes or tags that do not exist: " + unresolved);
+        // The files parsing is not the same statement as the world asking for them: a modifier that loads
+        // but never lands on a biome's ore step means the ore simply does not exist in the world.
+        var placed = helper.getLevel().registryAccess()
+                .registryOrThrow(net.minecraft.core.registries.Registries.PLACED_FEATURE)
+                .getHolderOrThrow(net.minecraft.resources.ResourceKey.create(
+                        net.minecraft.core.registries.Registries.PLACED_FEATURE,
+                        ResourceLocation.fromNamespaceAndPath(NeoECOPrototype.MOD_ID,
+                                "simplify_cryotheum_ore")));
+        var netherWastes = helper.getLevel().registryAccess()
+                .registryOrThrow(net.minecraft.core.registries.Registries.BIOME)
+                .get(ResourceLocation.withDefaultNamespace("nether_wastes"));
+        if (netherWastes == null) {
+            helper.fail("minecraft:nether_wastes is gone, so the biome modifier has nothing to attach to");
+            return;
+        }
+        var steps = netherWastes.getGenerationSettings().features();
+        var wantedStep = net.minecraft.world.level.levelgen.GenerationStep.Decoration
+                .UNDERGROUND_ORES.ordinal();
+        var foundStep = -1;
+        for (var i = 0; i < steps.size(); i++) {
+            if (steps.get(i).contains(placed)) {
+                foundStep = i;
+                break;
+            }
+        }
+        helper.assertTrue(foundStep == wantedStep,
+                "the nether's biome does not ask for our placed feature at underground_ores (it is on step "
+                        + foundStep + " of " + steps.size() + "), so the ore would never generate even"
+                        + " though every file loaded");
         helper.succeed();
     }
 
