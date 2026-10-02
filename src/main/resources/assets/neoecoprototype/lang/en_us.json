@@ -13,6 +13,7 @@
   "block.neoecoprototype.simplify_energy_cell": "ECO - LT1 Density Energy Cell",
   "block.neoecoprototype.simplify_storage_casing": "ECO - L1 Storage Subsystem Structural Casing",
   "block.neoecoprototype.simplify_green_aluminum_casing": "Trait Casing",
+  "block.neoecoprototype.simplify_cryotheum_ore": "Cryotheum Ore",
   "block.neoecoprototype.simplify_storage_interface": "L1 Storage Subsystem Interface",
   "block.neoecoprototype.simplify_storage_network_interface": "L1 Storage Subsystem Communication Interface",
   "block.neoecoprototype.simplify_storage_vent": "L1 Storage Subsystem Structural Radiator",

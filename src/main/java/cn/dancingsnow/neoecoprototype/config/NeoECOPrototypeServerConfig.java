@@ -30,6 +30,10 @@ public final class NeoECOPrototypeServerConfig {
     public static final ModConfigSpec.LongValue L1_CPU_TOTAL_BYTES;
     /** Same number for the energized cell (CE1R), which is otherwise fixed at the tier constant. */
     public static final ModConfigSpec.LongValue ENERGIZED_CELL_TOTAL_BYTES;
+    /** Dimensions the cryotheum ore may generate in; an empty list generates nowhere. */
+    public static final ModConfigSpec.ConfigValue<List<? extends String>> CRYOTHEUM_ORE_DIMENSIONS;
+    /** How much of the vanilla powder-snow chill one broken cryotheum ore is worth. */
+    public static final ModConfigSpec.IntValue CRYOTHEUM_ORE_FREEZE_TICKS;
 
     static {
         ModConfigSpec.Builder builder = new ModConfigSpec.Builder();
@@ -75,6 +79,21 @@ public final class NeoECOPrototypeServerConfig {
                 .defineListAllowEmpty("disabled_processor_recipes",
                         List.of(), value -> value instanceof String id
                         && net.minecraft.resources.ResourceLocation.tryParse(id) != null);
+        builder.push("cryotheum_ore");
+        CRYOTHEUM_ORE_DIMENSIONS = builder
+                .comment("Dimensions the cryotheum ore generates in, by full ID, e.g. [\"minecraft:the_end\"].",
+                        "The shipped biome modifier already covers overworld, nether and end biomes; this list is",
+                        "what decides which of them actually place, so moving the ore is a config edit and not a",
+                        "datapack. An empty list turns generation off. Default: [\"minecraft:the_nether\"].")
+                .defineListAllowEmpty("dimensions", () -> List.of("minecraft:the_nether"),
+                        value -> value instanceof String id
+                        && net.minecraft.resources.ResourceLocation.tryParse(id) != null);
+        CRYOTHEUM_ORE_FREEZE_TICKS = builder
+                .comment("Freezing ticks a player gains per broken cryotheum ore. Vanilla starts taking freeze",
+                        "damage at 140 ticks in powder snow, so anything below that is the frostbite meter",
+                        "filling up, not damage. Zero disables the effect. Default: 60.")
+                .defineInRange("freeze_ticks", 60, 0, 600);
+        builder.pop();
         SPEC = builder.build();
     }
 

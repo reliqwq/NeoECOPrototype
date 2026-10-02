@@ -3629,6 +3629,158 @@ public final class NeoECOPrototypeGameTests {
         }
     }
 
+    /**
+     * The ore is the world-side entry point for eco's 天外寒冰, which eco itself only ever crafts. Its
+     * point is that it drops someone else's item, so an eco rename has to fail loudly here instead of
+     * silently dropping air in a cave.
+     */
+    @GameTest(template = "empty", batch = "cryotheum_ore_drop", timeoutTicks = 140,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void cryotheumOreDropsTheEcoCrystal(GameTestHelper helper) {
+        var crystal = BuiltInRegistries.ITEM.get(ResourceLocation.fromNamespaceAndPath("neoecoae",
+                "cryotheum_crystal"));
+        if (crystal == null || crystal == net.minecraft.world.item.Items.AIR) {
+            helper.fail("neoecoae:cryotheum_crystal is not registered, so the ore drops nothing");
+            return;
+        }
+        var pos = new BlockPos(0, 1, 0);
+        helper.setBlock(pos, ModRegistration.SIMPLIFY_CRYOTHEUM_ORE_BLOCK.get());
+        var breaker = helper.makeMockPlayer(net.minecraft.world.level.GameType.SURVIVAL);
+        helper.runAfterDelay(2, () -> {
+            // helper.destroyBlock drops nothing, so drive the drop path by hand.
+            helper.getLevel().destroyBlock(helper.absolutePos(pos), true, breaker);
+            helper.runAfterDelay(6, () -> {
+                helper.assertItemEntityPresent(crystal, pos, 2.0);
+                helper.succeed();
+            });
+        });
+    }
+
+    /**
+     * Breaking the ore fills the counter powder snow uses; it does not damage anybody. The second ore in
+     * the same tick must not stack on top of the first, because that is what a chain-mining mod turns
+     * into a burst of freeze damage.
+     *
+     * <p>This drives {@link net.minecraft.world.level.block.Block#playerWillDestroy} directly: a game test
+     * has no {@code ServerPlayer} to route a break through {@code ServerPlayerGameMode} with, and that
+     * method is the one the real player-break path calls (verified in the 1.21.1 sources,
+     * {@code ServerPlayerGameMode#destroyBlock}). What is pinned here is our behaviour, not vanilla's
+     * dispatch.
+     */
+    @GameTest(template = "empty", batch = "cryotheum_ore_freeze", timeoutTicks = 140,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void cryotheumOreChillsTheBreakerOncePerTick(GameTestHelper helper) {
+        var ore = ModRegistration.SIMPLIFY_CRYOTHEUM_ORE_BLOCK.get();
+        helper.setBlock(new BlockPos(0, 1, 0), ore);
+        helper.setBlock(new BlockPos(1, 1, 0), ore);
+        var breaker = helper.makeMockPlayer(net.minecraft.world.level.GameType.SURVIVAL);
+        var level = helper.getLevel();
+        ore.playerWillDestroy(level, helper.absolutePos(new BlockPos(0, 1, 0)),
+                level.getBlockState(helper.absolutePos(new BlockPos(0, 1, 0))), breaker);
+        var first = breaker.getTicksFrozen();
+        if (first <= 0) {
+            helper.fail("breaking the ore left the player at " + first + " freezing ticks");
+            return;
+        }
+        ore.playerWillDestroy(level, helper.absolutePos(new BlockPos(1, 1, 0)),
+                level.getBlockState(helper.absolutePos(new BlockPos(1, 1, 0))), breaker);
+        helper.assertTrue(breaker.getTicksFrozen() == first,
+                "a second ore in the same tick stacked the chill: " + first + " -> "
+                        + breaker.getTicksFrozen() + ", which is what chain mining would multiply");
+        helper.succeed();
+    }
+
+    /**
+     * Generation is a config choice, not a datapack, so the predicate that makes it one is worth pinning:
+     * the shipped default is the nether alone, and an empty list means nowhere rather than everywhere.
+     */
+    @GameTest(template = "empty", batch = "cryotheum_ore_gate", timeoutTicks = 100,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void cryotheumOreHonoursTheDimensionConfig(GameTestHelper helper) {
+        var nether = net.minecraft.world.level.Level.NETHER;
+        var end = net.minecraft.world.level.Level.END;
+        var overworld = net.minecraft.world.level.Level.OVERWORLD;
+        var defaults = List.of("minecraft:the_nether");
+        helper.assertTrue(cn.dancingsnow.neoecoprototype.worldgen.ConfigGatedOreFeature
+                        .dimensionAllowed(nether, defaults),
+                "the nether must generate the ore under the shipped default");
+        helper.assertTrue(!cn.dancingsnow.neoecoprototype.worldgen.ConfigGatedOreFeature
+                        .dimensionAllowed(end, defaults)
+                        && !cn.dancingsnow.neoecoprototype.worldgen.ConfigGatedOreFeature
+                        .dimensionAllowed(overworld, defaults),
+                "the shipped default must name the nether and nothing else");
+        helper.assertTrue(cn.dancingsnow.neoecoprototype.worldgen.ConfigGatedOreFeature
+                        .dimensionAllowed(end, List.of("minecraft:the_end", "minecraft:overworld")),
+                "a config that names the end must let the end place the ore");
+        helper.assertTrue(!cn.dancingsnow.neoecoprototype.worldgen.ConfigGatedOreFeature
+                        .dimensionAllowed(nether, List.of("the_nether")),
+                "a bare path without a namespace must not match, or a typo reads as enabled");
+        helper.assertTrue(NeoECOPrototypeServerConfig.CRYOTHEUM_ORE_DIMENSIONS.get().size() >= 0
+                        && NeoECOPrototypeServerConfig.CRYOTHEUM_ORE_FREEZE_TICKS.get() >= 0,
+                "the cryotheum config entries are unreadable");
+        helper.succeed();
+    }
+
+    /**
+     * Worldgen data that fails to parse is a log line nobody reads, and a biome tag spelled wrong means
+     * the ore simply never appears. Check the three files loaded and that every biome entry in the
+     * modifier names something that exists.
+     */
+    @GameTest(template = "empty", batch = "cryotheum_ore_data", timeoutTicks = 100,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void cryotheumOreWorldgenDataIsLoaded(GameTestHelper helper) {
+        var resourceManager = helper.getLevel().getServer().getResourceManager();
+        var modifiers = List.of(
+                "neoforge/biome_modifier/simplify_cryotheum_ore_nether.json",
+                "neoforge/biome_modifier/simplify_cryotheum_ore_end.json",
+                "neoforge/biome_modifier/simplify_cryotheum_ore_overworld.json");
+        var missing = new ArrayList<String>();
+        var paths = new ArrayList<>(List.of(
+                "worldgen/configured_feature/simplify_cryotheum_ore.json",
+                "worldgen/placed_feature/simplify_cryotheum_ore.json"));
+        paths.addAll(modifiers);
+        for (var path : paths) {
+            if (resourceManager.getResource(ResourceLocation.fromNamespaceAndPath(NeoECOPrototype.MOD_ID,
+                    path)).isEmpty()) {
+                missing.add(path);
+            }
+        }
+        if (!missing.isEmpty()) {
+            helper.fail("cryotheum worldgen data not found on the pack: " + missing);
+            return;
+        }
+        if (!BuiltInRegistries.FEATURE.containsKey(
+                ResourceLocation.fromNamespaceAndPath(NeoECOPrototype.MOD_ID, "configurable_ore"))) {
+            helper.fail("the configured feature names a feature type that is not registered, so the file "
+                    + "would be dropped at load");
+            return;
+        }
+        var biomes = helper.getLevel().registryAccess()
+                .registryOrThrow(net.minecraft.core.registries.Registries.BIOME);
+        var unresolved = new ArrayList<String>();
+        for (var modifier : modifiers) {
+            var text = readClasspathResource("/data/neoecoprototype/" + modifier);
+            if (text == null) {
+                helper.fail(modifier + " is on the pack but not on the classpath");
+                return;
+            }
+            var entry = com.google.gson.JsonParser.parseString(text).getAsJsonObject()
+                    .get("biomes").getAsString();
+            if (entry.startsWith("#")) {
+                var key = ResourceLocation.tryParse(entry.substring(1));
+                if (key == null || biomes.getTag(net.minecraft.tags.TagKey.create(
+                        net.minecraft.core.registries.Registries.BIOME, key)).isEmpty()) {
+                    unresolved.add(modifier + " -> " + entry);
+                }
+            } else if (biomes.get(ResourceLocation.tryParse(entry)) == null) {
+                unresolved.add(modifier + " -> " + entry);
+            }
+        }
+        helper.assertTrue(unresolved.isEmpty(),
+                "the cryotheum biome modifier names biomes or tags that do not exist: " + unresolved);
+        helper.succeed();
+    }
+
     /** Places a glass cable into the empty cell next to {@code clickedPos} on {@code face}. */
     private static boolean placeCableAgainst(GameTestHelper helper, Player player, BlockPos clickedPos,
                                              Direction face) {

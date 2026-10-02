@@ -4,6 +4,7 @@ import appeng.api.stacks.AEKeyType;
 import appeng.block.AEBaseEntityBlock;
 import appeng.blockentity.AEBaseBlockEntity;
 import cn.dancingsnow.neoecoprototype.block.SimplifyCasingBlock;
+import cn.dancingsnow.neoecoprototype.block.SimplifyCryotheumOreBlock;
 import cn.dancingsnow.neoecoae.blocks.entity.ECOMachineCasingBlockEntity;
 import cn.dancingsnow.neoecoae.blocks.entity.ECOMachineInterfaceBlockEntity;
 import cn.dancingsnow.neoecoae.blocks.entity.computation.ECOComputationCoolingControllerBlockEntity;
@@ -105,6 +106,7 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.ItemAttributeModifiers;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.levelgen.feature.Feature;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.material.MapColor;
@@ -166,6 +168,12 @@ public class ModRegistration {
                     .persistent(ResolvableProfile.CODEC).networkSynchronized(ResolvableProfile.STREAM_CODEC).build());
     public static final DeferredRegister<RecipeType<?>> RECIPE_TYPES =
             DeferredRegister.create(Registries.RECIPE_TYPE, NeoECOPrototype.MOD_ID);
+    /** The ore feature the cryotheum worldgen JSONs name; it is the config gate, not the shape. */
+    public static final DeferredRegister<Feature<?>> FEATURES =
+            DeferredRegister.create(Registries.FEATURE, NeoECOPrototype.MOD_ID);
+    public static final Supplier<cn.dancingsnow.neoecoprototype.worldgen.ConfigGatedOreFeature>
+            CONFIG_GATED_ORE_FEATURE = FEATURES.register("configurable_ore",
+            cn.dancingsnow.neoecoprototype.worldgen.ConfigGatedOreFeature::new);
     public static final DeferredRegister<RecipeSerializer<?>> RECIPE_SERIALIZERS =
             DeferredRegister.create(Registries.RECIPE_SERIALIZER, NeoECOPrototype.MOD_ID);
     /**
@@ -269,6 +277,16 @@ public class ModRegistration {
             BLOCKS.register("simplify_computation_casing", () -> new cn.dancingsnow.neoecoae.blocks.ECOMachineCasing(COMPUTATION_PROPS));
      public static final Supplier<SimplifyCasingBlock> SIMPLIFY_GREEN_ALUMINUM_CASING_BLOCK =
              BLOCKS.register("simplify_green_aluminum_casing", () -> new SimplifyCasingBlock(GREEN_CASING_PROPS));
+
+    /**
+     * eco has no ore for its 天外寒冰 - the crystal only comes out of a crafting grid - so this is the
+     * world-side entry point for it. The drop is eco's item, not a copy of it.
+     */
+    public static final Supplier<SimplifyCryotheumOreBlock> SIMPLIFY_CRYOTHEUM_ORE_BLOCK =
+            BLOCKS.register("simplify_cryotheum_ore", () -> new SimplifyCryotheumOreBlock(
+                    BlockBehaviour.Properties.of().mapColor(MapColor.METAL)
+                            .instrument(net.minecraft.world.level.block.state.properties.NoteBlockInstrument.BASEDRUM)
+                            .strength(3.0F, 3.0F).requiresCorrectToolForDrops()));
 
     // ============================ L1 crafting blocks ============================
 
@@ -400,6 +418,9 @@ public class ModRegistration {
      public static final Supplier<BlockItem> SIMPLIFY_GREEN_ALUMINUM_CASING_ITEM =
              ITEMS.register("simplify_green_aluminum_casing",
                      () -> new BlockItem(SIMPLIFY_GREEN_ALUMINUM_CASING_BLOCK.get(), new Item.Properties()));
+    public static final Supplier<BlockItem> SIMPLIFY_CRYOTHEUM_ORE_ITEM =
+            ITEMS.register("simplify_cryotheum_ore",
+                    () -> new BlockItem(SIMPLIFY_CRYOTHEUM_ORE_BLOCK.get(), new Item.Properties()));
 
     public static final Supplier<BlockItem> SIMPLIFY_STONECUTTING_ASSEMBLER_ITEM = ITEMS.register("simplify_stonecutting_assembler", () -> new BlockItem(SIMPLIFY_STONECUTTING_ASSEMBLER_BLOCK.get(), coloredName(SIMPLIFY_STONECUTTING_ASSEMBLER_BLOCK, NAME_THEME_GREEN)));
      public static final Supplier<BlockItem> SIMPLIFY_PATTERN_PROVIDER_ITEM = ITEMS.register("simplify_pattern_provider", () -> new BlockItem(SIMPLIFY_PATTERN_PROVIDER_BLOCK.get(), coloredName(SIMPLIFY_PATTERN_PROVIDER_BLOCK, NAME_THEME_GREEN)));
@@ -1003,6 +1024,7 @@ private static Supplier<BlockEntityType<SimplifyStorageVentBlockEntity>> registe
                         output.accept(SIMPLIFY_ENERGY_CELL_ITEM.get());
                         output.accept(SIMPLIFY_STORAGE_CASING_ITEM.get());
                          output.accept(SIMPLIFY_GREEN_ALUMINUM_CASING_ITEM.get());
+                        output.accept(SIMPLIFY_CRYOTHEUM_ORE_ITEM.get());
                         output.accept(SIMPLIFY_STORAGE_INTERFACE_ITEM.get());
                         output.accept(SIMPLIFY_STORAGE_NETWORK_INTERFACE_ITEM.get());
                         output.accept(SIMPLIFY_STORAGE_VENT_ITEM.get());

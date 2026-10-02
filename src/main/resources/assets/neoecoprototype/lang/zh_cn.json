@@ -9,6 +9,7 @@
   "block.neoecoprototype.simplify_energy_cell": "ECO - LT1 密度能量元件",
   "block.neoecoprototype.simplify_storage_casing": "ECO - L1 存储子系统结构外壳",
   "block.neoecoprototype.simplify_green_aluminum_casing": "特质机壳",
+  "block.neoecoprototype.simplify_cryotheum_ore": "天外寒冰矿石",
   "block.neoecoprototype.simplify_storage_interface": "L1 存储子系统接口",
   "block.neoecoprototype.simplify_storage_network_interface": "L1 存储子系统通讯接口",
   "block.neoecoprototype.simplify_storage_vent": "L1 存储子系统结构散热器",

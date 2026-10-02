@@ -1,0 +1,8 @@
+{
+  "type": "neoforge:add_features",
+  "biomes": "#minecraft:is_end",
+  "features": [
+    "neoecoprototype:simplify_cryotheum_ore"
+  ],
+  "step": "underground_ores"
+}
