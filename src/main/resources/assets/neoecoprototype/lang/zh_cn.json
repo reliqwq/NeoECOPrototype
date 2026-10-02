@@ -131,5 +131,15 @@
   "jei.neoecoprototype.processor_assembler.no_match": "这张配方有一种原料当前匹配不到任何物品，无法编码样板。",
   "block.neoecoprototype.energized_computation_threading_core": "盈能强化线程核心",
   "item.neoecoprototype.energized_computation_threading_core": "盈能强化线程核心",
-  "config.jade.plugin_neoecoae.large_workstation_patterns": "大型工作站样板"
+  "config.jade.plugin_neoecoae.large_workstation_patterns": "大型工作站样板",
+  "block.neoecoprototype.flawless_budding_frigit": "无瑕弗瑞格特母岩",
+  "block.neoecoprototype.flawed_budding_frigit": "有瑕弗瑞格特母岩",
+  "block.neoecoprototype.chipped_budding_frigit": "开裂弗瑞格特母岩",
+  "block.neoecoprototype.damaged_budding_frigit": "损坏弗瑞格特母岩",
+  "block.neoecoprototype.small_frigit_bud": "小型弗瑞格特芽",
+  "block.neoecoprototype.medium_frigit_bud": "中型弗瑞格特芽",
+  "block.neoecoprototype.large_frigit_bud": "大型弗瑞格特芽",
+  "block.neoecoprototype.frigit_cluster": "弗瑞格特簇",
+  "block.neoecoprototype.frigit_crystal_block": "弗瑞格特水晶块",
+  "item.neoecoprototype.frigit_crystal": "弗瑞格特水晶"
 }

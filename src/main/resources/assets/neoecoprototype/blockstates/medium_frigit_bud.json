@@ -1,0 +1,30 @@
+{
+  "variants": {
+    "facing=down": {
+      "model": "neoecoprototype:block/medium_frigit_bud",
+      "x": 180
+    },
+    "facing=east": {
+      "model": "neoecoprototype:block/medium_frigit_bud",
+      "x": 90,
+      "y": 90
+    },
+    "facing=north": {
+      "model": "neoecoprototype:block/medium_frigit_bud",
+      "x": 90
+    },
+    "facing=south": {
+      "model": "neoecoprototype:block/medium_frigit_bud",
+      "x": 90,
+      "y": 180
+    },
+    "facing=up": {
+      "model": "neoecoprototype:block/medium_frigit_bud"
+    },
+    "facing=west": {
+      "model": "neoecoprototype:block/medium_frigit_bud",
+      "x": 90,
+      "y": 270
+    }
+  }
+}

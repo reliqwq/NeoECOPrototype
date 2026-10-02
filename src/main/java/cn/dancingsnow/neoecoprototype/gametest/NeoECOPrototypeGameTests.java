@@ -3877,6 +3877,57 @@ public final class NeoECOPrototypeGameTests {
         helper.succeed();
     }
 
+    /**
+     * The four conditions of frigit mother rock have to move in the right direction: a rock grows crystals
+     * into the space in front of it, and every condition wears down into the next one. Getting that
+     * backwards is invisible in game and silent in a compile - and the first cut of this chain did have it
+     * inverted, so both halves are asserted here.
+     *
+     * <p>Driven tick by tick with a seeded random because waiting for the world to hand out that many
+     * random ticks would take longer than the test is worth.
+     */
+    @GameTest(template = "empty", batch = "frigit_chain", timeoutTicks = 120,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void frigitBuddingGrowsAndWearsDown(GameTestHelper helper) {
+        var level = helper.getLevel();
+        var stages = List.of(ModRegistration.SMALL_FRIGIT_BUD.get(),
+                ModRegistration.MEDIUM_FRIGIT_BUD.get(), ModRegistration.LARGE_FRIGIT_BUD.get(),
+                ModRegistration.FRIGIT_CLUSTER.get());
+        var pos = new BlockPos(0, 2, 0);
+        helper.setBlock(pos, ModRegistration.FLAWLESS_BUDDING_FRIGIT.get());
+        // The structure is addressed relatively, but randomTick talks to the real level in world coordinates.
+        var anchor = helper.absolutePos(pos);
+        var flawless = ModRegistration.FLAWLESS_BUDDING_FRIGIT.get();
+        var random = net.minecraft.util.RandomSource.create(20261003L);
+        for (var i = 0; i < 400; i++) {
+            flawless.randomTick(level.getBlockState(anchor), level, anchor, random);
+        }
+        var grew = false;
+        for (var direction : net.minecraft.core.Direction.values()) {
+            var state = level.getBlockState(anchor.relative(direction));
+            if (stages.stream().anyMatch(state::is)) {
+                grew = true;
+            }
+        }
+        helper.assertTrue(grew, "flawless mother rock ran 400 random ticks and grew nothing on any face");
+        helper.assertTrue(level.getBlockState(anchor).is(flawless),
+                "flawless mother rock wore down to " + level.getBlockState(anchor).getBlock()
+                        + " - the top condition has to stay permanent, or an untouched meteorite erodes itself");
+
+        var wornPos = new BlockPos(6, 2, 6);
+        helper.setBlock(wornPos, ModRegistration.FLAWED_BUDDING_FRIGIT.get());
+        var worn = helper.absolutePos(wornPos);
+        var flawed = ModRegistration.FLAWED_BUDDING_FRIGIT.get();
+        var decay = net.minecraft.util.RandomSource.create(7L);
+        for (var i = 0; i < 400 && level.getBlockState(worn).is(flawed); i++) {
+            flawed.randomTick(level.getBlockState(worn), level, worn, decay);
+        }
+        helper.assertTrue(level.getBlockState(worn).is(ModRegistration.CHIPPED_BUDDING_FRIGIT.get()),
+                "flawed mother rock wore down to " + level.getBlockState(worn).getBlock()
+                        + ", expected chipped");
+        helper.succeed();
+    }
+
     /** Places a glass cable into the empty cell next to {@code clickedPos} on {@code face}. */
     private static boolean placeCableAgainst(GameTestHelper helper, Player player, BlockPos clickedPos,
                                              Direction face) {

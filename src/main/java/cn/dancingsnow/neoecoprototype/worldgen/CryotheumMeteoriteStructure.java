@@ -1,8 +1,10 @@
 package cn.dancingsnow.neoecoprototype.worldgen;
 
+import cn.dancingsnow.neoecoprototype.registration.ModRegistration;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
@@ -155,13 +157,22 @@ public class CryotheumMeteoriteStructure extends Structure {
          * The bands are a function of the world position, not of the shared worldgen random: a structure is
          * written one chunk at a time, and anything random per call would come out different in every chunk.
          *
-         * <p>The rock is AE2's sky stone rather than end stone because a floating End rock made of the
+         * <p>The middle of the rock is hollowed out into a pocket around the mother block, and the crystals
+         * grow from the mother rock into that empty space. They need somewhere to be: a bud whose facing
+         * points into solid rock is placed, then dropped by its own survival check the next time the chunk
+         * loads.
+         *
+         * <p>The shell is AE2's sky stone rather than end stone because a floating End rock made of the
          * End's own ground reads as a piece of scenery that was always there; sky stone is what tells the
          * player this fell in from somewhere else.
          */
         private BlockState stateFor(int dx, int dy, int dz) {
+            double distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
             if (Math.abs(dx) <= 1 && Math.abs(dy) <= 1 && Math.abs(dz) <= 1) {
-                return state("neoecoae", "energized_crystal_block", Blocks.END_STONE);
+                return ModRegistration.FLAWLESS_BUDDING_FRIGIT.get().defaultBlockState();
+            }
+            if (distance < 3.6) {
+                return crystalInPocket(dx, dy, dz);
             }
             double band = Math.sin(dx * 0.78 + center.getX() * 0.11)
                     + Math.cos(dz * 0.71 + center.getZ() * 0.13)
@@ -173,14 +184,37 @@ public class CryotheumMeteoriteStructure extends Structure {
                 return state("neoecoae", "aluminum_ore", Blocks.END_STONE);
             }
             if (band < -1.35) {
-                return cn.dancingsnow.neoecoprototype.registration.ModRegistration
+                return ModRegistration
                         .CRYOTHEUM_ORE_BLOCK.get().defaultBlockState();
             }
             if (band < -0.6) {
-                return cn.dancingsnow.neoecoprototype.registration.ModRegistration
+                return ModRegistration
                         .END_CRYOTHEUM_ORE_BLOCK.get().defaultBlockState();
             }
             return state("ae2", "sky_stone_block", Blocks.END_STONE);
+        }
+
+        /** A bud or cluster on the wall of the pocket, or the empty space itself. */
+        private BlockState crystalInPocket(int dx, int dy, int dz) {
+            int ax = Math.abs(dx);
+            int ay = Math.abs(dy);
+            int az = Math.abs(dz);
+            if (ax < 2 && ay < 2 && az < 2) {
+                return Blocks.AIR.defaultBlockState();
+            }
+            Direction out = Direction.fromAxisAndDirection(
+                    ax >= ay && ax >= az ? Direction.Axis.X
+                            : ay >= az ? Direction.Axis.Y : Direction.Axis.Z,
+                    (ax >= ay && ax >= az ? dx : ay >= az ? dy : dz) < 0
+                            ? Direction.AxisDirection.NEGATIVE : Direction.AxisDirection.POSITIVE);
+            var growth = switch (Math.abs((dx * 7 + dy * 13 + dz * 21 + center.getX()) % 4)) {
+                case 0 -> ModRegistration.FRIGIT_CLUSTER;
+                case 1 -> ModRegistration.LARGE_FRIGIT_BUD;
+                case 2 -> ModRegistration.MEDIUM_FRIGIT_BUD;
+                default -> ModRegistration.SMALL_FRIGIT_BUD;
+            };
+            return growth.get().defaultBlockState()
+                    .setValue(net.minecraft.world.level.block.AmethystClusterBlock.FACING, out);
         }
 
         /** A block from a mod we depend on; end stone stands in if the id is ever gone. */

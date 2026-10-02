@@ -131,5 +131,15 @@
   "jei.neoecoprototype.processor_assembler.no_match": "One ingredient of this recipe currently matches no item, so no pattern can be encoded.",
   "block.neoecoprototype.energized_computation_threading_core": "Energized Reinforced Threading Core",
   "item.neoecoprototype.energized_computation_threading_core": "Energized Reinforced Threading Core",
-  "config.jade.plugin_neoecoae.large_workstation_patterns": "Large Workstation Patterns"
+  "config.jade.plugin_neoecoae.large_workstation_patterns": "Large Workstation Patterns",
+  "block.neoecoprototype.flawless_budding_frigit": "Flawless Budding Frigit",
+  "block.neoecoprototype.flawed_budding_frigit": "Flawed Budding Frigit",
+  "block.neoecoprototype.chipped_budding_frigit": "Chipped Budding Frigit",
+  "block.neoecoprototype.damaged_budding_frigit": "Damaged Budding Frigit",
+  "block.neoecoprototype.small_frigit_bud": "Small Frigit Bud",
+  "block.neoecoprototype.medium_frigit_bud": "Medium Frigit Bud",
+  "block.neoecoprototype.large_frigit_bud": "Large Frigit Bud",
+  "block.neoecoprototype.frigit_cluster": "Frigit Cluster",
+  "block.neoecoprototype.frigit_crystal_block": "Frigit Crystal Block",
+  "item.neoecoprototype.frigit_crystal": "Frigit Crystal"
 }

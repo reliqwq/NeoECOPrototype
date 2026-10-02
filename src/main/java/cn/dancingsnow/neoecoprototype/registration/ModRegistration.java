@@ -5,6 +5,7 @@ import appeng.block.AEBaseEntityBlock;
 import appeng.blockentity.AEBaseBlockEntity;
 import cn.dancingsnow.neoecoprototype.block.SimplifyCasingBlock;
 import cn.dancingsnow.neoecoprototype.block.SimplifyCryotheumOreBlock;
+import cn.dancingsnow.neoecoprototype.block.frigit.FrigitBuddingBlock;
 import cn.dancingsnow.neoecoae.blocks.entity.ECOMachineCasingBlockEntity;
 import cn.dancingsnow.neoecoae.blocks.entity.ECOMachineInterfaceBlockEntity;
 import cn.dancingsnow.neoecoae.blocks.entity.computation.ECOComputationCoolingControllerBlockEntity;
@@ -301,6 +302,83 @@ public class ModRegistration {
                             .instrument(net.minecraft.world.level.block.state.properties
                                     .NoteBlockInstrument.BASEDRUM)
                             .strength(3.0F, 3.0F).requiresCorrectToolForDrops()));
+
+    // ============================ Frigit, the meteorite's own crystal ============================
+    // Four conditions of budding rock, three bud stages, a cluster, a solid block and the item they all
+    // produce. The buds and the cluster are vanilla's own cluster block: it already carries the facing and
+    // waterlogging properties, the per-facing shapes and the "needs something solid behind it" rule, and it
+    // takes its size from the constructor, so there is nothing to gain from rewriting it.
+
+    private static final BlockBehaviour.Properties FRIGIT_BUD_PROPS = BlockBehaviour.Properties.of()
+            .mapColor(MapColor.DIAMOND).noOcclusion().strength(0.5F)
+            .sound(net.minecraft.world.level.block.SoundType.SMALL_AMETHYST_BUD)
+            .lightLevel(state -> state.getValue(net.minecraft.world.level.block.AmethystClusterBlock.FACING)
+                    .getAxis() == net.minecraft.core.Direction.Axis.Y ? 4 : 2);
+
+    public static final Supplier<net.minecraft.world.level.block.AmethystClusterBlock> SMALL_FRIGIT_BUD =
+            BLOCKS.register("small_frigit_bud",
+                    () -> new net.minecraft.world.level.block.AmethystClusterBlock(3.0F, 3.5F, FRIGIT_BUD_PROPS));
+    public static final Supplier<net.minecraft.world.level.block.AmethystClusterBlock> MEDIUM_FRIGIT_BUD =
+            BLOCKS.register("medium_frigit_bud",
+                    () -> new net.minecraft.world.level.block.AmethystClusterBlock(4.0F, 3.0F, FRIGIT_BUD_PROPS));
+    public static final Supplier<net.minecraft.world.level.block.AmethystClusterBlock> LARGE_FRIGIT_BUD =
+            BLOCKS.register("large_frigit_bud",
+                    () -> new net.minecraft.world.level.block.AmethystClusterBlock(5.0F, 2.0F, FRIGIT_BUD_PROPS));
+    public static final Supplier<net.minecraft.world.level.block.AmethystClusterBlock> FRIGIT_CLUSTER =
+            BLOCKS.register("frigit_cluster",
+                    () -> new net.minecraft.world.level.block.AmethystClusterBlock(7.0F, 1.0F, FRIGIT_BUD_PROPS));
+
+    public static final Supplier<Block> FRIGIT_CRYSTAL_BLOCK =
+            BLOCKS.register("frigit_crystal_block", () -> new Block(BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.DIAMOND).strength(1.5F).noOcclusion()
+                    .sound(net.minecraft.world.level.block.SoundType.AMETHYST)
+                    .lightLevel(state -> 4)));
+
+    // Declared worst-first: each condition names the one it decays into, and Java reads a static
+    // initializer that mentions a later field as a forward reference even inside a lambda.
+    public static final Supplier<FrigitBuddingBlock> DAMAGED_BUDDING_FRIGIT =
+            BLOCKS.register("damaged_budding_frigit",
+                    () -> new FrigitBuddingBlock(() -> FRIGIT_CRYSTAL_BLOCK.get(), frigitGrowth()));
+    public static final Supplier<FrigitBuddingBlock> CHIPPED_BUDDING_FRIGIT =
+            BLOCKS.register("chipped_budding_frigit",
+                    () -> new FrigitBuddingBlock(() -> DAMAGED_BUDDING_FRIGIT.get(), frigitGrowth()));
+    public static final Supplier<FrigitBuddingBlock> FLAWED_BUDDING_FRIGIT =
+            BLOCKS.register("flawed_budding_frigit",
+                    () -> new FrigitBuddingBlock(() -> CHIPPED_BUDDING_FRIGIT.get(), frigitGrowth()));
+    public static final Supplier<FrigitBuddingBlock> FLAWLESS_BUDDING_FRIGIT =
+            BLOCKS.register("flawless_budding_frigit",
+                    () -> new FrigitBuddingBlock(frigitGrowth()));
+
+    private static FrigitBuddingBlock.FrigitGrowth frigitGrowth() {
+        return new FrigitBuddingBlock.FrigitGrowth(SMALL_FRIGIT_BUD.get(), MEDIUM_FRIGIT_BUD.get(),
+                LARGE_FRIGIT_BUD.get(), FRIGIT_CLUSTER.get(),
+                net.minecraft.world.level.block.AmethystClusterBlock.FACING,
+                net.minecraft.world.level.block.AmethystClusterBlock.WATERLOGGED);
+    }
+
+    public static final Supplier<Item> FRIGIT_CRYSTAL = ITEMS.register("frigit_crystal",
+            () -> new Item(new Item.Properties()));
+    public static final Supplier<BlockItem> SMALL_FRIGIT_BUD_ITEM = ITEMS.register("small_frigit_bud",
+            () -> new BlockItem(SMALL_FRIGIT_BUD.get(), new Item.Properties()));
+    public static final Supplier<BlockItem> MEDIUM_FRIGIT_BUD_ITEM = ITEMS.register("medium_frigit_bud",
+            () -> new BlockItem(MEDIUM_FRIGIT_BUD.get(), new Item.Properties()));
+    public static final Supplier<BlockItem> LARGE_FRIGIT_BUD_ITEM = ITEMS.register("large_frigit_bud",
+            () -> new BlockItem(LARGE_FRIGIT_BUD.get(), new Item.Properties()));
+    public static final Supplier<BlockItem> FRIGIT_CLUSTER_ITEM = ITEMS.register("frigit_cluster",
+            () -> new BlockItem(FRIGIT_CLUSTER.get(), new Item.Properties()));
+    public static final Supplier<BlockItem> FRIGIT_CRYSTAL_BLOCK_ITEM = ITEMS.register("frigit_crystal_block",
+            () -> new BlockItem(FRIGIT_CRYSTAL_BLOCK.get(), new Item.Properties()));
+    public static final Supplier<BlockItem> FLAWLESS_BUDDING_FRIGIT_ITEM =
+            ITEMS.register("flawless_budding_frigit",
+                    () -> new BlockItem(FLAWLESS_BUDDING_FRIGIT.get(), new Item.Properties()));
+    public static final Supplier<BlockItem> FLAWED_BUDDING_FRIGIT_ITEM = ITEMS.register("flawed_budding_frigit",
+            () -> new BlockItem(FLAWED_BUDDING_FRIGIT.get(), new Item.Properties()));
+    public static final Supplier<BlockItem> CHIPPED_BUDDING_FRIGIT_ITEM =
+            ITEMS.register("chipped_budding_frigit",
+                    () -> new BlockItem(CHIPPED_BUDDING_FRIGIT.get(), new Item.Properties()));
+    public static final Supplier<BlockItem> DAMAGED_BUDDING_FRIGIT_ITEM =
+            ITEMS.register("damaged_budding_frigit",
+                    () -> new BlockItem(DAMAGED_BUDDING_FRIGIT.get(), new Item.Properties()));
 
     // ============================ L1 crafting blocks ============================
 
@@ -1047,6 +1125,9 @@ private static Supplier<BlockEntityType<SimplifyStorageVentBlockEntity>> registe
                         output.accept(NETHER_CRYOTHEUM_ORE_ITEM.get());
                         output.accept(END_CRYOTHEUM_ORE_ITEM.get());
                         output.accept(CRYOTHEUM_ORE_ITEM.get());
+                        output.accept(FRIGIT_CRYSTAL.get());
+                        output.accept(FRIGIT_CRYSTAL_BLOCK_ITEM.get());
+                        output.accept(FLAWLESS_BUDDING_FRIGIT_ITEM.get());
                         output.accept(SIMPLIFY_STORAGE_INTERFACE_ITEM.get());
                         output.accept(SIMPLIFY_STORAGE_NETWORK_INTERFACE_ITEM.get());
                         output.accept(SIMPLIFY_STORAGE_VENT_ITEM.get());
