@@ -1613,22 +1613,45 @@ public final class NeoECOPrototypeGameTests {
                     + " and the doll block drops nothing");
             return;
         }
-        // Creepers have to be born afraid of a plushie. The handler is an entity-join event, so it is
-        // fired here against a fresh creeper rather than by spawning one: a creeper wandering the shared
-        // test room could decide to detonate while unrelated tests are reading the same chunks.
-        var creeper = new net.minecraft.world.entity.monster.Creeper(
-                net.minecraft.world.entity.EntityType.CREEPER, helper.getLevel());
-        cn.dancingsnow.neoecoprototype.event.FumoEquipmentEffects.onEntityJoin(
-                new net.neoforged.neoforge.event.entity.EntityJoinLevelEvent(creeper, helper.getLevel()));
-        boolean fleesPlushies = creeper.goalSelector.getAvailableGoals().stream()
-                .anyMatch(goal -> goal.getGoal() instanceof cn.dancingsnow.neoecoprototype.event
-                        .FumoEquipmentEffects.DollFleeGoal);
-        if (!fleesPlushies) {
-            helper.fail("a fresh creeper has no DollFleeGoal, so creepers ignore plushies entirely");
+        // Creepers have to be born afraid of a plushie - and, now that the feature ships switched off,
+        // they must not be afraid of one while it is off, or the switch buys no ticks at all. The handler
+        // is an entity-join event, so it is fired here against a fresh creeper rather than by spawning
+        // one: a creeper wandering the shared test room could detonate while unrelated tests read the
+        // same chunks.
+        boolean fumoWasEnabled = NeoECOPrototypeServerConfig.FUMO_ENABLED.get();
+        boolean fearsWhenOn;
+        boolean fearsWhenOff;
+        try {
+            NeoECOPrototypeServerConfig.FUMO_ENABLED.set(true);
+            fearsWhenOn = freshCreeperFearsPlushies(helper);
+            NeoECOPrototypeServerConfig.FUMO_ENABLED.set(false);
+            fearsWhenOff = freshCreeperFearsPlushies(helper);
+        } finally {
+            NeoECOPrototypeServerConfig.FUMO_ENABLED.set(fumoWasEnabled);
+        }
+        if (!fearsWhenOn) {
+            helper.fail("with fumo_enabled on, a fresh creeper has no DollFleeGoal, so creepers ignore"
+                    + " plushies entirely");
+            return;
+        }
+        if (fearsWhenOff) {
+            helper.fail("with fumo_enabled off, a fresh creeper still gets a DollFleeGoal, so switching"
+                    + " the feature off saves no creeper ticks");
             return;
         }
         ownerSurvivesEveryCopy(helper);
         helper.succeed();
+    }
+
+    /** Whether the join handler attaches the plushie-flee goal to a creeper born right now. */
+    private static boolean freshCreeperFearsPlushies(GameTestHelper helper) {
+        var creeper = new net.minecraft.world.entity.monster.Creeper(
+                net.minecraft.world.entity.EntityType.CREEPER, helper.getLevel());
+        cn.dancingsnow.neoecoprototype.event.FumoEquipmentEffects.onEntityJoin(
+                new net.neoforged.neoforge.event.entity.EntityJoinLevelEvent(creeper, helper.getLevel()));
+        return creeper.goalSelector.getAvailableGoals().stream()
+                .anyMatch(goal -> goal.getGoal() instanceof cn.dancingsnow.neoecoprototype.event
+                        .FumoEquipmentEffects.DollFleeGoal);
     }
 
     /**
@@ -3552,11 +3575,20 @@ public final class NeoECOPrototypeGameTests {
         }
     }
 
+    /** A guide page's own links are relative to its folder; its {@code parent} is relative to the pack's guide root. */
+    private static final Pattern GUIDE_LINK = Pattern.compile("\\]\\(([^)\\s]+\\.md)");
+    private static final Pattern GUIDE_PARENT = Pattern.compile("^[ \\t]*parent:[ \\t]*(\\S+\\.md)",
+            Pattern.MULTILINE);
+
     /**
      * Both packs we ship have to be self-contained. A model that names a texture nobody carries shows up
      * in game as the missing-texture cube and in a compile as nothing at all, and the artwork arrives as
      * Blockbench exports, where renaming one file silently breaks every model that names it -- which is the
      * exact risk the {@code l4} to {@code l1} rename ran through, and the reason it could be done at all.
+     *
+     * <p>Guide book pages ride the same rule and are pure text, so the compiler cannot see a broken link
+     * either: dropping a page while its entry stays in the index leaves a page in the book that opens to
+     * nothing.
      *
      * <p>Each reference is resolved inside the pack that carries the file making it. Resolving everything
      * against the live tree instead calls 21 of the fallback pack's models missing, because it ships its own
@@ -3569,6 +3601,7 @@ public final class NeoECOPrototypeGameTests {
                 "legacy_art/assets/" + NeoECOPrototype.MOD_ID);
         var problems = new ArrayList<String>();
         var jsonFiles = new int[]{0};
+        var mdFiles = new int[]{0};
         var checked = new int[]{0};
         for (var pack : packs) {
             java.util.SortedSet<String> present;
@@ -3585,6 +3618,35 @@ public final class NeoECOPrototypeGameTests {
                 return;
             }
             for (var path : present) {
+                if (path.endsWith(".md") && path.contains("/ae2guide/")) {
+                    mdFiles[0]++;
+                    var page = readClasspathResource("/" + path);
+                    if (page == null) {
+                        problems.add(path + ": enumerated but not readable");
+                        continue;
+                    }
+                    var ownFolder = path.substring(0, path.lastIndexOf('/') + 1);
+                    var link = GUIDE_LINK.matcher(page);
+                    while (link.find()) {
+                        var target = link.group(1).split("#")[0];
+                        if (target.isEmpty()) {
+                            continue;
+                        }
+                        checked[0]++;
+                        if (!present.contains(ownFolder + target)) {
+                            problems.add(path + " links to " + target + ", no " + ownFolder + target);
+                        }
+                    }
+                    var parent = GUIDE_PARENT.matcher(page);
+                    if (parent.find()) {
+                        checked[0]++;
+                        var wanted = guideRoot(path) + parent.group(1);
+                        if (!present.contains(wanted)) {
+                            problems.add(path + " names parent " + parent.group(1) + ", no " + wanted);
+                        }
+                    }
+                    continue;
+                }
                 if (!path.endsWith(".json")) {
                     continue;
                 }
@@ -3614,9 +3676,9 @@ public final class NeoECOPrototypeGameTests {
                 }
             }
         }
-        if (jsonFiles[0] == 0 || checked[0] == 0) {
-            helper.fail("walked " + jsonFiles[0] + " json file(s) and resolved " + checked[0]
-                    + " reference(s), so this guard saw nothing it could check");
+        if (jsonFiles[0] == 0 || mdFiles[0] == 0 || checked[0] == 0) {
+            helper.fail("walked " + jsonFiles[0] + " json and " + mdFiles[0] + " guide file(s) and resolved "
+                    + checked[0] + " reference(s), so this guard saw nothing it could check");
             return;
         }
         if (!problems.isEmpty()) {
@@ -3624,9 +3686,19 @@ public final class NeoECOPrototypeGameTests {
                     + problems.get(0));
             return;
         }
-        NeoECOPrototype.LOGGER.info("asset references resolved inside their own pack: {} of {} json file(s)",
-                checked[0], jsonFiles[0]);
+        NeoECOPrototype.LOGGER.info("asset references resolved inside their own pack: {} of {} json file(s),"
+                + " {} guide page(s)", checked[0], jsonFiles[0], mdFiles[0]);
         helper.succeed();
+    }
+
+    /**
+     * The folder a page's front-matter paths are measured from: the pack's {@code ae2guide/} root, plus the
+     * language override folder when the page sits in one.
+     */
+    private static String guideRoot(String pagePath) {
+        var start = pagePath.indexOf("ae2guide/") + "ae2guide/".length();
+        var root = pagePath.substring(0, start);
+        return pagePath.startsWith("_zh_cn/", start) ? root + "_zh_cn/" : root;
     }
 
     /**

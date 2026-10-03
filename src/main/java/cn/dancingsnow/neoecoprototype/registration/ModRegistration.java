@@ -1149,10 +1149,12 @@ private static Supplier<BlockEntityType<SimplifyStorageVentBlockEntity>> registe
                              output.accept(SIMPLIFY_SMALL_BULK_FLUID_CELL.get());
                              output.accept(SIMPLIFY_SMALL_BULK_FLUID_CELL_EXPANDED.get());
                          }
-                         output.accept(FumoItem.ownedBy("reliqwq"));
-                         output.accept(FumoItem.ownedBy("Yang120"));
-                         output.accept(FumoItem.ownedBy("kouooki"));
-                         output.accept(FumoItem.ownedBy("TedXenon"));
+                         if (cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig.FUMO_ENABLED.get()) {
+                             output.accept(FumoItem.ownedBy("reliqwq"));
+                             output.accept(FumoItem.ownedBy("Yang120"));
+                             output.accept(FumoItem.ownedBy("kouooki"));
+                             output.accept(FumoItem.ownedBy("TedXenon"));
+                         }
                          if (OPTIONAL_SMALL_BULK_CHEMICAL_CELL != null) {
                              output.accept(OPTIONAL_SMALL_BULK_CHEMICAL_CELL.get());
                              output.accept(OPTIONAL_SMALL_BULK_CHEMICAL_CELL_EXPANDED.get());

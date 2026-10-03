@@ -17,6 +17,8 @@ public final class NeoECOPrototypeServerConfig {
     public static final ModConfigSpec.BooleanValue DERIVE_PROCESSOR_RECIPES_FROM_INSCRIBER;
     /** Processor outputs the assembler must refuse, from either the JSON recipes or the derivation. */
     public static final ModConfigSpec.ConfigValue<List<? extends String>> DISABLED_PROCESSOR_RECIPES;
+    /** Master switch for the plushie: effects, creeper fear, the command and the guide book entry. */
+    public static final ModConfigSpec.BooleanValue FUMO_ENABLED;
     /** Whether /prototypefumo may be used. */
     public static final ModConfigSpec.BooleanValue FUMO_COMMAND_ENABLED;
     /**
@@ -47,6 +49,14 @@ public final class NeoECOPrototypeServerConfig {
         MEGA_BULK_AUTO_MARK_THRESHOLD = builder
                 .comment("Minimum stored item count for automatic MEGA marker selection; compression still requires the MEGA compression upgrade.")
                 .defineInRange("mega_bulk_auto_mark_threshold", 20_000L, 0L, Long.MAX_VALUE);
+        FUMO_ENABLED = builder
+                .comment("Master switch for the plushie: the worn effects, the goal that makes creepers keep",
+                        "their distance, /prototypefumo and the creative tab and guide book entries.",
+                        "Off by default while the doll's art is being redrawn, and because that goal makes",
+                        "every creeper look for a plushie-carrying player on every tick of its own.",
+                        "Creepers already in a level keep the goal until they are next loaded, since goals",
+                        "are attached when the entity joins.")
+                .define("fumo_enabled", false);
         FUMO_COMMAND_ENABLED = builder
                 .comment("Enable the /prototypefumo command, which hands out a plushie wearing any player's skin.",
                         "The command still needs OP level 2 or creative mode; turn this off and it refuses every use.")

@@ -1,6 +1,7 @@
 package cn.dancingsnow.neoecoprototype.event;
 
 import cn.dancingsnow.neoecoprototype.NeoECOPrototype;
+import cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig;
 import cn.dancingsnow.neoecoprototype.item.decoration.FumoItem;
 import cn.dancingsnow.neoecoprototype.registration.ModRegistration;
 import net.minecraft.core.Holder;
@@ -42,6 +43,7 @@ public final class FumoEquipmentEffects {
 
     @SubscribeEvent
     public static void onPlayerTick(PlayerTickEvent.Post event) {
+        if (!NeoECOPrototypeServerConfig.FUMO_ENABLED.get()) return;
         if (!(event.getEntity() instanceof ServerPlayer player)) return;
         ItemStack head = player.getItemBySlot(EquipmentSlot.HEAD);
         if (!head.is(ModRegistration.FUMO_RELIQWQ_ITEM.get())) return;
@@ -69,6 +71,7 @@ public final class FumoEquipmentEffects {
      */
     @SubscribeEvent
     public static void onEntityJoin(EntityJoinLevelEvent event) {
+        if (!NeoECOPrototypeServerConfig.FUMO_ENABLED.get()) return;
         // Mob's own constructor calls registerGoals() only server-side, so an empty goal list on the
         // client is vanilla's convention rather than an oversight - adding a goal there would never
         // tick and would leave our list the only one that differs.
