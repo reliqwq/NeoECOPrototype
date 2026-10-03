@@ -2,9 +2,9 @@
   "credit": "AE2 interface geometry with the Neo ECO energized superconductive ingot color",
   "textures": {
     "sides": "ae2:part/interface_sides",
-    "sidesStatus": "ae2:part/monitor_sides_status",
-    "particle": "ae2:part/interface_back",
-    "back": "ae2:part/interface_back",
+    "sidesStatus": "neoecoprototype:part/interface_status_ring",
+    "particle": "neoecoprototype:block/superconductive_interface",
+    "back": "neoecoprototype:block/superconductive_interface",
     "front": "neoecoprototype:part/superconductive_interface_front"
   },
   "elements": [

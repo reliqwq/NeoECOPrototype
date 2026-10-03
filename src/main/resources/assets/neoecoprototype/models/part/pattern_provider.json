@@ -2,7 +2,7 @@
   "credit": "AE2 pattern provider geometry with the L1 green front",
   "textures": {
     "sides": "ae2:part/pattern_provider_sides",
-    "sidesStatus": "ae2:part/monitor_sides_status",
+    "sidesStatus": "neoecoprototype:part/interface_status_ring",
     "particle": "neoecoprototype:part/green_pattern_provider_back",
     "back": "neoecoprototype:part/green_pattern_provider_back",
     "front": "neoecoprototype:block/green_pattern_provider"

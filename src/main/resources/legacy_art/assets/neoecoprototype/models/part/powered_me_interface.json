@@ -2,9 +2,9 @@
   "credit": "AE2 interface geometry with an L1 blue face",
   "textures": {
     "sides": "ae2:part/interface_sides",
-    "sidesStatus": "ae2:part/monitor_sides_status",
-    "particle": "ae2:part/interface_back",
-    "back": "ae2:part/interface_back",
+    "sidesStatus": "neoecoprototype:part/interface_status_ring",
+    "particle": "neoecoprototype:block/powered_me_interface",
+    "back": "neoecoprototype:block/powered_me_interface",
     "front": "neoecoprototype:block/powered_me_interface"
   },
   "elements": [
