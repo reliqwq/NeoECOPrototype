@@ -79,7 +79,7 @@ public class CryotheumMeteoriteStructure extends Structure {
         /** How far the tail reaches past the head's own surface. Measured from the surface, not from the
          * centre: measured from the centre, most of the tail is inside the rock and the part that gets out has
          * already tapered to nothing. */
-        private static final double TAIL_PAST_HEAD = 72.0;
+        private static final double TAIL_PAST_HEAD = 108.0;
         /** AE2's own base radius factor, applied to the head's radius in the direction the tail points. */
         private static final double TAIL_BASE_FACTOR = 0.8;
         /** The frosted patch on the rock, as a multiple of the tail's own base radius. At 1.3 the whole
@@ -107,7 +107,7 @@ public class CryotheumMeteoriteStructure extends Structure {
          * dome is flatter. His reference photo has the halo going all the way around the nucleus, not just down
          * the tail side. */
         private static final int COMA_SHELL = 4;
-        private static final double COMA_DENSITY = 0.3;
+        private static final double COMA_DENSITY = 0.5;
         /** Fifteen degrees, and always pointing up: a tail behind and above the rock is what makes the rock
          * read as diving. It used to be thirty and randomly up or down, which made half the comets in the End
          * look like they were climbing away. */
