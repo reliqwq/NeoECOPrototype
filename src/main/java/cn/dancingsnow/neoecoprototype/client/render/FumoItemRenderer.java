@@ -23,6 +23,18 @@ public class FumoItemRenderer extends BlockEntityWithoutLevelRenderer {
             ItemDisplayContext.THIRD_PERSON_LEFT_HAND, ItemDisplayContext.THIRD_PERSON_RIGHT_HAND);
     private static FumoItemRenderer instance;
 
+    /**
+     * Drop the cached renderer so the next draw re-bakes from the current {@link EntityModelSet}. Both
+     * halves of that set's lifecycle already work against a cached copy: the set replaces its layer
+     * definitions on every reload, and {@code BlockEntityRenderDispatcher.onResourceManagerReload}
+     * rebuilds the placed doll's renderer from them, so the block path re-bakes and the item path does
+     * not. Nothing about the doll's definition depends on resources today, so the two bakes agree and
+     * this changes no appearance; it exists to keep them agreeing if that ever stops being true.
+     */
+    public static void forgetCache() {
+        instance = null;
+    }
+
     public static FumoItemRenderer get() {
         if (instance == null) {
             instance = new FumoItemRenderer(
@@ -60,8 +72,10 @@ public class FumoItemRenderer extends BlockEntityWithoutLevelRenderer {
             float scale = held ? 0.55F : 0.9F;
             poseStack.translate(0.5F, 0.5F, 0.5F);
             poseStack.scale(scale, scale, scale);
-            // Held by the feet: keep the soles on the grip point instead of centring the whole body
-            // there, so it reads as carried by the legs rather than hugged at the waist.
+            // The model stands on its own origin, so without this the ground drop and the framed doll
+            // would sit in the upper half of their block: shift by half the height to centre them.
+            // Held is deliberately the opposite - soles on the grip point, so it reads as carried by
+            // the legs rather than hugged at the waist.
             if (!held) poseStack.translate(0.0F, -FumoModel.HEIGHT / 2.0F, 0.0F);
             // The doll should look at whoever holds it, so every context gets the half turn; the GUI
             // adds a slight tilt and three-quarter turn so the icon does not read as a flat decal.

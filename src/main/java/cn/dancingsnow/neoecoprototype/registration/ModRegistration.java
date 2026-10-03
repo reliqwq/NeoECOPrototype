@@ -637,7 +637,13 @@ public class ModRegistration {
         }
     }
 
-    /** reliqwq's fumo plushie, textured after the owner's player skin. */
+    /**
+     * reliqwq's fumo plushie, textured after the owner's player skin.
+     *
+     * <p>The light level is deliberate rather than a leftover - 11e4d69 introduced it on purpose
+     * ("the block lights its cell at level 15"). No reason was recorded beyond that, so treat the value
+     * as a design choice, not as a fact this file can justify.
+     */
     public static final Supplier<FumoBlock> FUMO_BLOCK =
             BLOCKS.register("fumo_reliqwq", () -> new FumoBlock(net.minecraft.world.level.block.state.BlockBehaviour.Properties
                     .of().strength(0.8f).sound(net.minecraft.world.level.block.SoundType.WOOL).noOcclusion()

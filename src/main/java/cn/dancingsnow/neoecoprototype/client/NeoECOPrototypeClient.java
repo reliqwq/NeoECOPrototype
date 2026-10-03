@@ -11,6 +11,7 @@ import cn.dancingsnow.neoecoae.api.ECOComputationModels;
 import cn.dancingsnow.neoecoae.client.rendering.FixedBlockEntityRenderers;
 import cn.dancingsnow.neoecoprototype.integration.kubejs.InfiniteMatrixClientModels;
 import cn.dancingsnow.neoecoprototype.NeoECOPrototype;
+import cn.dancingsnow.neoecoprototype.client.render.FumoItemRenderer;
 import cn.dancingsnow.neoecoprototype.client.render.FumoModel;
 import cn.dancingsnow.neoecoprototype.client.render.FumoRenderer;
 import cn.dancingsnow.neoecoprototype.client.renderer.blockentity.SimplifyComputationDriveRenderer;
@@ -190,10 +191,13 @@ public final class NeoECOPrototypeClient {
         FixedBlockEntityRenderers.register(ModRegistration.SIMPLIFY_COMPUTATION_DRIVE_BE.get(),
                 new SimplifyComputationDriveRenderer());
         // Same hook AE2's StyleManager uses for its style cache: reloads must discard the parsed copy
-        // or a resource pack could never override our assembler layout.
+        // or a resource pack could never override our assembler layout. FumoItemRenderer joins it for
+        // the same reason - vanilla rebuilds block entity renderers on reload but not the item one.
         if (Minecraft.getInstance().getResourceManager() instanceof ReloadableResourceManager resourceManager) {
-            resourceManager.registerReloadListener(
-                    (ResourceManagerReloadListener) manager -> ProcessorAssemblerScreen.forgetStyle());
+            resourceManager.registerReloadListener((ResourceManagerReloadListener) manager -> {
+                ProcessorAssemblerScreen.forgetStyle();
+                FumoItemRenderer.forgetCache();
+            });
         }
     }
 

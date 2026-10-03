@@ -69,6 +69,10 @@ public final class FumoEquipmentEffects {
      */
     @SubscribeEvent
     public static void onEntityJoin(EntityJoinLevelEvent event) {
+        // Mob's own constructor calls registerGoals() only server-side, so an empty goal list on the
+        // client is vanilla's convention rather than an oversight - adding a goal there would never
+        // tick and would leave our list the only one that differs.
+        if (event.getLevel().isClientSide()) return;
         if (event.getEntity() instanceof Creeper creeper) {
             creeper.goalSelector.addGoal(3, new DollFleeGoal(creeper));
         }

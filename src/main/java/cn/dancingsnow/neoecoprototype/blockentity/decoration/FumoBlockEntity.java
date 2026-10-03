@@ -64,8 +64,13 @@ public class FumoBlockEntity extends BlockEntity {
     protected void saveAdditional(CompoundTag tag, HolderLookup.Provider registries) {
         super.saveAdditional(tag, registries);
         if (owner != null) {
-            tag.put(OWNER_TAG, ResolvableProfile.CODEC.encodeStart(
-                    registries.createSerializationContext(NbtOps.INSTANCE), owner).getOrThrow());
+            // BlockEntity#saveWithoutMetadata calls saveAdditional with nothing around it, then does
+            // exactly this for its own component codec. Match that shape: an unencodable profile should
+            // cost this doll its owner, not the save that contains it.
+            ResolvableProfile.CODEC.encodeStart(registries.createSerializationContext(NbtOps.INSTANCE), owner)
+                    .resultOrPartial(error -> NeoECOPrototype.LOGGER.error(
+                            "Failed to write fumo owner at {}: {}", worldPosition, error))
+                    .ifPresent(encoded -> tag.put(OWNER_TAG, encoded));
         }
     }
 

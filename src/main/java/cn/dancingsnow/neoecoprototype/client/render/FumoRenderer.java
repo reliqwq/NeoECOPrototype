@@ -29,7 +29,6 @@ public class FumoRenderer implements BlockEntityRenderer<FumoBlockEntity> {
      * `<name>_slim.png`; see {@link #skinOf} for why the file decides that and the profile cannot.
      */
     private static final String LOCAL_SKIN_PREFIX = "textures/block/fumo/skins/";
-    private static final String LOCAL_SKIN_SLIM_SUFFIX = "_slim";
 
     /** Which skin to draw with, and whether its arm columns are the slim 3/4/3/4 widths. */
     public record Skin(ResourceLocation texture, boolean slim) {
@@ -42,7 +41,7 @@ public class FumoRenderer implements BlockEntityRenderer<FumoBlockEntity> {
             // A bundled skin is authored by us, so it carries its own wrist width. Taking the model from
             // the vanilla lookup instead would pair a 4-pixel arm texture with the 3-pixel model, or the
             // other way around, because that lookup keys off the profile's uuid and not off this file.
-            return new Skin(local, local.getPath().endsWith(LOCAL_SKIN_SLIM_SUFFIX));
+            return new Skin(local, local.getPath().endsWith(FumoSkinNaming.SLIM_SUFFIX));
         }
         PlayerSkin resolved = Minecraft.getInstance().getSkinManager().getInsecureSkin(profile);
         return new Skin(resolved.texture(), resolved.model() == PlayerSkin.Model.SLIM);
@@ -53,13 +52,10 @@ public class FumoRenderer implements BlockEntityRenderer<FumoBlockEntity> {
         if (name == null || name.isEmpty()) return null;
         var resources = Minecraft.getInstance().getResourceManager();
         String base = name.toLowerCase(Locale.ROOT);
-        for (String suffix : new String[]{"", LOCAL_SKIN_SLIM_SUFFIX}) {
-            ResourceLocation location = NeoECOPrototype.id(LOCAL_SKIN_PREFIX + base + suffix + ".png");
-            if (resources.getResource(location).isPresent()) {
-                return location;
-            }
-        }
-        return null;
+        String suffix = FumoSkinNaming.pickSuffix(base, tail ->
+                resources.getResource(NeoECOPrototype.id(LOCAL_SKIN_PREFIX + tail + ".png")).isPresent());
+        return suffix == null ? null
+                : NeoECOPrototype.id(LOCAL_SKIN_PREFIX + base + suffix + ".png");
     }
 
     private final FumoModel classic;
