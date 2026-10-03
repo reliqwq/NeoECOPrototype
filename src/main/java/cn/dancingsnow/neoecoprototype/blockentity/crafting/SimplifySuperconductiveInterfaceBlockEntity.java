@@ -15,6 +15,8 @@ import net.minecraft.world.level.block.state.BlockState;
 public class SimplifySuperconductiveInterfaceBlockEntity extends InterfaceBlockEntity
         implements IPassiveEnergyGenerator {
     public static final double GENERATION_RATE = 4000.0D;
+    /** Marker slots per side, drawn as two rows of nine with a spare row between the sides. */
+    public static final int MARKER_SLOTS = 18;
 
     private boolean suppressed;
 
@@ -27,7 +29,7 @@ public class SimplifySuperconductiveInterfaceBlockEntity extends InterfaceBlockE
 
     @Override
     protected InterfaceLogic createLogic() {
-        var logic = new InterfaceLogic(getMainNode(), this, getItemFromBlockEntity(), 18);
+        var logic = new InterfaceLogic(getMainNode(), this, getItemFromBlockEntity(), MARKER_SLOTS);
         OversizeInterfaceLogic.install(logic);
         return logic;
     }

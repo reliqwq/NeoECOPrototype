@@ -3686,9 +3686,94 @@ public final class NeoECOPrototypeGameTests {
                     + problems.get(0));
             return;
         }
+        guiSlotRowsMatchTheirTextures(helper);
         NeoECOPrototype.LOGGER.info("asset references resolved inside their own pack: {} of {} json file(s),"
                 + " {} guide page(s)", checked[0], jsonFiles[0], mdFiles[0]);
         helper.succeed();
+    }
+
+    /**
+     * The three GUIs whose slot rows we own: each style JSON has to declare its rows exactly where its
+     * texture draws them. AE2 and ExtendedAE both ship zero-error pairs, so the tolerance is none - a row
+     * that moved 2px is the defect, not noise to allow for.
+     */
+    private static void guiSlotRowsMatchTheirTextures(GameTestHelper helper) {
+        var patternSlots = new java.util.LinkedHashMap<String, Integer>();
+        patternSlots.put("ENCODED_PATTERN",
+                cn.dancingsnow.neoecoprototype.blockentity.crafting.SimplifyPatternProviderBlockEntity.PATTERN_SLOTS);
+        patternSlots.put("STORAGE", appeng.helpers.patternprovider.PatternProviderReturnInventory.NUMBER_OF_SLOTS);
+        patternSlots.put("PLAYER_INVENTORY", net.minecraft.world.entity.player.Inventory.INVENTORY_SIZE
+                - net.minecraft.world.entity.player.Inventory.getSelectionSize());
+        patternSlots.put("PLAYER_HOTBAR", net.minecraft.world.entity.player.Inventory.getSelectionSize());
+        var interfaceSlots = new java.util.LinkedHashMap<String, Integer>();
+        interfaceSlots.put("CONFIG", cn.dancingsnow.neoecoprototype.blockentity.crafting
+                .SimplifyPoweredMEInterfaceBlockEntity.MARKER_SLOTS);
+        interfaceSlots.put("STORAGE", cn.dancingsnow.neoecoprototype.blockentity.crafting
+                .SimplifyPoweredMEInterfaceBlockEntity.MARKER_SLOTS);
+        interfaceSlots.put("PLAYER_INVENTORY", patternSlots.get("PLAYER_INVENTORY"));
+        interfaceSlots.put("PLAYER_HOTBAR", patternSlots.get("PLAYER_HOTBAR"));
+        var oversized = new java.util.LinkedHashMap<String, Integer>(interfaceSlots);
+        oversized.put("CONFIG", cn.dancingsnow.neoecoprototype.blockentity.crafting
+                .SimplifySuperconductiveInterfaceBlockEntity.MARKER_SLOTS);
+        oversized.put("STORAGE", cn.dancingsnow.neoecoprototype.blockentity.crafting
+                .SimplifySuperconductiveInterfaceBlockEntity.MARKER_SLOTS);
+        var shifted = java.util.Set.of("CONFIG", "STORAGE");
+        for (var contract : List.of(
+                new GuiContract("l1_pattern_provider", patternSlots, java.util.Set.of()),
+                new GuiContract("l1_powered_me_interface", interfaceSlots, shifted),
+                new GuiContract("superconductive_interface", oversized, shifted))) {
+            var problem = guiContractProblem(contract);
+            if (problem != null) {
+                helper.fail(contract.name() + ": " + problem);
+                return;
+            }
+        }
+    }
+
+    /** A GUI style JSON and texture pair, with the slot counts the menu really hands each section. */
+    private record GuiContract(String name, java.util.Map<String, Integer> slots,
+                               java.util.Set<String> secondRowShift) {
+    }
+
+    /** What is wrong with one GUI pair, or null when its declared rows sit on its drawn grooves. */
+    private static String guiContractProblem(GuiContract contract) {
+        var style = readClasspathResource("/assets/ae2/screens/neoecoprototype/" + contract.name() + ".json");
+        if (style == null) {
+            return "its GUI style JSON is not on the classpath";
+        }
+        var texture = readClasspathBytes("/assets/ae2/textures/guis/neoecoprototype/" + contract.name() + ".png");
+        if (texture == null) {
+            return "its GUI texture is not on the classpath";
+        }
+        try {
+            var alignment = cn.dancingsnow.neoecoprototype.gui.GuiGrooveAlignment.class;
+            var drawn = cn.dancingsnow.neoecoprototype.gui.GuiGrooveAlignment.drawnGrooveTops(texture);
+            if (drawn.isEmpty()) {
+                return "the texture yielded 0 groove rows, so this contract checked nothing";
+            }
+            var declared = cn.dancingsnow.neoecoprototype.gui.GuiGrooveAlignment.declaredTops(
+                    cn.dancingsnow.neoecoprototype.gui.GuiGrooveAlignment.sectionsFrom(style, contract.slots(),
+                            contract.secondRowShift(),
+                            cn.dancingsnow.neoecoprototype.gui.GuiGrooveAlignment.textureHeight(texture)));
+            var mismatch = cn.dancingsnow.neoecoprototype.gui.GuiGrooveAlignment.firstMismatch(declared, drawn);
+            if (mismatch != null) {
+                return mismatch;
+            }
+            NeoECOPrototype.LOGGER.info("{}: {} declared slot row(s) sit on the groove rows the texture draws",
+                    contract.name(), declared.size());
+            return null;
+        } catch (java.io.IOException | IllegalArgumentException failure) {
+            return "reading the pair threw " + failure;
+        }
+    }
+
+    /** Raw bytes of a classpath resource, or null when it is not shipped. */
+    private static byte[] readClasspathBytes(String path) {
+        try (var stream = NeoECOPrototype.class.getResourceAsStream(path)) {
+            return stream == null ? null : stream.readAllBytes();
+        } catch (java.io.IOException failure) {
+            return null;
+        }
     }
 
     /**

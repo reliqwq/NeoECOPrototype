@@ -11,6 +11,13 @@ import net.minecraft.world.level.block.state.BlockState;
 
 /** AE2 pattern provider behavior under the addon's green visual variant. */
 public class SimplifyPatternProviderBlockEntity extends PatternProviderBlockEntity {
+    /**
+     * Three rows of nine: {@code l1_pattern_provider.png} draws exactly this many pattern slots, and the
+     * shipped GUI style declares the same grid. {@code GuiGrooveAlignmentTest} reads this number, so
+     * raising it without drawing another row now goes red instead of spilling slots onto the panel.
+     */
+    public static final int PATTERN_SLOTS = 27;
+
     public SimplifyPatternProviderBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state) {
         super(type, pos, state);
     }
@@ -27,7 +34,6 @@ public class SimplifyPatternProviderBlockEntity extends PatternProviderBlockEnti
 
     @Override
     protected PatternProviderLogic createLogic() {
-        // Three rows of nine: l1_pattern_provider.png draws exactly this many pattern slots.
-        return new PatternProviderLogic(getMainNode(), this, 27);
+        return new PatternProviderLogic(getMainNode(), this, PATTERN_SLOTS);
     }
 }

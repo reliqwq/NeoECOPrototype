@@ -14,6 +14,12 @@ import net.minecraft.world.level.block.state.BlockState;
 public class SimplifyPoweredMEInterfaceBlockEntity extends InterfaceBlockEntity
         implements IPassiveEnergyGenerator {
     public static final double GENERATION_RATE = 200.0D;
+    /**
+     * Marker slots per side (config and storage), which {@code l1_powered_me_interface.png} draws as two
+     * rows of nine per side with a spare row between the sides for the second group of amount buttons.
+     * The GUI guard reads this instead of carrying its own copy of the number.
+     */
+    public static final int MARKER_SLOTS = 18;
 
     private boolean suppressed;
 
@@ -26,7 +32,7 @@ public class SimplifyPoweredMEInterfaceBlockEntity extends InterfaceBlockEntity
 
     @Override
     protected InterfaceLogic createLogic() {
-        return new InterfaceLogic(getMainNode(), this, getItemFromBlockEntity(), 18);
+        return new InterfaceLogic(getMainNode(), this, getItemFromBlockEntity(), MARKER_SLOTS);
     }
 
     @Override
