@@ -75,6 +75,9 @@ bin/
 # Local working areas: upstream preview extracts, release-betas, analysis clones, texture scratch pads
 /beta/
 /neoecobeta/
+# Superseded eco jars, moved out of the working folders and renamed by origin (nothing references them;
+# build.gradle points at the one current jar)
+/旧eco包/
 /_repro/
 /neoeco15/
 /neoeco16/

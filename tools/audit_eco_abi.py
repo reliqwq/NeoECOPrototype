@@ -1,10 +1,19 @@
-"""ABI audit: every eco member our compiled classes reference must exist in the target eco jar.
+"""ABI audit: eco members our compiled classes reference that the given eco jar does not declare.
 
-A missing member is exactly what produces NoSuchMethodError / NoSuchFieldError at runtime, so this
-checks the whole addon instead of the one call site a player happened to hit.
+A missing member is what produces NoSuchMethodError / NoSuchFieldError at runtime, but the printed
+list is not a verdict on its own. Members declared on a supertype (Block.defaultBlockState,
+Object.getClass) do not appear in javap of the named owner, and javap prints a constructor under the
+class name, so `<init>` can never match. Auditing classes compiled against this same jar therefore
+reports only false positives -- javac already proved those references resolve.
+
+The check carries information when the two sides differ: compiled against one eco jar, audited
+against another. Then compare against a jar you already ship green rather than reading it absolutely.
 
 Run from the repository root:
-    python tools/audit_eco_abi.py neoecobeta/neoecoae-21.2.0-beta3.jar
+    python tools/audit_eco_abi.py [path-to-eco.jar]
+
+Without an argument it audits the jar build.gradle puts on the compile classpath, so the target
+cannot silently drift behind an eco sync.
 """
 
 import re
@@ -68,7 +77,14 @@ def eco_members(cp, owner, cache):
 
 
 def main():
-    jar = Path(sys.argv[1] if len(sys.argv) > 1 else "neoecobeta/neoecoae-21.2.0-beta3.jar")
+    if len(sys.argv) > 1:
+        jar = Path(sys.argv[1])
+    else:
+        declared = re.search(r'files\("([^"]*neoecoae[^"]*\.jar)"\)',
+                             Path("build.gradle").read_text(encoding="utf-8"))
+        if declared is None:
+            raise SystemExit("no eco jar declared in build.gradle; pass its path as an argument")
+        jar = Path(declared.group(1))
     if not jar.exists():
         raise SystemExit(f"eco jar not found: {jar}")
     cp = jar_classpath(jar)

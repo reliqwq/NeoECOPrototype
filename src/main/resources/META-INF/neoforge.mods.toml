@@ -37,16 +37,20 @@ side = "BOTH"
 # Floor is 21.2.1, the build that carries our merged PRs. This addon's four communication-interface
 # and pattern-bus blocks now implement eco.gui.GuiTitleProvider, which decides who owns the GUI header
 # (PR #110); on an older eco that interface does not exist, so loading those block classes fails.
-# The beta self-reports as plain "21.2.1", so this range already accepts it and needs no edit when the
-# author publishes it. Note eco 21.2.1 raises its own AE2 floor to 19.2.18, which the loader enforces
-# from eco's side - ours stays at 19.2.17 because nothing of ours needs more than that.
+# The floor is a prerelease on purpose, and the reason is measured rather than assumed: 21.2.1-beta1
+# self-reported plain "21.2.1" so a "[21.2.1,)" range accepted it, but 21.2.1-beta2 reports its real
+# version, and a prerelease compares *below* the release - the loader then refused to start with
+# "Mod neoecoprototype requires neoecoae 21.2.1 or above / Currently, neoecoae is 21.2.1-beta2".
+# "[21.2.1-beta2,)" accepts every later beta and the eventual 21.2.1 final.
+# Note eco 21.2.1 raises its own AE2 floor to 19.2.18, which the loader enforces from eco's side -
+# ours stays at 19.2.17 because nothing of ours needs more than that.
 # Do not treat a range as a safety net: 1.2.7 shipped an upper bound that should have excluded
 # 21.2.0, a player still loaded it with that eco and got NoSuchMethodError when opening the L1
 # storage host GUI. ABI surprises are caught by compiling against the target, not by bounding it.
 [[dependencies.neoecoprototype]]
 modId = "neoecoae"
 mandatory = true
-versionRange = "[21.2.1,)"
+versionRange = "[21.2.1-beta2,)"
 ordering = "NONE"
 side = "BOTH"
 

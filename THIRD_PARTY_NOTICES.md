@@ -5,9 +5,9 @@ Neo ECO Prototype is an addon. It does not include the dependency JARs in this r
 ## Neo ECO AE Extension
 
 - Mod ID: `neoecoae`
-- Current development compatibility baseline: `21.2.1-beta1` (local JAR under `neoecobeta/`), which declares its own version as `21.2.1`
-- Declared compatibility floor: `[21.2.1,)`, raised from `21.2.0` in `3.0.0-beta1` because addon blocks implement upstream's `gui.GuiTitleProvider`
-- Earlier baselines this addon was built against: `21.2.0-beta2`, `21.2.0-beta4` (first build exposing `IECOBulkMarkableCellItem`), `21.2.0-beta6`, `21.2.0`
+- Current development compatibility baseline: `21.2.1-beta2` (local JAR under `neoecobeta/`), which declares its own version as `21.2.1-beta2`
+- Declared compatibility floor: `[21.2.1-beta2,)`, raised from `21.2.0` in `3.0.0-beta1` because addon blocks implement upstream's `gui.GuiTitleProvider`. The floor names a prerelease on purpose: `21.2.1-beta1` declared itself as plain `21.2.1` so `[21.2.1,)` accepted it, but `beta2` declares its real version and a prerelease compares *below* the release, so the loader refused to start with "requires neoecoae 21.2.1 or above"
+- Earlier baselines this addon was built against: `21.2.0-beta2`, `21.2.0-beta4` (first build exposing `IECOBulkMarkableCellItem`), `21.2.0-beta6`, `21.2.0`, `21.2.1-beta1`
 - License declared by the upstream mod: GNU GPLv3
 - Upstream authors listed by the upstream metadata: DancingSnow, ZhuRuoLing, and Yang120231
 
