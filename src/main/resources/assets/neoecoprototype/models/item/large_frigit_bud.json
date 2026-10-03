@@ -1,6 +1,6 @@
 {
   "parent": "minecraft:item/generated",
   "textures": {
-    "layer0": "minecraft:block/large_amethyst_bud"
+    "layer0": "neoecoprototype:block/large_frigit_bud"
   }
 }

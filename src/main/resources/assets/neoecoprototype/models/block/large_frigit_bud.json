@@ -1,7 +1,7 @@
 {
   "parent": "minecraft:block/cross",
   "textures": {
-    "cross": "minecraft:block/large_amethyst_bud"
+    "cross": "neoecoprototype:block/large_frigit_bud"
   },
   "render_type": "cutout"
 }
