@@ -91,31 +91,50 @@ public class CryotheumMeteoriteStructure extends Structure {
         private static final double FROST_FADE_POWER = 1.6;
         /** Below this the tail's material turns from the three ices to certus quartz and plain ice. */
         private static final double TIP_FADE = 0.4;
-        /** ... and inside that band the chance stops falling, because the cone has narrowed to 80 cells by the
-         * old quarter-mark and a fading chance there left two blocks at the end of a 72-block tail. */
+        /** ... and inside that band the chance stops falling. The cone narrows to almost nothing near the tip,
+         * so a chance that keeps fading there leaves no visible end to the tail at all. */
         private static final double TIP_DENSITY_FLOOR = 0.2;
-        /** The cells that bridge the tail to the rock are half as dense as the tail's own root: he asked for
-         * the reach, not the mass. */
+        /** The cells that bridge the tail to the rock are half as dense as the tail's own root: what matters
+         * there is that the two touch, not how much crystal is in the joint. */
         private static final double ROOT_DENSITY = 0.175;
-        /** Concentric envelopes outside the core cone, so the tail has a soft coma instead of a hard edge like
-         * the reference photo: each layer adds this much of the core's radius and keeps this fraction of its
-         * density. Three layers make the coma about 2.35 times as wide as the cone. */
+        /** Concentric envelopes outside the core cone, so the tail has a soft coma instead of a hard edge: each
+         * layer adds this much of the core's radius and keeps this fraction of its density. Three layers make
+         * the coma 2.35 times as wide as the cone. */
         private static final int ENVELOPE_LAYERS = 3;
         private static final double ENVELOPE_STEP = 0.45;
         private static final double ENVELOPE_THINNING = 0.45;
         /** How far the coma wraps the rock on every side, in the shape's own units - so it is thicker where the
-         * dome is flatter. His reference photo has the halo going all the way around the nucleus, not just down
-         * the tail side. */
+         * dome is flatter. The halo goes all the way around the nucleus, not just down the tail side. */
         private static final int COMA_SHELL = 4;
         private static final double COMA_DENSITY = 0.5;
         /** Fifteen degrees, and always pointing up: a tail behind and above the rock is what makes the rock
-         * read as diving. It used to be thirty and randomly up or down, which made half the comets in the End
-         * look like they were climbing away. */
+         * read as diving. A random pitch made half the comets in the End look like they were climbing away. */
         private static final double TAIL_SINE = 0.2588190451;
         private static final double TAIL_COSINE = Math.sqrt(1.0 - TAIL_SINE * TAIL_SINE);
+        /** Every roll in the piece is seeded from the block position, because a structure is written one chunk
+         * at a time and a roll taken from a shared stream would answer differently in every chunk. These keep
+         * the passes independent of each other: the same cell is asked twice by some of them, and the same
+         * seed would give the same answer. */
+        private static final long SALT_DIRECTION = 4242L;
+        private static final long SALT_TAIL = 777L;
+        private static final long SALT_CAP = 1234L;
+        private static final long SALT_COMA = 555L;
+        private static final long SALT_FLOOR = 981234567L;
         private final BlockPos center;
         private final int radius;
         private final Tail tail;
+        /** The blocks that come from mods we depend on, resolved once per piece. {@link #state} builds a
+         * ResourceLocation and walks the block registry, and the rock is several thousand cells wide. */
+        private final BlockState shell;
+        private final BlockState tungstenOre;
+        private final BlockState aluminumOre;
+        private final BlockState cryotheumOre;
+        private final BlockState endCryotheumOre;
+        private final BlockState quartzBlock;
+        /** The room's five floor picks and the three buds that can sit on them, in AE2's order: index 0 of the
+         * floor is the block that grows nothing. */
+        private final Block[] floor;
+        private final Block[] buds;
 
         MeteoritePiece(BlockPos center, int radius) {
             this(ModWorldgen.METEORITE_PIECE.get(), center, radius, cometBox(center, radius));
@@ -130,6 +149,19 @@ public class CryotheumMeteoriteStructure extends Structure {
             this.center = center;
             this.radius = radius;
             this.tail = tailDirection(center);
+            // Resolved here rather than in a static field: this class is initialized as soon as the piece type
+            // is registered, and the block registry is not guaranteed to be filled at that moment.
+            this.shell = state("ae2", "sky_stone_block", Blocks.END_STONE);
+            this.tungstenOre = state("neoecoae", "tungsten_ore", Blocks.END_STONE);
+            this.aluminumOre = state("neoecoae", "aluminum_ore", Blocks.END_STONE);
+            this.cryotheumOre = ModRegistration.CRYOTHEUM_ORE_BLOCK.get().defaultBlockState();
+            this.endCryotheumOre = ModRegistration.END_CRYOTHEUM_ORE_BLOCK.get().defaultBlockState();
+            this.quartzBlock = state("ae2", "quartz_block", Blocks.BLUE_ICE);
+            this.floor = new Block[]{ModRegistration.FRIGIT_CRYSTAL_BLOCK.get(),
+                    ModRegistration.DAMAGED_BUDDING_FRIGIT.get(), ModRegistration.CHIPPED_BUDDING_FRIGIT.get(),
+                    ModRegistration.FLAWED_BUDDING_FRIGIT.get(), ModRegistration.FLAWLESS_BUDDING_FRIGIT.get()};
+            this.buds = new Block[]{ModRegistration.SMALL_FRIGIT_BUD.get(), ModRegistration.MEDIUM_FRIGIT_BUD.get(),
+                    ModRegistration.LARGE_FRIGIT_BUD.get()};
         }
 
         @Override
@@ -147,7 +179,7 @@ public class CryotheumMeteoriteStructure extends Structure {
          * rock points its tail the same way. The pitch is not random: see {@link #TAIL_SINE}.
          */
         private static Tail tailDirection(BlockPos center) {
-            var rolls = RandomSource.create(Mth.getSeed(center) + 4242L);
+            var rolls = RandomSource.create(Mth.getSeed(center) + SALT_DIRECTION);
             int spin = rolls.nextInt(4);
             double ax = switch (spin) {
                 case 0 -> 1.0;
@@ -253,29 +285,45 @@ public class CryotheumMeteoriteStructure extends Structure {
         }
 
         /**
-         * The coma that wraps the rock itself: a shell a few blocks thick hugging the same dome the meteorite
-         * uses, thinning outward. It never overwrites anything - the head, the tail and the frost on the join are
-         * all laid before it runs, and it only fills cells the world has nothing in.
+         * The coma that wraps the rock itself: a rind of ice the same number of blocks thick in every direction,
+         * thinning outward. The thickness is measured in blocks rather than in the dome's own units on purpose -
+         * a shell that follows the shape's metric comes out as a slightly fatter copy of the rock (flat on top,
+         * deep below), while an even rind reads as round.
+         *
+         * <p>It never overwrites anything: the head, the tail and the frost on the join are all laid before it
+         * runs, and it only fills cells the world has nothing in.
          */
         private void placeComa(WorldGenLevel level, BoundingBox restriction) {
-            int reach = (int) Math.ceil(headExtent(radius, 0.7)) + COMA_SHELL;
-            double outer = (double) (radius + COMA_SHELL) * (radius + COMA_SHELL);
+            int reach = (int) Math.ceil(headExtent(radius, 0.8)) + COMA_SHELL;
+            double outerSquared = (double) reach * reach;
             for (int dx = -reach; dx <= reach; dx++) {
                 for (int dy = -reach; dy <= reach; dy++) {
                     for (int dz = -reach; dz <= reach; dz++) {
-                        double shape = shapeValue(dx, dy, dz);
-                        if (shape >= outer) {
+                        double distanceSquared = dx * dx + dy * dy + dz * dz;
+                        if (distanceSquared > outerSquared) {
+                            continue;
+                        }
+                        double distance = Math.sqrt(distanceSquared);
+                        if (distance <= 0.0) {
+                            continue;
+                        }
+                        // Where the dome would cross this ray: the difference is the gap in whole blocks.
+                        double ux = dx / distance;
+                        double uy = dy / distance;
+                        double uz = dz / distance;
+                        double weight = ux * ux * 0.7 + uz * uz * 0.7 + uy * uy * (uy > 0 ? 1.4 : 0.8);
+                        double depth = distance - radius / Math.sqrt(weight);
+                        if (depth < 0.0 || depth > COMA_SHELL) {
                             continue;
                         }
                         var pos = center.offset(dx, dy, dz);
                         if (!restriction.isInside(pos) || !level.isEmptyBlock(pos)) {
                             continue;
                         }
-                        var rolls = RandomSource.create(Mth.getSeed(pos) + 555L);
-                        // sqrt(shape) is the radius this same dome would need to pass through this cell, so the
-                        // difference is how far the cell sits outside the rock.
-                        double depth = Math.sqrt(shape) - radius;
-                        if (rolls.nextDouble() <= COMA_DENSITY * (1.0 - depth / COMA_SHELL)) {
+                        double thin = 1.0 - depth / COMA_SHELL;
+                        var rolls = RandomSource.create(Mth.getSeed(pos) + SALT_COMA);
+                        // Squared, not linear: a straight ramp leaves a visible band at the outer edge.
+                        if (rolls.nextDouble() <= COMA_DENSITY * thin * thin) {
                             put(level, restriction, pos, Blocks.ICE.defaultBlockState());
                         }
                     }
@@ -285,7 +333,6 @@ public class CryotheumMeteoriteStructure extends Structure {
 
         private void placeHead(WorldGenLevel level, BoundingBox restriction) {
             int lateral = (int) Math.ceil(headExtent(radius, 0.7));
-            var shell = state("ae2", "sky_stone_block", Blocks.END_STONE);
             for (int dx = -lateral; dx <= lateral; dx++) {
                 for (int dy = -lateral; dy <= lateral; dy++) {
                     for (int dz = -lateral; dz <= lateral; dz++) {
@@ -322,9 +369,9 @@ public class CryotheumMeteoriteStructure extends Structure {
          * The tail is a projection test now, not a walk: its pitch is not a lattice direction.
          *
          * <p>It reaches back toward the centre rather than starting at the ellipsoid's skin - the cells between
-         * the two are the gap he saw, and they take eco's energized crystal. Nothing is filled solid: the same
-         * chance decides every cell, and the rock wins wherever the two overlap, which is what stops the
-         * extension at the meteorite's surface instead of tunnelling into it.
+         * the two are what would otherwise read as a gap between rock and tail, and they take eco's energized
+         * crystal. Nothing is filled solid: the same chance decides every cell, and the rock wins wherever the
+         * two overlap, which is what stops the extension at the meteorite's surface instead of tunnelling in.
          */
         private void placeTail(WorldGenLevel level, BoundingBox restriction) {
             int[] e = extents(radius, tail);
@@ -349,7 +396,7 @@ public class CryotheumMeteoriteStructure extends Structure {
                             continue;
                         }
                         var pos = center.offset(dx, dy, dz);
-                        var rolls = RandomSource.create(Mth.getSeed(pos) + 777L);
+                        var rolls = RandomSource.create(Mth.getSeed(pos) + SALT_TAIL);
                         double chance = along < start ? ROOT_DENSITY
                                 : FROST_DENSITY * Math.pow(fade, FROST_FADE_POWER);
                         if (along >= start && fade <= TIP_FADE) {
@@ -361,8 +408,8 @@ public class CryotheumMeteoriteStructure extends Structure {
                         if (rolls.nextDouble() > chance) {
                             continue;
                         }
-                        // The core keeps the mix he picked; the coma around it is plain ice, the soft
-                        // translucent one, so the edge reads as glow rather than as stacked blocks.
+                        // The core keeps the ice mix; the coma around it is plain ice, the soft translucent
+                        // one, so the edge reads as glow rather than as stacked blocks.
                         put(level, restriction, pos, layer > 0 ? Blocks.ICE.defaultBlockState()
                                 : along < start ? crystal : tailBlock(rolls, fade));
                     }
@@ -386,10 +433,9 @@ public class CryotheumMeteoriteStructure extends Structure {
 
         /** What the tail is made of at this point along it: certus quartz and ice at the far tip, the three
          * ices in between. */
-        private static BlockState tailBlock(RandomSource rolls, double fade) {
+        private BlockState tailBlock(RandomSource rolls, double fade) {
             if (fade <= TIP_FADE) {
-                return rolls.nextBoolean() ? state("ae2", "quartz_block", Blocks.BLUE_ICE)
-                        : Blocks.ICE.defaultBlockState();
+                return rolls.nextBoolean() ? quartzBlock : Blocks.ICE.defaultBlockState();
             }
             return frostOf(rolls);
         }
@@ -414,10 +460,10 @@ public class CryotheumMeteoriteStructure extends Structure {
                     && insideRock(dx, dy, dz + tail.outwardZ(), radius)) {
                 return null;
             }
-            return frostOf(RandomSource.create(Mth.getSeed(center.offset(dx, dy, dz)) + 1234L));
+            return frostOf(RandomSource.create(Mth.getSeed(center.offset(dx, dy, dz)) + SALT_CAP));
         }
 
-        /** The three ices he asked for: 20% ice, 25% 浮冰, the rest blue ice. */
+        /** The three ices the tail is made of: 20% plain ice, 25% packed ice, the rest blue ice. */
         private static BlockState frostOf(RandomSource rolls) {
             int pick = rolls.nextInt(100);
             if (pick < 20) {
@@ -431,18 +477,12 @@ public class CryotheumMeteoriteStructure extends Structure {
          *
          * <p>Both rolls come from a seed of this position rather than from the shared worldgen random, because
          * a structure is written one chunk at a time: a roll taken from a stream would give every chunk a
-         * different answer for the same cell. The dead centre gets its floor block but no bud, which is the
-         * cell AE2 reserves for its mysterious cube and where a bud would block the room's only doorway.
+         * different answer for the same cell. The dead centre gets its floor block but no bud - that is the
+         * column AE2 keeps clear for its mysterious cube, and here it stays the one place in the room where
+         * nothing sits at head height.
          */
         private void placeFloorCell(WorldGenLevel level, BoundingBox restriction, int dx, int dy, int dz) {
-            // Resolved here, not in a static field: this class is initialized as soon as the piece type is
-            // registered, and the block registry is not guaranteed to be filled at that moment.
-            var floor = new Block[]{ModRegistration.FRIGIT_CRYSTAL_BLOCK.get(),
-                    ModRegistration.DAMAGED_BUDDING_FRIGIT.get(), ModRegistration.CHIPPED_BUDDING_FRIGIT.get(),
-                    ModRegistration.FLAWED_BUDDING_FRIGIT.get(), ModRegistration.FLAWLESS_BUDDING_FRIGIT.get()};
-            var buds = new Block[]{ModRegistration.SMALL_FRIGIT_BUD.get(), ModRegistration.MEDIUM_FRIGIT_BUD.get(),
-                    ModRegistration.LARGE_FRIGIT_BUD.get()};
-            var rolls = net.minecraft.util.RandomSource.create(Mth.getSeed(center.offset(dx, dy, dz)) + 981234567L);
+            var rolls = RandomSource.create(Mth.getSeed(center.offset(dx, dy, dz)) + SALT_FLOOR);
             int index = rolls.nextInt(floor.length);
             put(level, restriction, center.offset(dx, dy, dz), floor[index].defaultBlockState());
             if (index == 0 || (dx == 0 && dz == 0) || rolls.nextFloat() > 0.7f) {
@@ -476,20 +516,18 @@ public class CryotheumMeteoriteStructure extends Structure {
                     + Math.cos(dz * 0.71 + center.getZ() * 0.13)
                     + Math.sin(dy * 0.9);
             if (band > 2.325) {
-                return state("neoecoae", "tungsten_ore", Blocks.END_STONE);
+                return tungstenOre;
             }
             if (band > 1.275) {
-                return state("neoecoae", "aluminum_ore", Blocks.END_STONE);
+                return aluminumOre;
             }
             if (band < -2.025) {
-                return ModRegistration
-                        .CRYOTHEUM_ORE_BLOCK.get().defaultBlockState();
+                return cryotheumOre;
             }
             if (band < -0.9) {
-                return ModRegistration
-                        .END_CRYOTHEUM_ORE_BLOCK.get().defaultBlockState();
+                return endCryotheumOre;
             }
-            return state("ae2", "sky_stone_block", Blocks.END_STONE);
+            return shell;
         }
 
         /** A block from a mod we depend on; end stone stands in if the id is ever gone. */
