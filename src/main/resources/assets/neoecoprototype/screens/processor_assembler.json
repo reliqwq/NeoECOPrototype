@@ -61,7 +61,7 @@
   },
   "images": {
     "progressBar": {
-      "texture": "ae2:textures/guis/molecular_assembler.png",
+      "texture": "neoecoprototype:textures/gui/simplify_assembler.png",
       "srcRect": [176, 0, 6, 18]
     },
     "toolbox": {
