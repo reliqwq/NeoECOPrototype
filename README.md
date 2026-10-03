@@ -21,8 +21,8 @@ Neo ECO Prototype is an unofficial addon for Neo ECO AE Extension and Applied En
 | --- | --- |
 | Minecraft | 1.21.1 |
 | NeoForge | 21.1.251 or compatible 21.1.x release |
-| Applied Energistics 2 | 19.2.18 or compatible 19.2.x release |
-| Neo ECO AE Extension | 21.2.1 or a compatible later release |
+| Applied Energistics 2 | 19.2.17 or compatible 19.2.x release |
+| Neo ECO AE Extension | 21.2.1-beta2 or a compatible later release |
 | MegaCells (optional; required for the small bulk matrix family) | 4.11.0 or later |
 | Java | 21 |
 
@@ -58,7 +58,7 @@ KubeJS is optional. Matrix texture recoloring is handled offline by `tools/gener
 
 ## Development Build
 
-The current development setup compiles against the Neo ECO AE Extension `21.2.1-beta2` JAR under `neoecobeta/`. `3.0.0-beta1` raised that floor from `21.2.0` because our communication-interface and pattern-bus blocks now implement upstream's `gui.GuiTitleProvider`, which does not exist in `21.2.0`. The floor is written `[21.2.1-beta2,)`, not `[21.2.1,)`: `21.2.1-beta1` declared itself as plain `21.2.1` so the wider range happened to accept it, while `beta2` declares its real version and a prerelease compares *below* the release, so `[21.2.1,)` refused to start. Upstream has not published a `21.2.1` release yet, which is why the first build carrying it is a prerelease. Upstream's own floor moved to Applied Energistics 2 `19.2.18` in the same version, and this addon follows it rather than re-declaring it. The local development copy is intentionally excluded from GitHub.
+The current development setup compiles against the Neo ECO AE Extension `21.2.1-beta2` JAR under `neoecobeta/`. `3.0.0-beta1` raised that floor from `21.2.0` because our communication-interface and pattern-bus blocks now implement upstream's `gui.GuiTitleProvider`, which does not exist in `21.2.0`. The floor is written `[21.2.1-beta2,)`, not `[21.2.1,)`: `21.2.1-beta1` declared itself as plain `21.2.1` so the wider range happened to accept it, while `beta2` declares its real version and a prerelease compares *below* the release, so `[21.2.1,)` refused to start. Upstream has not published a `21.2.1` release yet, which is why the first build carrying it is a prerelease. Upstream's own floor moved to Applied Energistics 2 `19.2.18` in `21.2.1-beta1` and back to `19.2.17` in `beta2`, so from `beta2` on this addon's own declaration is the only gate on AE2; it has stayed at `[19.2.17,)` throughout because both AE2 mixin targets and their inner classes are byte-identical between the two jars. The local development copy is intentionally excluded from GitHub.
 
 Required local development files are listed in `build.gradle`. Place lawful copies of the exact compatible dependencies in `libs/`, then run:
 

@@ -58,7 +58,7 @@ Some visual resources are adapted from Neo ECO AE Extension assets. Those assets
 ## Applied Energistics 2
 
 - Mod ID: `ae2`
-- Version tested: `19.2.18` (`19.2.17` before the addon moved to the `21.2.1` baseline; upstream Neo ECO AE Extension requires `19.2.18` from that version on, so this addon follows it instead of re-declaring a lower range)
+- Version tested: `19.2.18` (upstream Neo ECO AE Extension `21.2.1-beta1` required `19.2.18` from its own side and `21.2.1-beta2` dropped that back to `19.2.17`, which is the floor this addon has declared all along; the only AE2 class that differs between the two jars is `core.localization.Tooltips`, and what it lost in `19.2.18` are fields this addon never names)
 - License: see the upstream project and the `NOTICE` file distributed with AE2
 - Project: <https://github.com/AppliedEnergistics/Applied-Energistics-2>
 

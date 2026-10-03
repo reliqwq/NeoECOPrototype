@@ -27,6 +27,11 @@ versionRange = "[1.21.1,1.22)"
 ordering = "NONE"
 side = "BOTH"
 
+# AE2 floor: 19.2.17, unchanged since 1.2.x even though we compile against 19.2.18. eco 21.2.1-beta1
+# demanded 19.2.18 from its own side and beta2 dropped that back, so this range is now the only gate.
+# It holds because of a measured diff, not a hunch: of the AE2 classes this addon names, one differs
+# between the two jars - core.localization.Tooltips, which lost three public static fields in 19.2.18 -
+# and the single member we call on it, bytesUsed(long, long), is present in both.
 [[dependencies.neoecoprototype]]
 modId = "ae2"
 mandatory = true
@@ -42,8 +47,8 @@ side = "BOTH"
 # version, and a prerelease compares *below* the release - the loader then refused to start with
 # "Mod neoecoprototype requires neoecoae 21.2.1 or above / Currently, neoecoae is 21.2.1-beta2".
 # "[21.2.1-beta2,)" accepts every later beta and the eventual 21.2.1 final.
-# Note eco 21.2.1 raises its own AE2 floor to 19.2.18, which the loader enforces from eco's side -
-# ours stays at 19.2.17 because nothing of ours needs more than that.
+# eco 21.2.1-beta1 raised its own AE2 floor to 19.2.18 and the loader enforced that from eco's side;
+# beta2 put it back to 19.2.17, so the ae2 range declared above is now the only gate on AE2.
 # Do not treat a range as a safety net: 1.2.7 shipped an upper bound that should have excluded
 # 21.2.0, a player still loaded it with that eco and got NoSuchMethodError when opening the L1
 # storage host GUI. ABI surprises are caught by compiling against the target, not by bounding it.
