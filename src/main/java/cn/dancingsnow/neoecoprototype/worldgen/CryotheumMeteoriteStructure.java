@@ -89,6 +89,11 @@ public class CryotheumMeteoriteStructure extends Structure {
         /** Ice density at the head, and how fast it thins out toward the tip. */
         private static final double FROST_DENSITY = 0.35;
         private static final double FROST_FADE_POWER = 1.6;
+        /** The tail's first few blocks are laid solid and filled with eco's energized crystal, so the tail
+         * grows out of the rock instead of hovering a few blocks off its surface. */
+        private static final double ROOT_DEPTH = 6.0;
+        /** The last quarter of the tail is certus quartz and plain ice rather than frost. */
+        private static final double TIP_FADE = 0.25;
         /** Fifteen degrees, and always pointing up: a tail behind and above the rock is what makes the rock
          * read as diving. It used to be thirty and randomly up or down, which made half the comets in the End
          * look like they were climbing away. */
@@ -250,11 +255,12 @@ public class CryotheumMeteoriteStructure extends Structure {
                     || !insideRock(dx, dy, dz + 1, radius) || !insideRock(dx, dy, dz - 1, radius);
         }
 
-        /** The tail is a projection test now, not a walk: thirty degrees is not a lattice direction. */
+        /** The tail is a projection test now, not a walk: its pitch is not a lattice direction. */
         private void placeTail(WorldGenLevel level, BoundingBox restriction) {
             int[] e = extents(radius, tail);
             double start = tail.headExtent(radius);
             double base = TAIL_BASE_FACTOR * start;
+            var crystal = state("neoecoae", "energized_crystal_block", Blocks.END_STONE);
             for (int dx = e[0]; dx <= e[1]; dx++) {
                 for (int dy = e[2]; dy <= e[3]; dy++) {
                     for (int dz = e[4]; dz <= e[5]; dz++) {
@@ -268,13 +274,31 @@ public class CryotheumMeteoriteStructure extends Structure {
                             continue;
                         }
                         var pos = center.offset(dx, dy, dz);
+                        if (along - start <= ROOT_DEPTH) {
+                            put(level, restriction, pos, crystal);
+                            continue;
+                        }
                         var rolls = RandomSource.create(Mth.getSeed(pos) + 777L);
-                        if (rolls.nextDouble() <= FROST_DENSITY * Math.pow(fade, FROST_FADE_POWER)) {
-                            put(level, restriction, pos, frostOf(rolls));
+                        // The tip is laid solid, not by the fading chance: the cone narrows to almost nothing
+                        // over its last quarter, and at radius 9 the whole band is 80 cells - a fading density
+                        // there left three blocks of ice and nothing else to read as the end of the comet.
+                        if (fade <= TIP_FADE
+                                || rolls.nextDouble() <= FROST_DENSITY * Math.pow(fade, FROST_FADE_POWER)) {
+                            put(level, restriction, pos, tailBlock(rolls, fade));
                         }
                     }
                 }
             }
+        }
+
+        /** What the tail is made of at this point along it: certus quartz and ice at the far tip, the three
+         * ices in between. */
+        private static BlockState tailBlock(RandomSource rolls, double fade) {
+            if (fade <= TIP_FADE) {
+                return rolls.nextBoolean() ? state("ae2", "quartz_block", Blocks.BLUE_ICE)
+                        : Blocks.ICE.defaultBlockState();
+            }
+            return frostOf(rolls);
         }
 
         /**
