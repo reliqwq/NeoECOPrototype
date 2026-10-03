@@ -24,7 +24,6 @@ import cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig;
 import cn.dancingsnow.neoecoprototype.api.SimplifyTier;
 import cn.dancingsnow.neoecoprototype.block.storage.SimplifyStorageControllerBlock;
 import cn.dancingsnow.neoecoprototype.integration.ae2.SimplifyGridFacade;
-import cn.dancingsnow.neoecoprototype.gui.SimplifyStorageMegaPanelUI;
 import cn.dancingsnow.neoecoprototype.items.SimplifyConcreteStorageCellItem;
 import cn.dancingsnow.neoecoprototype.items.SimplifyStorageCellItem;
 import cn.dancingsnow.neoecoprototype.items.SimplifySmallBulkStorageCellItem;
@@ -88,14 +87,6 @@ public class SimplifyStorageHostBlockEntity
     @Persisted
     @DescSynced
     private int storagePriority;
-
-    @Persisted
-    @DescSynced
-    private int selectedSmallBulkDrive;
-
-    @Persisted
-    @DescSynced
-    private int selectedSmallBulkPage;
 
     @DescSynced
     private boolean buildInProgress;
@@ -253,9 +244,6 @@ public class SimplifyStorageHostBlockEntity
                  // but the flag is there if the button ever wants "shift = ignore the threshold".
                  shift -> autoMarkBulkCells(holder.player)));
         actionUI.addTo(root);
-        if (bulkMarkingAvailable()) {
-            root.addChild(SimplifyStorageMegaPanelUI.create(this));
-        }
         return new ModularUI(UI.of(root,
                 java.util.List.of(StylesheetManager.INSTANCE.getStylesheetSafe(NEStyleSheets.ECO))), holder.player);
     }
@@ -338,65 +326,6 @@ public class SimplifyStorageHostBlockEntity
                 .filter(drive -> drive.getCellStack() != null
                         && drive.getCellStack().getItem() instanceof SimplifySmallBulkStorageCellItem)
                 .toList();
-    }
-
-    public int getSelectedSmallBulkDrive() {
-        int count = smallBulkDrives().size();
-        selectedSmallBulkDrive = count == 0 ? 0 : Math.clamp(selectedSmallBulkDrive, 0, count - 1);
-        return selectedSmallBulkDrive;
-    }
-
-    public void changeSelectedSmallBulkDrive(int delta) {
-        int count = smallBulkDrives().size();
-        selectedSmallBulkDrive = count == 0 ? 0 : Math.floorMod(selectedSmallBulkDrive + delta, count);
-        selectedSmallBulkPage = 0;
-        setChanged();
-        markForUpdate();
-    }
-
-    public int getSelectedSmallBulkPage() {
-        return selectedSmallBulkPage;
-    }
-
-    public int getSelectedSmallBulkTypeLimit() {
-        List<SimplifyDriveBlockEntity> drives = smallBulkDrives();
-        int index = getSelectedSmallBulkDrive();
-        if (index < 0 || index >= drives.size()) {
-            return 0;
-        }
-        ItemStack stack = drives.get(index).getCellStack();
-        return stack != null && stack.getItem() instanceof SimplifySmallBulkStorageCellItem item
-                ? item.getTotalTypes() : 0;
-    }
-
-    public ItemStack getSmallBulkFilter(int slot) {
-        List<SimplifyDriveBlockEntity> drives = smallBulkDrives();
-        int index = getSelectedSmallBulkDrive();
-        if (index < 0 || index >= drives.size()) {
-            return ItemStack.EMPTY;
-        }
-        ItemStack stack = drives.get(index).getCellStack();
-        if (stack == null || !(stack.getItem() instanceof SimplifySmallBulkStorageCellItem item)) {
-            return ItemStack.EMPTY;
-        }
-        var config = item.getConfigInventory(stack);
-        return slot < 0 || slot >= config.size() || config.getKey(slot) == null
-                ? ItemStack.EMPTY
-                : ((appeng.api.stacks.AEItemKey) config.getKey(slot)).toStack(1);
-    }
-
-    public void setSmallBulkFilterFromClient(int slot, ItemStack stack) {
-        List<SimplifyDriveBlockEntity> drives = smallBulkDrives();
-        int index = getSelectedSmallBulkDrive();
-        if (index >= 0 && index < drives.size()) {
-            drives.get(index).setSmallBulkFilterFromClient(slot, stack);
-        }
-    }
-
-    public void changeSelectedSmallBulkPage(int delta) {
-        selectedSmallBulkPage = Math.clamp(selectedSmallBulkPage + delta, 0, 1);
-        setChanged();
-        markForUpdate();
     }
 
     private StorageHostUI.Config createStoragePanelConfig() {
