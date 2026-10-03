@@ -6,6 +6,10 @@
 
 - **玩偶功能整族默认关掉**，服务器配置 `fumo_enabled` 现为 `false`。关掉的范围：戴着给的那套效果、苦力怕躲玩偶那条目标、`/prototypefumo`、创造栏里的四只具名玩偶，以及指南里那一页（含中英两边的入口句）。原因是两条：那条目标让**每只苦力怕每一 tick** 都去查一次"附近有没有带玩偶的玩家"，而玩偶的模型与皮肤美术要重画。**方块与物品仍然注册着，已经放下去的玩偶照常渲染、照常掉落带主人的物品**——这一档不烧 id，翻回true 即可整族恢复。已在世界里的苦力怕要等它下次被加载才不再带那条目标，因为目标是实体进场时才挂的。 The whole plushie feature ships switched off behind the new `fumo_enabled` server config: the worn effects, the creeper-flee goal, `/prototypefumo`, the four named creative-tab dolls and its guide book page (both languages) are all gated. Two reasons - that goal makes every creeper search for a plushie-carrying player on every one of its ticks, and the doll's art is being redrawn. The block and item stay registered, so placed dolls still render and still drop themselves with their owner; flipping the config back restores everything. Creepers already in a level keep the goal until they are next loaded.
 
+### 移除 / Removed
+
+- **小宗仓的手动过滤器面板整块删掉了**：主机 GUI 里那排幽灵槽，以及左右换驱动器的那两个箭头。上游既没给这块留可依赖的 API，它自己那套逻辑也靠不住，不值得再维护。删掉的是 `SimplifyStorageMegaPanelUI` 一个类、主机侧七个方法加两个 `@Persisted` 字段（选中的驱动器 / 页码）、驱动器侧三个方法（含那条 `setSmallBulkFilter` 的 `@RPCMethod`）。**标记本身一点没少**：AE2 自己的盘配置界面照样能标，主机上那个"一键标记"也照样批量填——它写的是同一份 `getConfigInventory`，路径不经过被删掉的那些方法。旧存档里那两个已删字段会被直接忽略，不报错、不炸档。 The manual small-bulk filter panel is gone: the ghost-slot row and the two drive-paging arrows in the storage host's GUI. Marking still works, through AE2's own cell config UI and through the auto-mark button, which writes the same config inventory without the deleted methods. Old saves simply drop the two removed `@Persisted` fields.
+
 ### 新增 / Added
 
 - **苦力怕怕玩偶**：戴着玩偶、或者把它拿在任一只手里，苦力怕会像遇到猫一样躲开——用的就是原版对猫和野猫的那条目标，同样优先级 3、半径 6 格、逃跑速度 1.2/1.2，所以躲开的方式（含下水与转头）不会和猫走偏。**放在地上的玩偶没有这个效果**：那条目标只看得见实体，方块版本得另写一个目标。所有玩偶都算，与夜视同一口径。 Creepers flee from anyone wearing or holding a plushie, using vanilla's own cat goal - the same priority, the same 6 blocks and the same 1.2/1.2 speeds - while a placed doll does not count, because that goal only sees entities.
