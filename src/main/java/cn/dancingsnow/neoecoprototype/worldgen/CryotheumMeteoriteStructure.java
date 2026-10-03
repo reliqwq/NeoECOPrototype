@@ -89,11 +89,11 @@ public class CryotheumMeteoriteStructure extends Structure {
         /** Ice density at the head, and how fast it thins out toward the tip. */
         private static final double FROST_DENSITY = 0.35;
         private static final double FROST_FADE_POWER = 1.6;
-        /** The tail's first few blocks are laid solid and filled with eco's energized crystal, so the tail
-         * grows out of the rock instead of hovering a few blocks off its surface. */
-        private static final double ROOT_DEPTH = 6.0;
-        /** The last quarter of the tail is certus quartz and plain ice rather than frost. */
-        private static final double TIP_FADE = 0.25;
+        /** Below this the tail's material turns from the three ices to certus quartz and plain ice. */
+        private static final double TIP_FADE = 0.4;
+        /** ... and inside that band the chance stops falling, because the cone has narrowed to 80 cells by the
+         * old quarter-mark and a fading chance there left two blocks at the end of a 72-block tail. */
+        private static final double TIP_DENSITY_FLOOR = 0.2;
         /** Fifteen degrees, and always pointing up: a tail behind and above the rock is what makes the rock
          * read as diving. It used to be thirty and randomly up or down, which made half the comets in the End
          * look like they were climbing away. */
@@ -255,7 +255,14 @@ public class CryotheumMeteoriteStructure extends Structure {
                     || !insideRock(dx, dy, dz + 1, radius) || !insideRock(dx, dy, dz - 1, radius);
         }
 
-        /** The tail is a projection test now, not a walk: its pitch is not a lattice direction. */
+        /**
+         * The tail is a projection test now, not a walk: its pitch is not a lattice direction.
+         *
+         * <p>It reaches back toward the centre rather than starting at the ellipsoid's skin - the cells between
+         * the two are the gap he saw, and they take eco's energized crystal. Nothing is filled solid: the same
+         * chance decides every cell, and the rock wins wherever the two overlap, which is what stops the
+         * extension at the meteorite's surface instead of tunnelling into it.
+         */
         private void placeTail(WorldGenLevel level, BoundingBox restriction) {
             int[] e = extents(radius, tail);
             double start = tail.headExtent(radius);
@@ -265,26 +272,27 @@ public class CryotheumMeteoriteStructure extends Structure {
                 for (int dy = e[2]; dy <= e[3]; dy++) {
                     for (int dz = e[4]; dz <= e[5]; dz++) {
                         double along = tail.along(dx, dy, dz);
-                        if (along <= start || along > start + TAIL_PAST_HEAD) {
+                        if (along <= 0.0 || along > start + TAIL_PAST_HEAD) {
                             continue;
                         }
-                        double fade = 1.0 - (along - start) / TAIL_PAST_HEAD;
+                        if (insideRock(dx, dy, dz, radius)) {
+                            continue;
+                        }
+                        // Capped at 1: short of the head's own radius the cone would otherwise be wider than
+                        // its base and the chance would exceed a certainty.
+                        double fade = Math.min(1.0, 1.0 - (along - start) / TAIL_PAST_HEAD);
                         double width = base * fade;
                         if (tail.acrossSquared(dx, dy, dz) > width * width) {
                             continue;
                         }
                         var pos = center.offset(dx, dy, dz);
-                        if (along - start <= ROOT_DEPTH) {
-                            put(level, restriction, pos, crystal);
-                            continue;
-                        }
                         var rolls = RandomSource.create(Mth.getSeed(pos) + 777L);
-                        // The tip is laid solid, not by the fading chance: the cone narrows to almost nothing
-                        // over its last quarter, and at radius 9 the whole band is 80 cells - a fading density
-                        // there left three blocks of ice and nothing else to read as the end of the comet.
-                        if (fade <= TIP_FADE
-                                || rolls.nextDouble() <= FROST_DENSITY * Math.pow(fade, FROST_FADE_POWER)) {
-                            put(level, restriction, pos, tailBlock(rolls, fade));
+                        double chance = FROST_DENSITY * Math.pow(fade, FROST_FADE_POWER);
+                        if (fade <= TIP_FADE) {
+                            chance = Math.max(chance, TIP_DENSITY_FLOOR);
+                        }
+                        if (rolls.nextDouble() <= chance) {
+                            put(level, restriction, pos, along < start ? crystal : tailBlock(rolls, fade));
                         }
                     }
                 }
