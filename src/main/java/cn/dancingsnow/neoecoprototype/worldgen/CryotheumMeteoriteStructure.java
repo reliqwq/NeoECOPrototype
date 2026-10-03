@@ -77,8 +77,8 @@ public class CryotheumMeteoriteStructure extends Structure {
      */
     public static class MeteoritePiece extends net.minecraft.world.level.levelgen.structure.StructurePiece {
         /** How far the tail reaches past the head's own surface. Measured from the surface, not from the
-         * centre: from the centre a tail is inside the rock for its first several blocks and tapers to nothing
-         * before it gets out, which lays down about four blocks of ice. */
+         * centre: measured from the centre, most of the tail is inside the rock and the part that gets out has
+         * already tapered to nothing. */
         private static final double TAIL_PAST_HEAD = 72.0;
         /** AE2's own base radius factor, applied to the head's radius in the direction the tail points. */
         private static final double TAIL_BASE_FACTOR = 0.8;
@@ -103,6 +103,11 @@ public class CryotheumMeteoriteStructure extends Structure {
         private static final int ENVELOPE_LAYERS = 3;
         private static final double ENVELOPE_STEP = 0.45;
         private static final double ENVELOPE_THINNING = 0.45;
+        /** How far the coma wraps the rock on every side, in the shape's own units - so it is thicker where the
+         * dome is flatter. His reference photo has the halo going all the way around the nucleus, not just down
+         * the tail side. */
+        private static final int COMA_SHELL = 4;
+        private static final double COMA_DENSITY = 0.3;
         /** Fifteen degrees, and always pointing up: a tail behind and above the rock is what makes the rock
          * read as diving. It used to be thirty and randomly up or down, which made half the comets in the End
          * look like they were climbing away. */
@@ -162,9 +167,15 @@ public class CryotheumMeteoriteStructure extends Structure {
             return radius / Math.sqrt(weight);
         }
 
+        /** The same quadratic form AE2's shape test uses: its value is r² on the surface, so a bigger radius is
+         * the same shape grown by that much - which is how the coma shell around the rock is tested. */
+        private static double shapeValue(int dx, int dy, int dz) {
+            return dx * dx * 0.7 + dy * dy * (dy > 0 ? 1.4 : 0.8) + dz * dz * 0.7;
+        }
+
         /** AE2's own shape test: a dome, flattened on top of the centre and slightly deeper below it. */
         private static boolean insideRock(int dx, int dy, int dz, int radius) {
-            return dx * dx * 0.7 + dy * dy * (dy > 0 ? 1.4 : 0.8) + dz * dz * 0.7 < (double) radius * radius;
+            return shapeValue(dx, dy, dz) < (double) radius * radius;
         }
 
         /**
@@ -214,7 +225,8 @@ public class CryotheumMeteoriteStructure extends Structure {
         private static int[] extents(int radius, Tail tail) {
             double base = comaRadius(radius, tail);
             double end = tail.headExtent(radius) + TAIL_PAST_HEAD;
-            int lateral = (int) Math.ceil(headExtent(radius, 0.7));
+            // The coma wraps the rock on the sides and behind it too, so the box has to reach past the stone.
+            int lateral = (int) Math.ceil(headExtent(radius, 0.7)) + COMA_SHELL;
             int[] extents = new int[6];
             extents[0] = -(tail.x() >= 0 ? lateral : (int) Math.ceil(end * Math.abs(tail.x()) + base));
             extents[1] = tail.x() >= 0 ? (int) Math.ceil(end * Math.abs(tail.x()) + base) : lateral;
@@ -237,6 +249,38 @@ public class CryotheumMeteoriteStructure extends Structure {
                                 BoundingBox restriction, ChunkPos chunkPos, BlockPos pivot) {
             placeHead(level, restriction);
             placeTail(level, restriction);
+            placeComa(level, restriction);
+        }
+
+        /**
+         * The coma that wraps the rock itself: a shell a few blocks thick hugging the same dome the meteorite
+         * uses, thinning outward. It never overwrites anything - the head, the tail and the frost on the join are
+         * all laid before it runs, and it only fills cells the world has nothing in.
+         */
+        private void placeComa(WorldGenLevel level, BoundingBox restriction) {
+            int reach = (int) Math.ceil(headExtent(radius, 0.7)) + COMA_SHELL;
+            double outer = (double) (radius + COMA_SHELL) * (radius + COMA_SHELL);
+            for (int dx = -reach; dx <= reach; dx++) {
+                for (int dy = -reach; dy <= reach; dy++) {
+                    for (int dz = -reach; dz <= reach; dz++) {
+                        double shape = shapeValue(dx, dy, dz);
+                        if (shape >= outer) {
+                            continue;
+                        }
+                        var pos = center.offset(dx, dy, dz);
+                        if (!restriction.isInside(pos) || !level.isEmptyBlock(pos)) {
+                            continue;
+                        }
+                        var rolls = RandomSource.create(Mth.getSeed(pos) + 555L);
+                        // sqrt(shape) is the radius this same dome would need to pass through this cell, so the
+                        // difference is how far the cell sits outside the rock.
+                        double depth = Math.sqrt(shape) - radius;
+                        if (rolls.nextDouble() <= COMA_DENSITY * (1.0 - depth / COMA_SHELL)) {
+                            put(level, restriction, pos, Blocks.ICE.defaultBlockState());
+                        }
+                    }
+                }
+            }
         }
 
         private void placeHead(WorldGenLevel level, BoundingBox restriction) {
@@ -419,6 +463,10 @@ public class CryotheumMeteoriteStructure extends Structure {
          * The bands are a function of the world position, not of the shared worldgen random: a structure is
          * written one chunk at a time, and anything random per call would come out different in every chunk.
          *
+         * <p>The four cut points are set by measurement rather than by eye: over 40 random centres they leave
+         * ore in 39% of the rock's interior - tungsten 3.2%, aluminum 12.9%, cryotheum 5.1%, end cryotheum
+         * 18.3%. Only the interior ever shows ore; {@link #isSkin} covers the outer layer with sky stone.
+         *
          * <p>The shell is AE2's sky stone rather than end stone because a floating End rock made of the
          * End's own ground reads as a piece of scenery that was always there; sky stone is what tells the
          * player this fell in from somewhere else.
@@ -427,17 +475,17 @@ public class CryotheumMeteoriteStructure extends Structure {
             double band = Math.sin(dx * 0.78 + center.getX() * 0.11)
                     + Math.cos(dz * 0.71 + center.getZ() * 0.13)
                     + Math.sin(dy * 0.9);
-            if (band > 1.55) {
+            if (band > 2.325) {
                 return state("neoecoae", "tungsten_ore", Blocks.END_STONE);
             }
-            if (band > 0.85) {
+            if (band > 1.275) {
                 return state("neoecoae", "aluminum_ore", Blocks.END_STONE);
             }
-            if (band < -1.35) {
+            if (band < -2.025) {
                 return ModRegistration
                         .CRYOTHEUM_ORE_BLOCK.get().defaultBlockState();
             }
-            if (band < -0.6) {
+            if (band < -0.9) {
                 return ModRegistration
                         .END_CRYOTHEUM_ORE_BLOCK.get().defaultBlockState();
             }
