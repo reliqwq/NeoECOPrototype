@@ -10,7 +10,7 @@
     "ERROR": "#CE2401"
   },
   "background": {
-    "texture": "ae2:textures/guis/molecular_assembler.png",
+    "texture": "neoecoprototype:textures/gui/simplify_assembler.png",
     "srcRect": [0, 0, 176, 199]
   },
   "slots": {
