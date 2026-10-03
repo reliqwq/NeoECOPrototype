@@ -37,7 +37,11 @@ dependencies {
     implementation "net.neoforged:neoforge:21.1.251"
 
     // 三个运行时 mod 全部本地化到 libs/（沙箱/离线构建需要）：
-    implementation files("libs/ae2-19.2.18.jar")               // AE2 (modId: ae2)
+    // AE2: compiled at the floor we ship. eco beta1 demanded 19.2.18 from its side and beta2 withdrew
+    // that, so nothing here needs the newer jar. Compiling low makes an 18-only member fail at build
+    // time instead of at a player's runtime; the trade is that a member 18 *removed* still compiles
+    // here (core.localization.Tooltips lost three public static fields) and would then throw on 18.
+    implementation files("libs/ae2-19.2.17.jar")               // AE2 (modId: ae2)
     implementation files("libs/guideme-21.1.1.jar")            // GuideME (AE2 强制依赖, modId: guideme)
     implementation files("libs/ldlib2-2.2.8.jar")              // LDLib2 (eco 预览运行依赖, modId: ldlib2)
     implementation "dev.vfyjxf:taffy:1.1.3"

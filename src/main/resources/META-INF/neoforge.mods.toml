@@ -27,11 +27,11 @@ versionRange = "[1.21.1,1.22)"
 ordering = "NONE"
 side = "BOTH"
 
-# AE2 floor: 19.2.17, unchanged since 1.2.x even though we compile against 19.2.18. eco 21.2.1-beta1
-# demanded 19.2.18 from its own side and beta2 dropped that back, so this range is now the only gate.
-# It holds because of a measured diff, not a hunch: of the AE2 classes this addon names, one differs
-# between the two jars - core.localization.Tooltips, which lost three public static fields in 19.2.18 -
-# and the single member we call on it, bytesUsed(long, long), is present in both.
+# AE2 floor: 19.2.17, unchanged since 1.2.x and now also the version we compile against - eco
+# 21.2.1-beta1 demanded 19.2.18 from its own side and beta2 dropped that back, so nothing needs it.
+# Players on 19.2.18 stay covered: the only AE2 class that differs between the two jars is
+# core.localization.Tooltips, which lost three public static fields in 19.2.18, and the single member
+# we call on it, bytesUsed(long, long), exists in both.
 [[dependencies.neoecoprototype]]
 modId = "ae2"
 mandatory = true
