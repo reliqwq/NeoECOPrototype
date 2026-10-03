@@ -17,6 +17,8 @@
 
 ### 修复 / Fixed
 
+- **三张 L1 界面的槽行回到贴图画的凹槽上**：换进 `l1_pattern_provider.png` 与 `l1_powered_me_interface.png` 两份新贴图，并把三份样式 JSON 的槽行对到各自贴图真正画出的行——供应器改 4 处（样板 43→44、返回库存 129→131、背包 bottom 84→88、快捷栏 26→30），供能改 5 处（含 srcRect 高度 260→261，因为新贴图高了 1 像素），超导改 4 处（它每行都差 1 像素，用的是原图）。症状是每个格子的物品压在凹槽上沿、上边多一条暗带。**三份的槽行数都是 8、格数没动**，改的只是摆位。 The three L1 GUI styles now declare their slot rows where their own textures draw them; the symptom was items sitting on the top border of each groove.
+
 - **创造栏的具名玩偶不再共用一张脸**（之前四只全是同一款默认皮肤，看起来就是"都变成 Alex"）：`FumoItem.ownedBy()` 建的 profile 只有名字、id 是空的，原版于是把它们当成同一个玩家，共用**同一张**兜底皮肤。现在按 `OfflinePlayer:<名字>` 生成离线 UUID，与单机离线玩家用的是同一个算法，默认皮肤随名字而变。**真人皮肤仍然只有 `/prototypefumo <玩家名>` 那条路能拿到** —— 那里走的是原版的 profile 解析（会联网），创造栏建标签页时不能阻塞在这上面。 The creative-tab dolls no longer share one fallback skin: the profile was built with an empty id, so vanilla resolved all four names to the same default skin. They now carry an offline-player UUID, which makes the default vary per name the way it does for an offline singleplayer player - a real skin still only comes from the command, which asks the session service.
 - **L1 存储子系统通讯接口的界面标题**：这个 GUI 一直显示上游的默认标题，因为我们注入的目标 lambda 在上游给它加了一个 lambda 之后就改了编号，而注入是可选的（不报错，只是不生效）。现在标题由方块自己给（上游 21.2.1 的 `GuiTitleProvider`），**L1 存储子系统通讯接口 / C1 计算子系统通讯接口 / F1 合成子系统通讯接口 / F1 智能样板总线** 四个界面都显示自己的名字。 The storage interface's title had been silently falling back to upstream's default because our injection aimed at a renumbered compiler-generated lambda; the blocks now answer for their own headers.
 - **三个界面的槽位行位**：L1 样板供应器、L1 供能接口、盈能超导接口的槽位段按贴图凹槽实测重排（画出来的凹槽是 16 像素高、18 像素一行，而 AE2 的 `bottom` 是从区块**顶边**量的）。L1 样板供应器 另外补上了一个被漏掉的标签段：`includes` 是按键合并的，覆盖槽位段并不会连带覆盖它上面的 `interface_config` 标签。 Slot rows re-measured against the drawn grooves; the pattern provider also regained its `interface_config` label section, which an override of the slot section does not inherit.
@@ -40,6 +42,8 @@
 - 旧现象，未改：`/prototypefumo` 手打能执行但不出现在 Tab 补全里。
 
 ### 工程侧 / For development
+
+- **GUI 槽行成了一条会红的契约**：`GuiGrooveAlignment` 同时读样式 JSON 的 `top`/`bottom`/`grid` 与贴图实际画出的凹槽行，三份界面逐行比对，**容差 0**——AE2 与 ExtendedAE 自己发的两份都是零误差，所以"差 2px"是缺陷不是噪声。格数不写在守卫里，而是读代码：`PATTERN_SLOTS`、两份接口的 `MARKER_SLOTS`、AE2 的 `PatternProviderReturnInventory.NUMBER_OF_SLOTS`、原版 `Inventory.INVENTORY_SIZE/getSelectionSize()`。守卫挂在已有的 `asset_references` 批次里（不新开 batch、不占 plot），带三条自红装置（贴图取不到 / 扫到 0 行凹槽 / 样式缺 section 都算红），纯函数部分另有 8 条 JUnit（含两条"必须变红"）。 A guard now compares each GUI style against its texture row by row at zero tolerance, with the slot counts read from code.
 
 - 从干净克隆构建时，缺哪个本地依赖 jar 会**在配置阶段就报出精确路径**（这个仓库不重分发任何依赖 jar，README 与 CONTRIBUTING 都是这么定的）。清单只在 `build.gradle` 里存在一份，文档里不再抄一遍，避免两份真相漂开。
 - 新增三项会红的游戏测试：具名界面方块必须自己给出标题（不带 hook 的普通接口作反向对照，防止 hook 被 blanket 应用）、机壳那一侧的几何守卫、以及玩偶那条（会给出生命恢复 + 两种 lang 都有描述键 + 战利品表会复制主人组件）。 59/59 通过。
