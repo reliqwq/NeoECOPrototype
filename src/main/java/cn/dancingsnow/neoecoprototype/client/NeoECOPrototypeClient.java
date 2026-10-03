@@ -82,69 +82,75 @@ public final class NeoECOPrototypeClient {
                 ResourceLocation.fromNamespaceAndPath(NeoECOPrototype.MOD_ID, "part/pattern_provider"));
     }
 
+    /**
+     * Every in-drive cell model we hand to eco. The same list must be registered as an additional
+     * model or the item renders nothing, so it lives here once instead of in two places.
+     */
+    private static final java.util.List<String> DRIVE_CELL_MODELS = java.util.List.of(
+            "l0_item_1k", "l0_item_16k", "l0_item_64k", "l1_item", "l1r_item",
+            "l0_fluid_1k", "l0_fluid_16k", "l0_fluid_64k", "l1_fluid", "l1r_fluid",
+            "l0_chemical_1k", "l0_chemical_4k", "l0_chemical_16k", "l1_chemical", "l1r_chemical",
+            "l1_small_bulk_item", "l1r_small_bulk_item",
+            "l1_small_bulk_fluid", "l1r_small_bulk_fluid",
+            "l1_small_bulk_chemical", "l1r_small_bulk_chemical",
+            // 脚本矩阵按家族拿模型（.material('small_bulk')），没有档位维度，所以这张不分介质的旧图
+            // 还得继续加载；注册表里那 27 张才是真在用的。
+            "l1_small_bulk",
+            "l1_pigmee", "l1_concrete", "l1_universal", "l1_quantum", "l1_default", "l1_custom");
+
+    private static ResourceLocation cellModel(String name) {
+        return ResourceLocation.fromNamespaceAndPath(NeoECOPrototype.MOD_ID, "block/cell/storage_cell_" + name);
+    }
+
     @SubscribeEvent
     public static void onClientSetup(FMLClientSetupEvent event) {
-        ResourceLocation itemCellModel = ResourceLocation.fromNamespaceAndPath(
-                NeoECOPrototype.MOD_ID, "block/cell/storage_cell_l1_item");
-        ResourceLocation fluidCellModel = ResourceLocation.fromNamespaceAndPath(
-                NeoECOPrototype.MOD_ID, "block/cell/storage_cell_l1_fluid");
-        ECOCellModels.register(ModRegistration.SIMPLIFY_ITEM_CELL_1K.get(), itemCellModel);
-        ECOCellModels.register(ModRegistration.SIMPLIFY_ITEM_CELL_16K.get(), itemCellModel);
-        ECOCellModels.register(ModRegistration.SIMPLIFY_ITEM_CELL_64K.get(), itemCellModel);
-        ECOCellModels.register(ModRegistration.SIMPLIFY_ITEM_CELL_1M.get(), itemCellModel);
-        ECOCellModels.register(ModRegistration.SIMPLIFY_ITEM_CELL_4M.get(), itemCellModel);
-        ECOCellModels.register(ModRegistration.SIMPLIFY_FLUID_CELL_1K.get(), fluidCellModel);
-        ECOCellModels.register(ModRegistration.SIMPLIFY_FLUID_CELL_16K.get(), fluidCellModel);
-        ECOCellModels.register(ModRegistration.SIMPLIFY_FLUID_CELL_64K.get(), fluidCellModel);
-        ECOCellModels.register(ModRegistration.SIMPLIFY_FLUID_CELL_1M.get(), fluidCellModel);
-        ECOCellModels.register(ModRegistration.SIMPLIFY_FLUID_CELL_4M.get(), fluidCellModel);
+        // 每档一格模型：1M 以下用 l0_*（drive/cell_*_lower 那组贴图，等级灯按档位往上数第几格），1M 用
+        // l1_*，4M 是同一几何只把等级灯换成会闪的 cell_level_4m。以前一个介质共用一张，现在各拿自己的。
+        ECOCellModels.register(ModRegistration.SIMPLIFY_ITEM_CELL_1K.get(), cellModel("l0_item_1k"));
+        ECOCellModels.register(ModRegistration.SIMPLIFY_ITEM_CELL_16K.get(), cellModel("l0_item_16k"));
+        ECOCellModels.register(ModRegistration.SIMPLIFY_ITEM_CELL_64K.get(), cellModel("l0_item_64k"));
+        ECOCellModels.register(ModRegistration.SIMPLIFY_ITEM_CELL_1M.get(), cellModel("l1_item"));
+        ECOCellModels.register(ModRegistration.SIMPLIFY_ITEM_CELL_4M.get(), cellModel("l1r_item"));
+        ECOCellModels.register(ModRegistration.SIMPLIFY_FLUID_CELL_1K.get(), cellModel("l0_fluid_1k"));
+        ECOCellModels.register(ModRegistration.SIMPLIFY_FLUID_CELL_16K.get(), cellModel("l0_fluid_16k"));
+        ECOCellModels.register(ModRegistration.SIMPLIFY_FLUID_CELL_64K.get(), cellModel("l0_fluid_64k"));
+        ECOCellModels.register(ModRegistration.SIMPLIFY_FLUID_CELL_1M.get(), cellModel("l1_fluid"));
+        ECOCellModels.register(ModRegistration.SIMPLIFY_FLUID_CELL_4M.get(), cellModel("l1r_fluid"));
         // 小宗流体/化学品盘：复用 eco 的 MEGA 外壳贴图 + 我们的 L1 等级灯（浅绿）。
-        ResourceLocation megaFluidCellModel = ResourceLocation.fromNamespaceAndPath(
-                NeoECOPrototype.MOD_ID, "block/cell/storage_cell_l1_small_bulk_fluid");
-        ResourceLocation megaChemicalCellModel = ResourceLocation.fromNamespaceAndPath(
-                NeoECOPrototype.MOD_ID, "block/cell/storage_cell_l1_small_bulk_chemical");
         if (ModRegistration.SIMPLIFY_SMALL_BULK_FLUID_CELL != null) {
-            ECOCellModels.register(ModRegistration.SIMPLIFY_SMALL_BULK_FLUID_CELL.get(), megaFluidCellModel);
-            ECOCellModels.register(ModRegistration.SIMPLIFY_SMALL_BULK_FLUID_CELL_EXPANDED.get(), megaFluidCellModel);
+            ECOCellModels.register(ModRegistration.SIMPLIFY_SMALL_BULK_FLUID_CELL.get(),
+                    cellModel("l1_small_bulk_fluid"));
+            ECOCellModels.register(ModRegistration.SIMPLIFY_SMALL_BULK_FLUID_CELL_EXPANDED.get(),
+                    cellModel("l1r_small_bulk_fluid"));
         }
         if (ModRegistration.OPTIONAL_SMALL_BULK_CHEMICAL_CELL != null) {
-            ECOCellModels.register(ModRegistration.OPTIONAL_SMALL_BULK_CHEMICAL_CELL.get(), megaChemicalCellModel);
-            ECOCellModels.register(ModRegistration.OPTIONAL_SMALL_BULK_CHEMICAL_CELL_EXPANDED.get(), megaChemicalCellModel);
+            ECOCellModels.register(ModRegistration.OPTIONAL_SMALL_BULK_CHEMICAL_CELL.get(),
+                    cellModel("l1_small_bulk_chemical"));
+            ECOCellModels.register(ModRegistration.OPTIONAL_SMALL_BULK_CHEMICAL_CELL_EXPANDED.get(),
+                    cellModel("l1r_small_bulk_chemical"));
         }
-        ResourceLocation smallBulkCellModel = ResourceLocation.fromNamespaceAndPath(
-                NeoECOPrototype.MOD_ID, "block/cell/storage_cell_l1_small_bulk");
         if (ModRegistration.SIMPLIFY_SMALL_BULK_CELL != null) {
-            ECOCellModels.register(ModRegistration.SIMPLIFY_SMALL_BULK_CELL.get(), smallBulkCellModel);
-            ResourceLocation smallBulkExpandedCellModel = ResourceLocation.fromNamespaceAndPath(
-                    NeoECOPrototype.MOD_ID, "block/cell/storage_cell_l1_small_bulk_expanded");
-            ECOCellModels.register(ModRegistration.SIMPLIFY_SMALL_BULK_CELL_EXPANDED.get(), smallBulkExpandedCellModel);
+            ECOCellModels.register(ModRegistration.SIMPLIFY_SMALL_BULK_CELL.get(),
+                    cellModel("l1_small_bulk_item"));
+            ECOCellModels.register(ModRegistration.SIMPLIFY_SMALL_BULK_CELL_EXPANDED.get(),
+                    cellModel("l1r_small_bulk_item"));
         }
-        ResourceLocation pigcatCellModel = ResourceLocation.fromNamespaceAndPath(
-                NeoECOPrototype.MOD_ID, "block/cell/storage_cell_l1_pigcat");
-        ECOCellModels.register(ModRegistration.PIGCAT_STORAGE_CELL.get(), pigcatCellModel);
-        ResourceLocation concreteCellModel = ResourceLocation.fromNamespaceAndPath(
-                NeoECOPrototype.MOD_ID, "block/cell/storage_cell_l1_concrete");
-        ECOCellModels.register(ModRegistration.SIMPLIFY_CONCRETE_STORAGE_CELL.get(), concreteCellModel);
+        ECOCellModels.register(ModRegistration.PIGMEE_STORAGE_CELL.get(), cellModel("l1_pigmee"));
+        ECOCellModels.register(ModRegistration.SIMPLIFY_CONCRETE_STORAGE_CELL.get(), cellModel("l1_concrete"));
         if (ModRegistration.OPTIONAL_UNIVERSAL_CELL_1K != null) {
-            ResourceLocation omniCellModel = ResourceLocation.fromNamespaceAndPath(
-                    NeoECOPrototype.MOD_ID, "block/cell/storage_cell_l1_universal");
-            ECOCellModels.register(ModRegistration.OPTIONAL_UNIVERSAL_CELL_1K.get(), omniCellModel);
-            ECOCellModels.register(ModRegistration.OPTIONAL_UNIVERSAL_CELL_1M.get(), omniCellModel);
+            ECOCellModels.register(ModRegistration.OPTIONAL_UNIVERSAL_CELL_1K.get(), cellModel("l1_universal"));
+            ECOCellModels.register(ModRegistration.OPTIONAL_UNIVERSAL_CELL_1M.get(), cellModel("l1_universal"));
         }
         if (ModRegistration.OPTIONAL_QUANTUM_CELL_1K != null) {
-            ResourceLocation quantumCellModel = ResourceLocation.fromNamespaceAndPath(
-                    NeoECOPrototype.MOD_ID, "block/cell/storage_cell_l1_quantum");
-            ECOCellModels.register(ModRegistration.OPTIONAL_QUANTUM_CELL_1K.get(), quantumCellModel);
-            ECOCellModels.register(ModRegistration.OPTIONAL_QUANTUM_CELL_1M.get(), quantumCellModel);
+            ECOCellModels.register(ModRegistration.OPTIONAL_QUANTUM_CELL_1K.get(), cellModel("l1_quantum"));
+            ECOCellModels.register(ModRegistration.OPTIONAL_QUANTUM_CELL_1M.get(), cellModel("l1_quantum"));
         }
         if (ModRegistration.OPTIONAL_CHEMICAL_CELL_1K != null) {
-            ResourceLocation chemicalCellModel = ResourceLocation.fromNamespaceAndPath(
-                    NeoECOPrototype.MOD_ID, "block/cell/storage_cell_l1_chemical");
-            ECOCellModels.register(ModRegistration.OPTIONAL_CHEMICAL_CELL_1K.get(), chemicalCellModel);
-            ECOCellModels.register(ModRegistration.OPTIONAL_CHEMICAL_CELL_4K.get(), chemicalCellModel);
-            ECOCellModels.register(ModRegistration.OPTIONAL_CHEMICAL_CELL_16K.get(), chemicalCellModel);
-            ECOCellModels.register(ModRegistration.OPTIONAL_CHEMICAL_CELL_1M.get(), chemicalCellModel);
-            ECOCellModels.register(ModRegistration.OPTIONAL_CHEMICAL_CELL_4M.get(), chemicalCellModel);
+            ECOCellModels.register(ModRegistration.OPTIONAL_CHEMICAL_CELL_1K.get(), cellModel("l0_chemical_1k"));
+            ECOCellModels.register(ModRegistration.OPTIONAL_CHEMICAL_CELL_4K.get(), cellModel("l0_chemical_4k"));
+            ECOCellModels.register(ModRegistration.OPTIONAL_CHEMICAL_CELL_16K.get(), cellModel("l0_chemical_16k"));
+            ECOCellModels.register(ModRegistration.OPTIONAL_CHEMICAL_CELL_1M.get(), cellModel("l1_chemical"));
+            ECOCellModels.register(ModRegistration.OPTIONAL_CHEMICAL_CELL_4M.get(), cellModel("l1r_chemical"));
         }
         if (ModList.get().isLoaded("kubejs")) {
             ResourceLocation infiniteItemCellModel = ResourceLocation.fromNamespaceAndPath(
@@ -205,31 +211,11 @@ public final class NeoECOPrototypeClient {
                 NeoECOPrototype.MOD_ID, "block/computation_cell/cell_l1")));
         event.register(ModelResourceLocation.standalone(ResourceLocation.fromNamespaceAndPath(
                 NeoECOPrototype.MOD_ID, "block/computation_cell/cell_l1_formed")));
-        // Cell models are only loaded when registered as additional models.
-        event.register(ModelResourceLocation.standalone(ResourceLocation.fromNamespaceAndPath(
-                NeoECOPrototype.MOD_ID, "block/cell/storage_cell_l1_item")));
-        event.register(ModelResourceLocation.standalone(ResourceLocation.fromNamespaceAndPath(
-                NeoECOPrototype.MOD_ID, "block/cell/storage_cell_l1_fluid")));
-        event.register(ModelResourceLocation.standalone(ResourceLocation.fromNamespaceAndPath(
-                NeoECOPrototype.MOD_ID, "block/cell/storage_cell_l1_pigcat")));
-        event.register(ModelResourceLocation.standalone(ResourceLocation.fromNamespaceAndPath(
-                NeoECOPrototype.MOD_ID, "block/cell/storage_cell_l1_concrete")));
-        event.register(ModelResourceLocation.standalone(ResourceLocation.fromNamespaceAndPath(
-                NeoECOPrototype.MOD_ID, "block/cell/storage_cell_l1_universal")));
-        event.register(ModelResourceLocation.standalone(ResourceLocation.fromNamespaceAndPath(
-                NeoECOPrototype.MOD_ID, "block/cell/storage_cell_l1_small_bulk")));
-        event.register(ModelResourceLocation.standalone(ResourceLocation.fromNamespaceAndPath(
-                NeoECOPrototype.MOD_ID, "block/cell/storage_cell_l1_small_bulk_expanded")));
-        event.register(ModelResourceLocation.standalone(ResourceLocation.fromNamespaceAndPath(
-                NeoECOPrototype.MOD_ID, "block/cell/storage_cell_l1_default")));
-        event.register(ModelResourceLocation.standalone(ResourceLocation.fromNamespaceAndPath(
-                NeoECOPrototype.MOD_ID, "block/cell/storage_cell_l1_custom")));
+        // Cell models are only loaded when registered as additional models, so this list is the same
+        // set onClientSetup hands to eco - one place to keep in step, not two.
+        DRIVE_CELL_MODELS.forEach(name -> event.register(ModelResourceLocation.standalone(cellModel(name))));
         InfiniteMatrixClientModels.registerAdditionalModels(event);
         InfiniteMatrixClientModels.registerScriptedAdditionalModels(event);
-        if (ModRegistration.OPTIONAL_CHEMICAL_CELL_1K != null) {
-            event.register(ModelResourceLocation.standalone(ResourceLocation.fromNamespaceAndPath(
-                    NeoECOPrototype.MOD_ID, "block/cell/storage_cell_l1_chemical")));
-        }
     }
 
     @SubscribeEvent

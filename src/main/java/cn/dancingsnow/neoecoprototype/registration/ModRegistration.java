@@ -77,7 +77,7 @@ import cn.dancingsnow.neoecoprototype.blockentity.storage.SimplifyStorageHostBlo
 import cn.dancingsnow.neoecoprototype.blockentity.storage.SimplifyStorageInterfaceBlockEntity;
 import cn.dancingsnow.neoecoprototype.blockentity.storage.SimplifyStorageVentBlockEntity;
 import cn.dancingsnow.neoecoprototype.blockentity.computation.SimplifyComputationDriveBlockEntity;
-import cn.dancingsnow.neoecoprototype.items.PigcatStorageMatrixHousingItem;
+import cn.dancingsnow.neoecoprototype.items.PigmeeStorageMatrixHousingItem;
 import cn.dancingsnow.neoecoprototype.items.SimplifyComputationCellItem;
 import cn.dancingsnow.neoecoprototype.items.SimplifyConcreteStorageCellItem;
 import cn.dancingsnow.neoecoprototype.items.SimplifyStorageCellItem;
@@ -576,11 +576,11 @@ public class ModRegistration {
              ITEMS.register("simplify_item_storage_matrix_housing", () -> new Item(new Item.Properties()));
      public static final Supplier<Item> SIMPLIFY_FLUID_STORAGE_MATRIX_HOUSING =
              ITEMS.register("simplify_fluid_storage_matrix_housing", () -> new Item(new Item.Properties()));
-    public static final Supplier<Item> PIGCAT_STORAGE_MATRIX_HOUSING =
-            ITEMS.register("pigcat_storage_matrix_housing",
-                    () -> new PigcatStorageMatrixHousingItem(pigcatHousingProperties()));
-     public static final Supplier<SimplifyStorageCellItem> PIGCAT_STORAGE_CELL =
-             ITEMS.register("pigcat_storage_cell",
+    public static final Supplier<Item> PIGMEE_STORAGE_MATRIX_HOUSING =
+            ITEMS.register("pigmee_storage_matrix_housing",
+                    () -> new PigmeeStorageMatrixHousingItem(pigmeeHousingProperties()));
+     public static final Supplier<SimplifyStorageCellItem> PIGMEE_STORAGE_CELL =
+             ITEMS.register("pigmee_storage_cell",
                      () -> storageCell(AEKeyType.items(), SimplifyStorageCellItem::getItemCellType,
                              SimplifyStorageCellItem.BYTES_2K5, SimplifyStorageCellItem.BYTES_2K5_PER_TYPE));
 
@@ -729,7 +729,7 @@ public class ModRegistration {
      * 濞寸鍊曢?闁衡偓婵犳埃鍋撻悢鐑樼暠 modifier ID 濞戞挸楠哥敮顐︽偋閸繂鈪冲☉鎾亾闁奸绻濇禍鎺撶瑹閹稿寒鍔€缁绢収鍠楃憰鍡涘蓟閹炬潙绲圭紒鈧悮瀵稿耿
      * 闁衡偓鐠囨彃姣婂ù绗哄€曢濠冪┍椤旂瓔鍔€闂?5.6 + 闁绘壕鏅涢宥夊春閾忚鏀?1 = 闂傚牄鍨哄姗€寮伴崜褋浠?6.6闁?
      */
-    private static Item.Properties pigcatHousingProperties() {
+    private static Item.Properties pigmeeHousingProperties() {
         return new Item.Properties()
                 .attributes(ItemAttributeModifiers.builder()
                         .add(Attributes.ATTACK_DAMAGE,
@@ -742,11 +742,10 @@ public class ModRegistration {
                                 EquipmentSlotGroup.MAINHAND)
                         .add(Attributes.ENTITY_INTERACTION_RANGE,
                                 new AttributeModifier(
-                                        ResourceLocation.fromNamespaceAndPath(NeoECOPrototype.MOD_ID, "pigcat_reach"),
+                                        ResourceLocation.fromNamespaceAndPath(NeoECOPrototype.MOD_ID, "pigmee_reach"),
                                         2.0, AttributeModifier.Operation.ADD_VALUE),
                                 EquipmentSlotGroup.MAINHAND)
-                        .build())
-                .component(DataComponents.ENCHANTMENT_GLINT_OVERRIDE, true);
+                        .build());
     }
 
     private static SimplifyStorageCellItem storageCell(
@@ -1185,8 +1184,8 @@ private static Supplier<BlockEntityType<SimplifyStorageVentBlockEntity>> registe
                           output.accept(SIMPLIFY_CONCRETE_STORAGE_CELL.get());
                          output.accept(SIMPLIFY_GREEN_CRYSTAL_MATRIX.get());
                          output.accept(SIMPLIFY_ITEM_STORAGE_MATRIX_HOUSING.get());
-                         output.accept(PIGCAT_STORAGE_MATRIX_HOUSING.get());
-                         output.accept(PIGCAT_STORAGE_CELL.get());
+                         output.accept(PIGMEE_STORAGE_MATRIX_HOUSING.get());
+                         output.accept(PIGMEE_STORAGE_CELL.get());
                          output.accept(SIMPLIFY_FLUID_STORAGE_MATRIX_HOUSING.get());
                         output.accept(SIMPLIFY_COMPUTATION_SYSTEM_ITEM.get());
                         output.accept(SIMPLIFY_COMPUTATION_DRIVE_ITEM.get());

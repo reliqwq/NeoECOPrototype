@@ -2,11 +2,11 @@
   "type": "minecraft:crafting_shapeless",
   "category": "misc",
   "ingredients": [
-    { "item": "neoecoprototype:pigcat_storage_matrix_housing" },
+    { "item": "neoecoprototype:pigmee_storage_matrix_housing" },
     { "item": "ae2:cell_component_4k" }
   ],
   "result": {
     "count": 1,
-    "id": "neoecoprototype:pigcat_storage_cell"
+    "id": "neoecoprototype:pigmee_storage_cell"
   }
 }

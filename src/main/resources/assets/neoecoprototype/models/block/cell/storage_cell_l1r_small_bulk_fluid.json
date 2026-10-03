@@ -1,0 +1,57 @@
+{
+	"format_version": "1.21.11",
+	"credit": "Based on Neo ECO AE Extension storage cell model",
+	"render_type": "cutout",
+	"textures": {
+		"level": "neoecoprototype:block/storage_recolor/drive/cell_level_lower",
+		"type": "neoecoprototype:block/storage_recolor/drive/cell_type_lower",
+		"particle": "neoecoprototype:block/storage_recolor/drive/small_bulk_cell_housing",
+		"base": "neoecoprototype:block/storage_recolor/drive/small_bulk_cell_housing",
+		"level_4m": "neoecoprototype:block/storage_recolor/drive/cell_level_lower_4m"
+	},
+	"elements": [
+		{
+			"name": "body",
+			"from": [0, 0, 0],
+			"to": [6, 12, 2],
+			"faces": {
+				"north": {"uv": [0, 0, 6, 12], "texture": "#base"},
+				"east": {"uv": [2, 0, 0, 12], "texture": "#base"},
+				"west": {"uv": [6, 0, 4, 12], "texture": "#base"},
+				"up": {"uv": [6, 10, 0, 12], "texture": "#base"},
+				"down": {"uv": [6, 10, 0, 12], "texture": "#base"}
+			}
+		},
+		{
+			"name": "type",
+			"from": [0, 8, 0],
+			"to": [6, 11, 2],
+			"faces": {
+				"north": {"uv": [0, 3, 6, 6], "texture": "#type"},
+				"east": {"uv": [2, 3, 0, 6], "texture": "#type"},
+				"west": {"uv": [6, 3, 4, 6], "texture": "#type"}
+			}
+		},
+		{
+			"name": "level",
+			"from": [0, 2, 0],
+			"to": [6, 3, 2],
+			"shade": false,
+			"faces": {
+				"north": {"uv": [0, 9, 6, 10], "texture": "#level", "neoforge_data": {"block_light": 15, "sky_light": 15}},
+				"east": {"uv": [4, 9, 6, 10], "texture": "#level", "neoforge_data": {"block_light": 15, "sky_light": 15}},
+				"west": {"uv": [0, 9, 2, 10], "texture": "#level", "neoforge_data": {"block_light": 15, "sky_light": 15}}
+			}
+		},
+		{
+			"name": "level",
+			"from": [2, 4, 0],
+			"to": [6, 5, 2],
+			"shade": false,
+			"faces": {
+				"north": {"uv": [0, 0, 4, 1], "texture": "#level_4m", "neoforge_data": {"block_light": 15, "sky_light": 15}},
+				"east": {"uv": [2, 0, 0, 1], "texture": "#level_4m", "neoforge_data": {"block_light": 15, "sky_light": 15}}
+			}
+		}
+	]
+}

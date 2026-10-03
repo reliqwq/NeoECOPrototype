@@ -1,0 +1,56 @@
+{
+	"format_version": "1.9.2",
+	"credit": "Based on Neo ECO AE Extension chemical storage cell model",
+	"render_type": "cutout",
+	"textures": {
+		"level": "neoecoprototype:block/storage_recolor/drive/cell_level_lower",
+		"type": "neoecoprototype:block/storage_recolor/drive/cell_type_lower",
+		"particle": "neoecoprototype:block/storage_recolor/drive/cell_housing_lower",
+		"base": "neoecoprototype:block/storage_recolor/drive/cell_housing_lower"
+	},
+	"elements": [
+		{
+			"name": "body",
+			"from": [0, 0, 0],
+			"to": [6, 12, 2],
+			"faces": {
+				"north": {"uv": [0, 0, 6, 12], "texture": "#base"},
+				"east": {"uv": [2, 0, 0, 12], "texture": "#base"},
+				"west": {"uv": [6, 0, 4, 12], "texture": "#base"},
+				"up": {"uv": [6, 12, 0, 10], "texture": "#base"},
+				"down": {"uv": [6, 10, 0, 12], "texture": "#base"}
+			}
+		},
+		{
+			"name": "type",
+			"from": [0, 8, 0],
+			"to": [6, 11, 2],
+			"faces": {
+				"north": {"uv": [0, 6, 6, 9], "texture": "#type"},
+				"east": {"uv": [2, 6, 0, 9], "texture": "#type"},
+				"west": {"uv": [6, 6, 4, 9], "texture": "#type"}
+			}
+		},
+		{
+			"name": "level",
+			"from": [0, 2, 0],
+			"to": [6, 3, 2],
+			"shade": false,
+			"faces": {
+				"north": {"uv": [0, 5, 6, 6], "texture": "#level", "neoforge_data": {"block_light": 15, "sky_light": 15}},
+				"east": {"uv": [4, 5, 6, 6], "texture": "#level", "neoforge_data": {"block_light": 15, "sky_light": 15}},
+				"west": {"uv": [0, 5, 2, 6], "texture": "#level", "neoforge_data": {"block_light": 15, "sky_light": 15}}
+			}
+		},
+		{
+			"name": "level",
+			"from": [2, 4, 0],
+			"to": [6, 5, 2],
+			"shade": false,
+			"faces": {
+				"north": {"uv": [0, 4, 4, 5], "texture": "#level", "neoforge_data": {"block_light": 15, "sky_light": 15}},
+				"east": {"uv": [2, 4, 0, 5], "texture": "#level", "neoforge_data": {"block_light": 15, "sky_light": 15}}
+			}
+		}
+	]
+}

@@ -86,10 +86,10 @@ public final class StorageMatrixBuilder extends ItemBuilder {
      *
      * <p>Storage kinds ({@code item}/{@code fluid}/{@code chemical}) decide both the backend and the
      * material, so the housing and the in-drive model follow automatically. Family names
-     * ({@code pigcat}/{@code universal}/{@code quantum}/{@code small_bulk}/{@code other}) only pick a
+     * ({@code pigmee}/{@code universal}/{@code quantum}/{@code small_bulk}/{@code other}) only pick a
      * material, which is the same as calling {@link #material(String)}.
      */
-    @Info("设置矩阵类型：item/fluid/chemical，或家族名 pigcat/universal/quantum/small_bulk/other")
+    @Info("设置矩阵类型：item/fluid/chemical，或家族名 pigmee/universal/quantum/small_bulk/other")
     public StorageMatrixBuilder type(String value) {
         try {
             this.type = StorageMatrixDefinition.MatrixType.valueOf(value.toUpperCase(java.util.Locale.ROOT));

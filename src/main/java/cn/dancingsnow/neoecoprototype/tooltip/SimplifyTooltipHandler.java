@@ -21,9 +21,9 @@ import net.neoforged.neoforge.event.entity.player.ItemTooltipEvent;
 @EventBusSubscriber(modid = NeoECOPrototype.MOD_ID)
 public final class SimplifyTooltipHandler {
 
-    private static final String PIGCAT_CELL_KEY = "item.neoecoprototype.pigcat_storage_cell.desc";
-    private static final String PIGCAT_HOUSING_KEY =
-            "item.neoecoprototype.pigcat_storage_matrix_housing.desc";
+    private static final String PIGMEE_CELL_KEY = "item.neoecoprototype.pigmee_storage_cell.desc";
+    private static final String PIGMEE_HOUSING_KEY =
+            "item.neoecoprototype.pigmee_storage_matrix_housing.desc";
     private static final String CONCRETE_CELL_KEY =
             "item.neoecoprototype.simplify_concrete_storage_cell.desc";
     private static final String L4_COMPONENT_KEY =
@@ -56,11 +56,11 @@ public final class SimplifyTooltipHandler {
 
     /** @return the language key of the extra line, or null when the item has none. */
     private static String descriptionKey(ItemStack stack) {
-        if (stack.is(ModRegistration.PIGCAT_STORAGE_CELL.get())) {
-            return PIGCAT_CELL_KEY;
+        if (stack.is(ModRegistration.PIGMEE_STORAGE_CELL.get())) {
+            return PIGMEE_CELL_KEY;
         }
-        if (stack.is(ModRegistration.PIGCAT_STORAGE_MATRIX_HOUSING.get())) {
-            return PIGCAT_HOUSING_KEY;
+        if (stack.is(ModRegistration.PIGMEE_STORAGE_MATRIX_HOUSING.get())) {
+            return PIGMEE_HOUSING_KEY;
         }
         if (stack.is(ModRegistration.SIMPLIFY_CONCRETE_STORAGE_CELL.get())) {
             return CONCRETE_CELL_KEY;

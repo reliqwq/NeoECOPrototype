@@ -1,0 +1,7 @@
+{
+  "textures": {
+    "layer0": "neoecoprototype:item/storage_recolor/pigmee_cell",
+    "layer1": "neoecoprototype:item/storage_recolor/eco_cell_status_light"
+  },
+  "parent": "minecraft:item/generated"
+}

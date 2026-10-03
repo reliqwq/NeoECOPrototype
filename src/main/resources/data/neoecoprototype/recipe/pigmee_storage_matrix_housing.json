@@ -9,6 +9,6 @@
   "pattern": ["ABA", "B B", "CCC"],
   "result": {
     "count": 1,
-    "id": "neoecoprototype:pigcat_storage_matrix_housing"
+    "id": "neoecoprototype:pigmee_storage_matrix_housing"
   }
 }

@@ -13,7 +13,7 @@ import org.jetbrains.annotations.Nullable;
  * its own matrix in that family's style through {@code .material(...)}:
  * <ul>
  *   <li>小宗 small bulk - {@code item/storage_recolor/small_bulk_cell_housing} (dark grey)</li>
- *   <li>猪咪 pigcat - {@code item/pigcat_storage_cell}</li>
+ *   <li>猪咪 pigmee - {@code item/pigmee_storage_cell}</li>
  *   <li>全能 universal - eco omni housing, copied locally</li>
  *   <li>量子 quantum - eco quantum omni housing, copied locally</li>
  * </ul>
@@ -34,7 +34,7 @@ public final class MatrixMaterials {
         /** 小宗（MEGA 家族，深灰） */
         SMALL_BULK("item/simplify_small_bulk_storage_cell", "block/cell/storage_cell_l1_small_bulk"),
         /** 猪咪 */
-        PIGCAT("item/pigcat_storage_cell", "block/cell/storage_cell_l1_pigcat"),
+        PIGMEE("item/pigmee_storage_cell", "block/cell/storage_cell_l1_pigmee"),
         /** 全能 */
         UNIVERSAL("item/simplify_universal_storage_cell_1k", "block/cell/storage_cell_l1_universal"),
         /** 量子 */
@@ -68,7 +68,7 @@ public final class MatrixMaterials {
 
     /** Family names that select a material without changing how the matrix stores things. */
     public static final java.util.List<String> FAMILY_NAMES = java.util.List.of(
-            "other", "small_bulk", "pigcat", "universal", "quantum");
+            "other", "small_bulk", "pigmee", "universal", "quantum");
 
     @Nullable
     public static Kind parse(String value) {
@@ -79,7 +79,7 @@ public final class MatrixMaterials {
             return Kind.valueOf(value.toUpperCase(java.util.Locale.ROOT));
         } catch (IllegalArgumentException exception) {
             throw new IllegalArgumentException("Unknown matrix material: " + value
-                    + " (expected item/fluid/chemical/infinite/other/small_bulk/pigcat/universal/quantum)");
+                    + " (expected item/fluid/chemical/infinite/other/small_bulk/pigmee/universal/quantum)");
         }
     }
 
