@@ -3719,9 +3719,9 @@ public final class NeoECOPrototypeGameTests {
                 .SimplifySuperconductiveInterfaceBlockEntity.MARKER_SLOTS);
         var shifted = java.util.Set.of("CONFIG", "STORAGE");
         for (var contract : List.of(
-                new GuiContract("l1_pattern_provider", patternSlots, java.util.Set.of()),
-                new GuiContract("l1_powered_me_interface", interfaceSlots, shifted),
-                new GuiContract("superconductive_interface", oversized, shifted))) {
+                new GuiContract("l1_pattern_provider", patternSlots, java.util.Set.of(), 8, 9),
+                new GuiContract("l1_powered_me_interface", interfaceSlots, shifted, 8, 9),
+                new GuiContract("superconductive_interface", oversized, shifted, 8, 9))) {
             var problem = guiContractProblem(contract);
             if (problem != null) {
                 helper.fail(contract.name() + ": " + problem);
@@ -3732,7 +3732,7 @@ public final class NeoECOPrototypeGameTests {
 
     /** A GUI style JSON and texture pair, with the slot counts the menu really hands each section. */
     private record GuiContract(String name, java.util.Map<String, Integer> slots,
-                               java.util.Set<String> secondRowShift) {
+                               java.util.Set<String> secondRowShift, int left, int columns) {
     }
 
     /** What is wrong with one GUI pair, or null when its declared rows sit on its drawn grooves. */
@@ -3741,20 +3741,30 @@ public final class NeoECOPrototypeGameTests {
         if (style == null) {
             return "its GUI style JSON is not on the classpath";
         }
-        var texture = readClasspathBytes("/assets/ae2/textures/guis/neoecoprototype/" + contract.name() + ".png");
+        var named = cn.dancingsnow.neoecoprototype.gui.GuiGrooveAlignment.backgroundTexture(style);
+        if (named == null) {
+            return "its style declares no background texture";
+        }
+        // AE2 resolves an unqualified style texture inside its own namespace and under textures/, while a
+        // qualified one is a full path - which is why the same key means two things across our four files.
+        var colon = named.indexOf(':');
+        var location = colon < 0 ? "ae2/textures/" + named
+                : named.substring(0, colon) + "/" + named.substring(colon + 1);
+        var texture = readClasspathBytes("/assets/" + (location.endsWith(".png") ? location : location + ".png"));
         if (texture == null) {
-            return "its GUI texture is not on the classpath";
+            return "names texture " + named + ", which is not on the classpath";
         }
         try {
-            var alignment = cn.dancingsnow.neoecoprototype.gui.GuiGrooveAlignment.class;
-            var drawn = cn.dancingsnow.neoecoprototype.gui.GuiGrooveAlignment.drawnGrooveTops(texture);
+            var sections = cn.dancingsnow.neoecoprototype.gui.GuiGrooveAlignment.sectionsFrom(style,
+                    contract.slots(), contract.secondRowShift(),
+                    cn.dancingsnow.neoecoprototype.gui.GuiGrooveAlignment.textureHeight(texture));
+            var drawn = cn.dancingsnow.neoecoprototype.gui.GuiGrooveAlignment.drawnGrooveTops(texture,
+                    contract.left(), contract.left() + contract.columns() * cn.dancingsnow
+                            .neoecoprototype.gui.GuiGrooveAlignment.ROW_PITCH);
             if (drawn.isEmpty()) {
                 return "the texture yielded 0 groove rows, so this contract checked nothing";
             }
-            var declared = cn.dancingsnow.neoecoprototype.gui.GuiGrooveAlignment.declaredTops(
-                    cn.dancingsnow.neoecoprototype.gui.GuiGrooveAlignment.sectionsFrom(style, contract.slots(),
-                            contract.secondRowShift(),
-                            cn.dancingsnow.neoecoprototype.gui.GuiGrooveAlignment.textureHeight(texture)));
+            var declared = cn.dancingsnow.neoecoprototype.gui.GuiGrooveAlignment.declaredTops(sections);
             var mismatch = cn.dancingsnow.neoecoprototype.gui.GuiGrooveAlignment.firstMismatch(declared, drawn);
             if (mismatch != null) {
                 return mismatch;

@@ -33,9 +33,6 @@ public final class GuiGrooveAlignment {
     private static final int GROOVE_HEIGHT = 16;
     /** What {@code PoweredInterfaceScreen.moveSecondRow} adds to a section's second row and beyond. */
     public static final int SECOND_ROW_SHIFT = 36;
-    /** The band across the panel that slots are drawn in: x=8 to x=170 for AE2's 176-wide srcRect. */
-    private static final int BAND_LEFT = 8;
-    private static final int BAND_RIGHT = 170;
     /** A row counts as drawn-over when most of that band is darker than this mean brightness. */
     private static final int DARK_MEAN = 195;
     private static final int DARK_COLUMNS = 100;
@@ -116,13 +113,18 @@ public final class GuiGrooveAlignment {
         return sections;
     }
 
-    /** The row tops a texture really draws a groove at. */
-    public static List<Integer> drawnGrooveTops(byte[] png) throws IOException {
+    /**
+     * The row tops a texture really draws a groove at, measured across the slot band the caller names.
+     *
+     * @param bandLeft   the x the first column starts at, from the style's own {@code left}
+     * @param bandRight   one past the last column's right edge, from {@code left + columns x 18}
+     */
+    public static List<Integer> drawnGrooveTops(byte[] png, int bandLeft, int bandRight) throws IOException {
         var image = decode(png);
         var bands = new ArrayList<int[]>();
         int runStart = -1;
         for (int y = 0; y <= image.getHeight(); y++) {
-            boolean dark = y < image.getHeight() && isGrooveRow(image, y);
+            boolean dark = y < image.getHeight() && isGrooveRow(image, y, bandLeft, bandRight);
             if (dark && runStart < 0) {
                 runStart = y;
             } else if (!dark && runStart >= 0) {
@@ -152,6 +154,17 @@ public final class GuiGrooveAlignment {
         if (band[1] - band[0] >= GROOVE_HEIGHT && band[1] - band[0] <= ROW_PITCH) {
             starts.add(band[0]);
         }
+    }
+
+    /**
+     * The texture a style draws its panel from. A style may name another GUI's texture - the two oversized
+     * interfaces share one panel now - so a contract has to follow this value rather than assume the file
+     * is named after the style.
+     */
+    public static String backgroundTexture(String styleJson) {
+        var document = JsonParser.parseString(styleJson).getAsJsonObject();
+        var background = document.getAsJsonObject("background");
+        return background == null || !background.has("texture") ? null : background.get("texture").getAsString();
     }
 
     public static int textureHeight(byte[] png) throws IOException {
@@ -184,10 +197,10 @@ public final class GuiGrooveAlignment {
         return image;
     }
 
-    private static boolean isGrooveRow(BufferedImage image, int y) {
-        int width = Math.min(BAND_RIGHT, image.getWidth());
+    private static boolean isGrooveRow(BufferedImage image, int y, int bandLeft, int bandRight) {
+        int width = Math.min(bandRight, image.getWidth()) - bandLeft;
         var pixels = new int[width];
-        image.getRGB(0, y, width, 1, pixels, 0, 1);
+        image.getRGB(bandLeft, y, width, 1, pixels, 0, 1);
         int dark = 0;
         for (int rgb : pixels) {
             if (((rgb >> 16 & 0xFF) + (rgb >> 8 & 0xFF) + (rgb & 0xFF)) / 3.0 < DARK_MEAN) {

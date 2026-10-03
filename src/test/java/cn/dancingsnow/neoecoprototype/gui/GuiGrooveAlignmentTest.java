@@ -54,7 +54,7 @@ class GuiGrooveAlignmentTest {
 
     @Test
     void readsTheGroovesATextureDraws() throws Exception {
-        assertEquals(ROWS, GuiGrooveAlignment.drawnGrooveTops(textureWithGroovesAt(ROWS)),
+        assertEquals(ROWS, GuiGrooveAlignment.drawnGrooveTops(textureWithGroovesAt(ROWS), 8, 170),
                 "each drawn 16-row band must come back as its own row start");
         assertEquals(HEIGHT, GuiGrooveAlignment.textureHeight(textureWithGroovesAt(ROWS)));
     }
@@ -77,7 +77,7 @@ class GuiGrooveAlignmentTest {
         var declared = GuiGrooveAlignment.declaredTops(provider(131, 167, 225));
         assertEquals(ROWS, declared);
         assertNull(GuiGrooveAlignment.firstMismatch(declared,
-                        GuiGrooveAlignment.drawnGrooveTops(textureWithGroovesAt(ROWS))),
+                        GuiGrooveAlignment.drawnGrooveTops(textureWithGroovesAt(ROWS), 8, 170)),
                 "the shape this pair has today must be green");
     }
 
@@ -85,7 +85,7 @@ class GuiGrooveAlignmentTest {
     void aRowMovedByTwoPixelsIsNamed() throws Exception {
         var mismatch = GuiGrooveAlignment.firstMismatch(
                 GuiGrooveAlignment.declaredTops(provider(129, 167, 225)),
-                GuiGrooveAlignment.drawnGrooveTops(textureWithGroovesAt(ROWS)));
+                GuiGrooveAlignment.drawnGrooveTops(textureWithGroovesAt(ROWS), 8, 170));
         assertNotNull(mismatch, "the 131 -> 129 edit that 9f2e5e8 shipped must go red");
         assertTrue(mismatch.contains("row 4") && mismatch.contains("y=129") && mismatch.contains("y=131"),
                 mismatch);
@@ -95,14 +95,14 @@ class GuiGrooveAlignmentTest {
     void aMissingOrExtraRowIsReportedAsACount() throws Exception {
         var mismatch = GuiGrooveAlignment.firstMismatch(
                 GuiGrooveAlignment.declaredTops(provider(131, 167, 225)),
-                GuiGrooveAlignment.drawnGrooveTops(textureWithGroovesAt(ROWS.subList(0, ROWS.size() - 1))));
+                GuiGrooveAlignment.drawnGrooveTops(textureWithGroovesAt(ROWS.subList(0, ROWS.size() - 1)), 8, 170));
         assertNotNull(mismatch, "a texture that lost its hotbar groove must not read as aligned");
         assertTrue(mismatch.contains("8 slot row(s)") && mismatch.contains("7 groove row(s)"), mismatch);
     }
 
     @Test
     void aTextureWithNoGroovesChecksNothing() throws Exception {
-        assertTrue(GuiGrooveAlignment.drawnGrooveTops(textureWithGroovesAt(List.of())).isEmpty(),
+        assertTrue(GuiGrooveAlignment.drawnGrooveTops(textureWithGroovesAt(List.of()), 8, 170).isEmpty(),
                 "a blank panel has to surface as an empty reading, which the guard turns red");
     }
 
@@ -121,7 +121,7 @@ class GuiGrooveAlignmentTest {
         paint(withStrays, 140, 4);
         var out = new ByteArrayOutputStream();
         ImageIO.write(withStrays, "png", out);
-        assertEquals(List.of(40), GuiGrooveAlignment.drawnGrooveTops(out.toByteArray()),
+        assertEquals(List.of(40), GuiGrooveAlignment.drawnGrooveTops(out.toByteArray(), 8, 170),
                 "only the 16-row band counts as a groove");
     }
 
@@ -141,7 +141,7 @@ class GuiGrooveAlignmentTest {
         paint(split, 72, 16);
         var out = new ByteArrayOutputStream();
         ImageIO.write(split, "png", out);
-        assertEquals(List.of(54, 72), GuiGrooveAlignment.drawnGrooveTops(out.toByteArray()),
+        assertEquals(List.of(54, 72), GuiGrooveAlignment.drawnGrooveTops(out.toByteArray(), 8, 170),
                 "the 1-row highlight merges, the 2-row gap between grooves does not");
     }
 
