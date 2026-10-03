@@ -21,11 +21,17 @@ tools/matrix_textures.json
 
 每个 `textures` 条目包含 `source`、`output`、`source_colors`、`target_color`、`hue_tolerance`、`min_saturation` 和 `brightness`。当前示例把流体矩阵蓝色区域生成深绿色化学品矩阵纹理。生成结果仍是普通 PNG，客户端无需运行时处理。
 
-离线调色只生成材质；如果要新增一个实际矩阵物品，还需要在 Java 中注册对应的 cell item、模型和翻译。当前的 4K 化学品矩阵可用下面的命令获取：
+离线调色只生成材质；如果要新增一个实际矩阵物品，还需要在 Java 中注册对应的 cell item、模型和翻译。
 
-```text
-/give @s neoecoprototype:simplify_chemical_storage_cell_4k
-```
+配方口径统一是**外壳 + AE2 同级 `cell_component_<档>`**（化学品每一件额外带 `appmek` 加载条件）。
+
+| 介质 | 有的档位 |
+|---|---|
+| 物品 | `1k / 16k / 64k / 1m / 4m` |
+| 流体 | `1k / 16k / 64k / 1m / 4m` |
+| 化学品 | `1k / 16k / 64k / 1m / 4m` |
+
+**三档介质都没有 4k。** 化学品 4k 以前是个"注册了但只能 `/give`"的半成品（1.2.0 起就这样，没有配方也不在创造栏），这次直接撤掉了——撤它的代价几乎为零，因为正常存档里不可能有这件东西。撤的理由是驱动图 `cell_level_lower` 里没有 4k 的颜色格：Ted 确认过行序是 **v0-1 蓝=1k、v2-3 淡紫=16k、v4-5 青=64k、v6-7 绿=1M**，她交付时按背包灯的档位少报了一档，所以我们把她的 `l0_*_4k`（淡紫）归位成 `l0_*_16k`、`l0_*_16k`（青）归位成 `l0_*_64k`。
 
 KubeJS is optional. Neo ECO Prototype does not declare KubeJS as a runtime dependency and the mod continues to work without it.
 
@@ -241,7 +247,7 @@ StartupEvents.registry('item', event => {
 | 家族 | 物品栏外壳 |
 |---|---|
 | 小宗 small bulk | `item/storage_recolor/small_bulk_cell_housing`（深灰） |
-| 猪咪 pigcat | `item/storage_recolor/pigcat_cell_housing` |
+| 猪咪 pigmee | `item/storage_recolor/pigmee_cell_housing` |
 | 全能 universal | eco `omni_cell_housing` |
 | 量子 quantum | eco `quantum_omni_cell_housing` |
 

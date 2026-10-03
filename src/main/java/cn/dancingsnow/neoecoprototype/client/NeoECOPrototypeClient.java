@@ -89,7 +89,7 @@ public final class NeoECOPrototypeClient {
     private static final java.util.List<String> DRIVE_CELL_MODELS = java.util.List.of(
             "l0_item_1k", "l0_item_16k", "l0_item_64k", "l1_item", "l1r_item",
             "l0_fluid_1k", "l0_fluid_16k", "l0_fluid_64k", "l1_fluid", "l1r_fluid",
-            "l0_chemical_1k", "l0_chemical_4k", "l0_chemical_16k", "l1_chemical", "l1r_chemical",
+            "l0_chemical_1k", "l0_chemical_16k", "l0_chemical_64k", "l1_chemical", "l1r_chemical",
             "l1_small_bulk_item", "l1r_small_bulk_item",
             "l1_small_bulk_fluid", "l1r_small_bulk_fluid",
             "l1_small_bulk_chemical", "l1r_small_bulk_chemical",
@@ -147,8 +147,8 @@ public final class NeoECOPrototypeClient {
         }
         if (ModRegistration.OPTIONAL_CHEMICAL_CELL_1K != null) {
             ECOCellModels.register(ModRegistration.OPTIONAL_CHEMICAL_CELL_1K.get(), cellModel("l0_chemical_1k"));
-            ECOCellModels.register(ModRegistration.OPTIONAL_CHEMICAL_CELL_4K.get(), cellModel("l0_chemical_4k"));
             ECOCellModels.register(ModRegistration.OPTIONAL_CHEMICAL_CELL_16K.get(), cellModel("l0_chemical_16k"));
+        ECOCellModels.register(ModRegistration.OPTIONAL_CHEMICAL_CELL_64K.get(), cellModel("l0_chemical_64k"));
             ECOCellModels.register(ModRegistration.OPTIONAL_CHEMICAL_CELL_1M.get(), cellModel("l1_chemical"));
             ECOCellModels.register(ModRegistration.OPTIONAL_CHEMICAL_CELL_4M.get(), cellModel("l1r_chemical"));
         }

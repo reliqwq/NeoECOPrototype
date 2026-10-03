@@ -51,14 +51,14 @@ StartupEvents.registry('item', event => {
   // 注意：cellModel 必须是 6x12x2 的格子芯片模型，传整方块模型会在驱动器里穿模。
   event.create('infinite_wool', 'neoecoprototype:infinite_storage_matrix')
     .itemType('minecraft:white_wool')
-    .cellModel('neoecoprototype:block/cell/storage_cell_l1_pigcat')
+    .cellModel('neoecoprototype:block/cell/storage_cell_l1_pigmee')
     .displayName('无限羊毛存储矩阵')
 
   // ---------- 4. 自定义容量与类型数（不走固定档位）----------
   // bytes(...) / totalTypes(...) 会给定义打上 CUSTOM，不受 1k/4k/1m 档位约束。
-  event.create('pigcat_400_matrix', 'neoecoprototype:storage_matrix')
+  event.create('pigmee_400_matrix', 'neoecoprototype:storage_matrix')
     .itemType('minecraft:gold_ingot')
-    .material('pigcat')
+    .material('pigmee')
     .bytes(256)
     .totalTypes(400)
     .displayName('猪咪定制矩阵 | 256 B / 400 类型')
@@ -153,7 +153,7 @@ ServerEvents.commandRegistry(event => {
     'kubejs:infinite_glass',
     'kubejs:infinite_water',
     'kubejs:infinite_wool',
-    'kubejs:pigcat_400_matrix',
+    'kubejs:pigmee_400_matrix',
     'kubejs:universal_matrix_1k',
     'kubejs:quantum_matrix_1k',
     'kubejs:custom_look_matrix_1k'

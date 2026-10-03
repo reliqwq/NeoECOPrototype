@@ -12,6 +12,7 @@ import appeng.api.stacks.AEKey;
 public final class SimplifyChemicalStorageCellItem extends ECOChemicalStorageCellItem {
     public static final long BYTES_1K = 1L << 10;
     public static final long BYTES_16K = 1L << 14;
+    public static final long BYTES_64K = 1L << 16;
     public static final long BYTES_1M = 1L << 20;
     public static final long BYTES_4M = 1L << 22;
     public static final int TOTAL_TYPES = 25;

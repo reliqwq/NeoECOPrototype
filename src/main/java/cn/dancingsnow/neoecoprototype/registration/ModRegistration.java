@@ -137,8 +137,8 @@ public class ModRegistration {
             "cable_pattern_provider",
             () -> new PartItem<>(new Item.Properties(), SimplifyPatternProviderPart.class, SimplifyPatternProviderPart::new));
     public static Supplier<? extends Item> OPTIONAL_CHEMICAL_CELL_1K;
-    public static Supplier<? extends Item> OPTIONAL_CHEMICAL_CELL_4K;
     public static Supplier<? extends Item> OPTIONAL_CHEMICAL_CELL_16K;
+    public static Supplier<? extends Item> OPTIONAL_CHEMICAL_CELL_64K;
     public static Supplier<? extends Item> OPTIONAL_CHEMICAL_CELL_1M;
     public static Supplier<? extends Item> OPTIONAL_CHEMICAL_CELL_4M;
     public static Supplier<? extends Item> OPTIONAL_SMALL_BULK_CHEMICAL_CELL;
@@ -1163,6 +1163,7 @@ private static Supplier<BlockEntityType<SimplifyStorageVentBlockEntity>> registe
                          if (OPTIONAL_CHEMICAL_CELL_1K != null) {
                              output.accept(OPTIONAL_CHEMICAL_CELL_1K.get());
                              output.accept(OPTIONAL_CHEMICAL_CELL_16K.get());
+                             output.accept(OPTIONAL_CHEMICAL_CELL_64K.get());
                               output.accept(OPTIONAL_CHEMICAL_CELL_1M.get());
                               output.accept(OPTIONAL_CHEMICAL_CELL_4M.get());
                          }
