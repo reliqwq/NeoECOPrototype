@@ -285,45 +285,29 @@ public class CryotheumMeteoriteStructure extends Structure {
         }
 
         /**
-         * The coma that wraps the rock itself: a rind of ice the same number of blocks thick in every direction,
-         * thinning outward. The thickness is measured in blocks rather than in the dome's own units on purpose -
-         * a shell that follows the shape's metric comes out as a slightly fatter copy of the rock (flat on top,
-         * deep below), while an even rind reads as round.
-         *
-         * <p>It never overwrites anything: the head, the tail and the frost on the join are all laid before it
-         * runs, and it only fills cells the world has nothing in.
+         * The coma that wraps the rock itself: a shell a few blocks thick hugging the same dome the meteorite
+         * uses, thinning outward. It never overwrites anything - the head, the tail and the frost on the join are
+         * all laid before it runs, and it only fills cells the world has nothing in.
          */
         private void placeComa(WorldGenLevel level, BoundingBox restriction) {
-            int reach = (int) Math.ceil(headExtent(radius, 0.8)) + COMA_SHELL;
-            double outerSquared = (double) reach * reach;
+            int reach = (int) Math.ceil(headExtent(radius, 0.7)) + COMA_SHELL;
+            double outer = (double) (radius + COMA_SHELL) * (radius + COMA_SHELL);
             for (int dx = -reach; dx <= reach; dx++) {
                 for (int dy = -reach; dy <= reach; dy++) {
                     for (int dz = -reach; dz <= reach; dz++) {
-                        double distanceSquared = dx * dx + dy * dy + dz * dz;
-                        if (distanceSquared > outerSquared) {
-                            continue;
-                        }
-                        double distance = Math.sqrt(distanceSquared);
-                        if (distance <= 0.0) {
-                            continue;
-                        }
-                        // Where the dome would cross this ray: the difference is the gap in whole blocks.
-                        double ux = dx / distance;
-                        double uy = dy / distance;
-                        double uz = dz / distance;
-                        double weight = ux * ux * 0.7 + uz * uz * 0.7 + uy * uy * (uy > 0 ? 1.4 : 0.8);
-                        double depth = distance - radius / Math.sqrt(weight);
-                        if (depth < 0.0 || depth > COMA_SHELL) {
+                        double shape = shapeValue(dx, dy, dz);
+                        if (shape >= outer) {
                             continue;
                         }
                         var pos = center.offset(dx, dy, dz);
                         if (!restriction.isInside(pos) || !level.isEmptyBlock(pos)) {
                             continue;
                         }
-                        double thin = 1.0 - depth / COMA_SHELL;
                         var rolls = RandomSource.create(Mth.getSeed(pos) + SALT_COMA);
-                        // Squared, not linear: a straight ramp leaves a visible band at the outer edge.
-                        if (rolls.nextDouble() <= COMA_DENSITY * thin * thin) {
+                        // sqrt(shape) is the radius this same dome would need to pass through this cell, so the
+                        // difference is how far the cell sits outside the rock.
+                        double depth = Math.sqrt(shape) - radius;
+                        if (rolls.nextDouble() <= COMA_DENSITY * (1.0 - depth / COMA_SHELL)) {
                             put(level, restriction, pos, Blocks.ICE.defaultBlockState());
                         }
                     }
