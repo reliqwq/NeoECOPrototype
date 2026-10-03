@@ -94,6 +94,15 @@ public class CryotheumMeteoriteStructure extends Structure {
         /** ... and inside that band the chance stops falling, because the cone has narrowed to 80 cells by the
          * old quarter-mark and a fading chance there left two blocks at the end of a 72-block tail. */
         private static final double TIP_DENSITY_FLOOR = 0.2;
+        /** The cells that bridge the tail to the rock are half as dense as the tail's own root: he asked for
+         * the reach, not the mass. */
+        private static final double ROOT_DENSITY = 0.175;
+        /** Concentric envelopes outside the core cone, so the tail has a soft coma instead of a hard edge like
+         * the reference photo: each layer adds this much of the core's radius and keeps this fraction of its
+         * density. Three layers make the coma about 2.35 times as wide as the cone. */
+        private static final int ENVELOPE_LAYERS = 3;
+        private static final double ENVELOPE_STEP = 0.45;
+        private static final double ENVELOPE_THINNING = 0.45;
         /** Fifteen degrees, and always pointing up: a tail behind and above the rock is what makes the rock
          * read as diving. It used to be thirty and randomly up or down, which made half the comets in the End
          * look like they were climbing away. */
@@ -191,9 +200,19 @@ public class CryotheumMeteoriteStructure extends Structure {
             }
         }
 
+        /** The core cone's radius where it leaves the head. */
+        private static double tailBase(int radius, Tail tail) {
+            return TAIL_BASE_FACTOR * tail.headExtent(radius);
+        }
+
+        /** How far out the last envelope reaches: the box has to cover it or the coma gets clipped. */
+        private static double comaRadius(int radius, Tail tail) {
+            return tailBase(radius, tail) * (1.0 + ENVELOPE_LAYERS * ENVELOPE_STEP);
+        }
+
         /** Low/high per axis: the comet is wide only around its head and long only along its own tail. */
         private static int[] extents(int radius, Tail tail) {
-            double base = TAIL_BASE_FACTOR * tail.headExtent(radius);
+            double base = comaRadius(radius, tail);
             double end = tail.headExtent(radius) + TAIL_PAST_HEAD;
             int lateral = (int) Math.ceil(headExtent(radius, 0.7));
             int[] extents = new int[6];
@@ -281,22 +300,44 @@ public class CryotheumMeteoriteStructure extends Structure {
                         // Capped at 1: short of the head's own radius the cone would otherwise be wider than
                         // its base and the chance would exceed a certainty.
                         double fade = Math.min(1.0, 1.0 - (along - start) / TAIL_PAST_HEAD);
-                        double width = base * fade;
-                        if (tail.acrossSquared(dx, dy, dz) > width * width) {
+                        int layer = envelopeLayer(tail.acrossSquared(dx, dy, dz), base * fade);
+                        if (layer < 0) {
                             continue;
                         }
                         var pos = center.offset(dx, dy, dz);
                         var rolls = RandomSource.create(Mth.getSeed(pos) + 777L);
-                        double chance = FROST_DENSITY * Math.pow(fade, FROST_FADE_POWER);
-                        if (fade <= TIP_FADE) {
+                        double chance = along < start ? ROOT_DENSITY
+                                : FROST_DENSITY * Math.pow(fade, FROST_FADE_POWER);
+                        if (along >= start && fade <= TIP_FADE) {
                             chance = Math.max(chance, TIP_DENSITY_FLOOR);
                         }
-                        if (rolls.nextDouble() <= chance) {
-                            put(level, restriction, pos, along < start ? crystal : tailBlock(rolls, fade));
+                        if (layer > 0) {
+                            chance *= Math.pow(ENVELOPE_THINNING, layer);
                         }
+                        if (rolls.nextDouble() > chance) {
+                            continue;
+                        }
+                        // The core keeps the mix he picked; the coma around it is plain ice, the soft
+                        // translucent one, so the edge reads as glow rather than as stacked blocks.
+                        put(level, restriction, pos, layer > 0 ? Blocks.ICE.defaultBlockState()
+                                : along < start ? crystal : tailBlock(rolls, fade));
                     }
                 }
             }
+        }
+
+        /**
+         * Which ring of the coma a cell falls in: 0 is the tail's own cone, higher numbers are the envelopes
+         * outside it, and -1 is past the last of them.
+         */
+        private static int envelopeLayer(double acrossSquared, double coreWidth) {
+            for (int layer = 0; layer <= ENVELOPE_LAYERS; layer++) {
+                double edge = coreWidth * (1.0 + layer * ENVELOPE_STEP);
+                if (acrossSquared <= edge * edge) {
+                    return layer;
+                }
+            }
+            return -1;
         }
 
         /** What the tail is made of at this point along it: certus quartz and ice at the far tip, the three
