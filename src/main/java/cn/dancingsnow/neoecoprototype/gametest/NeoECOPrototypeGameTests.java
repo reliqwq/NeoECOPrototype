@@ -37,6 +37,7 @@ import cn.dancingsnow.neoecoprototype.block.computation.SimplifyComputationSyste
 import cn.dancingsnow.neoecoprototype.block.crafting.SimplifyCraftingSystemBlock;
 import cn.dancingsnow.neoecoprototype.block.storage.SimplifyStorageControllerBlock;
 import cn.dancingsnow.neoecoprototype.blockentity.crafting.SimplifySuperconductiveInterfaceBlockEntity;
+import cn.dancingsnow.neoecoprototype.blockentity.decoration.FumoBlockEntity;
 import cn.dancingsnow.neoecoprototype.blockentity.trinity.SimplifyTrinityComputationModuleBlockEntity;
 import cn.dancingsnow.neoecoprototype.blockentity.trinity.SimplifyTrinityControllerBlockEntity;
 import cn.dancingsnow.neoecoprototype.blockentity.trinity.SimplifyTrinityCraftingModuleBlockEntity;
@@ -1626,7 +1627,91 @@ public final class NeoECOPrototypeGameTests {
             helper.fail("a fresh creeper has no DollFleeGoal, so creepers ignore plushies entirely");
             return;
         }
+        ownerSurvivesEveryCopy(helper);
         helper.succeed();
+    }
+
+    /**
+     * A doll's face rides four vanilla paths that never meet: the chunk save and the loader that reads it
+     * back, the block entity sync tag, the component map a broken doll's loot copies, and pick-block plus
+     * place-from-item. Each one is a separate call into {@link FumoBlockEntity}, so a broken round trip
+     * just gives the doll a different owner and nothing anywhere reports it. Touches no world and no plot.
+     *
+     * <p>Compared field by field on purpose: {@code ResolvableProfile} is a record whose components
+     * include a {@code PropertyMap} and a derived {@code GameProfile}, and neither has a value
+     * {@code equals}, so two faithful copies of one owner are never {@code equals} to each other.
+     */
+    private static void ownerSurvivesEveryCopy(GameTestHelper helper) {
+        var pos = new BlockPos(0, 0, 0);
+        var state = ModRegistration.FUMO_BLOCK.get().defaultBlockState();
+        var registries = helper.getLevel().registryAccess();
+        var skins = new com.mojang.authlib.properties.PropertyMap();
+        skins.put("textures", new com.mojang.authlib.properties.Property("textures",
+                "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0In19fQ==",
+                "a-signature-under-test"));
+        var owner = new net.minecraft.world.item.component.ResolvableProfile(
+                java.util.Optional.of("reliqwq"),
+                java.util.Optional.of(java.util.UUID.fromString("f0e6d3ba-3b17-4a5c-9c1a-2c5b9f0a7d31")), skins);
+        var placed = new FumoBlockEntity(pos, state);
+        placed.setOwner(owner);
+
+        var saved = placed.saveWithFullMetadata(registries);
+        if (!(net.minecraft.world.level.block.entity.BlockEntity.loadStatic(pos, state, saved, registries)
+                instanceof FumoBlockEntity reloaded)) {
+            helper.fail("the chunk tag of an owned doll no longer reads back as a FumoBlockEntity");
+            return;
+        }
+        if (!sameOwner(owner, reloaded.owner(), "chunk save", helper)) {
+            return;
+        }
+        var synced = new FumoBlockEntity(pos, state);
+        synced.loadCustomOnly(placed.getUpdateTag(registries), registries);
+        if (!sameOwner(owner, synced.owner(), "client sync tag", helper)) {
+            return;
+        }
+        var picked = new ItemStack(ModRegistration.FUMO_RELIQWQ_ITEM.get());
+        placed.saveToItem(picked, registries);
+        var replanted = new FumoBlockEntity(pos, state);
+        replanted.applyComponentsFromItemStack(picked);
+        if (!sameOwner(owner, replanted.owner(), "pick-block then place", helper)) {
+            return;
+        }
+        if (!sameOwner(owner, placed.collectComponents().get(ModRegistration.FUMO_OWNER.get()),
+                "loot component copy", helper)) {
+            return;
+        }
+        // The other half: an unowned doll must write no key at all, and a tag without one has to clear
+        // the field rather than leave whatever the block entity happened to hold before.
+        var plainTag = new FumoBlockEntity(pos, state).saveWithoutMetadata(registries);
+        if (plainTag.contains("fumo_owner")) {
+            helper.fail("a doll with no owner still wrote a fumo_owner key: " + plainTag);
+            return;
+        }
+        var hadOwner = new FumoBlockEntity(pos, state);
+        hadOwner.setOwner(owner);
+        hadOwner.loadCustomOnly(plainTag, registries);
+        if (hadOwner.owner() != null) {
+            helper.fail("reading a tag with no owner left the old one in place, so an anonymous doll"
+                    + " could wear the face of whatever it was copied from");
+        }
+    }
+
+    /** Fails naming the path that lost the owner, so a break reports where rather than just going red. */
+    private static boolean sameOwner(net.minecraft.world.item.component.ResolvableProfile expected,
+                                     @org.jetbrains.annotations.Nullable net.minecraft.world.item.component.ResolvableProfile actual,
+                                     String path, GameTestHelper helper) {
+        if (actual != null && expected.name().equals(actual.name()) && expected.id().equals(actual.id())
+                && propertiesOf(expected).equals(propertiesOf(actual))) {
+            return true;
+        }
+        helper.fail("the doll loses its owner through the " + path + " path: expected " + expected
+                + ", got " + (actual == null ? "no owner at all" : actual));
+        return false;
+    }
+
+    private static List<com.mojang.authlib.properties.Property> propertiesOf(
+            net.minecraft.world.item.component.ResolvableProfile profile) {
+        return List.copyOf(profile.properties().get("textures"));
     }
 
     private static String readResource(String path, GameTestHelper helper) {
