@@ -72,8 +72,8 @@ public class CryotheumMeteoriteStructure extends Structure {
 
     /**
      * The comet itself: an ellipsoid head of sky stone with banded ore inside, a hollow cell-sized room at its
-     * centre whose floor is the mother rock, and a tapering tail of ice behind it. The rock's face on the tail
-     * side is frosted too, so the tail does not start out of thin air.
+     * centre whose floor is the mother rock, and a tail of ice that leaves the head at about thirty degrees.
+     * The rock's face on the tail side is frosted too, so the tail does not start out of thin air.
      */
     public static class MeteoritePiece extends net.minecraft.world.level.levelgen.structure.StructurePiece {
         /** How far the tail reaches past the head's own surface. Measured from the surface, not from the
@@ -87,9 +87,13 @@ public class CryotheumMeteoriteStructure extends Structure {
         private static final double FROST_FADE_POWER = 1.6;
         /** How much of the tail-facing rock surface is frosted instead of left as sky stone. */
         private static final double SURFACE_FROST = 0.5;
+        /** Thirty degrees off the horizontal: flat reads as a disc stuck on a ball, straight up or down -
+         * AE2's own six-axis choice - reads as a fountain. */
+        private static final double TAIL_SINE = 0.5;
+        private static final double TAIL_COSINE = Math.sqrt(1.0 - TAIL_SINE * TAIL_SINE);
         private final BlockPos center;
         private final int radius;
-        private final Direction tail;
+        private final Tail tail;
 
         MeteoritePiece(BlockPos center, int radius) {
             this(ModWorldgen.METEORITE_PIECE.get(), center, radius, cometBox(center, radius));
@@ -103,7 +107,7 @@ public class CryotheumMeteoriteStructure extends Structure {
             super(type, 0, box);
             this.center = center;
             this.radius = radius;
-            this.tail = tailAxis(center);
+            this.tail = tailDirection(center);
         }
 
         @Override
@@ -117,11 +121,24 @@ public class CryotheumMeteoriteStructure extends Structure {
         }
 
         /**
-         * Any of the six axes, including straight up and straight down - AE2's own choice - drawn from a seed
-         * of the centre so every chunk that writes this rock points its tail the same way.
+         * One of the four horizontal azimuths, tilted thirty degrees up or down, drawn from a seed of the
+         * centre so every chunk that writes this rock points its tail the same way.
          */
-        private static Direction tailAxis(BlockPos center) {
-            return Direction.values()[RandomSource.create(Mth.getSeed(center) + 4242L).nextInt(6)];
+        private static Tail tailDirection(BlockPos center) {
+            var rolls = RandomSource.create(Mth.getSeed(center) + 4242L);
+            int spin = rolls.nextInt(4);
+            double ax = switch (spin) {
+                case 0 -> 1.0;
+                case 2 -> -1.0;
+                default -> 0.0;
+            };
+            double az = switch (spin) {
+                case 1 -> 1.0;
+                case 3 -> -1.0;
+                default -> 0.0;
+            };
+            double y = rolls.nextBoolean() ? TAIL_SINE : -TAIL_SINE;
+            return new Tail(ax * TAIL_COSINE, y, az * TAIL_COSINE);
         }
 
         /** How far the ellipsoid reaches along an axis whose weight is this: 0.7 sideways, 1.4 above, 0.8 below. */
@@ -129,57 +146,63 @@ public class CryotheumMeteoriteStructure extends Structure {
             return radius / Math.sqrt(weight);
         }
 
-        private static double headExtentAlong(int radius, Direction tail) {
-            return headExtent(radius, tail.getStepY() > 0 ? 1.4 : tail.getStepY() < 0 ? 0.8 : 0.7);
-        }
-
-        /**
-         * The box is not a cube: the comet is wide only around its head, and long only along its tail. Keeping
-         * it tight matters because every chunk that touches the box walks the whole thing.
-         */
-        private static BoundingBox cometBox(BlockPos center, int radius) {
-            Direction tail = tailAxis(center);
-            int lateral = (int) Math.ceil(headExtent(radius, 0.7));
-            int forward = (int) Math.ceil(headExtentAlong(radius, tail) + TAIL_PAST_HEAD);
-            int xLo = -lateral, xHi = lateral, yLo = -lateral, yHi = lateral, zLo = -lateral, zHi = lateral;
-            switch (tail.getAxis()) {
-                case X -> {
-                    if (tail.getStepX() > 0) {
-                        xHi = forward;
-                    } else {
-                        xLo = -forward;
-                    }
-                }
-                case Y -> {
-                    if (tail.getStepY() > 0) {
-                        yHi = forward;
-                    } else {
-                        yLo = -forward;
-                    }
-                }
-                case Z -> {
-                    if (tail.getStepZ() > 0) {
-                        zHi = forward;
-                    } else {
-                        zLo = -forward;
-                    }
-                }
-            }
-            return BoundingBox.fromCorners(center.offset(xLo, yLo, zLo), center.offset(xHi, yHi, zHi));
-        }
-
         /** AE2's own shape test: a dome, flattened on top of the centre and slightly deeper below it. */
         private static boolean insideRock(int dx, int dy, int dz, int radius) {
             return dx * dx * 0.7 + dy * dy * (dy > 0 ? 1.4 : 0.8) + dz * dz * 0.7 < (double) radius * radius;
         }
 
-        /** The offset from the centre for a cell `along` the tail axis and `a`/`b` across it. */
-        private static BlockPos offsetAlong(Direction tail, int along, int a, int b) {
-            return switch (tail.getAxis()) {
-                case X -> new BlockPos(tail.getStepX() * along, a, b);
-                case Y -> new BlockPos(a, tail.getStepY() * along, b);
-                case Z -> new BlockPos(a, b, tail.getStepZ() * along);
-            };
+        /**
+         * A unit vector, plus the two projections the tail and the frost cap are measured on. The tail is no
+         * longer a lattice direction, so everything about it is dot products rather than axis steps.
+         */
+        private record Tail(double x, double y, double z) {
+            /** Solve the head's ellipsoid for this ray, using the same weights as the shape test. */
+            double headExtent(int radius) {
+                return radius / Math.sqrt(x * x * 0.7 + z * z * 0.7 + y * y * (y > 0 ? 1.4 : 0.8));
+            }
+
+            double along(int dx, int dy, int dz) {
+                return dx * x + dy * y + dz * z;
+            }
+
+            double acrossSquared(int dx, int dy, int dz) {
+                double t = along(dx, dy, dz);
+                return dx * dx + dy * dy + dz * dz - t * t;
+            }
+
+            /** The nearest whole-block steps outward: the horizontal one and the pitched one both count. */
+            int outwardX() {
+                return (int) Math.signum(x);
+            }
+
+            int outwardY() {
+                return (int) Math.signum(y);
+            }
+
+            int outwardZ() {
+                return (int) Math.signum(z);
+            }
+        }
+
+        /** Low/high per axis: the comet is wide only around its head and long only along its own tail. */
+        private static int[] extents(int radius, Tail tail) {
+            double base = TAIL_BASE_FACTOR * tail.headExtent(radius);
+            double end = tail.headExtent(radius) + TAIL_PAST_HEAD;
+            int lateral = (int) Math.ceil(headExtent(radius, 0.7));
+            int[] extents = new int[6];
+            extents[0] = -(tail.x() >= 0 ? lateral : (int) Math.ceil(end * Math.abs(tail.x()) + base));
+            extents[1] = tail.x() >= 0 ? (int) Math.ceil(end * Math.abs(tail.x()) + base) : lateral;
+            extents[2] = -(tail.y() >= 0 ? lateral : (int) Math.ceil(end * Math.abs(tail.y()) + base));
+            extents[3] = tail.y() >= 0 ? (int) Math.ceil(end * Math.abs(tail.y()) + base) : lateral;
+            extents[4] = -(tail.z() >= 0 ? lateral : (int) Math.ceil(end * Math.abs(tail.z()) + base));
+            extents[5] = tail.z() >= 0 ? (int) Math.ceil(end * Math.abs(tail.z()) + base) : lateral;
+            return extents;
+        }
+
+        private static BoundingBox cometBox(BlockPos center, int radius) {
+            int[] e = extents(radius, tailDirection(center));
+            return BoundingBox.fromCorners(
+                    center.offset(e[0], e[2], e[4]), center.offset(e[1], e[3], e[5]));
         }
 
         @Override
@@ -216,30 +239,24 @@ public class CryotheumMeteoriteStructure extends Structure {
             }
         }
 
-        /** Walk the tail along its own axis, one coordinate outward and two across it. */
+        /** The tail is a projection test now, not a walk: thirty degrees is not a lattice direction. */
         private void placeTail(WorldGenLevel level, BoundingBox restriction) {
-            double start = headExtentAlong(radius, tail);
+            int[] e = extents(radius, tail);
+            double start = tail.headExtent(radius);
             double base = TAIL_BASE_FACTOR * start;
-            int cross = (int) Math.ceil(base);
-            int forward = (int) Math.ceil(start + TAIL_PAST_HEAD);
-            for (int along = 1; along <= forward; along++) {
-                // Clamped at 1: the cells before the head's surface would otherwise get a cone wider than
-                // its own base. They are inside the rock anyway, so the clamp only stops them being placed.
-                double fade = Math.min(1.0, 1.0 - (along - start) / TAIL_PAST_HEAD);
-                if (fade <= 0.0) {
-                    break;
-                }
-                double width = base * fade;
-                for (int a = -cross; a <= cross; a++) {
-                    for (int b = -cross; b <= cross; b++) {
-                        if (a * a + b * b > width * width) {
+            for (int dx = e[0]; dx <= e[1]; dx++) {
+                for (int dy = e[2]; dy <= e[3]; dy++) {
+                    for (int dz = e[4]; dz <= e[5]; dz++) {
+                        double along = tail.along(dx, dy, dz);
+                        if (along <= start || along > start + TAIL_PAST_HEAD) {
                             continue;
                         }
-                        var offset = offsetAlong(tail, along, a, b);
-                        if (insideRock(offset.getX(), offset.getY(), offset.getZ(), radius)) {
+                        double fade = 1.0 - (along - start) / TAIL_PAST_HEAD;
+                        double width = base * fade;
+                        if (tail.acrossSquared(dx, dy, dz) > width * width) {
                             continue;
                         }
-                        var pos = center.offset(offset);
+                        var pos = center.offset(dx, dy, dz);
                         var rolls = RandomSource.create(Mth.getSeed(pos) + 777L);
                         if (rolls.nextDouble() <= FROST_DENSITY * Math.pow(fade, FROST_FADE_POWER)) {
                             put(level, restriction, pos, frostOf(rolls));
@@ -251,20 +268,22 @@ public class CryotheumMeteoriteStructure extends Structure {
 
         /**
          * Frost on the face of the rock the tail leaves from, so the join reads as one object: a rock cell
-         * whose outward side is empty and whose distance from the tail axis is within the tail's own width
-         * turns to ice. Only the shell is replaced, so the ore bands still show through the frost.
+         * within the tail's own width whose outward step leaves the rock turns to ice. Only the shell is
+         * replaced, so the ore bands still show through the frost.
          */
         private BlockState surfaceFrostAt(int dx, int dy, int dz) {
-            double along = dx * tail.getStepX() + dy * tail.getStepY() + dz * tail.getStepZ();
-            if (along <= 0.0) {
+            if (tail.along(dx, dy, dz) <= 0.0) {
                 return null;
             }
-            double across = dx * dx + dy * dy + dz * dz - along * along;
-            double base = TAIL_BASE_FACTOR * headExtentAlong(radius, tail);
-            if (across > base * base) {
+            double base = TAIL_BASE_FACTOR * tail.headExtent(radius);
+            if (tail.acrossSquared(dx, dy, dz) > base * base) {
                 return null;
             }
-            if (insideRock(dx + tail.getStepX(), dy + tail.getStepY(), dz + tail.getStepZ(), radius)) {
+            // Both whole-block steps that lean toward the tail count as outward, because the tail's own
+            // direction is not one of them: the patch then wraps the join instead of sitting on the equator.
+            if (insideRock(dx + tail.outwardX(), dy, dz, radius)
+                    && insideRock(dx, dy + tail.outwardY(), dz, radius)
+                    && insideRock(dx, dy, dz + tail.outwardZ(), radius)) {
                 return null;
             }
             var rolls = RandomSource.create(Mth.getSeed(center.offset(dx, dy, dz)) + 1234L);
