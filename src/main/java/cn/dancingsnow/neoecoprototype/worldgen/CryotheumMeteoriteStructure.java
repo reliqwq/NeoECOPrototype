@@ -79,17 +79,20 @@ public class CryotheumMeteoriteStructure extends Structure {
         /** How far the tail reaches past the head's own surface. Measured from the surface, not from the
          * centre: from the centre a tail is inside the rock for its first several blocks and tapers to nothing
          * before it gets out, which lays down about four blocks of ice. */
-        private static final double TAIL_PAST_HEAD = 24.0;
+        private static final double TAIL_PAST_HEAD = 72.0;
         /** AE2's own base radius factor, applied to the head's radius in the direction the tail points. */
         private static final double TAIL_BASE_FACTOR = 0.8;
+        /** The frosted patch on the rock, as a multiple of the tail's own base radius. At 1.3 the whole
+         * tail-facing side turns to ice, which is not "mostly rock with a little ice"; 0.8 frosts 41% of that
+         * side and 16% of the surface overall. */
+        private static final double CAP_WIDTH_FACTOR = 0.8;
         /** Ice density at the head, and how fast it thins out toward the tip. */
         private static final double FROST_DENSITY = 0.35;
         private static final double FROST_FADE_POWER = 1.6;
-        /** How much of the tail-facing rock surface is frosted instead of left as sky stone. */
-        private static final double SURFACE_FROST = 0.5;
-        /** Thirty degrees off the horizontal: flat reads as a disc stuck on a ball, straight up or down -
-         * AE2's own six-axis choice - reads as a fountain. */
-        private static final double TAIL_SINE = 0.5;
+        /** Fifteen degrees, and always pointing up: a tail behind and above the rock is what makes the rock
+         * read as diving. It used to be thirty and randomly up or down, which made half the comets in the End
+         * look like they were climbing away. */
+        private static final double TAIL_SINE = 0.2588190451;
         private static final double TAIL_COSINE = Math.sqrt(1.0 - TAIL_SINE * TAIL_SINE);
         private final BlockPos center;
         private final int radius;
@@ -121,8 +124,8 @@ public class CryotheumMeteoriteStructure extends Structure {
         }
 
         /**
-         * One of the four horizontal azimuths, tilted thirty degrees up or down, drawn from a seed of the
-         * centre so every chunk that writes this rock points its tail the same way.
+         * One of the four horizontal azimuths, drawn from a seed of the centre so every chunk that writes this
+         * rock points its tail the same way. The pitch is not random: see {@link #TAIL_SINE}.
          */
         private static Tail tailDirection(BlockPos center) {
             var rolls = RandomSource.create(Mth.getSeed(center) + 4242L);
@@ -137,8 +140,7 @@ public class CryotheumMeteoriteStructure extends Structure {
                 case 3 -> -1.0;
                 default -> 0.0;
             };
-            double y = rolls.nextBoolean() ? TAIL_SINE : -TAIL_SINE;
-            return new Tail(ax * TAIL_COSINE, y, az * TAIL_COSINE);
+            return new Tail(ax * TAIL_COSINE, TAIL_SINE, az * TAIL_COSINE);
         }
 
         /** How far the ellipsoid reaches along an axis whose weight is this: 0.7 sideways, 1.4 above, 0.8 below. */
@@ -231,12 +233,21 @@ public class CryotheumMeteoriteStructure extends Structure {
                             }
                             continue;
                         }
-                        var rock = stateFor(dx, dy, dz);
+                        // Ore never shows on the outside: the outermost layer is shell whatever the band says,
+                        // and that includes the walls of the centre room, which are one cell from the void too.
+                        var rock = isSkin(dx, dy, dz, radius) ? shell : stateFor(dx, dy, dz);
                         var frost = rock.getBlock() == shell.getBlock() ? surfaceFrostAt(dx, dy, dz) : null;
                         put(level, restriction, center.offset(dx, dy, dz), frost == null ? rock : frost);
                     }
                 }
             }
+        }
+
+        /** The outermost layer of the rock: any cell with a neighbour that is not rock. */
+        private static boolean isSkin(int dx, int dy, int dz, int radius) {
+            return !insideRock(dx + 1, dy, dz, radius) || !insideRock(dx - 1, dy, dz, radius)
+                    || !insideRock(dx, dy + 1, dz, radius) || !insideRock(dx, dy - 1, dz, radius)
+                    || !insideRock(dx, dy, dz + 1, radius) || !insideRock(dx, dy, dz - 1, radius);
         }
 
         /** The tail is a projection test now, not a walk: thirty degrees is not a lattice direction. */
@@ -267,16 +278,16 @@ public class CryotheumMeteoriteStructure extends Structure {
         }
 
         /**
-         * Frost on the face of the rock the tail leaves from, so the join reads as one object: a rock cell
-         * within the tail's own width whose outward step leaves the rock turns to ice. Only the shell is
-         * replaced, so the ore bands still show through the frost.
+         * Frost on the face of the rock the tail leaves from, so the join reads as one object: every rock cell
+         * within most of the tail's own width whose outward step leaves the rock turns to ice. Only the shell
+         * is replaced, so the rest of the face stays meteorite and the ore bands still show through.
          */
         private BlockState surfaceFrostAt(int dx, int dy, int dz) {
             if (tail.along(dx, dy, dz) <= 0.0) {
                 return null;
             }
-            double base = TAIL_BASE_FACTOR * tail.headExtent(radius);
-            if (tail.acrossSquared(dx, dy, dz) > base * base) {
+            double cap = TAIL_BASE_FACTOR * tail.headExtent(radius) * CAP_WIDTH_FACTOR;
+            if (tail.acrossSquared(dx, dy, dz) > cap * cap) {
                 return null;
             }
             // Both whole-block steps that lean toward the tail count as outward, because the tail's own
@@ -286,8 +297,7 @@ public class CryotheumMeteoriteStructure extends Structure {
                     && insideRock(dx, dy, dz + tail.outwardZ(), radius)) {
                 return null;
             }
-            var rolls = RandomSource.create(Mth.getSeed(center.offset(dx, dy, dz)) + 1234L);
-            return rolls.nextDouble() <= SURFACE_FROST ? frostOf(rolls) : null;
+            return frostOf(RandomSource.create(Mth.getSeed(center.offset(dx, dy, dz)) + 1234L));
         }
 
         /** The three ices he asked for: 20% ice, 25% 浮冰, the rest blue ice. */
