@@ -15,22 +15,22 @@
   "slots": {
     "ENCODED_PATTERN": {
       "left": 8,
-      "top": 43,
+      "top": 44,
       "grid": "BREAK_AFTER_9COLS"
     },
     "STORAGE": {
       "left": 8,
-      "top": 129,
+      "top": 131,
       "grid": "HORIZONTAL"
     },
     "PLAYER_INVENTORY": {
       "left": 8,
-      "bottom": 86,
+      "bottom": 88,
       "grid": "BREAK_AFTER_9COLS"
     },
     "PLAYER_HOTBAR": {
       "left": 8,
-      "bottom": 28,
+      "bottom": 30,
       "grid": "HORIZONTAL"
     }
   },
