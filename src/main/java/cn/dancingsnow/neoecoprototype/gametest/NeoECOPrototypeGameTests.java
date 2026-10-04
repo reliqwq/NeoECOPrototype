@@ -3755,22 +3755,38 @@ public final class NeoECOPrototypeGameTests {
             return "names texture " + named + ", which is not on the classpath";
         }
         try {
+            int pitch = cn.dancingsnow.neoecoprototype.gui.GuiGrooveAlignment.ROW_PITCH;
+            int bandLeft = contract.left();
+            int bandRight = bandLeft + contract.columns() * pitch;
             var sections = cn.dancingsnow.neoecoprototype.gui.GuiGrooveAlignment.sectionsFrom(style,
                     contract.slots(), contract.secondRowShift(),
                     cn.dancingsnow.neoecoprototype.gui.GuiGrooveAlignment.textureHeight(texture));
             var drawn = cn.dancingsnow.neoecoprototype.gui.GuiGrooveAlignment.drawnGrooveTops(texture,
-                    contract.left(), contract.left() + contract.columns() * cn.dancingsnow
-                            .neoecoprototype.gui.GuiGrooveAlignment.ROW_PITCH);
+                    bandLeft, bandRight);
             if (drawn.isEmpty()) {
                 return "the texture yielded 0 groove rows, so this contract checked nothing";
             }
             var declared = cn.dancingsnow.neoecoprototype.gui.GuiGrooveAlignment.declaredTops(sections);
-            var mismatch = cn.dancingsnow.neoecoprototype.gui.GuiGrooveAlignment.firstMismatch(declared, drawn);
-            if (mismatch != null) {
-                return mismatch;
+            var rows = cn.dancingsnow.neoecoprototype.gui.GuiGrooveAlignment.firstMismatch("row", declared, drawn);
+            if (rows != null) {
+                return rows;
             }
-            NeoECOPrototype.LOGGER.info("{}: {} declared slot row(s) sit on the groove rows the texture draws",
-                    contract.name(), declared.size());
+            var declaredColumns = new ArrayList<Integer>();
+            for (int column = 0; column < contract.columns(); column++) {
+                declaredColumns.add(bandLeft + column * pitch);
+            }
+            var drawnColumns = cn.dancingsnow.neoecoprototype.gui.GuiGrooveAlignment
+                    .drawnGrooveLefts(texture, drawn.get(0), bandLeft, bandRight);
+            if (drawnColumns.isEmpty()) {
+                return "the texture yielded 0 groove columns in row " + drawn.get(0) + ", so this checked nothing";
+            }
+            var columns = cn.dancingsnow.neoecoprototype.gui.GuiGrooveAlignment
+                    .firstMismatch("column", declaredColumns, drawnColumns);
+            if (columns != null) {
+                return columns;
+            }
+            NeoECOPrototype.LOGGER.info("{}: {} declared slot row(s) and {} column(s) sit on the grooves"
+                            + " the texture draws", contract.name(), declared.size(), drawnColumns.size());
             return null;
         } catch (java.io.IOException | IllegalArgumentException failure) {
             return "reading the pair threw " + failure;

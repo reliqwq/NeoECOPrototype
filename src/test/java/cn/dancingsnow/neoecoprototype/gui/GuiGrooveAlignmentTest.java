@@ -14,8 +14,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Pins both directions of the GUI groove ruler on synthetic data, so the guard's ability to go red is
- * proven without a game JVM: a texture with drawn grooves and the rows a style declares must agree, and
- * moving one of them by the 2px we actually shipped in {@code 9f2e5e8} must be reported by name.
+ * proven without a game JVM: a texture with drawn grooves and the rows and columns a style declares must
+ * agree, and moving one of them by the 2px we actually shipped in {@code 9f2e5e8} must be reported by name.
  *
  * <p>Only the pure halves are tested here - Gson is not on this source set's classpath, so
  * {@link GuiGrooveAlignment#sectionsFrom} is exercised by the GameTest that reads the real files.
@@ -23,9 +23,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class GuiGrooveAlignmentTest {
     /** The eight rows l1_pattern_provider.png draws, measured from the shipped texture. */
     private static final List<Integer> ROWS = List.of(43, 61, 79, 131, 167, 185, 203, 225);
+    /** The nine columns every one of those rows draws in, same measurement. */
+    private static final List<Integer> COLUMNS = List.of(8, 26, 44, 62, 80, 98, 116, 134, 152);
     private static final int HEIGHT = 251;
 
-    private static byte[] textureWithGroovesAt(List<Integer> tops) throws Exception {
+    private static byte[] textureWithGroovesAt(List<Integer> tops, List<Integer> lefts) throws Exception {
         var image = new BufferedImage(256, HEIGHT, BufferedImage.TYPE_INT_RGB);
         for (int y = 0; y < HEIGHT; y++) {
             for (int x = 0; x < 256; x++) {
@@ -33,15 +35,25 @@ class GuiGrooveAlignmentTest {
             }
         }
         for (int top : tops) {
-            for (int y = top; y < top + 16 && y < HEIGHT; y++) {
-                for (int x = 8; x < 170; x++) {
-                    image.setRGB(x, y, 0x202020);
-                }
+            for (int left : lefts) {
+                paint(image, left, top, 16, 16);
             }
         }
         var out = new ByteArrayOutputStream();
         ImageIO.write(image, "png", out);
         return out.toByteArray();
+    }
+
+    private static byte[] textureWithGroovesAt(List<Integer> tops) throws Exception {
+        return textureWithGroovesAt(tops, COLUMNS);
+    }
+
+    private static void paint(BufferedImage image, int left, int top, int width, int height) {
+        for (int y = top; y < top + height && y < image.getHeight(); y++) {
+            for (int x = left; x < left + width && x < image.getWidth(); x++) {
+                image.setRGB(x, y, 0x202020);
+            }
+        }
     }
 
     /** The provider's four sections as its style JSON describes them, with the bottoms already converted. */
@@ -57,6 +69,12 @@ class GuiGrooveAlignmentTest {
         assertEquals(ROWS, GuiGrooveAlignment.drawnGrooveTops(textureWithGroovesAt(ROWS), 8, 170),
                 "each drawn 16-row band must come back as its own row start");
         assertEquals(HEIGHT, GuiGrooveAlignment.textureHeight(textureWithGroovesAt(ROWS)));
+    }
+
+    @Test
+    void readsTheColumnsOfRow() throws Exception {
+        assertEquals(COLUMNS, GuiGrooveAlignment.drawnGrooveLefts(textureWithGroovesAt(ROWS), ROWS.get(0), 8, 170),
+                "the nine 16-wide boxes of a row must come back as their own column starts");
     }
 
     @Test
@@ -76,28 +94,36 @@ class GuiGrooveAlignmentTest {
     void agreesWithTheRowsTheShippedPairDeclares() throws Exception {
         var declared = GuiGrooveAlignment.declaredTops(provider(131, 167, 225));
         assertEquals(ROWS, declared);
-        assertNull(GuiGrooveAlignment.firstMismatch(declared,
+        assertNull(GuiGrooveAlignment.firstMismatch("row", declared,
                         GuiGrooveAlignment.drawnGrooveTops(textureWithGroovesAt(ROWS), 8, 170)),
                 "the shape this pair has today must be green");
     }
 
     @Test
     void aRowMovedByTwoPixelsIsNamed() throws Exception {
-        var mismatch = GuiGrooveAlignment.firstMismatch(
+        var mismatch = GuiGrooveAlignment.firstMismatch("row",
                 GuiGrooveAlignment.declaredTops(provider(129, 167, 225)),
                 GuiGrooveAlignment.drawnGrooveTops(textureWithGroovesAt(ROWS), 8, 170));
         assertNotNull(mismatch, "the 131 -> 129 edit that 9f2e5e8 shipped must go red");
-        assertTrue(mismatch.contains("row 4") && mismatch.contains("y=129") && mismatch.contains("y=131"),
-                mismatch);
+        assertTrue(mismatch.contains("row 4") && mismatch.contains("129") && mismatch.contains("131"), mismatch);
+    }
+
+    @Test
+    void aColumnMovedByTwoPixelsIsNamed() throws Exception {
+        var mismatch = GuiGrooveAlignment.firstMismatch("column", List.of(8, 26, 44, 62, 80, 98, 116, 134, 154),
+                GuiGrooveAlignment.drawnGrooveLefts(textureWithGroovesAt(ROWS), ROWS.get(0), 8, 170));
+        assertNotNull(mismatch, "a last column declared at 154 while the art draws 152 must go red");
+        assertTrue(mismatch.contains("column 9") && mismatch.contains("154") && mismatch.contains("152"), mismatch);
     }
 
     @Test
     void aMissingOrExtraRowIsReportedAsACount() throws Exception {
-        var mismatch = GuiGrooveAlignment.firstMismatch(
+        var mismatch = GuiGrooveAlignment.firstMismatch("row",
                 GuiGrooveAlignment.declaredTops(provider(131, 167, 225)),
-                GuiGrooveAlignment.drawnGrooveTops(textureWithGroovesAt(ROWS.subList(0, ROWS.size() - 1)), 8, 170));
+                GuiGrooveAlignment.drawnGrooveTops(
+                        textureWithGroovesAt(ROWS.subList(0, ROWS.size() - 1)), 8, 170));
         assertNotNull(mismatch, "a texture that lost its hotbar groove must not read as aligned");
-        assertTrue(mismatch.contains("8 slot row(s)") && mismatch.contains("7 groove row(s)"), mismatch);
+        assertTrue(mismatch.contains("8 row(s)") && mismatch.contains("7 groove row(s)"), mismatch);
     }
 
     @Test
@@ -108,7 +134,7 @@ class GuiGrooveAlignmentTest {
 
     @Test
     void ignoresBandsThatAreNotASlotRowTall() throws Exception {
-        // The provider texture ends in a 7-row panel edge, and the powered one has a 4-row stub: neither is
+        // The provider texture ends in a 7-row panel edge and the powered one has a 4-row stub: neither is
         // a slot row, and reading either as one would report a phantom extra row.
         var withStrays = new BufferedImage(256, HEIGHT, BufferedImage.TYPE_INT_RGB);
         for (int y = 0; y < HEIGHT; y++) {
@@ -116,9 +142,9 @@ class GuiGrooveAlignmentTest {
                 withStrays.setRGB(x, y, 0xFFFFFF);
             }
         }
-        paint(withStrays, 40, 16);
-        paint(withStrays, 100, 7);
-        paint(withStrays, 140, 4);
+        paint(withStrays, 8, 40, 162, 16);
+        paint(withStrays, 8, 100, 162, 7);
+        paint(withStrays, 8, 140, 162, 4);
         var out = new ByteArrayOutputStream();
         ImageIO.write(withStrays, "png", out);
         assertEquals(List.of(40), GuiGrooveAlignment.drawnGrooveTops(out.toByteArray(), 8, 170),
@@ -136,20 +162,14 @@ class GuiGrooveAlignmentTest {
                 split.setRGB(x, y, 0xFFFFFF);
             }
         }
-        paint(split, 54, 11);
-        paint(split, 66, 4);
-        paint(split, 72, 16);
+        for (int left : COLUMNS) {
+            paint(split, left, 54, 16, 11);
+            paint(split, left, 66, 16, 4);
+            paint(split, left, 72, 16, 16);
+        }
         var out = new ByteArrayOutputStream();
         ImageIO.write(split, "png", out);
         assertEquals(List.of(54, 72), GuiGrooveAlignment.drawnGrooveTops(out.toByteArray(), 8, 170),
                 "the 1-row highlight merges, the 2-row gap between grooves does not");
-    }
-
-    private static void paint(BufferedImage image, int top, int rows) {
-        for (int y = top; y < top + rows && y < image.getHeight(); y++) {
-            for (int x = 8; x < 170; x++) {
-                image.setRGB(x, y, 0x202020);
-            }
-        }
     }
 }
