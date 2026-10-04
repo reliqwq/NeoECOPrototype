@@ -1,6 +1,11 @@
 package cn.dancingsnow.neoecoprototype.mixin;
 
-/* Version lock: NeoForge 21.1.233, Eco 21.2.0-preview12. Check crafting component #onReady methods. */
+/*
+ * Version lock: NeoForge 21.1.251, Eco 21.2.1-beta2. Checked against that jar: all three crafting
+ * components declare their own onReady(), so every target of this mixin is present. @Inject's require
+ * defaults to -1, which Mixin resolves to "required", so a missing one fails the launch like an
+ * explicit require = 1 would.
+ */
 
 import cn.dancingsnow.neoecoae.blocks.entity.NEBlockEntity;
 import cn.dancingsnow.neoecoprototype.NeoECOPrototype;

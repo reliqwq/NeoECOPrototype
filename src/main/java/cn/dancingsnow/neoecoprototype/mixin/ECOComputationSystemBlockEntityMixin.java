@@ -1,8 +1,9 @@
 package cn.dancingsnow.neoecoprototype.mixin;
 
 /*
- * Version lock: NeoForge 21.1.251, AE2 19.2.17, Eco 21.2.0-beta5.
- * beta5 keeps getBuildDefinition but no longer exposes the old onReady hook.
+ * Version lock: NeoForge 21.1.251, AE2 19.2.17, Eco 21.2.1-beta2. That host class still declares
+ * public MultiBlockDefinition getBuildDefinition() and no longer overrides onReady(), so the definition
+ * is the only thing taken from it.
  */
 
 import cn.dancingsnow.neoecoae.api.IECOTier;
@@ -26,7 +27,9 @@ public abstract class ECOComputationSystemBlockEntityMixin {
 
     @Inject(method = "getBuildDefinition", at = @At("HEAD"), cancellable = true)
     private void neoecoprototype$l1Definition(CallbackInfoReturnable<MultiBlockDefinition> cir) {
-        if (tier instanceof SimplifyTier) {
+        // Compared against the one constant rather than the enum type: SimplifyTier also carries
+        // L1_REINFORCED, L1_ENERGIZED_THREADING and L1_PARALLEL_SWITCH, which belong to members and cells.
+        if (tier == SimplifyTier.L1) {
             cir.setReturnValue(SimplifyComputationDefinition.L1);
         }
     }

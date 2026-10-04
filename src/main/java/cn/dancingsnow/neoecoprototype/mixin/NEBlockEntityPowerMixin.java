@@ -1,6 +1,10 @@
 package cn.dancingsnow.neoecoprototype.mixin;
 
-/* Version lock: NeoForge 21.1.233, Eco 21.2.0-preview12. Check NEBlockEntity#onReady return injection. */
+/*
+ * Version lock: NeoForge 21.1.251, Eco 21.2.1-beta2. Checked against that jar: NEBlockEntity declares
+ * public void onReady(), which is what the require below binds to - if it disappears this does not go
+ * quiet, it fails at class transformation.
+ */
 
 import cn.dancingsnow.neoecoae.blocks.entity.NEBlockEntity;
 import cn.dancingsnow.neoecoprototype.NeoECOPrototype;
