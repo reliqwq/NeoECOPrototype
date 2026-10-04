@@ -128,9 +128,11 @@ public class FumoItem extends BlockItem implements Equipable {
     @Override
     public Component getName(ItemStack stack) {
         ResolvableProfile owner = stack.get(ModRegistration.FUMO_OWNER.get());
-        if (owner == null) return super.getName(stack);
+        // The lang key is "%s's Doll", so a profile carrying a uuid and no name reads as a dangling
+        // possessive - "'s Doll", and " 玩偶" in Chinese.
+        if (owner == null || owner.name().isEmpty()) return super.getName(stack);
         MutableComponent name = Component.translatable("block.neoecoprototype.fumo_reliqwq.named",
-                owner.name().orElse(""));
+                owner.name().get());
         return isNamedDoll(stack) ? name.withStyle(ChatFormatting.GREEN) : name;
     }
 

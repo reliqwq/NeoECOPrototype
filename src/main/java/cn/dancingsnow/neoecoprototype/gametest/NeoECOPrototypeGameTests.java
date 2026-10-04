@@ -1640,6 +1640,18 @@ public final class NeoECOPrototypeGameTests {
             return;
         }
         ownerSurvivesEveryCopy(helper);
+        // A profile can carry a uuid and no name; the lang key is "%s's Doll", so that used to read as
+        // a dangling possessive.
+        var nameless = new ItemStack(ModRegistration.FUMO_RELIQWQ_ITEM.get());
+        nameless.set(ModRegistration.FUMO_OWNER.get(), new net.minecraft.world.item.component.ResolvableProfile(
+                java.util.Optional.empty(), java.util.Optional.of(java.util.UUID.randomUUID()),
+                new com.mojang.authlib.properties.PropertyMap()));
+        var plainTitle = ModRegistration.FUMO_RELIQWQ_ITEM.get().getName(ItemStack.EMPTY);
+        if (!nameless.getHoverName().equals(plainTitle)) {
+            helper.fail("a doll with a uuid but no name is titled \"" + nameless.getHoverName().getString()
+                    + "\" instead of the plain \"" + plainTitle.getString() + "\"");
+            return;
+        }
         helper.succeed();
     }
 
