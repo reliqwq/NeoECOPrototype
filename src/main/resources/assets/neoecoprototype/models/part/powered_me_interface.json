@@ -3,8 +3,8 @@
   "textures": {
     "sides": "ae2:part/interface_sides",
     "sidesStatus": "neoecoprototype:part/interface_status_ring",
-    "particle": "neoecoprototype:block/powered_me_interface",
-    "back": "neoecoprototype:block/powered_me_interface",
+    "particle": "neoecoprototype:part/powered_me_interface_back",
+    "back": "neoecoprototype:part/powered_me_interface_back",
     "front": "neoecoprototype:block/powered_me_interface"
   },
   "elements": [
