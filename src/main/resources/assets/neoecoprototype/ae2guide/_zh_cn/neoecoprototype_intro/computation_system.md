@@ -45,6 +45,11 @@ L1 计算系统是 eco 计算系统的前期版本：一个为 ME 网络提供�
 
 ## 两件盈能强化成员
 
+<GameScene zoom="4" interactive={true}>
+  <ImportStructure src="../scenes/l1_compute_energized.nbt" />
+  <IsometricCamera yaw="45" pitch="30" />
+</GameScene>
+
 - **盈能强化计算机核心**（`energized_computation_core`）：每块 **+1024 并行**。它**只接受一格 —— 控制器
   正后方**那一格外壳站位。和所有外壳位成员一样，成型后它不再画自己：主机的成型面在两者共享的那个平面上有
   一片玻璃 quad，成员再画上去就会与它抢深度、从外面看就是闪。成型外观归主机独占。它以前站的是主机旁边的

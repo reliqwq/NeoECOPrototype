@@ -47,6 +47,11 @@ The concept matches eco's Computation System: the base provides **1 crafting thr
 
 Two extra parts lift an L1 subsystem above what eco's own members give it:
 
+<GameScene zoom="4" interactive={true}>
+  <ImportStructure src="../scenes/l1_compute_energized.nbt" />
+  <IsometricCamera yaw="45" pitch="30" />
+</GameScene>
+
 - **Energized Computation Core** (`energized_computation_core`) adds **1024 co-processors**. It fits
   exactly one cell: directly behind the controller, in place of the casing there. Like every shell
   member it stops drawing itself once the structure forms - the host's formed face carries a quad on the
