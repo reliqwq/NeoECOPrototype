@@ -3982,8 +3982,9 @@ public final class NeoECOPrototypeGameTests {
      * Generation is a config choice, not a datapack, so the predicate that makes it one is worth pinning:
      * an empty list means nowhere rather than everywhere, and a typo has to read as off.
      *
-     * <p>The shipped default is deliberately not asserted here - a config file written by an earlier run
-     * wins over the built-in default, so reading it in a test would fail for reasons nobody can see.
+     * <p>The value a config file was loaded with is deliberately not asserted here - a file written by an
+     * earlier run wins over the built-in default, so reading it would fail for reasons nobody can see. The
+     * built-in default constant is asserted instead, which no local file can move.
      */
     @GameTest(template = "empty", batch = "cryotheum_ore_gate", timeoutTicks = 100,
             templateNamespace = NeoECOPrototype.MOD_ID)
@@ -4004,6 +4005,10 @@ public final class NeoECOPrototypeGameTests {
                 "a bare path without a namespace must not match, or a typo reads as enabled");
         helper.assertTrue(!gate.test(nether, List.<String>of()),
                 "an empty list must switch generation off, not open it up");
+        helper.assertTrue(cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig
+                        .CRYOTHEUM_ORE_DIMENSIONS_DEFAULT.isEmpty(),
+                "the built-in default now names a dimension, so a fresh install would generate the ores "
+                        + "before the crystal family they lead to has any use");
         helper.succeed();
     }
 

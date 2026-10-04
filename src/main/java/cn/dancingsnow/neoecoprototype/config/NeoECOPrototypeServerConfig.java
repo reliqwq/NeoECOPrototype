@@ -34,6 +34,12 @@ public final class NeoECOPrototypeServerConfig {
     public static final ModConfigSpec.LongValue ENERGIZED_CELL_TOTAL_BYTES;
     /** Dimensions the cryotheum ore may generate in; an empty list generates nowhere. */
     public static final ModConfigSpec.ConfigValue<List<? extends String>> CRYOTHEUM_ORE_DIMENSIONS;
+    /**
+     * Out of the box the cryotheum ores generate in nothing. The crystal family they lead to has no recipe
+     * yet, so an ore that cannot be earned or spent anywhere stays switched off until that lands. The GUI
+     * guard asserts this is empty, so re-enabling a dimension is a deliberate edit.
+     */
+    public static final List<String> CRYOTHEUM_ORE_DIMENSIONS_DEFAULT = List.of();
     /** How much of the vanilla powder-snow chill one broken cryotheum ore is worth. */
     public static final ModConfigSpec.IntValue CRYOTHEUM_ORE_FREEZE_TICKS;
 
@@ -92,12 +98,12 @@ public final class NeoECOPrototypeServerConfig {
         builder.push("cryotheum_ore");
         CRYOTHEUM_ORE_DIMENSIONS = builder
                 .comment("Dimensions the cryotheum ores generate in, by full ID. Each dimension has its own",
-                        "ore and its own biome modifier, so removing one entry only switches that ore off.",
-                        "An empty list turns all four off. Moving an ore to a dimension it was not authored",
+                        "ore and its own biome modifier, so adding one entry only switches that ore on.",
+                        "An empty list turns all three off. Moving an ore to a dimension it was not authored",
                         "for needs a datapack, because the host stone is chosen by the feature.",
-                        "Default: [\"minecraft:the_nether\", \"minecraft:the_end\", \"minecraft:overworld\"].")
+                        "Default: none, until the crystal family they lead to has a recipe.")
                 .defineListAllowEmpty("dimensions",
-                        () -> List.of("minecraft:the_nether", "minecraft:the_end", "minecraft:overworld"),
+                        () -> CRYOTHEUM_ORE_DIMENSIONS_DEFAULT,
                         value -> value instanceof String id
                         && net.minecraft.resources.ResourceLocation.tryParse(id) != null);
         CRYOTHEUM_ORE_FREEZE_TICKS = builder
