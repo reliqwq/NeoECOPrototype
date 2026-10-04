@@ -4,7 +4,9 @@
     "../pattern_provider.json"
   ],
   "background": {
+    "$comment": "textureHeight must equal the real height of the PNG: AE2 divides the v coordinates by it, and its default is 256. A sheet that is not 256 tall gets stretched by the ratio and wraps past its own bottom edge.",
     "texture": "guis/neoecoprototype/l1_pattern_provider.png",
+    "textureHeight": 251,
     "srcRect": [
       0,
       0,
@@ -68,7 +70,7 @@
       },
       "position": {
         "left": 8,
-        "bottom": 97
+        "top": 152
       }
     }
   }
