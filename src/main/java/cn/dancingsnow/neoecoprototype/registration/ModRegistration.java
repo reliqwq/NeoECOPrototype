@@ -1127,12 +1127,11 @@ private static Supplier<BlockEntityType<SimplifyStorageVentBlockEntity>> registe
                         output.accept(SIMPLIFY_ENERGY_CELL_ITEM.get());
                         output.accept(SIMPLIFY_STORAGE_CASING_ITEM.get());
                          output.accept(SIMPLIFY_GREEN_ALUMINUM_CASING_ITEM.get());
+                        // Only these two ore items generate, and they drop eco's cryotheum crystal, which two
+                        // shipped recipes consume. The overworld ore has no biome modifier naming it, and no
+                        // recipe anywhere names a frigit or a neoecoprototype cryotheum id.
                         output.accept(NETHER_CRYOTHEUM_ORE_ITEM.get());
                         output.accept(END_CRYOTHEUM_ORE_ITEM.get());
-                        output.accept(CRYOTHEUM_ORE_ITEM.get());
-                        output.accept(FRIGIT_CRYSTAL.get());
-                        output.accept(FRIGIT_CRYSTAL_BLOCK_ITEM.get());
-                        output.accept(FLAWLESS_BUDDING_FRIGIT_ITEM.get());
                         output.accept(SIMPLIFY_STORAGE_INTERFACE_ITEM.get());
                         output.accept(SIMPLIFY_STORAGE_NETWORK_INTERFACE_ITEM.get());
                         output.accept(SIMPLIFY_STORAGE_VENT_ITEM.get());
