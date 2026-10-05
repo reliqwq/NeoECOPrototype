@@ -39,7 +39,7 @@
 			"to": [31, 16, 2],
 			"rotation": {"angle": 0, "axis": "y", "origin": [21, 0, 2]},
 			"faces": {
-				"north": {"uv": [0, 0, 12, 16], "texture": "#coolant", "neoforge_data": {"block_light": 15, "sky_light": 15}}
+				"north": {"uv": [16, 0, 4, 16], "texture": "#coolant", "neoforge_data": {"block_light": 15, "sky_light": 15}}
 			}
 		},
 		{
@@ -244,7 +244,6 @@
 		15,
 		16,
 		17,
-		18,
-		19
+		18
 	]
 }
