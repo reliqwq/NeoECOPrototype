@@ -41,7 +41,7 @@ The L1 Computation System is the early-game version of eco's Computation System:
 </ItemGrid>
 
 
-The concept matches eco's Computation System: the base provides **1 crafting thread** (a quarter of eco's L4), extendable with parallel and threading cores under eco's rules. The L1 variant above is the minimal working structure.
+The concept matches eco's Computation System: the base provides **1 crafting thread** (a quarter of eco's L4), extendable with parallel and threading cores under eco's rules. The L1 variant above is the minimal working structure. As of this version the plain cores are stronger than they first shipped as: each parallel core gives **24 co-processors** and each threading core **2 crafting threads**.
 
 ## Energized members
 
@@ -52,16 +52,11 @@ Two extra parts lift an L1 subsystem above what eco's own members give it:
   <IsometricCamera yaw="45" pitch="30" />
 </GameScene>
 
-- **Energized Computation Core** (`energized_computation_core`) adds **1024 co-processors**. It fits
-  exactly one cell: directly behind the controller, in place of the casing there. Like every shell
-  member it stops drawing itself once the structure forms - the host's formed face carries a quad on the
-  plane the two share, so a member drawn there fights it over depth and flickers. The formed look is
-  the host's alone. The cell it used to occupy, in the shell beside the host, is also where eco puts its
-  own network switch, which is why it moved behind the controller.
+- **Energized Computation Core** (`energized_computation_core`) adds **1024 co-processors**. At most one
+  fits, in its fixed cell: the casing position directly behind the controller.
 - **Energized Computation Threading Core** (`energized_computation_threading_core`) adds **16 crafting
-  threads**, and is only accepted in the cell nearest the controller. Anywhere else that line fails to
-  validate and the whole structure stays unformed. The threads are real: eco sizes its CPU array from
-  this number, so it is concurrency the CPUs actually run on.
+  threads**, and is only accepted in the cell nearest the controller. That is the same 16 eco's CM6A
+  core gives.
 
 ## Crafting them
 
@@ -70,9 +65,6 @@ Two extra parts lift an L1 subsystem above what eco's own members give it:
 | Energized Computation Core | Integrated Working Station (eco) | 3 x C4 expandable computation system, 8 x green crystal matrix, 4 x not-so-mysterious cube, 66,600 FE |
 | Energized Computation Threading Core | L1 processor assembly room | 2 x CM4A threading core, 1 x C1 computation casing |
 | Energized computation cell (CE1R) | L1 processor assembly room | 2 x CE1 cell, 1 x L4 storage component |
-
-The two computation cells are told apart **by their inventory icon only** - CE1 keeps eco's green
-accent, CE1R uses our blue. Once they are sitting in a drive they look the same again.
 
 ## L1 numbers are configurable
 

@@ -1,71 +1,92 @@
 # Changelog
 
-## 3.0.0-beta1 (2026-09-30) - 界面标题交回方块自己，依赖地板抬到 eco 21.2.1
+## 3.0.0-beta1 (2026-10-05)
 
-### 默认关闭 / Off by default
+本版重点：把 eco 的多方块、存储与合成真正下放到 L1，并新增天外寒冰 / Frigit 一族与末地浮空彗星。
 
-- **玩偶功能整族默认关掉**，服务器配置 `fumo_enabled` 现为 `false`。关掉的范围：戴着给的那套效果、苦力怕躲玩偶那条目标、`/prototypefumo`、创造栏里的四只具名玩偶，以及指南里那一页（含中英两边的入口句）。原因是两条：那条目标让**每只苦力怕每一 tick** 都去查一次"附近有没有带玩偶的玩家"，而玩偶的模型与皮肤美术要重画。**方块与物品仍然注册着，已经放下去的玩偶照常渲染、照常掉落带主人的物品**——这一档不烧 id，翻回true 即可整族恢复。已在世界里的苦力怕要等它下次被加载才不再带那条目标，因为目标是实体进场时才挂的。 The whole plushie feature ships switched off behind the new `fumo_enabled` server config: the worn effects, the creeper-flee goal, `/prototypefumo`, the four named creative-tab dolls and its guide book page (both languages) are all gated. Two reasons - that goal makes every creeper search for a plushie-carrying player on every one of its ticks, and the doll's art is being redrawn. The block and item stay registered, so placed dolls still render and still drop themselves with their owner; flipping the config back restores everything. Creepers already in a level keep the goal until they are next loaded.
+### ⚠️ 升级前必读
 
-### 移除 / Removed
+- **需要 Neo ECO AE Extension 21.2.1-beta2 或更新。** 装上旧版会直接启动失败，不是可选项。
+- **`fumo_enabled` 配置项已删除。** 玩偶的护甲与效果、苦力怕躲避、`/prototypefumo` 现在默认生效；旧配置文件里那一行会被静默忽略。如果你之前靠它关掉玩偶，升级后这些行为会恢复——不想恢复就把玩偶从世界里收走。
+- **`pigcat_storage_cell` 与 `pigcat_storage_matrix_housing` 改名为 `pigmee_*`，故意没有挂注册表别名。** 旧存档里按旧 id 存的那两格**会变成空气**。更新前先把里面的东西倒出来。
+- **天外寒冰 / Frigit 一族现在整族默认不进世界。** 矿脉由 `cryotheum_ore_dimensions`（出厂是空表）管，彗星由新键 `cryotheum_meteorite.enabled` 管，**默认 `false`**。想打开矿脉就列维度：`minecraft:the_nether`（整个下界）或 `minecraft:the_end`（**只落在 `end_highlands` 这一个群系**）；主世界那颗矿没有自己的生成文件，只能从彗星里来，所以要见到它得把彗星打开。两条都在生成时生效：**已经生成的区块不受影响**，改完要飞新区块才看得见。
 
-- **小宗仓的手动过滤器面板整块删掉了**：主机 GUI 里那排幽灵槽，以及左右换驱动器的那两个箭头。上游既没给这块留可依赖的 API，它自己那套逻辑也靠不住，不值得再维护。删掉的是 `SimplifyStorageMegaPanelUI` 一个类、主机侧七个方法加两个 `@Persisted` 字段（选中的驱动器 / 页码）、驱动器侧三个方法（含那条 `setSmallBulkFilter` 的 `@RPCMethod`）。**标记本身一点没少**：AE2 自己的盘配置界面照样能标，主机上那个"一键标记"也照样批量填——它写的是同一份 `getConfigInventory`，路径不经过被删掉的那些方法。旧存档里那两个已删字段会被直接忽略，不报错、不炸档。 The manual small-bulk filter panel is gone: the ghost-slot row and the two drive-paging arrows in the storage host's GUI. Marking still works, through AE2's own cell config UI and through the auto-mark button, which writes the same config inventory without the deleted methods. Old saves simply drop the two removed `@Persisted` fields.
+### 新增
 
-### 新增 / Added
+- 四只具名玩偶各自成为一个方块、一件物品：`fumo_doll_reliqwq` / `_yang120` / `_kouooki` / `_tedxenon`，放下时按玩家朝向转四向。
+- 每只玩偶的护甲与效果分别在注册处给定：reliqwq 与 yang120 是 4 护甲 / 2 韧性，kouooki 是 1 护甲 / 5 韧性，tedxenon 是 6 护甲 / 1 韧性并额外给生命恢复（30 秒，戴着自动续期）。所有玩偶共有的夜视不显示图标，tedxenon 的恢复图标刻意显示。
+- 天外寒冰现在可以采到：三种矿（主世界 / 下界 / 末地）与 Frigit 晶体一族，共 12 个方块、1 件物品。母岩有四档，破坏时按战利品表逐级降级。
+- 末地新增我们自己的浮空彗星结构：一颗带尾巴的彗星，头上是母岩与芽，尾巴是冰与石英。
+- 末地浮空彗星现在也能关了：新配置键 `cryotheum_meteorite.enabled`，默认 `false`。以前它不受任何开关管——矿脉关掉之后，它是一族里唯一还会自己进世界的东西。
+- 上一版的美术做成一个可以直接开关的资源包，随 jar 一起发，不需要另外下载。升级后它默认是关着的。
+- JEI 的转移按钮现在能把装配室的配方编码成样板。
+- 驱动器上会显示当前挂载的是哪只矩阵（图标 + 数量 × 名字）。
 
-- **苦力怕怕玩偶**：戴着玩偶、或者把它拿在任一只手里，苦力怕会像遇到猫一样躲开——用的就是原版对猫和野猫的那条目标，同样优先级 3、半径 6 格、逃跑速度 1.2/1.2，所以躲开的方式（含下水与转头）不会和猫走偏。**放在地上的玩偶没有这个效果**：那条目标只看得见实体，方块版本得另写一个目标。所有玩偶都算，与夜视同一口径。 Creepers flee from anyone wearing or holding a plushie, using vanilla's own cat goal - the same priority, the same 6 blocks and the same 1.2/1.2 speeds - while a placed doll does not count, because that goal only sees entities.
-- **TedXenon 玩偶**：创造物品栏里第四只具名玩偶。戴在头上是 +6 护甲值、+1 护甲韧性，并且在所有玩偶共有的夜视之外额外给予生命恢复（30 秒，戴着自动续期）。这一条的效果图标和粒子是**故意显示**的，和夜视相反：夜视有绿幕所以藏图标，而一个看不见的恢复效果只会被当成"没生效"。**它暂时没有配方**，所以指南里具名玩偶是四个、可合成的是三个。 A fourth named doll in the creative tab: +6 armour / +1 toughness plus Regeneration on top of the night vision every doll grants, drawn with its icon on purpose so the wearer can see it working. No recipe yet, deliberately.
+### 变更
 
-### 修复 / Fixed
+- 苦力怕躲玩偶改成**按玩偶扫**：放下去的方块和戴在头上的玩家各自每 5 tick 扫周围 6 格。**拿在手里不再算**——上一版算。
+- 小宗存储矩阵的档位口径统一为 `1k / 16k / 64k / 1M / 4M`（物品、流体、化学品三介质一致）；化学品那档 `4k` 整档撤掉，它自 1.2.0 起就只能靠 `/give` 拿到。
+- 盈能水晶一族与那颗生存里拿不到的矿不再出现在创造栏里，物品本身仍然注册着。
+- 配置项 `green_pattern_provider_slots` 删除：L1 样板供应器的样板槽固定 27 个，因为贴图就画了三行九格。旧配置文件里残留的那一行不再有作用。
 
-- **三张 L1 界面的槽行回到贴图画的凹槽上**：换进 `l1_pattern_provider.png` 与 `l1_powered_me_interface.png` 两份新贴图，并把三份样式 JSON 的槽行对到各自贴图真正画出的行——供应器改 4 处（样板 43→44、返回库存 129→131、背包 bottom 84→88、快捷栏 26→30），供能改 5 处（含 srcRect 高度 260→261，因为新贴图高了 1 像素），超导改 4 处（它每行都差 1 像素，用的是原图）。症状是每个格子的物品压在凹槽上沿、上边多一条暗带。**三份的槽行数都是 8、格数没动**，改的只是摆位。 The three L1 GUI styles now declare their slot rows where their own textures draw them; the symptom was items sitting on the top border of each groove.
+### 修复
 
-- **创造栏的具名玩偶不再共用一张脸**（之前四只全是同一款默认皮肤，看起来就是"都变成 Alex"）：`FumoItem.ownedBy()` 建的 profile 只有名字、id 是空的，原版于是把它们当成同一个玩家，共用**同一张**兜底皮肤。现在按 `OfflinePlayer:<名字>` 生成离线 UUID，与单机离线玩家用的是同一个算法，默认皮肤随名字而变。**真人皮肤仍然只有 `/prototypefumo <玩家名>` 那条路能拿到** —— 那里走的是原版的 profile 解析（会联网），创造栏建标签页时不能阻塞在这上面。 The creative-tab dolls no longer share one fallback skin: the profile was built with an empty id, so vanilla resolved all four names to the same default skin. They now carry an offline-player UUID, which makes the default vary per name the way it does for an offline singleplayer player - a real skin still only comes from the command, which asks the session service.
-- **L1 存储子系统通讯接口的界面标题**：这个 GUI 一直显示上游的默认标题，因为我们注入的目标 lambda 在上游给它加了一个 lambda 之后就改了编号，而注入是可选的（不报错，只是不生效）。现在标题由方块自己给（上游 21.2.1 的 `GuiTitleProvider`），**L1 存储子系统通讯接口 / C1 计算子系统通讯接口 / F1 合成子系统通讯接口 / F1 智能样板总线** 四个界面都显示自己的名字。 The storage interface's title had been silently falling back to upstream's default because our injection aimed at a renumbered compiler-generated lambda; the blocks now answer for their own headers.
-- **三个界面的槽位行位**：L1 样板供应器、L1 供能接口、盈能超导接口的槽位段按贴图凹槽实测重排（画出来的凹槽是 16 像素高、18 像素一行，而 AE2 的 `bottom` 是从区块**顶边**量的）。L1 样板供应器 另外补上了一个被漏掉的标签段：`includes` 是按键合并的，覆盖槽位段并不会连带覆盖它上面的 `interface_config` 标签。 Slot rows re-measured against the drawn grooves; the pattern provider also regained its `interface_config` label section, which an override of the slot section does not inherit.
+- L1 样板供应器、L1 供能接口、盈能超导接口三张面板被整块压扁的问题修掉了：AE2 按 256 像素的参考高度缩放 GUI 贴图，真实高度不是 256 的面板会被拉伸并在底部回绕。现在样式里声明了各自的高度，槽位坐标一个都没动。
+- 上面那次压缩结掉了另一笔账：两张接口的贴图比目标槽行低 2–3 像素，曾经被记成"等美术重画贴图"。贴图与绑定都没错，不需要重画，那条已知项撤销。
+- L1 存储子系统通讯接口不再显示上游的默认标题。现在存储通讯接口、C1 计算通讯接口、F1 合成通讯接口、F1 智能样板总线四个界面各自报自己的名字。
+- 创造栏里的四只具名玩偶不再共用同一张默认皮肤（看起来像"都变成了 Alex"）。现在按名字给不同的默认皮肤；**真人皮肤仍然只有 `/prototypefumo <玩家名>` 拿得到**。
+- 挖掉放下去的玩偶，掉出来的仍是带主人的那一只：以前没有绿色名字、没有护甲、也没有额外效果。
+- 具名玩偶的 tooltip 会说清它的第二样效果，不再只写夜视。
+- 驱动器的信息整块不显示的情况修好了：空驱动器返回的是 `null` 而不是空物品，一处判空把整块数据写没了。
+- L1 样板供应器补回一个被漏掉的标签段（覆盖槽位段不会连带覆盖它）。
 
-- **挖掉放下去的玩偶，掉出来的仍是同一只**：以前掉落物不带主人组件，于是它成了匿名玩偶——没有绿色名字、没有护甲、也没有额外效果。放下那一步一直是好的（方块实体会从物品拿到主人组件），坏的只有"拿回来"：原版 `Block#getCloneItemStack` 不会去问方块实体要组件，只有蜂箱/潜影盒那几个方块自己做了这件事。现在生存挖掘靠战利品表加 `copy_components`（source = `block_entity`），创造中键靠覆写 `getCloneItemStack`。
-- **具名玩偶的 tooltip 会说清它的第二样效果**：原来那行「戴在头上时：夜视（30 秒）」所有玩偶共用，TedXenon 的生命恢复只写在指南里，所以"戴上没反应"其实是"没写"。新那一行直接用效果自身的显示名，以后加效果不必再加 lang 键，文字也不会和实际施加的效果脱节。
+### 移除
 
-### 变更 / Changed
+- 小宗仓的手动过滤器面板整块删掉（主机 GUI 里那排幽灵槽和左右换驱动器的两个箭头）。**标记能力一点没少**：AE2 自己的盘配置界面照样能标，主机上那个"一键标记"也照样批量填，两者写的是同一份配置。旧存档里相关的两个字段会被直接忽略，不报错、不炸档。
+- 天外寒冰的深板岩档删除。
 
-- ⚠️ **更新警告：猪咪那两件物品改名了** —— `pigcat_storage_cell` → `pigmee_storage_cell`、`pigcat_storage_matrix_housing` → `pigmee_storage_matrix_housing`，配方、lang 键与模型文件名一起跟上（对齐美术的 `l1_pigmee` 与 闪电科技 的叫法）。**旧存档里按旧 id 存的那两格会变成空气**，我们故意没有挂注册表别名：这是 beta 版，而猪咪矩阵是彩蛋容量（2.5 KiB），不该有人在用它存东西。真在旧档里留着的话，更新前先把里面倒出来。
+### 已知问题
 
-- **依赖地板抬到 Neo ECO AE Extension 21.2.1**。抬地板不是偏好而是必须：我们现在 implements 上游的 `gui.GuiTitleProvider`，在 21.2.0 上那个接口根本不存在，加载我们的方块类就会失败。AE2 那侧**没有抬**：自己声明的区间一直是 `[19.2.17,)`，2026-10-03 起连编译目标也降回 19.2.17——19.2.18 那道门是 eco 21.2.1-beta1 从它自己那边设的，而 beta2 已经把它撤回 19.2.17，所以现在门只剩我们自己这一道。地板写的是 `[21.2.1-beta2,)` 而不是 `[21.2.1,)`：beta2 自报的真版本号就是 `21.2.1-beta2`，而预发布号排在正式版之下，那条宽区间反而吃不进我们要编的那个 jar。**唯一的硬要求是 eco 21.2.1-beta2 或更新。**
-- **mixin 从 16 条降到 7 条**：五个界面标题注入 + 只为它们服务的那个上下文类删掉（换成方块自己实现 `GuiTitleProvider`）；计算与合成两条多方块几何注入换成上游的登记口 `registerCalculatorFactory`；`ECOCraftingSystemBlockEntityMixin` 变成 F1 子类上的两个普通覆写；随之失去使用者的 `MBCalculatorTargetAccessor` 也删掉。留下的 7 条里有 6 条与这次升级无关——上游没有为它们要改的行为提供新入口（`NEBlockEntityPowerMixin`、`ECOCraftingHighPowerMixin`、`ECOClientUIBridgeMixin` 的目标是 eco 的类，`InterfaceLogicAccess`、`FixedBlockEntityRenderersMixin`、`SlotYAccessor` 是 AE2 与原版的），其中两条注入的 AE2 目标类（`appeng.helpers.InterfaceLogic`、`appeng.me.cluster.MBCalculator`）在 19.2.17 与 19.2.18 之间 javap 逐字节相同，所以换 AE2 版本不会让它们失效；第 7 条 `ECOComputationSystemBlockEntityMixin` 是相关的但撤不掉：C1 的方块实体类**就是** eco 的（那是为了留在 AE2 机器表里故意退回去的），所以它的 `getBuildDefinition` 只能注入、改不成覆写。
-- **`green_pattern_provider_slots` 配置项删除**：L1 样板供应器的样板槽固定 27 个，因为贴图就画了三行九格，这个数字在代码里只有 `createLogic()` 一处。旧配置项无论填什么都不可能被贴图正确表达（别的值只会让槽位飘在面板画面上），所以删掉而不是加注释。旧配置文件里残留的那一行不再有作用。 The pattern-provider slot count is hardcoded to 27 because that is what the texture draws; the config key could not express any other correct value, so it is gone rather than documented.
+- 天外寒冰 / Frigit 一族整族默认不进世界：矿脉靠 `cryotheum_ore_dimensions` 的空默认，彗星靠 `cryotheum_meteorite.enabled` 的 `false` 默认。原因是这一族通向的水晶还没有可用的下游用途（配方故意没写），而母岩、芽与簇只有彗星这一个来源——两头都关住，新世界的末地才不会挂着一串用不上的半成品。已经在世界里的方块照常渲染、照常能采；这两条都在生成期读取，改完要飞新区块，老区块不会被补上，也不会被抹掉。
+- Trinity 多方块（三合一联合体）仍属实验内容：它不进 JEI，物品上带一行"未实现"提示。
+- `tedxenon` 至今没有配方，所以指南里具名玩偶是四只、能合成的是三只。
+- `/prototypefumo` 手打能执行，但不出现在 Tab 补全里（旧现象，未改）。
 
-### 已知 / Known
+### 依赖
 
-- **上面那条"槽位行位"修的是 JSON，不是贴图**。三份 JSON 现在描述的是**目标行位**（贴图应该把凹槽画在哪），不是旧贴图实际画在哪。两张接口的贴图比目标行低 2–3 像素，那三张 PNG 由美术重画；**在重画之前，运行时看到的偏差还在，甚至对某些行会更明显**。重画完成后要重新量一次"JSON 想要的行 vs PNG 画出的行 = 0"再撤掉这条。 The three JSONs now state the rows the art *should* be drawn at; the textures have not been repainted yet, so this is not a visual fix until the PNGs move.
-- **两条多方块几何注入都换成上游的登记口**（`registerCalculatorFactory`），`NEComputationClusterCalculatorMixin`、`NECraftingClusterCalculatorMixin` 与 `MBCalculatorTargetAccessor` 删除。之所以各只登记主机一个类型：上游 21.2.1 的两个计算器都有"把检查转给范围内那台主机的计算器"的路由（`NE{Computation,Crafting}ClusterCalculator#controllerCalculator`），成员方块自己的检查会转过去；合成侧是 javap 看见方法确实在那儿才用的，不是从计算侧推出来的。过程中量到并否证了一条担心：`publishShape` 的 `scheduleTick` 会不会形成重算反馈环——同一 tick 内 160 次几何检查 + 160 次 `publishShape`，**装不装这条改动数字一模一样**。守卫的强弱两边不一样，说清楚：计算侧有机壳守卫 `computationCasingCalculatorKnowsL1Geometry`（问的就是机壳自己的计算器，只有走新路由才为真），**合成侧没有等价守卫**，靠的是既有的 F1 成型测试。F1 主机的 `getBuildDefinition` / `onReady` 也从注入变成 `SimplifyCraftingSystemBlockEntity` 上的普通覆写（两者在 21.2.1 里都是 public，而 F1 本来就故意是自己的子类）。仍有一处可以更进一步：把覆写从 `verifyInternalStructure` 缩到上游新增的 `protected verifyStructure(...)`，那样 `setMirrored` / 冷却控制器 / `network_switch` 的写回就交回上游（我们现在必须自己写，因为检查一旦路由给我们，上游那半段不跑）。
-- **这是预发布的原因**：上游最新的公开发布仍然是 21.2.0（2026-09-26），21.2.1 目前没有任何公开下载文件（这轮用的 jar 是上游作者直接给的）。也就是说玩家装不到我们要求的依赖，所以第一个吃这条基线的版本只能标 beta。 Upstream has not published a 21.2.1 file anywhere yet, which is exactly why the first addon build on it is a prerelease.
-- 旧现象，未改：`/prototypefumo` 手打能执行但不出现在 Tab 补全里。
+- Neo ECO AE Extension `21.2.1-beta2` 或更高；Applied Energistics 2 `19.2.17` 或更高；Java 21。
+- MegaCells `4.11.0+` 是小宗存储矩阵整族的门槛；化学品单元与化学品矩阵另需 Mekanism 与 Applied Mekanistics。
+- 这一版标 beta 而不是正式版：上游最新的公开发布仍是 21.2.0，`21.2.1` 还没有公开下载文件。
+版版本下限为什么这么写，见
 
-### 工程侧 / For development
+## 1.2.12 (2026-10-01)
 
-- **GUI 槽行成了一条会红的契约**：`GuiGrooveAlignment` 同时读样式 JSON 的 `top`/`bottom`/`grid` 与贴图实际画出的凹槽行，三份界面逐行比对，**容差 0**——AE2 与 ExtendedAE 自己发的两份都是零误差，所以"差 2px"是缺陷不是噪声。格数不写在守卫里，而是读代码：`PATTERN_SLOTS`、两份接口的 `MARKER_SLOTS`、AE2 的 `PatternProviderReturnInventory.NUMBER_OF_SLOTS`、原版 `Inventory.INVENTORY_SIZE/getSelectionSize()`。守卫挂在已有的 `asset_references` 批次里（不新开 batch、不占 plot），带三条自红装置（贴图取不到 / 扫到 0 行凹槽 / 样式缺 section 都算红），纯函数部分另有 8 条 JUnit（含两条"必须变红"）。 A guard now compares each GUI style against its texture row by row at zero tolerance, with the slot counts read from code.
+从 `v1.2.11` 切 `hotfix/1.2.12` 单独发的紧急修复，只带两条，不跟着 3.0.0-beta1 的依赖地板走。
 
-- 从干净克隆构建时，缺哪个本地依赖 jar 会**在配置阶段就报出精确路径**（这个仓库不重分发任何依赖 jar，README 与 CONTRIBUTING 都是这么定的）。清单只在 `build.gradle` 里存在一份，文档里不再抄一遍，避免两份真相漂开。
-- 新增三项会红的游戏测试：具名界面方块必须自己给出标题（不带 hook 的普通接口作反向对照，防止 hook 被 blanket 应用）、机壳那一侧的几何守卫、以及玩偶那条（会给出生命恢复 + 两种 lang 都有描述键 + 战利品表会复制主人组件）。 59/59 通过。
+- **十个方块没有战利品表，拆下来什么都不掉。** 生存挖掘和扳手右键都会让机器直接消失而不下落任何东西。现在每个方块都有自己的一张表。
+- **装配室拒收"重复同一种原料"的样板，批量样板也一起失效。** 现在按样板自己的输出量归一化，两种形状都能正常合成。
 
 ## 1.2.11 (2026-09-29) - 主机不再带着成型状态落地，镜像主机的动画转向改正
 
 ### 修复 / Fixed
 
-- **手放计算主机不再闪一下"已成型"的外壳**：`SimplifyComputationSystemBlock` 之前用 `registerDefaultState(getStateDefinition().any().setValue(COMMUNICATION_INTERFACE, false))` 注册默认状态，而 `StateDefinition.any()` 给每个属性的是它值列表的**第一个值**，对布尔量就是 `true` —— 于是主机自己的默认状态就是 `formed=true / mirrored=true / network_switch=true / high_energy_network_switch=true`，放进空气那一刻带着这四个旗标落地，集群下一帧才纠正回去，玩家看到的就是"一块从没成型过的主机闪了一下成型面"。判据指纹：落地状态里唯一为 false 的布尔，恰好是我们自己写的那一个。F1 的合成主机早就用的 `defaultBlockState()`（继承父类注册好的默认值），所以它从来不闪；1.2.7 的主机方块是 6 行空壳、根本没有这个覆盖 —— 这条回归是 1.2.8 加 `communication_interface` 时带进来的。新增一条常驻守卫：我们注册的任何一个方块，默认状态里不许有布尔量为 true。 A hand-placed C1 host no longer flashes a formed face: `StateDefinition.any()` gives every property the first value in its list, which for a boolean is `true`, so the host's own default state claimed all four of `formed / mirrored / network_switch / high_energy_network_switch` and the cluster had to correct them a frame later. F1 was written against `defaultBlockState()` and never flickered; 1.2.7 had no override at all, which dates the regression to 1.2.8.
-- **镜像的 C1 主机动画转向改正**：`controller_formed_base_mirrored` 把两张动画贴图（`#coolant`、`#screen`）按 `u0 > u1` 采样，等于把动图水平翻转 —— 翻转一张转动的图就是反转转向，所以镜像机转的方向和正装机不一样。现在几何与静态底图继续镜像，8 个动画面改用正装机那套 uv，镜像机就和正装机同向。**这一条是故意偏离 eco**：成型面底图与 eco 差 0 像素、55 个面连同 uv 全等、11 张动画 `.mcmeta` 全同、`mirrored` 判定与 eco 发布 jar 字节码同序 —— eco 自己的 C4 镜像机同样会反，是他拍板"镜像机也该正转"。散热控制器的 mirrored 模型有同一处翻转，但它是另画的一套几何（面板从 z=2/30 挪到 z=14/-14、north/south 互换），要逐面重新配对，这次没动。 A mirrored C1 host now turns the same way as a plain one: the mirrored model sampled both animated textures with flipped uv, and flipping a turning picture reverses the turn. This one is a deliberate divergence from upstream, whose own C4 behaves the same way.
+- **手放计算主机不再闪一下"已成型"的外壳**：主机的默认状态带着四个布尔旗标落地，成型面显示一帧才被集群纠正回去。现在落地就是全 false。
+- 加了一条常驻守卫：我们注册的任何一个方块，默认状态里不许有布尔量为 `true`。
+- **镜像的 C1 主机动画转向改正**：镜像模型把两张动画贴图按反方向采样，一张转动的图被水平翻转就成了反转转向，所以镜像机转得和正装机不一样。现在几何与静态底图继续镜像，8 个动画面改用正装机那套 uv，两台就同向了。
+- **这一条是故意偏离 eco**：eco 自己的 C4 镜像机同样会反，是他拍板"镜像机也该正转"。散热控制器的 mirrored 模型有同一处翻转，但那是另画的一套几何（面板位置与 north/south 都换过），要逐面重新配对，这次没动。
 
 ### 已知 / Known
 
-- **成型后机壳仍然全部不画**（计算家族）：`NEComputationCluster.hideAllCasingsWhenFormed()` 在发布 jar 里编的是 `iconst_1`，而 eco 的存储簇/合成簇走的是另一条（`getCasingHideOrigin()` + 距主机 `distSqr <= 3`，只藏够得着的）。我们试过把计算簇也换成那条规则（簇子类 + 一个注到 `createCluster` 的 mixin，并且有一条"不生效就会红"的测试证明它确实生效了），结果是**远端那列机壳画成了一整块普通立方，和散热控制器成型模型外伸的面板共面 -> 闪烁 + 贴图不对**。原因是两家的机壳 blockstate 都只有一条通配键、只有一个模型，`formed`/`invisible` 根本不参与选模型。所以"成型后全藏机壳"在计算家族是**承重**的，改动已撤回。要真修，得先给远端机壳一个成型后可看的模型（美术活），或者让散热控制器的成型模型不伸进那一格。
+- **成型后机壳仍然全部不画（计算家族）**：这条是承重的，试过改成"只藏够得着的"之后远端机壳画成一整块普通立方、和散热控制器成型模型外伸的面板共面闪，所以改动已撤回。要真修，得先给远端机壳一个成型后可看的模型（美术活），或者让散热控制器的成型模型不伸进那一格。
 
 ## 1.2.10 (2026-09-29) - 计算主机回到 eco 的方块实体，CPU 面板恢复
 
 ### 修复 / Fixed
 
-- **成型并且接了网的 C1 计算主机重新出现在 AE2 的 CPU 列表里**：1.2.8 我们把主机的方块实体换成 eco 那个类的子类，为的是在主机自己的方块状态上发布成型外观；这一换让它从 AE2 的机器表里消失了。原因是 AE2 登记节点的键就是 `node.getOwner().getClass()`，**只有这一个键**（`Grid.add` 里只有一个 `put`，不沿父类链登记），而 eco 收集计算集群用的是 `getMachines(ECOComputationSystemBlockEntity.class)`——Map 的键相等查找，不是 `instanceof`。同一台主机、同一个 grid 换四个键实测：按 eco 的类查 = 0，按我们的子类查 = 1，再往上的两层父类查 = 0。现在主机的方块实体退回 eco 的类，那两件事改由 `publishShape()` 加方块自己的 scheduled tick 接手（发布 `communication_interface`、把 eco 的两个交换布尔钉成 false）——写方块不能发生在 AE2 的集群重算栈里。附带回来的还有：eco 在节点入网时按同一个类读的「快速规划 / 循环规划」开关，现在在我们的主机上也生效了（tooltip 里能看到那两行）。 A formed, networked C1 host is back in AE2's CPU list. In 1.2.8 we swapped the host's block entity for a subclass of eco's, to publish formed-appearance state, and that quietly removed it from AE2's machine table: AE2 files nodes under `owner.getClass()` only, while eco collects clusters with `getMachines(ECOComputationSystemBlockEntity.class)` -- a key lookup, not an `instanceof` test. Measured on one grid: eco's class 0, our class 1, both parent classes 0.
+- **成型并且接了网的 C1 计算主机重新出现在 AE2 的 CPU 列表里**：1.2.8 为了在主机自己的方块状态上发布成型外观，把它的方块实体换成了 eco 那个类的子类，结果它从 AE2 的机器表里消失了。现在方块实体退回 eco 的类，那两件事改由 `publishShape()` 加方块自己的定时任务接手。
+- 附带回来的：eco 在节点入网时按同一个类读的「快速规划 / 循环规划」开关，现在在我们的主机上也生效了（tooltip 里能看到那两行）。
 - **老世界里被点亮成「有交换器」的 C1 会自愈**：我们的计算器整条替换了 eco 的 `verifyInternalStructure`，而 eco 只在那里面清 `network_switch` / `high_energy_network_switch`，所以 1.2.8 之前留下的 true 会一直留着，把 CPU 送进一条不存在的逻辑网络。现在每次集群重算都会投递一次纠正，方块在下一个 tick 把 true 写成 false（已经是 false 时一个字都不写）。守卫：把两个布尔人为设成 true 打在成型主机上，要求 120 tick 内被清掉。
-- **五个方块的方块状态不再空转四个朝向**：`energized_computation_core`（整方块、六面同图）、`fumo_reliqwq`（模型里没有元素，画面由渲染器给）、以及三件 Trinity 模块（`cube_all`）——它们的模型四个朝向看起来完全一样，却各写了 4 到 8 条带旋转的条目，合计 32 条永远不可能有差异的键。现在每个文件一条通配键。Five blocks enumerated four rotations their models cannot show; 32 entries became 5.
+- **五个方块的方块状态不再空转四个朝向**：`energized_computation_core`（整方块、六面同图）、`fumo_reliqwq`（模型里没有元素，画面由渲染器给）、以及三件 Trinity 模块（`cube_all`）——它们的模型四个朝向看起来完全一样，却各写了 4 到 8 条带旋转的条目，合计 32 条永远不可能有差异的键。现在每个文件一条通配键。Five
 
 - **两条新守卫**：接线可达性（玻璃线缆接在接口块外侧，能把主机、线缆、供电块并进同一个 92 节点 grid；主机自己六面都被结构占着，而 eco 不把它朝空气那一面暴露）与 CPU 列表可见性（成型主机必须出现在 `getCpus()` 里——这条从「记录缺陷」转回正式门禁）。
 
@@ -92,8 +113,8 @@
 
 ### 修复 / Fixed
 
-- **C1 计算子系统与 F1 合成子系统可以被"多塞一颗核心"**：几何有四条外壳走位，但**没有一条经过主机自己所在的那一列**，所以主机正上方与正下方两格从来没被检查过；而集群是按边界框收编成员的，只要把线程核心（或并行核心）摆在那两格，机器照样成型、成员照样算数 —— 等于白送线程数与吞吐，而这两格是一键搭建永远不会产生的位置。现在这两格必须是外壳方块，与 L1 存储主机早就有的规则一致，三台机器行为统一。盈能强化计算机核心此前那条"只挡这一种方块"的特例被这条通用规则包含，不再单独存在。 Four geometry walks cover every shell column but the one the controller stands in, so the two cells above and below the host were never looked at while the cluster still adopted anything inside its bounds: parking a threading core or a parallel core there was free threads and free throughput. Those two cells are now shell, exactly as the storage host has always required, so all three machines behave the same.
-- **代价（玩家可见）**：老世界里如果有人把 C1 / F1 主机正上或正下方放过别的东西，升级后那台机器会**散架** —— 不是丢方块，是成型判定不再通过，把那一格换成对应的外壳方块即可重新成型。 Existing worlds that had a block above or below the computation or crafting host lose formation until that cell is a casing again.
+- **C1 计算子系统与 F1 合成子系统可以被"多塞一颗核心"**：几何有四条外壳走位，但**没有一条经过主机自己所在的那一列**，所以主机正上方与正下方两格从来没被检查过；而集群是按边界框收编成员的，只要把线程核心（或并行核心）摆在那两格，机器照样成型、成员照样算数 —— 等于白送线程数与吞吐，而这两格是一键搭建永远不会产生的位置。现在这两格必须是外壳方块，与 L1 存储主机早就有的规则一致，三台机器行为统一。盈能强化计算机核心此前那条"只挡这一种方块"的特例被这条通用规则包含，不再单独存在。
+- **代价（玩家可见）**：老世界里如果有人把 C1 / F1 主机正上或正下方放过别的东西，升级后那台机器会**散架** —— 不是丢方块，是成型判定不再通过，把那一格换成对应的外壳方块即可重新成型。
 - **四条新守卫测试**：C1 上下各一条（放线程核心）、F1 上下各一条（放并行核心），都要求机器拒绝成型；测试会先确认那一格在搭建方案里确实是外壳，所以"换掉它"是唯一变量。
 
 ### 需要 / Requires
@@ -104,10 +125,11 @@
 
 ### 修复 / Fixed
 
-- **修好 1.2.9 在大整合包里进不去游戏的启动崩溃**：我们把三个 AE2 部件模型注册放在 `FMLClientSetupEvent` 里，而 AE2 的 `PartModels.registerModels` 一旦集合被冻结就抛 `Cannot register models after the pre-initialization phase!`。关键点是**那个冻结是惰性发生的**（AE2 自己的 `ModelEvent.RegisterAdditional` 处理器，或任何一次 `CableBusModel.getDependencies()` 解析模型），而 NeoForge **并行派发 setup 事件**（崩溃报告里的 `ModLoader.dispatchParallelEvent`），所以"我们跑在冻结之前"从来不是保证，只是开发环境里抢跑赢了；包里有 `quick-pack` / RenderJS / KubeJS 这类会提前碰模型的模组时就会输。注册现在挪到 `FMLCommonSetupEvent` —— 所有模组的 common setup 必然早于任何模组的 client setup，也就必然早于任何模型解析，这是生命周期顺序给的保证而不是运气。旁证：MegaCells 在注册表定义期注册部件模型，ExtendedAE 也在更早的专用处理器里注册，没有人在 client setup 做这件事。**1.2.9 的用户请直接升这一版。**
+- **修好 1.2.9 在大整合包里进不去游戏的启动崩溃**：三个 AE2 部件模型的注册从 client setup 挪到 common setup，不再依赖"抢在模型集合被冻结之前跑完"这件事。
 
 ### 说明 / Notes
 
+- **正在用 1.2.9 的玩家请直接升这一版。** 那条崩溃只在包里有会提前碰模型的模组（`quick-pack`、RenderJS、KubeJS 这类）时才出现，所以开发环境测不出来。
 - 依赖没有变化：NeoForge `21.1.x` / Minecraft `1.21.1`、Applied Energistics 2 `19.2.17` 或更新、Neo ECO AE Extension `21.2.0` 或更新。
 - 这一版没有内容改动，1.2.9 的其余说明（接口语义互换、L1 新美术、内置旧美术回退包）仍然适用。
 
@@ -115,8 +137,13 @@
 
 ### 变更 / Changed
 
-- **「通讯接口」现在就是能打开界面的那块，三台机器一起**：显示名、右键行为、一键搭建默认放的方块、配方链、主机发布的 `communication_interface` 全部同时对齐。`simplify_<machine>_interface`（「…接口」）现在是有序合成的基础件、右键无反应、搭建时放的是它；`simplify_<machine>_network_interface`（「…通讯接口」）= 接口 + `ae2:terminal`，右键打开 eco 的界面。**注册 ID 与存档数据一个字未改**，老世界的方块不会丢。**玩家可见的代价**：库存里这两件物品的含义互换了 - 谁原来有一块能开界面的「接口」，升级后它是开不了界面的那一件，要去合成一份通讯接口。F1 这一对的名字在 1.2.8 与 1.2.9 之间各掉头一次，理由是 eco 那样叫只是因为它是唯一一个接口方块。**收益**：方块状态属性 `communication_interface` 的名字终于和显示名一致，美术为「放了通讯接口」画的那张主机成型面（`controller_l4_formed_network`）也绑到了它本该绑的状态上。
-- **成型后的成员方块一律不画自己，外观由主机的方块状态决定**：C1 那个「接口成型后还自绘」的历史遗留钩子（`hideWhenFormed()` 覆写 + `computation_interface_formed` 模型 + `formed` 两条键）删掉了，三台六块接口现在行为一致。**这条更正 1.2.8 发版说明里的一句话**：那里写「谁覆写过这三份主机文件，他的副本缺新键 → 方块直接隐形」，实测是错的 - `variants` 的键是**子集匹配**，没写的属性是通配，所以旧副本照样能解析所有状态（v1.2.7 那份 16 条键覆盖当前 32 个状态，不重不漏），只是表达不出新的区分。
+- **「通讯接口」现在就是能打开界面的那块，三台机器一起对齐**：显示名、右键行为、一键搭建默认放的方块、配方链与主机发布的 `communication_interface` 全部同时改过来。
+- `simplify_<machine>_interface`（「…接口」）是有序合成的基础件，右键无反应；`simplify_<machine>_network_interface`（「…通讯接口」）= 接口 + `ae2:terminal`，右键打开 eco 的界面。
+- **注册 ID 与存档数据一个字未改**，老世界的方块不会丢。
+- **玩家可见的代价**：库存里这两件物品的含义互换了——原来那块能开界面的「接口」，升级后是开不了界面的那一件，要去合成一份通讯接口。
+- 收益是属性名终于和显示名一致：美术为「放了通讯接口」画的那张主机成型面（`controller_l4_formed_network`）绑到了它本该绑的状态上。
+- **成型后的成员方块一律不画自己，外观由主机的方块状态决定**：C1 那个「接口成型后还自绘」的历史遗留钩子（`hideWhenFormed()` 覆写 + `computation_interface_formed` 模型 + `formed` 两条键）删掉了，三台六块接口现在行为一致。
+- **旧世界里残留的主机方块副本不会隐形**：`variants` 的键是子集匹配，没写的属性走通配，所以 1.2.7 那份 16 条键照样覆盖当前的 32 个状态——只是表达不出新的区分。（1.2.8 的发版说明说反了，那句现在作废。）
 
 ### 新增 / Added
 
@@ -142,46 +169,46 @@
 
 ### 依赖门槛抬高 / Raised dependency floor
 
-- **这一版起需要 Neo ECO AE Extension 21.2.0 或更新，且不再兼容 21.2.0-beta4 ~ beta6。** eco 在 21.2.0 之前把 `StorageHostActionUI$Config` 的最后一个参数从 `Runnable` 换成了 `Consumer<Boolean>`（实测 `beta6-hotfix2`、`beta7-hotfix1` 与正式版都已是新签名，裸 `beta4`~`beta6` 仍是旧签名），所以 1.2.7 配 21.2.0 打开 L1 存储主机会 `NoSuchMethodError` 崩服，1.2.8 反过来配裸 beta6 也会以同样方式崩。**停在 beta4 ~ beta6 的玩家请继续用 1.2.7。** 版本区间不是保险索：已有玩家用的启动器会跳过依赖检查，直接把不兼容的组合加载起来。 This build needs eco 21.2.0 or newer and drops plain 21.2.0-beta4 ~ beta6; the constructor type changed underneath us, so either direction mismatched crashes when the L1 storage host GUI opens.
+- **这一版起需要 Neo ECO AE Extension 21.2.0 或更新，且不再兼容 21.2.0-beta4 ~ beta6。** eco 在 21.2.0 之前把 `StorageHostActionUI$Config` 的最后一个参数从 `Runnable` 换成了 `Consumer<Boolean>`（实测 `beta6-hotfix2`、`beta7-hotfix1` 与正式版都已是新签名，裸 `beta4`~`beta6` 仍是旧签名），所以 1.2.7 配 21.2.0 打开 L1 存储主机会 `NoSuchMethodError` 崩服，1.2.8 反过来配裸 beta6 也会以同样方式崩。**停在 beta4 ~ beta6 的玩家请继续用 1.2.7。** 版本区间不是保险索：已有玩家用的启动器会跳过依赖检查，直接把不兼容的组合加载起来。
 
 ### 新增 / Added
 
-- **成型外观改由方块状态选择 / formed appearance picked by block state**：三台主机各自发布"接口格里放的是不是通讯接口"（`communication_interface`），C1 计算主机另外发布 `energized_threading_core` 与 `energized_parallel_core`；成型模型的挑选全部落在 blockstate 文件里，资源包不需要读世界。新增 18 个变体模型作为分图钩子，目前全部指向现有成型贴图，所以任何组合下看到的都还是现在的正式外观。 Publishes what the finished machine holds onto the host's own block state so the blockstate file picks the formed model; 18 variant models are the art hooks and all still point at the current sheet, so nothing looks provisional.
-- **六门新守卫 / six new guards**：装配室往供应器推产物的能力面、主机正上下格的盈能核心、三台主机的状态发布，以及 `variants` 穷举与 multipart "每状态恰好命中一条"的文件覆盖检查。 Adds GameTests for the provider capability, the host-column geometry hole, the published shape of each host, and full blockstate coverage.
-- **装配室批量样板说明 / guide section**：GuideMe 中英双语补充"整批进料一次合成、产物随份数翻倍、上限一叠 64、耗时不变"。 Documents batched patterns in both guide languages.
+- **成型外观改由方块状态选择 / formed appearance picked by block state**：三台主机各自发布"接口格里放的是不是通讯接口"（`communication_interface`），C1 计算主机另外发布 `energized_threading_core` 与 `energized_parallel_core`；成型模型的挑选全部落在 blockstate 文件里，资源包不需要读世界。新增 18 个变体模型作为分图钩子，目前全部指向现有成型贴图，所以任何组合下看到的都还是现在的正式外观。
+- **六门新守卫 / six new guards**：装配室往供应器推产物的能力面、主机正上下格的盈能核心、三台主机的状态发布，以及 `variants` 穷举与 multipart "每状态恰好命中一条"的文件覆盖检查。
+- **装配室批量样板说明 / guide section**：GuideMe 中英双语补充"整批进料一次合成、产物随份数翻倍、上限一叠 64、耗时不变"。
 
 ### 修复 / Fixed
 
-- **装配室产物卡在供应器**：给 L1 样板供应器的方块实体与线缆部件注册 `AECapabilities.GENERIC_INTERNAL_INV`，交给 AE2 自己的最低优先级钩子包成 `ItemHandler`。此前只有 AE2 原版供应器回答该能力，装配室完工时推不出产物。 Registers the capability AE2 actually looks for, so assemblers can hand their product to our provider.
-- **F1 合成子系统那对接口与 eco 的命名对齐**：`simplify_crafting_interface` 现在是"F1 合成子系统通讯接口"并且能打开接口界面，`simplify_crafting_network_interface` 变成"F1 合成子系统接口"（只挂网络端点、右键无反应）。**注册名与存档数据一个字未改**，只换行为与显示名，老世界的方块不会丢失，所以这两块的名字与界面归属会互换。 Aligns F1's interface pair with eco's own naming by swapping behaviour and display names only; registry names are untouched, so worlds keep their blocks but the two names trade places.
-- **盈能强化计算机核心成型后闪烁**：删掉它的方块实体渲染器，成型外观改由 blockstate 换整块模型，与其余外壳位成员的 `RenderShape.INVISIBLE` 规矩一致，不再出现内外两侧同时可见。 Retires the block entity renderer behind the formed model, which also removes the flicker.
-- **第二颗盈能核心被悄悄收编**：计算集群几何补上有界守卫，主机正上方/正下方或采纳盒内多出一颗盈能核心时不再成型。 Rejects an energized core standing in the host column or anywhere the cluster would adopt.
-- **L1 样板供应器与两个接口的界面错位**：补回贴图里被贴错位置造成的整行透明空洞、把 ↓ 箭头只留在配置行、并修掉扩成两行后配置组与存储组抢同一行导致"存储行放不了东西"的问题。 Fixes the provider/interface GUI textures and slot layout.
+- **装配室产物卡在供应器**：给 L1 样板供应器的方块实体与线缆部件注册 `AECapabilities.GENERIC_INTERNAL_INV`，交给 AE2 自己的最低优先级钩子包成 `ItemHandler`。此前只有 AE2 原版供应器回答该能力，装配室完工时推不出产物。
+- **F1 合成子系统那对接口与 eco 的命名对齐**：`simplify_crafting_interface` 现在是"F1 合成子系统通讯接口"并且能打开接口界面，`simplify_crafting_network_interface` 变成"F1 合成子系统接口"（只挂网络端点、右键无反应）。**注册名与存档数据一个字未改**，只换行为与显示名，老世界的方块不会丢失，所以这两块的名字与界面归属会互换。
+- **盈能强化计算机核心成型后闪烁**：删掉它的方块实体渲染器，成型外观改由 blockstate 换整块模型，与其余外壳位成员的 `RenderShape.INVISIBLE` 规矩一致，不再出现内外两侧同时可见。
+- **第二颗盈能核心被悄悄收编**：计算集群几何补上有界守卫，主机正上方/正下方或采纳盒内多出一颗盈能核心时不再成型。
+- **L1 样板供应器与两个接口的界面错位**：补回贴图里被贴错位置造成的整行透明空洞、把 ↓ 箭头只留在配置行、并修掉扩成两行后配置组与存储组抢同一行导致"存储行放不了东西"的问题。
 
 ### 已知 / Known
 
-- **三个接口界面的标题未本地化**：eco 21.2.0-beta6 改了生成 lambda 的序号，我们钉 `lambda$create$1` 的 `@Redirect` 没命中（`require = 0`，所以不崩），标题仍显示 eco 默认文案。 The interface UI title redirects no longer match beta6; cosmetic only.
+- **三个接口界面的标题未本地化**：eco 21.2.0-beta6 改了生成 lambda 的序号，我们钉 `lambda$create$1` 的 `@Redirect` 没命中（`require = 0`，所以不崩），标题仍显示 eco 默认文案。
 
 ### 资源包与覆写 / For resource pack authors
 
-- **三份主机 blockstate 结构变了，条目数必须跟着变**：`simplify_computation_system` 现在是 8 个属性穷举出 512 条，`simplify_storage_controller` 4 个属性 32 条，`simplify_crafting_system` 是 20 条 multipart 且每个 `formed` 条件都钉住 `communication_interface`（不钉住就会有一个状态同时命中两条、同一格画两遍模型）。`simplify_computation_interface` 拆成 `formed=false` / `formed=true` 两态，好让成型的通讯接口带上自己的成型外观；另外两份只是改指向自己的模型文件，不再与隔壁共用。 The three host files now have to name every state, and the interface files are split per role.
-- **老世界不受影响**：方块状态是按"属性名=值"存进区块 palette 的，新增属性回读即默认 `false`，blockstate 文件本身不进存档；升上来看到的还是升级前那台机器。 Existing worlds are untouched - a property that did not exist yet reads back as its default.
-- **但覆写会静默失效**：谁之前替换过这三份主机文件，他的副本没有新键，那些没被命名的状态**匹配不到任何模型 = 方块直接隐形**（不会回退到我们的文件）。请拿新版文件重做覆盖，不要在旧副本上打补丁。 Overrides break quietly: an unnamed state resolves to no model at all, which renders the block invisible rather than falling back.
-- **成型外观的挂点**：`textures/block/<机器>_recolor/controller_formed/controller_formed_a<后缀>.png`，后缀由 `c`（接口格里是通讯接口）、`t`（盈能线程核心）、`p`（盈能并行核心）拼接，`_c_t_p` 是三者全有、无后缀是三者全无。18 个变体模型已经在 `models/block/<机器>_controller/` 下建好并且目前全部指向 `controller_formed_a`，所以给某个组合换外观只改一处贴图引用。 The 18 variant models exist and all still point at the current sheet, so a new look is one reference change.
+- **三份主机 blockstate 结构变了，条目数必须跟着变**：`simplify_computation_system` 现在是 8 个属性穷举出 512 条，`simplify_storage_controller` 4 个属性 32 条，`simplify_crafting_system` 是 20 条 multipart 且每个 `formed` 条件都钉住 `communication_interface`（不钉住就会有一个状态同时命中两条、同一格画两遍模型）。`simplify_computation_interface` 拆成 `formed=false` / `formed=true` 两态，好让成型的通讯接口带上自己的成型外观；另外两份只是改指向自己的模型文件，不再与隔壁共用。
+- **老世界不受影响**：方块状态是按"属性名=值"存进区块 palette 的，新增属性回读即默认 `false`，blockstate 文件本身不进存档；升上来看到的还是升级前那台机器。
+- **但覆写会静默失效**：谁之前替换过这三份主机文件，他的副本没有新键，那些没被命名的状态**匹配不到任何模型 = 方块直接隐形**（不会回退到我们的文件）。请拿新版文件重做覆盖，不要在旧副本上打补丁。
+- **成型外观的挂点**：`textures/block/<机器>_recolor/controller_formed/controller_formed_a<后缀>.png`，后缀由 `c`（接口格里是通讯接口）、`t`（盈能线程核心）、`p`（盈能并行核心）拼接，`_c_t_p` 是三者全有、无后缀是三者全无。18 个变体模型已经在 `models/block/<机器>_controller/` 下建好并且目前全部指向 `controller_formed_a`，所以给某个组合换外观只改一处贴图引用。
 
 ## 1.2.7 (2026-09-24) - L1 Computation and Interface Update
 
 ### 新增 / Added
 
-- **L1 计算系统扩展 / L1 computation system expansion**：新增盈能强化计算机核心、盈能强化线程核心和盈能 4M 计算盘；支持 L1 计算集群的专用成员槽位、并行能力和线程能力。 Adds the energized computation core, energized threading core, and energized 4M computation cell with dedicated L1 cluster slots, parallelism, and threading behavior.
-- **L1 计算系统配方 / L1 computation recipes**：新增处理器装配室和 eco 集成工作站配方，使用超导处理器、盈能超导锭与极寒凌冰等材料。 Adds processor-assembler and ECO integrated-working-station recipes using superconducting processors, energized superconductive ingots, and Cryotheum Crystals.
-- **L1 供电 ME 接口 / L1 powered ME interface**：新增方块版与线缆 Part 版，保持 18 个 CONFIG / 18 个 STORAGE 槽位，提供 200 AE/t 被动供电。 Adds block and cable-Part forms with 18 CONFIG slots, 18 STORAGE slots, and 200 AE/t passive generation.
-- **盈能超导接口 / energized superconductive interface**：新增方块版与线缆 Part 版，每个标记槽最多配置 8192 个物品、512,000 mB 流体或化学品。 Adds block and cable-Part forms with a per-marker limit of 8,192 items or 512,000 mB of fluids or chemicals.
-- **L1 接口配方 / L1 interface recipes**：L1 供电接口改由 L1 处理器装配室制作；盈能超导接口改由 eco 集成工作站制作并消耗 10,000 FE。 The powered interface is made in the L1 processor assembler; the superconductive interface is made in the ECO integrated working station and consumes 10,000 FE.
-- **双语发布文档 / bilingual release documentation**：补充计算系统、接口、配方和兼容性说明。 Adds bilingual documentation for the computation system, interfaces, recipes, and compatibility requirements.
-- **L1 数值配置项 / extra config entry**：`l1_computation.energized_cell_total_bytes`，默认 `5242880`（原 4 MiB 加 30%），单独控制盈能闪存增强（CE1R）的合成存储字节数。 Adds a config entry for the energized cell's storage bytes.
-- **盈能盘物品栏贴图 / item-icon-only difference**：CE1R 不再与 CE1 共用同一张物品模型，改为一张只把绿色信号换成我们蓝色的独立贴图；插进驱动器之后两者外观仍然一致。 Gives the energized cell its own inventory texture instead of sharing the plain cell's model.
-- **外壳位成员的成型外观 / shell member rendering**：盈能强化计算机核心成型后不再画方块模型（与 eco 所有外壳位成员一致：成型外壳是 `RenderShape.INVISIBLE` 且不再替邻居遮面，成员继续画就会从内外两侧同时可见而闪烁），那一格的表面改由 eco 的 section-geometry 钩子画回。 Hides the energized core's block model once formed, like every eco shell member, and paints the face back through eco's section-geometry hook.
+- **L1 计算系统扩展 / L1 computation system expansion**：新增盈能强化计算机核心、盈能强化线程核心和盈能 4M 计算盘；支持 L1 计算集群的专用成员槽位、并行能力和线程能力。
+- **L1 计算系统配方 / L1 computation recipes**：新增处理器装配室和 eco 集成工作站配方，使用超导处理器、盈能超导锭与极寒凌冰等材料。
+- **L1 供电 ME 接口 / L1 powered ME interface**：新增方块版与线缆 Part 版，保持 18 个 CONFIG / 18 个 STORAGE 槽位，提供 200 AE/t 被动供电。
+- **盈能超导接口 / energized superconductive interface**：新增方块版与线缆 Part 版，每个标记槽最多配置 8192 个物品、512,000 mB 流体或化学品。
+- **L1 接口配方 / L1 interface recipes**：L1 供电接口改由 L1 处理器装配室制作；盈能超导接口改由 eco 集成工作站制作并消耗 10,000 FE。
+- **双语发布文档 / bilingual release documentation**：补充计算系统、接口、配方和兼容性说明。
+- **L1 数值配置项 / extra config entry**：`l1_computation.energized_cell_total_bytes`，默认 `5242880`（原 4 MiB 加 30%），单独控制盈能闪存增强（CE1R）的合成存储字节数。
+- **盈能盘物品栏贴图 / item-icon-only difference**：CE1R 不再与 CE1 共用同一张物品模型，改为一张只把绿色信号换成我们蓝色的独立贴图；插进驱动器之后两者外观仍然一致。
+- **外壳位成员的成型外观 / shell member rendering**：盈能强化计算机核心成型后不再画方块模型（与 eco 所有外壳位成员一致：成型外壳是 `RenderShape.INVISIBLE` 且不再替邻居遮面，成员继续画就会从内外两侧同时可见而闪烁），那一格的表面改由 eco 的 section-geometry 钩子画回。
 
 ### 修复 / Fixed
 

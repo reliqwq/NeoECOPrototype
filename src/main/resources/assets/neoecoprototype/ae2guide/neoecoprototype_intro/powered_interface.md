@@ -28,18 +28,21 @@ supplies the machines next to it - so anything that accepts an interface accepts
 - 18 marker slots instead of 9
 - 18 storage slots instead of 9
 
-Everything else is AE2's own interface logic: the first rows configure what should be kept, the
-remaining slots hold what the interface actually received.
+Everything else is AE2's own interface logic, and this page will not repeat it.
 
 ## Passive power
 
 While it is powered and has a channel, it injects **200 AE/t** into the grid. AE2 keeps only one
 passive generator per grid and picks the one with the highest output, so as soon as something
 stronger is on the same network this machine stops contributing until it is chosen again.
+That makes it a practical way to supply a subnet on its own: AE2's crystal resonance generator is
+subject to the same one-per-grid rule, and at AE2's default **20 AE/t** - a tenth of this one - a
+subnet that has an interface here does not need one.
 
 ## Obtaining
 
-It is assembled in the processor assembly room, which accepts the ingredients in any order:
+It is assembled in the processor assembly room, which takes the ingredients in any order from any
+pattern provider:
 
 <RecipeFor id="neoecoprototype:simplify_powered_me_interface" />
 
@@ -49,7 +52,7 @@ The cable-mounted form behaves identically and is worked out on a crafting table
 
 The two forms convert into each other losslessly in a crafting grid.
 
-## Used for
+## Further use
 
 Four of them are the base of the
 [Energized Superconductive Interface](superconductive_interface.md).

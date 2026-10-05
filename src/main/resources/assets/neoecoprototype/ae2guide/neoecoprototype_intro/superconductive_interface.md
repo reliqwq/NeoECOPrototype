@@ -30,17 +30,13 @@ marker and twenty times the power output.
 
 ## Stock amount
 
-The stock amount is how much of one marker the interface keeps available for the machines around it.
-AE2 caps it at a single stack - 64 items, 4000 mB of fluid - which forces a machine to keep asking
-the network for more. This interface widens every type by the same factor:
-
 | Marker holds | AE2 interface | This interface |
 | --- | --- | --- |
 | Items | 64 | **8192** |
 | Fluid | 4,000 mB | **512,000 mB** |
 | Chemical | 4,000 mB | **512,000 mB** |
 
-Set it by clicking the amount of a marker, the same way as on an AE2 interface.
+Set it the same way as on an AE2 interface.
 
 ## Passive power
 
@@ -50,9 +46,8 @@ from every [L1 Powered Interface](powered_interface.md) on the network and suppr
 
 ## Obtaining
 
-Both forms are made in the Integrated Working Station from Neo ECO AE Extension. The viewer
-below shows the workbench conversion between the two forms; station recipes are not something
-this page can render.
+Both forms are made in the Integrated Working Station from Neo ECO AE Extension. The viewer below
+shows the workbench conversion between the two forms.
 
 <RecipeFor id="neoecoprototype:superconductive_interface" />
 

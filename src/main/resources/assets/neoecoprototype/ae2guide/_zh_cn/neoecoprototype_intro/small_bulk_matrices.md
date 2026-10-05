@@ -19,7 +19,7 @@ item_ids:
 
 # 小宗存储矩阵
 
-小宗存储矩阵用近乎无限的容量存储少数被标记的资源：默认 3 种类型，用扩展卡升级到 10 种。家族有物品、流体、化学品三个变体（化学品变体需要 Mekanism 与应用能源修炼）。
+小宗存储矩阵用近乎无限的容量存储少数被标记的资源：默认 3 种类型，用扩展卡与小宗存储矩阵在工作台上升级到 10 种。本家族提供物品、流体、化学品三个变体。整个家族需要 MEGA Cells（4.11.0+），没有它这些物品根本不会注册；化学品变体另需 Mekanism 与它的 AE2 桥接模组 Applied Mekanistics。
 
 ## 所需组件
 
@@ -35,7 +35,6 @@ item_ids:
   <ItemIcon id="neoecoprototype:simplify_small_bulk_fluid_storage_matrix_housing" />
   <ItemIcon id="neoecoprototype:simplify_small_bulk_chemical_storage_matrix_housing" />
 </ItemGrid>
-整个家族需要 MegaCells。
 
 ## 标记
 

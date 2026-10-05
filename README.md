@@ -1,104 +1,84 @@
 # Neo ECO Prototype
 
-Neo ECO Prototype is an unofficial addon for Neo ECO AE Extension and Applied Energistics 2. Its Trinity system combines eco multiblock structure and storage with an AE2/eco network crafting entry and unified task UI for Minecraft 1.21.1 on NeoForge.
+An unofficial addon for Neo ECO AE Extension and Applied Energistics 2, for Minecraft 1.21.1 on NeoForge. It brings eco's multiblock machines down to an L1 tier that an ordinary survival network can reach early, and adds the interfaces, storage cells and pattern provider that tier needs around them.
 
-本项目是 Neo ECO AE Extension 和 Applied Energistics 2 的非官方附属模组。Trinity 将 eco 多方块形态与存储能力、AE2/eco 网络任务入口和统一 UI 组合起来，为 Minecraft 1.21.1 / NeoForge 提供统一的存储与合成终端。
+[中文](README_ZH_CN.md)
 
-## Features
+## What it offers
 
-- Trinity multiblock structure with dedicated storage, configuration, and crafting modules. Trinity remains experimental and is hidden from player-facing JEI in the release build.
-- AE2/eco network crafting entry with unified task state, cancellation, timeout, and stale-output protection.
-- Advisory inventory and pattern observations; recursive material planning, alternatives, CPU selection, and execution remain owned by AE2/eco.
-- JEI multiblock build previews plus addon-owned storage cells, drives, energy cells, interfaces, and supporting blocks.
-- Dedicated-server-safe crafting interface fallback for the Neo ECO AE Extension beta4 runtime.
-- L1 small bulk storage matrices in item, fluid, and chemical variants (requires MegaCells): `3` types by default or `10` after AE2's NBT-preserving cell-upgrade recipe, each with long-integer capacity. The item variant reuses eco's MEGA long-bulk backend, so marked items store as compression chains.
-- L1 drives accept native L1 cells and small bulk cells by default; pack makers may explicitly whitelist extra eco cells, including eco's MegaCells bulk cell.
-- Addon-owned model, texture, translation, and recipe files organized under the `neoecoprototype` namespace; some visual resources are adapted from upstream Neo ECO AE Extension assets and retain their upstream licensing.
+Storage starts at L1 with drives, energy cells and the small bulk matrices. A small bulk matrix marks three resources and upgrades to ten on a crafting table; its capacity is counted as a long, and the byte ceiling is `Long.MAX_VALUE`. The family needs MegaCells; its item variant reuses eco's MEGA long-bulk backend, so marked items store as compression chains.
 
-## Compatibility
+An L1 drive mounts native L1 cells and small bulk cells. It mounts anything else only when a server administrator has named it.
+
+Crafting and computation reuse eco's structures at L1 numbers. The processor assembler keeps AE2's molecular assembler grid of nine slots and is extended to accept this addon's own processor recipes: a push carrying several complete sets of materials finishes them in one crafting cycle, with the output capped at one stack.
+
+Any pattern provider feeds it, ours included. Ours holds 27 patterns where AE2's holds 9, and its recipe yields two per craft.
+
+Two interfaces carry power and hold large stocks. The powered interface has 18 marker slots and injects 200 AE/t. The superconductive interface has the same layout, caches 8192 items or 512,000 mB of fluid per marker slot, and injects 4000 AE/t. AE2 runs only one passive generator per grid and always picks the strongest, so they do not add up.
+
+The Trinity system folds storage, configuration and crafting into one structure. It is still experimental: it is left out of JEI and its items carry a not-implemented line until its design is finished.
+
+## Environment
 
 | Component | Version |
 | --- | --- |
 | Minecraft | 1.21.1 |
-| NeoForge | 21.1.251 or compatible 21.1.x release |
-| Applied Energistics 2 | 19.2.17 or compatible 19.2.x release |
+| NeoForge | 21.1.251 or a compatible 21.1.x release |
+| Applied Energistics 2 | 19.2.17 or a compatible 19.2.x release |
 | Neo ECO AE Extension | 21.2.1-beta2 or a compatible later release |
-| MegaCells (optional; required for the small bulk matrix family) | 4.11.0 or later |
 | Java | 21 |
+| MegaCells | optional; required when the small bulk matrices are used |
+| Mekanism and Applied Mekanistics | optional; required when chemical cells and chemical matrices are used |
 
-### Platform environment
+The addon is required on both sides.
 
-This mod requires both sides: CurseForge should be configured as `Client: Required` and `Server: Required` for the project and each uploaded file. The NeoForge metadata declares all required dependencies on `side = "BOTH"`; CurseForge environment labels are publishing-platform metadata and are not stored in `neoforge.mods.toml`.
+## Installing
 
-Neo ECO Prototype is not affiliated with or endorsed by Mojang, Microsoft, Applied Energistics 2, or Neo ECO AE Extension. Minecraft and related names are trademarks of their respective owners.
+Install Minecraft 1.21.1 with NeoForge, then Applied Energistics 2, GuideME, LowDragLib2 and Neo ECO AE Extension at the versions above. Add MegaCells for the small bulk matrices, and Mekanism with Applied Mekanistics for chemical storage. Put the release jar in `mods` and start the game.
 
-## Installation
+The release jar does not bundle any of those dependencies; get them from their own maintainers and follow their licenses.
 
-1. Install Minecraft 1.21.1 with NeoForge.
-2. Install the required runtime dependencies: Applied Energistics 2, GuideME, LowDragLib2, and Neo ECO AE Extension. MegaCells is optional and only enables the small bulk matrix family.
-3. Put the Neo ECO Prototype release JAR in the `mods` directory.
-4. Start the game and verify that the required dependency versions are installed.
+## Which cells an L1 drive mounts
 
-The release JAR does not bundle the dependency JARs listed above. Obtain them from their respective maintainers and follow their licenses and distribution rules.
-
-### L1 external storage-cell policy
-
-L1 drives mount native L1 cells and the addon small bulk cells by default. Higher-tier eco cells, including `neoecoae:eco_mega_long_bulk_cell`, remain insertable but do **not** mount unless a server administrator explicitly opts in. To permit selected cells, edit the server config:
+Higher-tier eco cells can be inserted but will not mount until a server administrator names them. To permit selected cells, edit the server config:
 
 ```toml
 [l1_storage]
 additional_storage_cells = ["neoecoae:eco_mega_long_bulk_cell"]
 ```
 
-The small bulk cells start with three types (fluid and chemical variants included) and upgrade to ten types through the `ae2:storage_cell_upgrade` recipe; AE2 copies the source cell's NBT, so stored contents and cell settings are retained. The item variant reuses eco's MEGA long-bulk storage backend, so marked items store as compression chains; installing the MegaCells compression card in the cell workbench enables the chain variants.
+## KubeJS
 
-## KubeJS Support
+KubeJS is optional. Scripts register storage matrices and recipes through startup and recipe events, including eco's integrated working station recipe type, and the `neoecoprototype:infinite_storage_matrix` builder makes custom infinite item or fluid matrices. Scripts cannot change multiblock definitions or controller behaviour. Examples are in [docs/kubejs.md](docs/kubejs.md).
 
-KubeJS is optional. Matrix texture recoloring is handled offline by `tools/generate_matrix_textures.py` with `tools/matrix_textures.json`; it preserves grayscale housing and only recolors configured source hues. The generated PNGs are ordinary runtime assets. The 4K chemical storage matrix is available as `neoecoprototype:simplify_chemical_storage_cell_4k` when Mekanism and Applied Mekanistics are installed. Use `ServerEvents.recipes` to add, remove, or replace addon recipes, including the Neo ECO AE Extension integrated working station recipe type. The addon also provides the `neoecoprototype:infinite_storage_matrix` startup builder for custom infinite item or fluid matrices. By default these matrices use the addon's unified infinite-matrix material for both the inventory item and the drive-mounted cell: a white housing, green level light, and gray type light. The builder also supports optional `.size('infinite')`, `.tier('l1')`, `.inventoryModel(...)`, and `.cellModel(...)` methods; the current infinite implementation validates the fixed `infinite`/`l1` combination. New Java matrices can use the `StorageMatrixDefinition` and `StorageMatrixRegistration` API without changing legacy registrations. See [docs/kubejs.md](docs/kubejs.md) for script examples. KubeJS scripts do not change multiblock structure definitions or controller behavior.
+## Building from source
 
-## Development Build
-
-The current development setup compiles against the Neo ECO AE Extension `21.2.1-beta2` JAR under `neoecobeta/`. `3.0.0-beta1` raised that floor from `21.2.0` because our communication-interface and pattern-bus blocks now implement upstream's `gui.GuiTitleProvider`, which does not exist in `21.2.0`. The floor is written `[21.2.1-beta2,)`, not `[21.2.1,)`: `21.2.1-beta1` declared itself as plain `21.2.1` so the wider range happened to accept it, while `beta2` declares its real version and a prerelease compares *below* the release, so `[21.2.1,)` refused to start. Upstream has not published a `21.2.1` release yet, which is why the first build carrying it is a prerelease. Upstream's own floor moved to Applied Energistics 2 `19.2.18` in `21.2.1-beta1` and back to `19.2.17` in `beta2`, so from `beta2` on this addon's own declaration is the only gate on AE2. That declaration has stayed at `[19.2.17,)` throughout and is now also the version compiled against; of the AE2 classes this addon names, exactly one differs between the two jars - `core.localization.Tooltips` - and what `19.2.18` removed from it are three fields this addon never names, so `19.2.18` players are covered too. The local development copy is intentionally excluded from GitHub.
-
-Required local development files are listed in `build.gradle`. Place lawful copies of the exact compatible dependencies in `libs/`, then run:
+Place lawful copies of the exact compatible dependencies in `libs/`, as listed in `build.gradle`, then run:
 
 ```powershell
 .\gradlew.bat build --offline
 ```
 
-The output is written to `build/libs/neoecoprototype-3.0.0-beta1.jar`. A
-build started from a fresh clone stops with the names of the exact files
-it is looking for, because none of these JARs are redistributed here.
+A build from a fresh clone stops with the names of the jars it is missing, because none of them are redistributed here. The output is `build/libs/neoecoprototype-3.0.0-beta1.jar`. Keep `libs/`, `run/`, `build/`, reference checkouts and local world data out of the repository.
 
-Do not commit `libs/`, `run/`, `build/`, reference checkouts, or local world data. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for dependency licensing information.
-
-## Source and Release Policy
-
-The repository contains the source and resources for Neo ECO Prototype only. Local runtime artifacts, modified development copies of Neo ECO AE Extension, reference checkouts, and dependency binaries are not part of this repository.
-
-A release should include:
-
-- the mod JAR;
-- the corresponding source revision;
-- the required dependency versions;
-- this repository's license and third-party notices.
+Why the dependency floors are written the way they are, including the prerelease range for eco, is recorded in [docs/ae2-extension-playbook.md](docs/ae2-extension-playbook.md). What ships with a release, and how it is published, is in [docs/publishing.md](docs/publishing.md).
 
 ## Contributing
 
-Please read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request. Bug reports should include the Minecraft, NeoForge, Neo ECO AE Extension, Java, and mod versions, plus a relevant log excerpt.
+Please read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request. A bug report should give the Minecraft, NeoForge, Neo ECO AE Extension, Java and mod versions plus a relevant log excerpt.
 
 ## License
 
 Neo ECO Prototype code is released under the GNU General Public License version 3.0 only. See [LICENSE](LICENSE).
 
-Textures and models are artwork assets and are **All Rights Reserved (ARR)** unless a specific upstream license is stated in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Artwork may not be extracted, reused, or redistributed separately without permission. Required attribution must be retained.
+Textures and models are artwork assets and are All Rights Reserved unless a specific upstream license is stated in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Artwork may not be extracted, reused or redistributed separately without permission, and required attribution must be retained.
 
 Copyright (C) 2026 reliqwq.
 
 ## Credits
 
-- `reliqwq`: addon author and maintainer.
-- `Neo-TiX`: original lead artist and artwork contributor; attribution retained with permission.
-- `寒冰`: original artwork contributor; attribution retained with permission.
-- `DancingSnow`: original author of Neo ECO AE Extension, the required upstream mod.
-- `Yang120`: special thanks for substantial help from the original Neo ECO AE Extension team.
+reliqwq wrote and maintains this addon. Neo-TiX is the original lead artist and artwork contributor, and 寒冰 also contributed artwork; both attributions are retained with permission. DancingSnow is the author of Neo ECO AE Extension, the upstream mod this addon requires, and Yang120 of the same team helped a great deal.
+
+## Disclaimer
+
+Neo ECO Prototype is not affiliated with or endorsed by Mojang, Microsoft, Applied Energistics 2, or Neo ECO AE Extension. Minecraft and related names are trademarks of their respective owners.
