@@ -63,10 +63,11 @@ public final class NeoECOPrototypeServerConfig {
                 .defineInRange("mega_bulk_auto_mark_threshold", 20_000L, 0L, Long.MAX_VALUE);
         FUMO_COMMAND_ENABLED = builder
                 .comment("Enable the /prototypefumo command, which hands out a plushie wearing any player's skin.",
-                        "The command still needs OP level 2 or creative mode; turn this off and it refuses every use.",
+                        "Off by default: the command needs OP level 2 or creative mode as well, and the skin it",
+                        "copies belongs to a named player. Turn this on and it answers again.",
                         "The dolls themselves are not switched off here: their worn effects, their creative tab",
                         "entries and the creepers that keep their distance from a placed one all ship on.")
-                .define("fumo_command_enabled", true);
+                .define("fumo_command_enabled", false);
         DERIVE_PROCESSOR_RECIPES_FROM_INSCRIBER = builder
                 .comment("Also accept processor recipes derived from AE2's inscriber (press-mode recipes, with",
                         "printed parts unfolded into the material inscribed into them).",
