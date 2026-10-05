@@ -3,9 +3,10 @@
   "category": "misc",
   "key": {
     "A": { "item": "ae2:certus_quartz_crystal" },
-    "B": { "item": "minecraft:glowstone_dust" }
+    "B": { "item": "minecraft:glowstone_dust" },
+    "D": { "item": "ae2:certus_quartz_dust" }
   },
-  "pattern": [" A ", "ABA", " A "],
+  "pattern": ["DAD", "ABA", "DAD"],
   "result": {
     "count": 1,
     "id": "neoecoprototype:simplify_green_crystal_matrix"
