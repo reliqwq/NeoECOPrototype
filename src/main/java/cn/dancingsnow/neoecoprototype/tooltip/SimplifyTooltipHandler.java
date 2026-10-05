@@ -10,7 +10,8 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.entity.player.ItemTooltipEvent;
 
 /**
- * Appends one custom description line to selected addon items.
+ * Appends the addon's own description lines to selected items, and the red "not implemented" note to
+ * the Trinity parts.
  *
  * <p>Doing this through {@link ItemTooltipEvent} instead of overriding
  * {@code appendHoverText} keeps every description in one place and avoids
@@ -39,7 +40,12 @@ public final class SimplifyTooltipHandler {
         ItemStack stack = event.getItemStack();
         String key = descriptionKey(stack);
         if (key != null) {
-            event.getToolTip().add(Component.translatable(key).withStyle(ChatFormatting.GRAY));
+            // One component per line: the renderer draws a newline inside a component as a glyph box
+            // instead of breaking the row. getString() resolves through the client language, which is
+            // the only one there is here - ItemTooltipEvent never fires on a dedicated server.
+            for (String line : TooltipLines.split(Component.translatable(key).getString())) {
+                event.getToolTip().add(Component.literal(line).withStyle(ChatFormatting.GRAY));
+            }
         }
         if (isNotImplemented(stack)) {
             event.getToolTip().add(Component.translatable(NOT_IMPLEMENTED_KEY).withStyle(ChatFormatting.RED));
