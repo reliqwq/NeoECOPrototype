@@ -1,6 +1,5 @@
 package cn.dancingsnow.neoecoprototype.integration.jade.provider;
 
-import appeng.core.localization.Tooltips;
 import cn.dancingsnow.neoecoprototype.blockentity.computation.SimplifyComputationDriveBlockEntity;
 import cn.dancingsnow.neoecoprototype.integration.ae2.SimplifyGridFacade;
 import cn.dancingsnow.neoecoprototype.integration.jade.SimplifyJadePlugin;
@@ -40,9 +39,6 @@ public enum SimplifyComputationDriveProvider implements IBlockComponentProvider,
                     : "jade.neoecoprototype.unmounted").withStyle(
                     mounted ? ChatFormatting.GREEN : ChatFormatting.RED));
         }
-        if (data.contains("usedBytes") && data.contains("totalBytes")) {
-            tooltip.add(Tooltips.bytesUsed(data.getLong("usedBytes"), data.getLong("totalBytes")));
-        }
         if (data.contains("activeCpus")) {
             tooltip.add(Component.translatable(
                     "jade.neoecoprototype.computation_cpus", data.getInt("activeCpus")));
@@ -61,8 +57,6 @@ public enum SimplifyComputationDriveProvider implements IBlockComponentProvider,
         tag.putBoolean("mounted", drive.getCellStack() != null && !drive.getCellStack().isEmpty());
 
         if (drive.getCluster() != null) {
-            tag.putLong("usedBytes", drive.getCluster().getOwnUsedStorage());
-            tag.putLong("totalBytes", drive.getCluster().getTotalStorage());
             tag.putInt("activeCpus", drive.getCluster().getActiveCPUCount());
         }
     }
