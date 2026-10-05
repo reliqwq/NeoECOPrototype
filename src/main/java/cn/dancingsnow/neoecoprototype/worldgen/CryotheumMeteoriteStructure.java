@@ -59,13 +59,13 @@ public class CryotheumMeteoriteStructure extends Structure {
     @Override
     protected Optional<GenerationStub> findGenerationPoint(GenerationContext context) {
         ChunkPos chunk = context.chunkPos();
-        int x = chunk.getMiddleBlockX();
-        int z = chunk.getMiddleBlockZ();
-        if (centerY + radius >= context.heightAccessor().getMaxBuildHeight()
-                || centerY - radius <= context.heightAccessor().getMinBuildHeight()) {
+        if (!MeteoritePlacement.wantsComet(cn.dancingsnow.neoecoprototype.config
+                        .NeoECOPrototypeServerConfig.CRYOTHEUM_METEORITE_ENABLED.get(),
+                radius, centerY,
+                context.heightAccessor().getMinBuildHeight(), context.heightAccessor().getMaxBuildHeight())) {
             return Optional.empty();
         }
-        var center = new BlockPos(x, centerY, z);
+        var center = new BlockPos(chunk.getMiddleBlockX(), centerY, chunk.getMiddleBlockZ());
         return Optional.of(new GenerationStub(center, builder -> builder.addPiece(
                 new MeteoritePiece(center, radius))));
     }
