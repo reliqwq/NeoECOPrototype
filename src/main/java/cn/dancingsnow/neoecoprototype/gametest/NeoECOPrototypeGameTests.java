@@ -1563,20 +1563,41 @@ public final class NeoECOPrototypeGameTests {
     }
 
     /**
-     * The three things that made TedXenon's doll look broken in three different ways, each of which is
-     * invisible to the compiler: the extra effect the doll has to hand out, the tooltip line that
-     * describes it (it was silently missing, and "没回血" was really "没说"), and the loot table that has
-     * to copy the owner component off the block entity so a broken doll comes back wearing the same
-     * face instead of an anonymous one. Reads everything through the mod classloader, so it costs no
-     * plot and touches no world.
+     * The things that made the dolls look or read broken, each of which is invisible to the compiler:
+     * the extra effect a doll has to hand out, the tooltip line that describes it (it was silently
+     * missing, and "没回血" was really "没说"), the loot table that has to copy the owner component off
+     * the custom-skin doll's block entity, and which doll counts as "named" now that the four honoured
+     * players are each their own item. Reads everything through the mod classloader, so it costs no plot
+     * and touches no world.
      */
     @GameTest(template = "empty", templateNamespace = NeoECOPrototype.MOD_ID)
     public static void namedDollDescribesAndKeepsItsOwner(GameTestHelper helper) {
-        ItemStack stack = cn.dancingsnow.neoecoprototype.item.decoration.FumoItem.ownedBy("TedXenon");
+        ItemStack stack = new ItemStack(ModRegistration.FUMO_DOLL_TEDXENON_ITEM.get());
         net.minecraft.core.Holder<net.minecraft.world.effect.MobEffect> extra =
                 cn.dancingsnow.neoecoprototype.item.decoration.FumoItem.extraEffect(stack);
         if (extra != net.minecraft.world.effect.MobEffects.REGENERATION) {
             helper.fail("TedXenon's doll hands out " + extra + " instead of Regeneration");
+            return;
+        }
+        // The released half: the four dedicated dolls count as named, and the doll /prototypefumo hands
+        // out does not - even when its component says one of the honoured players' names, because the
+        // worn effects are keyed off the item now, not off a string a command wrote.
+        for (java.util.function.Supplier<? extends net.minecraft.world.item.Item> named : List.of(
+                ModRegistration.FUMO_DOLL_RELIQWQ_ITEM, ModRegistration.FUMO_DOLL_YANG120_ITEM,
+                ModRegistration.FUMO_DOLL_KOOOKI_ITEM, ModRegistration.FUMO_DOLL_TEDXENON_ITEM)) {
+            if (!cn.dancingsnow.neoecoprototype.item.decoration.FumoItem
+                    .isNamedDoll(new ItemStack(named.get()))) {
+                helper.fail(named.get() + " is in the creative tab as a named doll but grants nothing");
+                return;
+            }
+        }
+        var customSkin = new ItemStack(ModRegistration.FUMO_RELIQWQ_ITEM.get());
+        customSkin.set(ModRegistration.FUMO_OWNER.get(), new net.minecraft.world.item.component.ResolvableProfile(
+                java.util.Optional.of("reliqwq"), java.util.Optional.empty(),
+                new com.mojang.authlib.properties.PropertyMap()));
+        if (cn.dancingsnow.neoecoprototype.item.decoration.FumoItem.isNamedDoll(customSkin)) {
+            helper.fail("the custom-skin doll still reads a player's name off its component, so it hands"
+                    + " out armour and night vision that belong to the four named dolls");
             return;
         }
         // The tooltip line is built from this key with the effect's own display name; if the key is
@@ -1613,31 +1634,136 @@ public final class NeoECOPrototypeGameTests {
                     + " and the doll block drops nothing");
             return;
         }
-        // Creepers have to be born afraid of a plushie - and, now that the feature ships switched off,
-        // they must not be afraid of one while it is off, or the switch buys no ticks at all. The handler
-        // is an entity-join event, so it is fired here against a fresh creeper rather than by spawning
-        // one: a creeper wandering the shared test room could detonate while unrelated tests read the
-        // same chunks.
-        boolean fumoWasEnabled = NeoECOPrototypeServerConfig.FUMO_ENABLED.get();
-        boolean fearsWhenOn;
-        boolean fearsWhenOff;
+        // Creepers back away from a plushie, worn or placed, and three things can undo that without a
+        // word: the ticker hook never reaching the block (getTicker is an override, so a mistyped
+        // signature would leave vanilla's null in place), a sweep whose radius or query matches nobody,
+        // and a wearer check that reads the wrong slot. All three are read here against one creeper stood
+        // two blocks from the spot a doll would sit in and then moved well away from it, and dressed and
+        // undressed afterwards - the creeper is discarded on the way out, because one left wandering the
+        // shared test room could detonate while unrelated tests read the same chunks.
+        var dollState = ModRegistration.FUMO_DOLL_RELIQWQ_BLOCK.get().defaultBlockState();
+        if (dollState.getTicker(helper.getLevel(), ModRegistration.FUMO_DOLL_BE.get()) == null) {
+            helper.fail("a placed named doll ships no server ticker, so nothing ever sweeps for creepers");
+            return;
+        }
+        // The cadence has to fire - once, and only once, in any five ticks. Always false would be a doll
+        // that never looks for creepers at all, and always true would be one query per doll per tick,
+        // which is the cost the interval exists to keep down.
+        long now = helper.getLevel().getGameTime();
+        int dueInFive = 0;
+        for (long tick = now; tick < now + 5; tick++) {
+            if (cn.dancingsnow.neoecoprototype.event.PlushieScare.sweepDue(tick)) {
+                dueInFive++;
+            }
+        }
+        if (dueInFive != 1) {
+            helper.fail("the plushie sweep fell " + dueInFive + " times in five ticks, so its cadence is"
+                    + " either never reached or running every tick");
+            return;
+        }
+        // Deliberately without a setBlock: this test otherwise touches no world, and placing a block in
+        // the shared test chunks adds save-and-unload work to a suite that is already hauling chunks at
+        // coordinates ten million away. The block-to-block-entity pairing is therefore not asserted
+        // here - the non-null ticker above says the doll's state offers one for that block entity type,
+        // and the registration that lists the four blocks under it is the other half, which only the eye
+        // confirms.
+        BlockPos dollPos = helper.absolutePos(BlockPos.ZERO);
+        // Built and added by hand rather than through the helper: GameTestHelper has no createEntity in
+        // 1.21.1. Its AI is off so it cannot pick a target, swell and detonate in the shared test room
+        // while unrelated tests read these chunks - the sweep only ever needs its position.
+        var creeper = new net.minecraft.world.entity.monster.Creeper(
+                net.minecraft.world.entity.EntityType.CREEPER, helper.getLevel());
+        creeper.setNoAi(true);
+        creeper.setPos(dollPos.getX() + 2.5D, dollPos.getY(), dollPos.getZ() + 0.5D);
+        helper.getLevel().addFreshEntity(creeper);
+        int nearDoll;
+        int farFromDoll;
+        boolean wearingDoll;
+        boolean wearingNothing;
         try {
-            NeoECOPrototypeServerConfig.FUMO_ENABLED.set(true);
-            fearsWhenOn = freshCreeperFearsPlushies(helper);
-            NeoECOPrototypeServerConfig.FUMO_ENABLED.set(false);
-            fearsWhenOff = freshCreeperFearsPlushies(helper);
+            nearDoll = cn.dancingsnow.neoecoprototype.blockentity.decoration.NamedDollBlockEntity
+                    .scareAround(helper.getLevel(), dollPos);
+            creeper.setPos(dollPos.getX() + 30.5D, dollPos.getY(), dollPos.getZ() + 0.5D);
+            farFromDoll = cn.dancingsnow.neoecoprototype.blockentity.decoration.NamedDollBlockEntity
+                    .scareAround(helper.getLevel(), dollPos);
+            // The worn half of the same rule reads the head slot, so that is the slot it has to find.
+            creeper.setItemSlot(net.minecraft.world.entity.EquipmentSlot.HEAD,
+                    new ItemStack(ModRegistration.FUMO_DOLL_RELIQWQ_ITEM.get()));
+            wearingDoll = cn.dancingsnow.neoecoprototype.event.PlushieScare.wearsNamedDoll(creeper);
+            creeper.setItemSlot(net.minecraft.world.entity.EquipmentSlot.HEAD, ItemStack.EMPTY);
+            wearingNothing = cn.dancingsnow.neoecoprototype.event.PlushieScare.wearsNamedDoll(creeper);
         } finally {
-            NeoECOPrototypeServerConfig.FUMO_ENABLED.set(fumoWasEnabled);
+            creeper.discard();
         }
-        if (!fearsWhenOn) {
-            helper.fail("with fumo_enabled on, a fresh creeper has no DollFleeGoal, so creepers ignore"
-                    + " plushies entirely");
+        if (nearDoll < 1) {
+            helper.fail("a creeper two blocks from a doll's position was not sent away by its sweep, so"
+                    + " creepers ignore the dolls");
             return;
         }
-        if (fearsWhenOff) {
-            helper.fail("with fumo_enabled off, a fresh creeper still gets a DollFleeGoal, so switching"
-                    + " the feature off saves no creeper ticks");
+        if (farFromDoll != 0) {
+            helper.fail("the doll's sweep still reached a creeper 30 blocks away, so the scare radius"
+                    + " does not bind and every loaded creeper is being pathed at");
             return;
+        }
+        // The worn half asks one question before it sweeps at all - is there a named doll on the head -
+        // and a wrong slot here would leave the player tick sweeping for a doll nobody is wearing, or
+        // never sweeping for one that is.
+        if (!wearingDoll) {
+            helper.fail("an entity with a named doll in its head slot is not read as wearing one, so a"
+                    + " worn plushie repels nobody");
+            return;
+        }
+        if (wearingNothing) {
+            helper.fail("an empty head slot still reads as wearing a plushie, so every creeper near every"
+                    + " player is being pathed at");
+            return;
+        }
+        // And a doll set down has to look at whoever set it down. A blockstate key naming a property the
+        // block lacks is dropped with one warning line and the state quietly keeps the other drawing, so
+        // the two halves - the property on the block and the rotation in the file - are checked together.
+        for (var doll : new Object[][]{
+                {ModRegistration.FUMO_DOLL_RELIQWQ_BLOCK.get(), "fumo_doll_reliqwq"},
+                {ModRegistration.FUMO_DOLL_YANG120_BLOCK.get(), "fumo_doll_yang120"},
+                {ModRegistration.FUMO_DOLL_KOOOKI_BLOCK.get(), "fumo_doll_kouooki"},
+                {ModRegistration.FUMO_DOLL_TEDXENON_BLOCK.get(), "fumo_doll_tedxenon"}}) {
+            var block = (Block) doll[0];
+            var path = "blockstates/" + doll[1] + ".json";
+            var file = readShippedResource(
+                    ResourceLocation.fromNamespaceAndPath(NeoECOPrototype.MOD_ID, path));
+            if (file == null) {
+                return;
+            }
+            var variants = com.google.gson.JsonParser.parseString(file).getAsJsonObject()
+                    .getAsJsonObject("variants");
+            if (variants == null) {
+                helper.fail(path + " has no variants object");
+                return;
+            }
+            for (var state : block.getStateDefinition().getPossibleStates()) {
+                var facing = state.getValue(
+                        cn.dancingsnow.neoecoprototype.block.decoration.NamedDollBlock.FACING);
+                var key = "facing=" + valueName(state,
+                        cn.dancingsnow.neoecoprototype.block.decoration.NamedDollBlock.FACING);
+                if (!variants.has(key)) {
+                    helper.fail(path + " has no \"" + key + "\" entry, so a doll placed facing " + facing
+                            + " keeps the north drawing");
+                    return;
+                }
+                int wanted = switch (facing) {
+                    case NORTH -> 0;
+                    case EAST -> 90;
+                    case SOUTH -> 180;
+                    case WEST -> 270;
+                    default -> -1;
+                };
+                var variant = variants.getAsJsonObject(key);
+                int drawn = variant.has("y") ? variant.get("y").getAsInt() : 0;
+                if (wanted >= 0 && drawn != wanted) {
+                    helper.fail(path + " gives y=" + drawn + " for " + key + ", which should be " + wanted
+                            + ", so that facing renders turned the wrong way");
+                    return;
+                }
+            }
         }
         ownerSurvivesEveryCopy(helper);
         // A profile can carry a uuid and no name; the lang key is "%s's Doll", so that used to read as
@@ -1653,17 +1779,6 @@ public final class NeoECOPrototypeGameTests {
             return;
         }
         helper.succeed();
-    }
-
-    /** Whether the join handler attaches the plushie-flee goal to a creeper born right now. */
-    private static boolean freshCreeperFearsPlushies(GameTestHelper helper) {
-        var creeper = new net.minecraft.world.entity.monster.Creeper(
-                net.minecraft.world.entity.EntityType.CREEPER, helper.getLevel());
-        cn.dancingsnow.neoecoprototype.event.FumoEquipmentEffects.onEntityJoin(
-                new net.neoforged.neoforge.event.entity.EntityJoinLevelEvent(creeper, helper.getLevel()));
-        return creeper.goalSelector.getAvailableGoals().stream()
-                .anyMatch(goal -> goal.getGoal() instanceof cn.dancingsnow.neoecoprototype.event
-                        .FumoEquipmentEffects.DollFleeGoal);
     }
 
     /**
@@ -3094,10 +3209,11 @@ public final class NeoECOPrototypeGameTests {
     }
 
     /**
-     * Five blocks enumerated all four facings although their models look the same on every side -- a full
-     * cube with six cullfaces, {@code cube_all}, or a model with no elements at all. That was 32 blockstate
-     * entries that could never differ, so each of those files is now a single catch-all key. One test walks
-     * all five rather than five tests each walking one: every extra plot shifts where the framework parks
+     * Six blocks ship a single catch-all key rather than one entry per state: they enumerated all four
+     * facings although one drawing covers every side -- a full cube with six cullfaces, {@code cube_all},
+     * or a doll whose block entity renderer reads the facing off the state itself and needs no per-facing
+     * model at all. One test walks all six rather than six tests each walking one: every extra plot
+     * shifts where the framework parks
      * the other concurrent tests, and the L1 builders collide when two controllers end up seven blocks
      * apart -- which showed up here as the whole suite wedging, not as a failure.
      */
@@ -4009,6 +4125,11 @@ public final class NeoECOPrototypeGameTests {
                         .CRYOTHEUM_ORE_DIMENSIONS_DEFAULT.isEmpty(),
                 "the built-in default now names a dimension, so a fresh install would generate the ores "
                         + "before the crystal family they lead to has any use");
+        // The comet is the family's other way into a world, so "ships off" only holds if both are off.
+        helper.assertTrue(!cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig
+                        .CRYOTHEUM_METEORITE_ENABLED_DEFAULT,
+                "the comet generates by default, which would drop mother rock, buds and clusters into a "
+                        + "fresh End for a family that still has no recipe");
         helper.succeed();
     }
 

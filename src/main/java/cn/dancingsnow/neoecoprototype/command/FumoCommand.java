@@ -41,8 +41,7 @@ public final class FumoCommand {
         // The config is read per use, not here: this event fires from the Commands constructor
         // during datapack reload, before NeoForge has loaded the server configs.
         dispatcher.register(Commands.literal("prototypefumo")
-                .requires(source -> NeoECOPrototypeServerConfig.FUMO_ENABLED.get()
-                        && NeoECOPrototypeServerConfig.FUMO_COMMAND_ENABLED.get()
+                .requires(source -> NeoECOPrototypeServerConfig.FUMO_COMMAND_ENABLED.get()
                         && (source.hasPermission(2)
                         || (source.getEntity() instanceof ServerPlayer player && player.isCreative())))
                 .then(Commands.argument("player", StringArgumentType.word())

@@ -1,0 +1,7 @@
+{
+	"parent": "neoecoprototype:block/dolls/doll_slim",
+	"textures": {
+		"0": "neoecoprototype:block/dolls/kouooki",
+		"particle": "neoecoprototype:block/dolls/kouooki"
+	}
+}

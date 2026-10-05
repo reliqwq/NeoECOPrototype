@@ -1,0 +1,19 @@
+{
+  "variants": {
+    "facing=north": {
+      "model": "neoecoprototype:block/dolls/yang120"
+    },
+    "facing=east": {
+      "model": "neoecoprototype:block/dolls/yang120",
+      "y": 90
+    },
+    "facing=south": {
+      "model": "neoecoprototype:block/dolls/yang120",
+      "y": 180
+    },
+    "facing=west": {
+      "model": "neoecoprototype:block/dolls/yang120",
+      "y": 270
+    }
+  }
+}

@@ -17,9 +17,7 @@ public final class NeoECOPrototypeServerConfig {
     public static final ModConfigSpec.BooleanValue DERIVE_PROCESSOR_RECIPES_FROM_INSCRIBER;
     /** Processor outputs the assembler must refuse, from either the JSON recipes or the derivation. */
     public static final ModConfigSpec.ConfigValue<List<? extends String>> DISABLED_PROCESSOR_RECIPES;
-    /** Master switch for the plushie: effects, creeper fear, the command and the guide book entry. */
-    public static final ModConfigSpec.BooleanValue FUMO_ENABLED;
-    /** Whether /prototypefumo may be used. */
+    /** Only the /prototypefumo hand-out; the dolls themselves ship switched on. */
     public static final ModConfigSpec.BooleanValue FUMO_COMMAND_ENABLED;
     /**
      * Computation threads per L1 threading core. Each core allocates one {@code ECOCraftingCPU} per
@@ -42,6 +40,14 @@ public final class NeoECOPrototypeServerConfig {
     public static final List<String> CRYOTHEUM_ORE_DIMENSIONS_DEFAULT = List.of();
     /** How much of the vanilla powder-snow chill one broken cryotheum ore is worth. */
     public static final ModConfigSpec.IntValue CRYOTHEUM_ORE_FREEZE_TICKS;
+    /** Whether the floating End comet generates at all; it is the family's only remaining world entry. */
+    public static final ModConfigSpec.BooleanValue CRYOTHEUM_METEORITE_ENABLED;
+    /**
+     * Out of the box the comet generates nowhere too. {@link #CRYOTHEUM_ORE_DIMENSIONS_DEFAULT} already
+     * turns the veins off, and the comet is the one other thing that puts this family in front of a player:
+     * its mother rock, buds and clusters are the ore's only source and the crystal has no recipe yet.
+     */
+    public static final boolean CRYOTHEUM_METEORITE_ENABLED_DEFAULT = false;
 
     static {
         ModConfigSpec.Builder builder = new ModConfigSpec.Builder();
@@ -55,17 +61,11 @@ public final class NeoECOPrototypeServerConfig {
         MEGA_BULK_AUTO_MARK_THRESHOLD = builder
                 .comment("Minimum stored item count for automatic MEGA marker selection; compression still requires the MEGA compression upgrade.")
                 .defineInRange("mega_bulk_auto_mark_threshold", 20_000L, 0L, Long.MAX_VALUE);
-        FUMO_ENABLED = builder
-                .comment("Master switch for the plushie: the worn effects, the goal that makes creepers keep",
-                        "their distance, /prototypefumo and the creative tab and guide book entries.",
-                        "Off by default while the doll's art is being redrawn, and because that goal makes",
-                        "every creeper look for a plushie-carrying player on every tick of its own.",
-                        "Creepers already in a level keep the goal until they are next loaded, since goals",
-                        "are attached when the entity joins.")
-                .define("fumo_enabled", false);
         FUMO_COMMAND_ENABLED = builder
                 .comment("Enable the /prototypefumo command, which hands out a plushie wearing any player's skin.",
-                        "The command still needs OP level 2 or creative mode; turn this off and it refuses every use.")
+                        "The command still needs OP level 2 or creative mode; turn this off and it refuses every use.",
+                        "The dolls themselves are not switched off here: their worn effects, their creative tab",
+                        "entries and the creepers that keep their distance from a placed one all ship on.")
                 .define("fumo_command_enabled", true);
         DERIVE_PROCESSOR_RECIPES_FROM_INSCRIBER = builder
                 .comment("Also accept processor recipes derived from AE2's inscriber (press-mode recipes, with",
@@ -111,6 +111,16 @@ public final class NeoECOPrototypeServerConfig {
                         "damage at 140 ticks in powder snow, so anything below that is the frostbite meter",
                         "filling up, not damage. Zero disables the effect. Default: 60.")
                 .defineInRange("freeze_ticks", 60, 0, 600);
+        builder.pop();
+        builder.push("cryotheum_meteorite");
+        CRYOTHEUM_METEORITE_ENABLED = builder
+                .comment("Whether the floating End comet is placed at all. Its ore veins are switched on by",
+                        "dimensions; the comet is the one world entry left, because it carries the mother rock",
+                        "and the buds that the veins would otherwise have no source from.",
+                        "It is read while chunks generate, so already placed comets stay in the world and a",
+                        "newly generated area simply has none. Default: false - the crystal family this leads to",
+                        "has no recipe yet, and a half-built discovery is worse than none.")
+                .define("enabled", CRYOTHEUM_METEORITE_ENABLED_DEFAULT);
         builder.pop();
         SPEC = builder.build();
     }

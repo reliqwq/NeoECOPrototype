@@ -50,7 +50,9 @@ import cn.dancingsnow.neoecoprototype.block.crafting.SimplifyCraftingVentBlock;
 import cn.dancingsnow.neoecoprototype.block.crafting.SimplifyCraftingWorkerBlock;
 import cn.dancingsnow.neoecoprototype.block.crafting.SimplifyStonecuttingAssemblerBlock;
 import cn.dancingsnow.neoecoprototype.block.decoration.FumoBlock;
+import cn.dancingsnow.neoecoprototype.block.decoration.NamedDollBlock;
 import cn.dancingsnow.neoecoprototype.blockentity.decoration.FumoBlockEntity;
+import cn.dancingsnow.neoecoprototype.blockentity.decoration.NamedDollBlockEntity;
 import cn.dancingsnow.neoecoprototype.item.decoration.FumoItem;
 import cn.dancingsnow.neoecoprototype.block.crafting.SimplifyPatternProviderBlock;
 import cn.dancingsnow.neoecoprototype.block.crafting.SimplifyPoweredMEInterfaceBlock;
@@ -654,6 +656,50 @@ public class ModRegistration {
             BLOCK_ENTITIES.register("fumo_reliqwq", () -> BlockEntityType.Builder
                     .of(FumoBlockEntity::new, FUMO_BLOCK.get()).build(null));
 
+    /**
+     * The four dolls of honoured players, one block and one item each, drawn from the art each of them
+     * posed with ({@code models/block/dolls}). They share the custom-skin doll's physical properties but
+     * carry no block entity: their face is in their texture, so nothing has to resolve a skin.
+     */
+    private static net.minecraft.world.level.block.state.BlockBehaviour.Properties dollProperties() {
+        return net.minecraft.world.level.block.state.BlockBehaviour.Properties.of().strength(0.8f)
+                .sound(net.minecraft.world.level.block.SoundType.WOOL).noOcclusion()
+                .lightLevel(state -> 15);
+    }
+
+    private static FumoItem.DollStats dollStats(float armor, float toughness,
+            net.minecraft.core.Holder<net.minecraft.world.effect.MobEffect> extra) {
+        return new FumoItem.DollStats(armor, toughness, extra);
+    }
+
+    public static final Supplier<NamedDollBlock> FUMO_DOLL_RELIQWQ_BLOCK =
+            BLOCKS.register("fumo_doll_reliqwq", () -> new NamedDollBlock(dollProperties()));
+    public static final Supplier<FumoItem> FUMO_DOLL_RELIQWQ_ITEM =
+            ITEMS.register("fumo_doll_reliqwq", () -> new FumoItem(FUMO_DOLL_RELIQWQ_BLOCK.get(),
+                    new Item.Properties().stacksTo(1), dollStats(4.0F, 2.0F, null)));
+    public static final Supplier<NamedDollBlock> FUMO_DOLL_YANG120_BLOCK =
+            BLOCKS.register("fumo_doll_yang120", () -> new NamedDollBlock(dollProperties()));
+    public static final Supplier<FumoItem> FUMO_DOLL_YANG120_ITEM =
+            ITEMS.register("fumo_doll_yang120", () -> new FumoItem(FUMO_DOLL_YANG120_BLOCK.get(),
+                    new Item.Properties().stacksTo(1), dollStats(4.0F, 2.0F, null)));
+    public static final Supplier<NamedDollBlock> FUMO_DOLL_KOOOKI_BLOCK =
+            BLOCKS.register("fumo_doll_kouooki", () -> new NamedDollBlock(dollProperties()));
+    public static final Supplier<FumoItem> FUMO_DOLL_KOOOKI_ITEM =
+            ITEMS.register("fumo_doll_kouooki", () -> new FumoItem(FUMO_DOLL_KOOOKI_BLOCK.get(),
+                    new Item.Properties().stacksTo(1), dollStats(1.0F, 5.0F, null)));
+    public static final Supplier<NamedDollBlock> FUMO_DOLL_TEDXENON_BLOCK =
+            BLOCKS.register("fumo_doll_tedxenon", () -> new NamedDollBlock(dollProperties()));
+    public static final Supplier<FumoItem> FUMO_DOLL_TEDXENON_ITEM =
+            ITEMS.register("fumo_doll_tedxenon", () -> new FumoItem(FUMO_DOLL_TEDXENON_BLOCK.get(),
+                    new Item.Properties().stacksTo(1),
+                    dollStats(6.0F, 1.0F, net.minecraft.world.effect.MobEffects.REGENERATION)));
+
+    /** All four dolls share one block entity: it saves nothing and exists only to sweep for creepers. */
+    public static final Supplier<BlockEntityType<NamedDollBlockEntity>> FUMO_DOLL_BE =
+            BLOCK_ENTITIES.register("fumo_doll", () -> BlockEntityType.Builder.of(NamedDollBlockEntity::new,
+                    FUMO_DOLL_RELIQWQ_BLOCK.get(), FUMO_DOLL_YANG120_BLOCK.get(),
+                    FUMO_DOLL_KOOOKI_BLOCK.get(), FUMO_DOLL_TEDXENON_BLOCK.get()).build(null));
+
     public static final Supplier<Item> SIMPLIFY_STORAGE_COMPONENT_1M =
              ITEMS.register("simplify_storage_component_1m", () -> new Item(new Item.Properties()));
      public static final Supplier<Item> SIMPLIFY_STORAGE_COMPONENT_4M =
@@ -1146,12 +1192,10 @@ private static Supplier<BlockEntityType<SimplifyStorageVentBlockEntity>> registe
                              output.accept(SIMPLIFY_SMALL_BULK_FLUID_CELL.get());
                              output.accept(SIMPLIFY_SMALL_BULK_FLUID_CELL_EXPANDED.get());
                          }
-                         if (cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig.FUMO_ENABLED.get()) {
-                             output.accept(FumoItem.ownedBy("reliqwq"));
-                             output.accept(FumoItem.ownedBy("Yang120"));
-                             output.accept(FumoItem.ownedBy("kouooki"));
-                             output.accept(FumoItem.ownedBy("TedXenon"));
-                         }
+                         output.accept(FUMO_DOLL_RELIQWQ_ITEM.get());
+                         output.accept(FUMO_DOLL_YANG120_ITEM.get());
+                         output.accept(FUMO_DOLL_KOOOKI_ITEM.get());
+                         output.accept(FUMO_DOLL_TEDXENON_ITEM.get());
                          if (OPTIONAL_SMALL_BULK_CHEMICAL_CELL != null) {
                              output.accept(OPTIONAL_SMALL_BULK_CHEMICAL_CELL.get());
                              output.accept(OPTIONAL_SMALL_BULK_CHEMICAL_CELL_EXPANDED.get());

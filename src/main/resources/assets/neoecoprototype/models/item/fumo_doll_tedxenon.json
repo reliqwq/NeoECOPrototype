@@ -1,0 +1,45 @@
+{
+  "parent": "neoecoprototype:block/dolls/tedxenon",
+  "display": {
+    "gui": {
+      "rotation": [ 15, 205, 0 ],
+      "translation": [ 0, 1, 0 ],
+      "scale": [ 0.8, 0.8, 0.8 ]
+    },
+    "ground": {
+      "rotation": [ 0, 0, 0 ],
+      "translation": [ 0, 2, 0 ],
+      "scale": [ 0.4, 0.4, 0.4 ]
+    },
+    "fixed": {
+      "rotation": [ 0, 180, 0 ],
+      "translation": [ 0, 1, 0 ],
+      "scale": [ 0.6, 0.6, 0.6 ]
+    },
+    "thirdperson_righthand": {
+      "rotation": [ 0, 130, 0 ],
+      "translation": [ 0, 2, 1 ],
+      "scale": [ 0.5, 0.5, 0.5 ]
+    },
+    "thirdperson_lefthand": {
+      "rotation": [ 0, 130, 0 ],
+      "translation": [ 0, 2, 1 ],
+      "scale": [ 0.5, 0.5, 0.5 ]
+    },
+    "firstperson_righthand": {
+      "rotation": [ 0, 130, 0 ],
+      "translation": [ 0, 1, 0 ],
+      "scale": [ 0.55, 0.55, 0.55 ]
+    },
+    "firstperson_lefthand": {
+      "rotation": [ 0, 130, 0 ],
+      "translation": [ 0, 1, 0 ],
+      "scale": [ 0.55, 0.55, 0.55 ]
+    },
+    "head": {
+      "rotation": [ 0, 0, 0 ],
+      "translation": [ 0, 16, 0 ],
+      "scale": [ 1.25, 1.25, 1.25 ]
+    }
+  }
+}
