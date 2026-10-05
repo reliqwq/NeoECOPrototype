@@ -45,9 +45,10 @@ item_ids:
 
 ## 获取
 
-方块与线缆部件两种形态都在 Neo ECO AE Extension 的集成工作站里合成。下面这个配方图显示的是
-两种形态之间在合成栏里的无损互转。
+方块版在 Neo ECO AE Extension 的集成工作站里组装：**1 个天外寒冰、4 台 [L1 供能接口](powered_interface.md)、9 个盈能超导锭、4 个 ECO - SA 超导处理器**，耗能 10,000 AE。工作站的配方图这一页画不出来，原料写在文字里。
 
-<RecipeFor id="neoecoprototype:superconductive_interface" />
+**线缆部件形态不在工作台上出，也没有自己的合成配方**，只能由方块版在合成栏里转出来：
 
 <RecipeFor id="neoecoprototype:cable_superconductive_interface" />
+
+反过来把线缆部件版转回方块版也一样无损，两个方向都能转。

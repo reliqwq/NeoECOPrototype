@@ -1,0 +1,10 @@
+{
+  "type": "neoecoprototype:processor_assembler",
+  "ingredients": [
+    { "item": "minecraft:snow_block" },
+    { "item": "minecraft:snow_block" },
+    { "item": "minecraft:snow_block" },
+    { "item": "minecraft:snow_block" }
+  ],
+  "result": { "id": "minecraft:snowball", "count": 4 }
+}

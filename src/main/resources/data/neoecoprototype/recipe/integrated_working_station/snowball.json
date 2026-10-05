@@ -1,0 +1,14 @@
+{
+  "type": "neoecoae:integrated_working_station",
+  "energy": 1000,
+  "inputItems": [
+    {
+      "count": 1,
+      "item": "minecraft:snow_block"
+    }
+  ],
+  "itemOutput": {
+    "count": 4,
+    "id": "minecraft:snowball"
+  }
+}

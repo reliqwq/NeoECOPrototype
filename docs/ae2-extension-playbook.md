@@ -143,6 +143,16 @@ AE2 的下限从始至终是 `[19.2.17,)`，现在也是编译所依据的版本
 
 比对方法记在这里，别重复踩：类清单要取常量池里被引用的 `appeng` 宿主类（源码 grep 会漏掉 `var` 推出来的类型），只比 entry name 不算证明——`21.2.1` 的两代 jar 里 0 个类被删除，但 230 个类的字节变了。
 
+## 指南里的配方图只画"注册过映射"的配方类型
+
+`<RecipeFor id="..." />` 的 `id` 走的是**物品**注册表（`MdxAttrs.getRequiredItemAndId` → `BuiltInRegistries.ITEM`），不是配方 id。拿到物品之后 `RecipeCompiler$RecipeTypeMapping.tryCreate` 做的是 `RecipeManager.byType(recipeType)` 再按 `getResultItem().getItem()` 过滤——**所以只有映射过的 `RecipeType` 才会被画出来**。现量：guideme 自己只映射 `RecipeType.CRAFTING`（`DefaultExtensions`），AE2 另加 inscriber / charger / transform 三种（`appeng.client.guidebook.RecipeTypeContributions`），eco 的 jar 里 `RecipeTypeMappingSupplier` 命中 0，我们的源码对 guideme 命中 0。
+
+结果就是 `neoecoprototype:processor_assembler` 与 `neoecoae:integrated_working_station` 的配方在指南里**永远画不出来**：不报错、不警告，那个盒子只会去渲染同一件物品的别的配方。L1 供能接口那页原本就是踩在这个坑上——写"在处理器装配室里组装"后面跟的 `<RecipeFor>`，画出来的其实是"线缆部件 → 方块"的合成栏转换，看着像配方图，方向还是反的。
+
+口径：装配室与工作站产出的东西，原料写在正文里，格子交给 JEI；`<RecipeFor>` 只用在原版合成台能做出的物品上。真要让指南画装配室的配方，就得实现 guideme 的 `RecipeTypeMappingSupplier` 扩展点并用 `LytStandardRecipeBox.Builder` 把我们的配方摊开——那时 `build.gradle:45` 的 `implementation files("libs/guideme-21.1.1.jar")` 才第一次真正参与编译（现在它只是给 dev 启动摆着，因为 AE2 把 guideme 声明成 `REQUIRED`）。
+
+`C:/tmp/guide_recipefor_check.py` 是这一条的守卫：它把指南里每条 `<RecipeFor>` 的 id 对回我们自己配方的产出。**它看不见本节说的这个坑**——盒子有内容但内容不是正文说的那张配方，只有把正文句子与配方类型一起读才看得出来。
+
 ## 多方块朝向与镜像
 
 处理“某一格才接受指定成员”或网络交换模块位置时，先读取 eco 自己的实现，再读取 AE2，最后才参考原版。eco 的正规入口是 `NENetworkSwitchUtil.switchPosition`，不要用 `front.getCounterClockWise()` 等手工推导替代它。

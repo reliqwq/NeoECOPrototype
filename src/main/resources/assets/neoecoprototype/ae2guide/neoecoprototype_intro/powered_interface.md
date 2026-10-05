@@ -41,16 +41,18 @@ subnet that has an interface here does not need one.
 
 ## Obtaining
 
-It is assembled in the processor assembly room, which takes the ingredients in any order from any
-pattern provider:
+The block form is assembled in the processor assembly room from **2 crystal resonance generators,
+1 AE2 interface and 1 superconducting processor**. Any pattern provider will push those ingredients
+in, in any order. (The page cannot draw the assembly room's recipe - the guidebook only renders
+crafting-table recipes - so the ingredients are written out here; the grid itself is in JEI.)
 
-<RecipeFor id="neoecoprototype:simplify_powered_me_interface" />
-
-The cable-mounted form behaves identically and is worked out on a crafting table:
+**The cable-mounted form has no recipe of its own.** It is converted out of the block form in a
+crafting grid:
 
 <RecipeFor id="neoecoprototype:cable_powered_me_interface" />
 
-The two forms convert into each other losslessly in a crafting grid.
+Turning the cable-mounted form back into the block form works the same way: the conversion is
+lossless, and it runs in either direction.
 
 ## Further use
 

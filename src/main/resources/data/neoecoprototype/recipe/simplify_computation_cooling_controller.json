@@ -2,7 +2,7 @@
   "type": "minecraft:crafting_shaped",
   "category": "misc",
   "key": {
-    "A": { "item": "ae2:quartz_glass" },
+    "A": { "item": "minecraft:powder_snow_bucket" },
     "B": { "item": "neoecoprototype:simplify_computation_casing" },
     "C": { "item": "neoecoprototype:simplify_green_crystal_matrix" }
   },

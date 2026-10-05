@@ -62,7 +62,7 @@ Two extra parts lift an L1 subsystem above what eco's own members give it:
 
 | Item | Where | Ingredients |
 | --- | --- | --- |
-| Energized Computation Core | Integrated Working Station (eco) | 3 x C4 expandable computation system, 8 x green crystal matrix, 4 x not-so-mysterious cube, 66,600 FE |
+| Energized Computation Core | Integrated Working Station (eco) | 3 x C4 expandable computation system, 8 x green crystal matrix, 4 x not-so-mysterious cube, 66,600 AE |
 | Energized Computation Threading Core | L1 processor assembly room | 2 x CM4A threading core, 1 x C1 computation casing |
 | Energized computation cell (CE1R) | L1 processor assembly room | 2 x CE1 cell, 1 x L4 storage component |
 

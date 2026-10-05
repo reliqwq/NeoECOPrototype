@@ -3,7 +3,7 @@
   "category": "misc",
   "key": {
     "A": { "item": "neoecoae:aluminum_ingot" },
-    "B": { "item": "ae2:quartz_vibrant_glass" },
+    "B": { "item": "minecraft:iron_ingot" },
     "C": { "item": "neoecoprototype:simplify_green_crystal_matrix" }
   },
   "pattern": ["ABA", "BCB", "ABA"],

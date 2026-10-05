@@ -46,9 +46,14 @@ from every [L1 Powered Interface](powered_interface.md) on the network and suppr
 
 ## Obtaining
 
-Both forms are made in the Integrated Working Station from Neo ECO AE Extension. The viewer below
-shows the workbench conversion between the two forms.
+The block form is assembled in the Integrated Working Station from Neo ECO AE Extension, from
+**1 Cryotheum Crystal, 4 L1 Powered Interfaces, 9 Energized Superconductive Ingots and 4
+Superconducting Processors**, at a cost of 10,000 AE. (That recipe cannot be drawn on this page
+either - the guidebook only renders crafting-table recipes.)
 
-<RecipeFor id="neoecoprototype:superconductive_interface" />
+**The cable-mounted form has no recipe of its own and is not a station recipe at all.** It is
+converted out of the block form in a crafting grid:
 
 <RecipeFor id="neoecoprototype:cable_superconductive_interface" />
+
+Turning it back into the block form works the same way, and both directions are lossless.
