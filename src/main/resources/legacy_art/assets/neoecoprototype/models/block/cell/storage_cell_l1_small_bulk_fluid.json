@@ -5,8 +5,8 @@
   "textures": {
     "level": "neoecoprototype:block/storage_recolor/drive/cell_level",
     "type": "neoecoprototype:block/storage_recolor/drive/cell_type",
-    "particle": "neoecoprototype:block/storage_recolor/drive/mega_cell_housing",
-    "base": "neoecoprototype:block/storage_recolor/drive/mega_cell_housing"
+    "particle": "neoecoprototype:block/storage_recolor/drive/small_bulk_cell_housing",
+    "base": "neoecoprototype:block/storage_recolor/drive/small_bulk_cell_housing"
   },
   "elements": [
     {
@@ -23,7 +23,7 @@
     },
     {
       "name": "type",
-      "from": [3, 6, 0],
+      "from": [3, 6, -0.01],
       "to": [5, 12, 2],
       "faces": {
         "north": {"uv": [2, 0, 4, 6], "texture": "#type", "neoforge_data": {"block_light": 15, "sky_light": 15}},
@@ -32,7 +32,7 @@
     },
     {
       "name": "level",
-      "from": [0, 2, 0],
+      "from": [0, 2, -0.01],
       "to": [6, 4, 2],
       "shade": false,
       "faces": {

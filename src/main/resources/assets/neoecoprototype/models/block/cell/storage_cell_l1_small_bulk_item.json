@@ -23,7 +23,7 @@
 		},
 		{
 			"name": "type",
-			"from": [0, 8, 0],
+			"from": [0, 8, -0.01],
 			"to": [6, 11, 2],
 			"faces": {
 				"north": {"uv": [0, 6, 6, 9], "texture": "#type"},
@@ -33,7 +33,7 @@
 		},
 		{
 			"name": "level",
-			"from": [0, 2, 0],
+			"from": [0, 2, -0.01],
 			"to": [6, 3, 2],
 			"shade": false,
 			"faces": {
@@ -44,7 +44,7 @@
 		},
 		{
 			"name": "level",
-			"from": [2, 4, 0],
+			"from": [2, 4, -0.01],
 			"to": [6, 5, 2],
 			"shade": false,
 			"faces": {
