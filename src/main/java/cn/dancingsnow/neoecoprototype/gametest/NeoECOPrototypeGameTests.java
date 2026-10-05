@@ -68,6 +68,7 @@ import net.minecraft.world.item.crafting.CraftingInput;
 import net.minecraft.world.item.crafting.RecipeHolder;
 import net.minecraft.world.item.crafting.RecipeType;
 import net.minecraft.world.item.crafting.CraftingRecipe;
+import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.Block;
@@ -1335,8 +1336,11 @@ public final class NeoECOPrototypeGameTests {
             return;
         }
 
-        // The multiplier does have to be applied where items are actually taken: a 64x pattern must pull
-        // 128 cells and 64 components into the grid, or the craft under-consumes and never completes.
+        // The multiplier is applied where items are actually taken: this 64x pattern asks for 128 cells and
+        // 64 components. Cells stack to eight, so holding 128 of them legally takes sixteen slots and the
+        // assembler only has nine. It used to be done by stuffing sixty-four into one slot -- an item stack
+        // bigger than the item allows, which the game's own codec rejects when the machine is loaded again.
+        // The honest answer for this shape is a refusal that consumes nothing.
         var patternInputs = batched.getInputs();
         KeyCounter[] supplied = new KeyCounter[patternInputs.length];
         for (int slot = 0; slot < patternInputs.length; slot++) {
@@ -1346,14 +1350,156 @@ public final class NeoECOPrototypeGameTests {
             }
             supplied[slot] = counter;
         }
+        var plan = new cn.dancingsnow.neoecoprototype.blockentity.crafting.ProcessorAssemblyPattern(
+                batched, batchedMatch, (what, amount) -> helper.fail(
+                        "a refused pattern must not reach the output sink at all"));
+        long runs = plan.fittingRuns(supplied);
+        if (runs != 0) {
+            helper.fail("a 64x pattern needing sixteen slots of cells was offered " + runs
+                    + " runs; nine slots cannot hold it");
+            return;
+        }
+        if (supplied[0].get(cell.what()) != 64L) {
+            helper.fail("asking whether a pattern fits consumed material: " + supplied[0].get(cell.what())
+                    + " of the cells are gone");
+            return;
+        }
+        helper.succeed();
+    }
+
+    /**
+     * A batched push may not consume more than the cycle can hand over. Snowballs are the shape that
+     * shows it: the recipe yields four per run and a stack holds sixteen, so four runs fill one cycle --
+     * and a fifth used to be paid for out of the network and then dropped, because AE2 rebuilds the grid
+     * from {@code getRemainingItems()} and this interface's default is all-empty.
+     */
+    @GameTest(template = "empty", templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void processorAssemblerBatchCannotOverspend(GameTestHelper helper) {
+        var block = new GenericStack(AEItemKey.of(Items.SNOW_BLOCK), 1);
+        var recipe = new cn.dancingsnow.neoecoprototype.recipe.ProcessorAssemblerRecipe(
+                List.of(Ingredient.of(Items.SNOW_BLOCK), Ingredient.of(Items.SNOW_BLOCK),
+                        Ingredient.of(Items.SNOW_BLOCK), Ingredient.of(Items.SNOW_BLOCK)),
+                new ItemStack(Items.SNOWBALL, 4));
+        var pattern = new HandmadePattern(AEItemKey.of(Items.SNOWBALL),
+                List.of(new HandmadeInput(1, block), new HandmadeInput(1, block),
+                        new HandmadeInput(1, block), new HandmadeInput(1, block)),
+                List.of(new GenericStack(AEItemKey.of(Items.SNOWBALL), 4)));
+
+        var key = AEItemKey.of(Items.SNOW_BLOCK);
+        KeyCounter[] supplies = new KeyCounter[4];
+        for (int slot = 0; slot < supplies.length; slot++) {
+            supplies[slot] = new KeyCounter();
+            supplies[slot].add(key, 20L);
+        }
+
         var grid = new java.util.HashMap<Integer, ItemStack>();
-        new cn.dancingsnow.neoecoprototype.blockentity.crafting.ProcessorAssemblyPattern(batched, batchedMatch)
-                .fillCraftingGrid(supplied, grid::put);
-        long cellsInGrid = grid.values().stream()
-                .mapToLong(stack -> stack.is(((AEItemKey) cell.what()).getItem()) ? stack.getCount() : 0L).sum();
-        if (cellsInGrid != 128) {
-            helper.fail("fillCraftingGrid put " + cellsInGrid + " computation cells into the grid for a 64x"
-                    + " pattern of a recipe that needs two per craft");
+        var handedOver = new long[1];
+        var plan = new cn.dancingsnow.neoecoprototype.blockentity.crafting.ProcessorAssemblyPattern(
+                pattern, recipe, (what, amount) -> handedOver[0] += amount);
+        plan.fillCraftingGrid(supplies, grid::put);
+
+        long left = 0;
+        for (KeyCounter counter : supplies) left += counter.get(key);
+        if (left != 64L) {
+            helper.fail("a cycle that hands over one stack of 16 snowballs took " + (80L - left)
+                    + " snow blocks out of the network; " + left + " should have been left where they are");
+            return;
+        }
+
+        List<ItemStack> stacks = new ArrayList<>();
+        for (int slot = 0; slot < 9; slot++) stacks.add(grid.getOrDefault(slot, ItemStack.EMPTY));
+        var input = CraftingInput.of(3, 3, stacks);
+        var output = plan.assemble(input, helper.getLevel());
+        if (output.getCount() != 16) {
+            helper.fail("16 consumed blocks should come back as 16 snowballs, got " + output.getCount());
+            return;
+        }
+        plan.getRemainingItems(input);
+        if (handedOver[0] != 0L) {
+            helper.fail("a cycle that stayed inside one stack still handed " + handedOver[0]
+                    + " snowballs to the output sink");
+            return;
+        }
+
+        // The other shape: one run of the pattern asks for more than a stack can hold. A finished cycle
+        // can still only eject one stack, so the rest has to leave through the output sink -- otherwise the
+        // materials the machine already took are paid for and delivered as a fraction.
+        var cell = stackOf("neoecoprototype:simplify_computation_cell_1m");
+        if (cell.getMaxStackSize() != 8) {
+            helper.fail("expected a result that stacks to eight, got " + cell.getMaxStackSize()
+                    + " -- the shape below needs one that cannot fit one run");
+            return;
+        }
+        var cellRecipe = new cn.dancingsnow.neoecoprototype.recipe.ProcessorAssemblerRecipe(
+                List.of(Ingredient.of(Items.SNOW_BLOCK), Ingredient.of(Items.REDSTONE),
+                        Ingredient.of(Items.GOLD_INGOT)),
+                new ItemStack(cell.getItem(), 1));
+        var one = new GenericStack(AEItemKey.of(Items.SNOW_BLOCK), 1);
+        var cellPattern = new HandmadePattern(AEItemKey.of(cell.getItem()),
+                List.of(new HandmadeInput(64, one),
+                        new HandmadeInput(64, new GenericStack(AEItemKey.of(Items.REDSTONE), 1)),
+                        new HandmadeInput(64, new GenericStack(AEItemKey.of(Items.GOLD_INGOT), 1))),
+                List.of(new GenericStack(AEItemKey.of(cell.getItem()), 64)));
+        var cellGrid = new java.util.HashMap<Integer, ItemStack>();
+        var cellHandedOver = new long[1];
+        var cellPlan = new cn.dancingsnow.neoecoprototype.blockentity.crafting.ProcessorAssemblyPattern(
+                cellPattern, cellRecipe, (what, amount) -> cellHandedOver[0] += amount);
+        var cellSupplies = new KeyCounter[3];
+        for (int slot = 0; slot < cellSupplies.length; slot++) {
+            cellSupplies[slot] = new KeyCounter();
+            cellSupplies[slot].add(cellPattern.getInputs()[slot].getPossibleInputs()[0].what(), 64L * 40L);
+        }
+        cellPlan.fillCraftingGrid(cellSupplies, cellGrid::put);
+        var cellStacks = new ArrayList<ItemStack>();
+        for (int slot = 0; slot < 9; slot++) cellStacks.add(cellGrid.getOrDefault(slot, ItemStack.EMPTY));
+        var cellInput = CraftingInput.of(3, 3, cellStacks);
+        var ejected = cellPlan.assemble(cellInput, helper.getLevel());
+        cellPlan.getRemainingItems(cellInput);
+        if (ejected.getCount() != 8 || cellHandedOver[0] != 56L) {
+            helper.fail("a pattern asking for 64 of an eight-stack item ejected " + ejected.getCount()
+                    + " and handed the sink " + cellHandedOver[0] + "; together they have to make 64");
+            return;
+        }
+
+        // The shape that used to take the world down: enough material pushed in that the batch needs more
+        // than nine slots. The fill used to throw, and the throw rode out through AE2's grid tick into the
+        // server tick loop. It has to shrink the batch instead.
+        var heavyRecipe = new cn.dancingsnow.neoecoprototype.recipe.ProcessorAssemblerRecipe(
+                List.of(Ingredient.of(Items.SNOW_BLOCK), Ingredient.of(Items.SNOW_BLOCK),
+                        Ingredient.of(Items.SNOW_BLOCK), Ingredient.of(Items.SNOW_BLOCK)),
+                new ItemStack(Items.SNOWBALL, 1));
+        var heavyUnit = new GenericStack(AEItemKey.of(Items.SNOW_BLOCK), 16);
+        var heavyPattern = new HandmadePattern(AEItemKey.of(Items.SNOWBALL),
+                List.of(new HandmadeInput(1, heavyUnit), new HandmadeInput(1, heavyUnit),
+                        new HandmadeInput(1, heavyUnit), new HandmadeInput(1, heavyUnit)),
+                List.of(new GenericStack(AEItemKey.of(Items.SNOWBALL), 1)));
+        var heavySupplies = new KeyCounter[4];
+        for (int slot = 0; slot < heavySupplies.length; slot++) {
+            heavySupplies[slot] = new KeyCounter();
+            heavySupplies[slot].add(AEItemKey.of(Items.SNOW_BLOCK), 2_500L);
+        }
+        var heavyGrid = new java.util.HashMap<Integer, ItemStack>();
+        var heavyPlan = new cn.dancingsnow.neoecoprototype.blockentity.crafting.ProcessorAssemblyPattern(
+                heavyPattern, heavyRecipe, (what, amount) -> helper.fail(
+                        "a batch that fits the grid has no surplus to hand over: " + what + " x" + amount));
+        if (heavyPlan.fittingRuns(heavySupplies) <= 0) {
+            helper.fail("ten thousand snow blocks were on hand and the assembler still refused the pattern");
+            return;
+        }
+        heavyPlan.fillCraftingGrid(heavySupplies, heavyGrid::put);
+        if (heavyGrid.size() > 9) {
+            helper.fail("the batch filled " + heavyGrid.size() + " grid slots");
+            return;
+        }
+        var heavyStacks = new ArrayList<ItemStack>();
+        for (int slot = 0; slot < 9; slot++) heavyStacks.add(heavyGrid.getOrDefault(slot, ItemStack.EMPTY));
+        var heavyInput = CraftingInput.of(3, 3, heavyStacks);
+        var heavyOut = heavyPlan.assemble(heavyInput, helper.getLevel());
+        long heavyPlaced = 0;
+        for (ItemStack stack : heavyGrid.values()) heavyPlaced += stack.getCount();
+        if (heavyOut.getCount() * 64L != heavyPlaced) {
+            helper.fail("the grid holds " + heavyPlaced + " snow blocks, which is not a whole number of the "
+                    + heavyOut.getCount() + " snowballs this cycle pays for (64 blocks each)");
             return;
         }
         helper.succeed();

@@ -1,6 +1,8 @@
 package cn.dancingsnow.neoecoprototype.blockentity.crafting;
 
 import appeng.api.crafting.IPatternDetails;
+import appeng.api.config.Actionable;
+import appeng.api.networking.security.IActionSource;
 import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.GenericStack;
 import appeng.api.stacks.KeyCounter;
@@ -12,6 +14,9 @@ import cn.dancingsnow.neoecoprototype.recipe.ProcessorAssemblerRecipe;
 import cn.dancingsnow.neoecoprototype.recipe.ProcessorAssemblerRecipes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import org.jetbrains.annotations.Nullable;
@@ -33,11 +38,46 @@ public class SimplifyStonecuttingAssemblerBlockEntity extends MolecularAssembler
         }
         ProcessorAssemblerRecipe recipe = matchRecipe(pattern);
         if (recipe == null) {
-            logRefusal(pattern);
+            logRefusal(pattern, "没有对得上的配方");
+            return false;
+        }
+        var plan = new ProcessorAssemblyPattern(pattern, recipe, this::deliverSurplus);
+        // Filling the grid throws when the batch cannot be held, and a throw here rides straight out of
+        // AE2's grid tick and crashes the world -- so the fit is asked about first and refused quietly.
+        if (plan.fittingRuns(inputs) <= 0) {
+            logRefusal(pattern, "一批原料摆不进 9 格工作台，或者一次产出装不下一组");
             return false;
         }
         refusedOutput = null;
-        return super.pushPattern(new ProcessorAssemblyPattern(pattern, recipe), inputs, direction);
+        return super.pushPattern(plan, inputs, direction);
+    }
+
+    /**
+     * Where the part of a finished cycle that did not fit into the one ejected stack goes: this grid's
+     * storage, since a cycle can only hand over a single stack of an item. Whatever the network will not
+     * take falls next to the machine -- the alternative is that the materials simply stop existing.
+     */
+    private void deliverSurplus(AEItemKey what, long amount) {
+        long left = amount;
+        var grid = getMainNode().getGrid();
+        if (grid != null) {
+            left -= grid.getStorageService().getInventory().insert(what, left,
+                    Actionable.MODULATE, IActionSource.ofMachine(this));
+        }
+        if (left <= 0) return;
+        if (!(getLevel() instanceof ServerLevel serverLevel)) {
+            NeoECOPrototype.LOGGER.warn("[stonecutting assembler] had no output for {} x {} at {}",
+                    what, left, worldPosition);
+            return;
+        }
+        var center = worldPosition.getCenter();
+        int stackSize = what.toStack(1).getMaxStackSize();
+        while (left > 0) {
+            int count = (int) Math.min(stackSize, left);
+            serverLevel.addFreshEntity(new ItemEntity(serverLevel, center.x, center.y, center.z,
+                    new ItemStack(what.getItem(), count)));
+            left -= count;
+        }
     }
 
     /**
@@ -49,7 +89,7 @@ public class SimplifyStonecuttingAssemblerBlockEntity extends MolecularAssembler
      * needs two of the item", and reading past it is exactly how the repeated-ingredient recipes were
      * miscounted.
      */
-    private void logRefusal(IPatternDetails pattern) {
+    private void logRefusal(IPatternDetails pattern, String reason) {
         var outputs = pattern.getOutputs();
         AEItemKey output = outputs.size() == 1 && outputs.get(0).what() instanceof AEItemKey key ? key : null;
         if (output == null || output.equals(refusedOutput)) return;
@@ -61,9 +101,9 @@ public class SimplifyStonecuttingAssemblerBlockEntity extends MolecularAssembler
                     .append(possible.length > 0 ? possible[0].amount() : 0).append('x')
                     .append(slot.getMultiplier()).append(']');
         }
-        NeoECOPrototype.LOGGER.warn("[stonecutting assembler] refused a pattern at {}: output={} patternClass={} "
-                        + "slots={} (每槽 = 候选数 x 每候选数量 x 批量倍数)",
-                worldPosition, outputs, pattern.getClass().getSimpleName(), slots);
+        NeoECOPrototype.LOGGER.warn("[stonecutting assembler] refused a pattern at {}: {}；output={} "
+                        + "patternClass={} slots={} (每槽 = 候选数 x 每候选数量 x 批量倍数)",
+                worldPosition, reason, outputs, pattern.getClass().getSimpleName(), slots);
     }
 
     /**
