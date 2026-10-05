@@ -249,13 +249,10 @@ public final class StorageMatrixBuilder extends ItemBuilder {
             bytesPerType = (int) Math.max(1L, bytes / Math.max(1, totalTypes));
         } else if (size == StorageMatrixDefinition.MatrixSize.INFINITE) {
             Supplier<AEKey> selectedKey = key;
-            Supplier<ECOCellType> selectedCellType = () -> type == StorageMatrixDefinition.MatrixType.FLUID
-                    ? SimplifyStorageCellItem.getFluidCellType()
-                    : type == StorageMatrixDefinition.MatrixType.CHEMICAL
-                    ? NERegistries.CELL_TYPE.get(ResourceLocation.fromNamespaceAndPath("neoecoae", "chemical"))
-                    : SimplifyStorageCellItem.getItemCellType();
+            // An infinite matrix gets its own invisible cell type rather than the media's: borrowing it
+            // would add this cell's single bound item and zero bytes to that media's host row.
             item = new CustomInfiniteCellItem(createItemProperties().stacksTo(1), selectedKey,
-                    selectedCellType, driveModelOrDefault());
+                    () -> CustomInfiniteCellItem.INFINITE_CELL_TYPE, driveModelOrDefault());
         } else if (type == StorageMatrixDefinition.MatrixType.CHEMICAL) {
             item = new SimplifyChemicalStorageCellItem(createItemProperties().stacksTo(1),
                     bytes, bytesPerType, boundChemical);

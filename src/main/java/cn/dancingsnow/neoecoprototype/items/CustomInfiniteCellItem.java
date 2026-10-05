@@ -11,6 +11,7 @@ import cn.dancingsnow.neoecoae.api.storage.ECOCellType;
 import cn.dancingsnow.neoecoae.api.storage.IBasicECOCellItem;
 import cn.dancingsnow.neoecoprototype.api.SimplifyTier;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
@@ -42,9 +43,21 @@ public final class CustomInfiniteCellItem extends Item implements IBasicECOCellI
     public static final double IDLE_DRAIN = 8.0D;
     /** 单绑定类型：1 个类型槽 × 1 字节，与混凝土矩阵的 footprint 标注口径一致。 */
     public static final int TOTAL_TYPES = 1;
-    public static final long REPORTED_BYTES = TOTAL_TYPES;
+    /**
+     * The byte half is unbounded. AE2's own {@code Tooltips.bytesUsed} does not special-case that and
+     * would print 9223372036854775807, so our drive tooltip detects this value and drops the numbers
+     * entirely - an infinite matrix has no fill level to report.
+     */
+    public static final long REPORTED_BYTES = Long.MAX_VALUE;
     /** 终端显示量：对齐 ExtendedAE 的 Integer.MAX_VALUE × amountPerUnit。 */
     public static final long REPORTED_AMOUNT = (long) Integer.MAX_VALUE;
+    /**
+     * Its own cell type, invisible: borrowing the media's shared type would add this cell's one bound
+     * item and zero bytes to that media's row in the storage host GUI, which is a statistic nobody can
+     * act on. Like the concrete matrix's, it is deliberately not registered.
+     */
+    public static final ECOCellType INFINITE_CELL_TYPE = new ECOCellType(
+            Component.translatable("eco_cell_type.neoecoprototype.infinite"), TOTAL_TYPES, false);
 
     private final Supplier<AEKey> record;
     private final Supplier<ECOCellType> cellType;
@@ -53,7 +66,7 @@ public final class CustomInfiniteCellItem extends Item implements IBasicECOCellI
 
     public CustomInfiniteCellItem(Properties properties, Supplier<AEKey> record,
                                   @Nullable ResourceLocation driveModel) {
-        this(properties, record, () -> SimplifyStorageCellItem.getItemCellType(), driveModel);
+        this(properties, record, () -> INFINITE_CELL_TYPE, driveModel);
     }
 
     public CustomInfiniteCellItem(Properties properties, Supplier<AEKey> record,

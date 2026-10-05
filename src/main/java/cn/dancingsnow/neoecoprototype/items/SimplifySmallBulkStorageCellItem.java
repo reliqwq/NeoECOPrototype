@@ -80,8 +80,9 @@ public final class SimplifySmallBulkStorageCellItem extends ECOStorageCellItem
 
     // 标准引擎没有压缩链行为（标记=精确白名单，标铁块塞铁锭进不去）。大盘后端
     // ECOMegaLongBulkStorageCell 实现存储链，并按 beta4 约定从同一份 getConfigInventory
-    // 读取标记、容量口径取本物品的 getTotalTypes（3/10）。切换后标准引擎写入的存量
-    // 组件不再被读取——更新前先取回盘内内容。
+    // 读取标记。它的 getTotalItemTypes() 是硬编码 25（带 eco 升级卡 50）、不读本物品的
+    // getTotalTypes()，所以驱动器的 tooltip 另走 SimplifyDriveProvider#markedTypeCap。
+    // 切换后标准引擎写入的存量组件不再被读取——更新前先取回盘内内容。
     @Override
     protected ECOStorageCell createCellInventory(ItemStack stack, ISaveProvider saveProvider) {
         if (ModList.get().isLoaded("megacells")) {

@@ -45,21 +45,20 @@ public final class SimplifyConcreteStorageCellItem extends Item implements IBasi
      * concrete color slot, 16 total. The supply is endless, so it is never
      * expressed in bytes; used bytes stay 0 and nothing enforces this budget.
      */
-    public static final long REPORTED_BYTES = CONCRETE_TYPES;
+    public static final long REPORTED_BYTES = Long.MAX_VALUE;
     /** Per-color amount shown in terminals - Integer.MAX_VALUE, matching ExtendedAE's infinity cells. */
     public static final long REPORTED_AMOUNT_PER_TYPE = (long) Integer.MAX_VALUE;
     public static final double IDLE_DRAIN = 8.0D;
 
     /**
-     * Dedicated cell type (upstream's cell display interface): keeps the
-     * matrix out of the shared item row so its 16/16 types and flat byte
-     * budget do not pollute the item summary, and gives it a "concrete" row
-     * of its own in the storage host UI.
+     * Dedicated cell type (upstream's cell display interface): keeps the matrix out of the shared item
+     * row. Hidden from the storage host's own list - its row could only ever read "16 / 16 types" against
+     * an unbounded byte budget, which says nothing a player can act on.
      */
     public static final ECOCellType CELL_TYPE = new ECOCellType(
             Component.translatable("eco_cell_type.neoecoprototype.concrete"),
             CONCRETE_TYPES,
-            true);
+            false);
 
     public SimplifyConcreteStorageCellItem(Item.Properties properties) {
         super(properties);

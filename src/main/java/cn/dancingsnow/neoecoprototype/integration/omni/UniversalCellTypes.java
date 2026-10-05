@@ -21,7 +21,7 @@ public final class UniversalCellTypes {
     private static final DeferredRegister<ECOCellType> CELL_TYPES =
             DeferredRegister.create(NERegistries.Keys.CELL_TYPE, NeoECOPrototype.MOD_ID);
 
-    /** 256-type Omni matrix; distinct from eco's own omni and quantum omni entries. */
+    /** The Omni matrix's row; distinct from eco's own omni and quantum omni entries. */
     public static final DeferredHolder<ECOCellType, ECOCellType> UNIVERSAL = CELL_TYPES.register(
             "universal",
             () -> ECOCellType.builder()

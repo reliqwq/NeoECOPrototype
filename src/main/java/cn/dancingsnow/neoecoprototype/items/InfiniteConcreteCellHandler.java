@@ -153,7 +153,9 @@ public final class InfiniteConcreteCellHandler implements IECOCellHandler {
             return SimplifyConcreteStorageCellItem.REPORTED_BYTES;
         }
 
-        // 让存储主机按无限盘展示（"无限"），而不是无意义的"类型: 1 / 字节: 0/16"。
+        // eco reads this in its own drive provider and host statistics, neither of which runs for our
+        // block entities - our tooltip's infinity comes from REPORTED_BYTES being Long.MAX_VALUE.
+
         @Override
         public boolean hasInfiniteTypeCapacity() {
             return true;
