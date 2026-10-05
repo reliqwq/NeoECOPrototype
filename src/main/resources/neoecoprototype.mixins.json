@@ -11,6 +11,7 @@
     "InterfaceLogicAccess"
   ],
   "client": [
+    "ECOComputationDriveRendererMixin",
     "FixedBlockEntityRenderersMixin",
     "SlotYAccessor"
   ],

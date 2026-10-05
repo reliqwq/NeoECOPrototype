@@ -173,17 +173,19 @@ public final class NeoECOPrototypeClient {
                 BuiltInRegistries.ITEM.wrapAsHolder(ModRegistration.ENERGIZED_COMPUTATION_CELL_4M.get()),
                 ResourceLocation.fromNamespaceAndPath(NeoECOPrototype.MOD_ID, "block/computation_cell/cell_l4"),
                 ResourceLocation.fromNamespaceAndPath(NeoECOPrototype.MOD_ID, "block/computation_cell/cell_l4_formed"));
+        // The cable splits by the drive it sits in, never by which cell pushed it there: our own frame is
+        // a level 1 one, so both of our tiers wear the plain pair here. Both entries are still needed --
+        // eco's lookup has no miss branch, so a tier a cell can carry without a registration would NPE
+        // inside chunk rendering.
         ECOComputationModels.registerCableModel(
                 cn.dancingsnow.neoecoprototype.api.SimplifyTier.L1,
-                ResourceLocation.fromNamespaceAndPath(NeoECOPrototype.MOD_ID, "block/computation_cable/cable_l1_dis"),
-                ResourceLocation.fromNamespaceAndPath(NeoECOPrototype.MOD_ID, "block/computation_cable/cable_l1"));
-        // The drive renderer adopts the working cell's tier before asking for cable models
-        // (SimplifyComputationDriveRenderer#renderFixed), so every tier a cell can carry needs an entry
-        // here or chunk rendering throws an NPE inside eco's lookup.
+                ComputationCableModels.LOWER_DISCONNECTED, ComputationCableModels.LOWER_CONNECTED);
         ECOComputationModels.registerCableModel(
                 cn.dancingsnow.neoecoprototype.api.SimplifyTier.L1_REINFORCED,
-                ResourceLocation.fromNamespaceAndPath(NeoECOPrototype.MOD_ID, "block/computation_cable/cable_l1_dis"),
-                ResourceLocation.fromNamespaceAndPath(NeoECOPrototype.MOD_ID, "block/computation_cable/cable_l1"));
+                ComputationCableModels.LOWER_DISCONNECTED, ComputationCableModels.LOWER_CONNECTED);
+        // The glowing pair therefore has exactly one route to the screen: ECOComputationDriveRendererMixin,
+        // which switches our tiers onto it whenever eco's own frame asks for them. It covers the three
+        // lookups in eco's renderFixed(); a stub whose key is an eco tier is left as eco drew it.
         ECOComputationModels.runDeferredRegistration();
 
         FixedBlockEntityRenderers.register(ModRegistration.SIMPLIFY_DRIVE_BE.get(),
@@ -207,6 +209,10 @@ public final class NeoECOPrototypeClient {
                 NeoECOPrototype.MOD_ID, "block/computation_cable/cable_l1")));
         event.register(ModelResourceLocation.standalone(ResourceLocation.fromNamespaceAndPath(
                 NeoECOPrototype.MOD_ID, "block/computation_cable/cable_l1_dis")));
+        event.register(ModelResourceLocation.standalone(ResourceLocation.fromNamespaceAndPath(
+                NeoECOPrototype.MOD_ID, "block/computation_cable/cable_l1r")));
+        event.register(ModelResourceLocation.standalone(ResourceLocation.fromNamespaceAndPath(
+                NeoECOPrototype.MOD_ID, "block/computation_cable/cable_l1r_dis")));
         event.register(ModelResourceLocation.standalone(ResourceLocation.fromNamespaceAndPath(
                 NeoECOPrototype.MOD_ID, "block/computation_cell/cell_l4")));
         event.register(ModelResourceLocation.standalone(ResourceLocation.fromNamespaceAndPath(
