@@ -1,6 +1,9 @@
 package cn.dancingsnow.neoecoprototype.mixin;
 
-/* Version lock: NeoForge 21.1.233, Eco 21.2.0-preview12. Check render method descriptor and lookup call. */
+/* Version lock: NeoForge 21.1.251, eco 21.2.1-beta2. Re-checked against those jars on 2026-10-06:
+ * FixedBlockEntityRenderers.render(AddSectionGeometryEvent$SectionRenderingContext, BlockPos) is still
+ * the descriptor below and still asks BlockAndTintGetter.getBlockEntity inside it. The class is eco's,
+ * not NeoForge's - only the parameter type comes from NeoForge. */
 
 import cn.dancingsnow.neoecoae.client.rendering.FixedBlockEntityRenderers;
 import net.minecraft.core.BlockPos;

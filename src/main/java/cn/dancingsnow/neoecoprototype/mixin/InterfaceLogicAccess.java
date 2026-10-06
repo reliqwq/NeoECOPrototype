@@ -7,6 +7,10 @@ import org.spongepowered.asm.mixin.Mutable;
 import org.spongepowered.asm.mixin.gen.Accessor;
 import org.spongepowered.asm.mixin.gen.Invoker;
 
+/* Version lock: AE2 19.2.17. Re-checked against that jar on 2026-10-06: InterfaceLogic still holds
+ * `private final ConfigInventory config` and `... storage` (both need @Mutable), and still declares
+ * onConfigChanged(), onConfigRowChanged(), onStorageChanged() and isAllowedInStorageSlot(int, AEKey).
+ * remap = false because the target is a mod, not Minecraft: these members are looked up by these names. */
 @Mixin(value = InterfaceLogic.class, remap = false)
 public interface InterfaceLogicAccess {
     @Mutable
