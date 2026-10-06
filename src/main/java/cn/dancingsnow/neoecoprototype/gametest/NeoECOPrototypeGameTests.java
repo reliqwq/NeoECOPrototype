@@ -4677,4 +4677,36 @@ public final class NeoECOPrototypeGameTests {
                     }
                 });
     }
+
+    /**
+     * A shape parked for one host must not be readable by whatever stands there later. The handoff table
+     * is keyed by dimension rather than by world, so a host pulled out before its one-tick handoff ran
+     * would otherwise leave a face for the next machine to wear - and in one client process that next
+     * machine can be in a different save entirely.
+     */
+    @GameTest(template = "empty", batch = "computation_shape_stale", timeoutTicks = 100,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void pendingShapeDiesWithTheHost(GameTestHelper helper) {
+        var host = ModRegistration.SIMPLIFY_COMPUTATION_SYSTEM_BLOCK.get();
+        var level = helper.getLevel();
+        var pos = helper.absolutePos(new BlockPos(0, 1, 0));
+        var formed = host.defaultBlockState()
+                .setValue(cn.dancingsnow.neoecoae.blocks.NEBlock.FORMED, true);
+
+        level.setBlock(pos, formed, Block.UPDATE_ALL);
+        host.publishShape(level, pos, new SimplifyComputationSystemBlock.Shape(true, true));
+        // Take the host out before the scheduled tick can run, then put a fresh one in its place.
+        level.setBlock(pos, Blocks.AIR.defaultBlockState(), Block.UPDATE_ALL);
+        level.setBlock(pos, formed, Block.UPDATE_ALL);
+        host.tick(formed, level, pos, level.random);
+
+        var after = level.getBlockState(pos);
+        if (after.getValue(SimplifyComputationSystemBlock.COMMUNICATION_INTERFACE)
+                || after.getValue(SimplifyComputationSystemBlock.ENERGIZED_PARALLEL_CORE)) {
+            helper.fail("a shape parked for a host that was removed was applied to the block that replaced it: "
+                    + after);
+            return;
+        }
+        helper.succeed();
+    }
 }

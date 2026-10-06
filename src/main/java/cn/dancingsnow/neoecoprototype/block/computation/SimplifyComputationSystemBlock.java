@@ -82,6 +82,26 @@ public class SimplifyComputationSystemBlock extends ECOComputationSystem {
     }
 
     @Override
+    public void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean movedByPiston) {
+        super.onRemove(state, level, pos, newState, movedByPiston);
+        // The only reader of a parked shape is the tick scheduled for this position, and Minecraft skips a
+        // block tick whose block no longer matches -- so once the host is gone nothing will ever consume the
+        // entry. The table is keyed by dimension rather than by world, which is what lets the next host at
+        // the same coordinate read a shape left behind by a machine that no longer exists.
+        if (!level.isClientSide) {
+            pendingFor(level).remove(pos.asLong());
+        }
+    }
+
+    /**
+     * Drops every parked shape. Called when a server stops, because the table is static and keyed by
+     * dimension id: in one client process a second save would otherwise inherit the first one's entries.
+     */
+    public static void clearPendingShapes() {
+        PENDING_SHAPE.clear();
+    }
+
+    @Override
     public void tick(BlockState state, ServerLevel level, BlockPos pos, RandomSource random) {
         super.tick(state, level, pos, random);
         Shape shape = pendingFor(level).remove(pos.asLong());

@@ -61,6 +61,13 @@ public class NeoECOPrototype {
         modBus.addListener(NeoECOPrototype::commonSetup);
         modBus.addListener(NeoECOPrototype::registerCapabilities);
         modBus.addListener(NeoECOPrototype::registerPartCapabilities);
+        // The C1 host parks measured blockstate bits in a static table keyed by dimension, so the entries
+        // outlive an integrated server unless something clears them -- and one client process can open
+        // several saves in a row.
+        net.neoforged.neoforge.common.NeoForge.EVENT_BUS.addListener(
+                (net.neoforged.neoforge.event.server.ServerStoppingEvent event) ->
+                        cn.dancingsnow.neoecoprototype.block.computation
+                                .SimplifyComputationSystemBlock.clearPendingShapes());
     }
 
     /**
