@@ -8,7 +8,6 @@ import cn.dancingsnow.neoecoprototype.api.SimplifyMultiblockConfig;
 import cn.dancingsnow.neoecoprototype.registration.ModRegistration;
 import cn.dancingsnow.neoecoae.blocks.NEBlock;
 import cn.dancingsnow.neoecoae.multiblock.definition.MultiBlockDefinition;
-import cn.dancingsnow.neoecoae.config.NEConfig;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.Holder;
@@ -68,8 +67,13 @@ public final class SimplifyCraftingDefinition {
                 .setBlockWithRepeatShifted(pos(-1, 1, 1), Direction.WEST, 0, casing)
                 .setBlockWithRepeatShifted(pos(-1, 2, 1), Direction.WEST, 0, casing)
                 .expandMin(1)
-                .expandMax(NEConfig.craftingSystemMaxLength
-                        - SimplifyMultiblockConfig.PLACEMENT_BASE_LENGTH_OFFSET)
+                // Our own constant, not eco's config field: NEConfig.craftingSystemMaxLength is a plain
+                // static int that eco only fills when its config loads, so reading it here baked in 0
+                // whenever this class initialised first - which is what putting the definition touch in
+                // commonSetup did, and F1's build plan came out as expandMin 1 / expandMax -4. The other
+                // two L1 definitions already use this constant; eco's default (15) minus the same offset
+                // gives the identical 11, so nothing moves at default config.
+                .expandMax(SimplifyMultiblockConfig.L1_PLACEMENT_EXPAND_MAX)
                 .onFormed((blockPos, level) -> {
                     BlockState state = level.getBlockState(blockPos);
                     BlockState formed = state;
@@ -86,9 +90,10 @@ public final class SimplifyCraftingDefinition {
                         level.setBlockAndUpdate(blockPos, formed);
                     }
                 })
-                // Keep the addon definition out of eco's global list; JEI registers it explicitly.
-                .create(definition -> {
-                });
+                // Joins eco's definition list on purpose; see SimplifyStorageDefinition. The old comment
+                // here said "JEI registers it explicitly", and that registration was removed - asking for
+                // eco's category by name made the whole JEI plugin depend on plugin order.
+                .create();
     }
 
     private static BlockPos pos(int x, int y, int z) {

@@ -2702,6 +2702,24 @@ public final class NeoECOPrototypeGameTests {
                             helper.fail(where + " rejected the energized core");
                             return;
                         }
+                        // A formed addon component is the only moment its idle power is observable, so the
+                        // power mixin is checked here rather than in a fixture of its own.
+                        var poweredCore = cluster.getParallelCores().stream()
+                                .filter(core -> core.getTier() == SimplifyTier.L1_PARALLEL_SWITCH)
+                                .findFirst().orElseThrow();
+                        var coreNode = poweredCore.getMainNode().getNode();
+                        if (coreNode == null) {
+                            helper.fail(where + "'s energized core has no grid node yet, so its idle"
+                                    + " power cannot be read");
+                            return;
+                        }
+                        double expectedIdle = cn.dancingsnow.neoecoprototype.api.SimplifyPowerProfile.L1
+                                .baseComponentIdlePower();
+                        if (Math.abs(coreNode.getIdlePowerUsage() - expectedIdle) > 1e-9) {
+                            helper.fail(where + "'s energized core idles at " + coreNode.getIdlePowerUsage()
+                                    + " AE/t, but the addon power mixin should have set " + expectedIdle);
+                            return;
+                        }
                         int plain = cluster.getParallelCores().size() - ours;
                         long expected = (long) plain * SimplifyTier.L1.getCPUAccelerators()
                                 + SimplifyTier.L1_PARALLEL_SWITCH.getCPUAccelerators();
@@ -4705,6 +4723,44 @@ public final class NeoECOPrototypeGameTests {
                 || after.getValue(SimplifyComputationSystemBlock.ENERGIZED_PARALLEL_CORE)) {
             helper.fail("a shape parked for a host that was removed was applied to the block that replaced it: "
                     + after);
+            return;
+        }
+        helper.succeed();
+    }
+
+    /**
+     * eco's two recipe viewer pages read one thing only: {@code NEMultiBlocks.DEFINITIONS}, and joining it
+     * is the no-arg {@code Builder.create()} - {@code create(Consumer)} deliberately does not join. So this
+     * is the assertion that goes red if an overload is flipped back, which is what hid all three L1
+     * structures from JEI and EMI until 2026-10-06.
+     */
+    @GameTest(template = "empty", batch = "viewer_definitions", timeoutTicks = 100,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void l1HostsAreOnTheViewerListAndTrinityIsNot(GameTestHelper helper) {
+        var owners = new java.util.HashSet<net.minecraft.resources.ResourceLocation>();
+        for (var definition : cn.dancingsnow.neoecoae.all.NEMultiBlocks.DEFINITIONS) {
+            owners.add(BuiltInRegistries.BLOCK.getKey(definition.getOwner().value()));
+        }
+        // Named as List<Block> on purpose: letting javac infer the element type from three different host
+        // classes makes it compute an intersection over eco's self-referential NEBlock<C, E> generics, and
+        // that fails to reconcile NEBlockEntity#getCluster with AE2's IAEMultiBlock.
+        List<Block> hosts = List.of(
+                ModRegistration.SIMPLIFY_STORAGE_CONTROLLER_BLOCK.get(),
+                ModRegistration.SIMPLIFY_COMPUTATION_SYSTEM_BLOCK.get(),
+                ModRegistration.SIMPLIFY_CRAFTING_SYSTEM_BLOCK.get());
+        for (var host : hosts) {
+            var id = BuiltInRegistries.BLOCK.getKey(host);
+            if (!owners.contains(id)) {
+                helper.fail(id + " is absent from NEMultiBlocks.DEFINITIONS, so eco's JEI and EMI"
+                        + " multiblock pages cannot list its structure - build the definition with the"
+                        + " no-arg Builder.create()");
+                return;
+            }
+        }
+        var trinity = BuiltInRegistries.BLOCK.getKey(ModRegistration.SIMPLIFY_TRINITY_CONTROLLER_BLOCK.get());
+        if (owners.contains(trinity)) {
+            helper.fail(trinity + " joined NEMultiBlocks.DEFINITIONS: Trinity is meant to stay out of both"
+                    + " recipe viewers, and that list is the only thing they read");
             return;
         }
         helper.succeed();

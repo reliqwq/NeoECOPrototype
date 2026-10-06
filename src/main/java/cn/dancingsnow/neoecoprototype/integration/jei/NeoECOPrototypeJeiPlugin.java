@@ -1,12 +1,7 @@
 package cn.dancingsnow.neoecoprototype.integration.jei;
 
 import cn.dancingsnow.neoecoae.integration.jei.NeoECOAEJeiPlugin;
-import cn.dancingsnow.neoecoae.integration.xei.multiblock.MultiBlockInfoWrapper;
 import cn.dancingsnow.neoecoprototype.NeoECOPrototype;
-import cn.dancingsnow.neoecoprototype.multiblock.definition.SimplifyComputationDefinition;
-import cn.dancingsnow.neoecoprototype.multiblock.definition.SimplifyCraftingDefinition;
-import cn.dancingsnow.neoecoprototype.multiblock.definition.SimplifyStorageDefinition;
-import cn.dancingsnow.neoecoprototype.multiblock.definition.SimplifyTrinityDefinition;
 import cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig;
 import cn.dancingsnow.neoecoprototype.recipe.ProcessorAssemblerRecipe;
 import cn.dancingsnow.neoecoprototype.recipe.ProcessorAssemblerRecipes;
@@ -24,7 +19,7 @@ import net.minecraft.world.item.crafting.RecipeHolder;
 
 import java.util.List;
 
-/** Adds the L1 multiblock definitions to eco's preview category, plus the processor assembler page. */
+/** Adds the processor assembler page; the L1 structures ride on eco's multiblock category. */
 @JeiPlugin
 public final class NeoECOPrototypeJeiPlugin implements IModPlugin {
     /**
@@ -35,14 +30,6 @@ public final class NeoECOPrototypeJeiPlugin implements IModPlugin {
      * registrations alive for worlds and GameTests meanwhile.
      */
     private static final boolean TRINITY_VISIBLE_IN_JEI = false;
-
-    /** Resolve definitions only after registries have been bound by NeoForge. */
-    private static List<cn.dancingsnow.neoecoae.multiblock.definition.MultiBlockDefinition> l1Definitions() {
-        return List.of(
-                SimplifyStorageDefinition.L1,
-                SimplifyComputationDefinition.L1,
-                SimplifyCraftingDefinition.L1);
-    }
 
     @Override
     public ResourceLocation getPluginUid() {
@@ -56,30 +43,27 @@ public final class NeoECOPrototypeJeiPlugin implements IModPlugin {
 
     @Override
     public void registerRecipes(IRecipeRegistration registration) {
-        List<cn.dancingsnow.neoecoae.multiblock.definition.MultiBlockDefinition> definitions =
-                l1Definitions();
-        if (TRINITY_VISIBLE_IN_JEI) {
-            definitions = new java.util.ArrayList<>(definitions);
-            definitions.add(SimplifyTrinityDefinition.L1);
-        }
-        registration.addRecipes(NeoECOAEJeiPlugin.MULTIBLOCK_TYPE,
-                definitions.stream().map(MultiBlockInfoWrapper::new).toList());
-
         var level = net.minecraft.client.Minecraft.getInstance().level;
-        if (level != null) {
-            List<ProcessorAssemblerRecipe> recipes = new java.util.ArrayList<>(level.getRecipeManager()
-                    .getAllRecipesFor(ModRegistration.PROCESSOR_ASSEMBLER_RECIPE_TYPE.get())
-                    .stream().map(RecipeHolder::value).toList());
-            if (NeoECOPrototypeServerConfig.DERIVE_PROCESSOR_RECIPES_FROM_INSCRIBER.get()) {
-                recipes.addAll(ProcessorAssemblerRecipes.derived(level, recipes));
-            }
-            registration.addRecipes(ProcessorAssemblerCategory.TYPE,
-                    recipes.stream().filter(recipe ->
-                            !NeoECOPrototypeServerConfig.isProcessorRecipeDisabled(recipe.result().getItem()))
-                            .toList());
-            registration.addIngredientInfo(ModRegistration.SIMPLIFY_STONECUTTING_ASSEMBLER_ITEM.get(),
-                    Component.translatable("jei.neoecoprototype.processor_assembler.encode_hint"));
+        if (level == null) {
+            return;
         }
+        List<ProcessorAssemblerRecipe> recipes = new java.util.ArrayList<>(level.getRecipeManager()
+                .getAllRecipesFor(ModRegistration.PROCESSOR_ASSEMBLER_RECIPE_TYPE.get())
+                .stream().map(RecipeHolder::value).toList());
+        if (NeoECOPrototypeServerConfig.DERIVE_PROCESSOR_RECIPES_FROM_INSCRIBER.get()) {
+            recipes.addAll(ProcessorAssemblerRecipes.derived(level, recipes));
+        }
+        registration.addRecipes(ProcessorAssemblerCategory.TYPE,
+                recipes.stream().filter(recipe ->
+                        !NeoECOPrototypeServerConfig.isProcessorRecipeDisabled(recipe.result().getItem()))
+                        .toList());
+        registration.addIngredientInfo(ModRegistration.SIMPLIFY_STONECUTTING_ASSEMBLER_ITEM.get(),
+                Component.translatable("jei.neoecoprototype.processor_assembler.encode_hint"));
+        // The L1 structures are not added here on purpose. eco's own plugin fills its multiblock page by
+        // walking NEMultiBlocks.DEFINITIONS, and a definition joins that list inside Builder.create(), so
+        // adding them again would duplicate them - and asking for eco's category by name made this whole
+        // method depend on plugin order (with EMI installed it threw here and took the assembler page down
+        // with it, measured 2026-10-06). NeoECOPrototype#commonSetup touches the definitions instead.
     }
 
     @Override

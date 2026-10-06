@@ -159,6 +159,15 @@ public class NeoECOPrototype {
     private static void commonSetup(final FMLCommonSetupEvent event) {
         // Bind each block to its BlockEntityType (AE2's AEBaseEntityBlock#setBlockEntity).
         ModRegistration.linkBlockEntityTypes();
+        // eco's multiblock preview page in JEI and EMI is built by walking NEMultiBlocks.DEFINITIONS, and
+        // a definition adds itself to that list inside MultiBlockDefinition.Builder.create() - so our L1
+        // structures only appear if these classes have been initialised by the time the recipe viewers
+        // collect. Touching them here is the earliest point where the registries are already bound.
+        var l1Definitions = java.util.List.of(
+                cn.dancingsnow.neoecoprototype.multiblock.definition.SimplifyStorageDefinition.L1,
+                cn.dancingsnow.neoecoprototype.multiblock.definition.SimplifyComputationDefinition.L1,
+                cn.dancingsnow.neoecoprototype.multiblock.definition.SimplifyCraftingDefinition.L1);
+        LOGGER.info("Made {} L1 multiblock definitions visible to the recipe viewers.", l1Definitions.size());
         // eco 21.2.1 routes a structure check to the calculator of the controller it finds in the range
         // (NEComputationClusterCalculator#controllerCalculator), so naming L1 geometry against the host's
         // block entity type covers every member block of the machine. This replaces the mixin that built a

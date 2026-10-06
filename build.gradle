@@ -98,6 +98,10 @@ dependencies {
     // 开发辅助 mod（与 eco 预览 neweco 同版本）：
     implementation files("libs/jei-1.21.1-neoforge-19.27.0.340.jar")  // JEI compatible with LDLib2 2.2.8
     implementation files("libs/jade-7428884.jar")                      // Jade 🔍 (curse jade-324717:7428884)
+    // 可选集成：EMI。compileOnly 只为编译 NeoECOPrototypeEmiPlugin 那一个类；运行时由 run/mods 里
+    // 同 md5 的那份提供（e4aede758ec7c675d2255234df7ed4ff），没有 EMI 的环境里这个类根本不会被构造
+    // —— EMI 是扫描 @EmiEntrypoint 注解才找到插件的，不像软依赖那样能被我们的主类碰到。
+    compileOnly files("libs/emi-1.1.24+1.21.1+neoforge.jar") // EMI 1.1.24+1.21.1+neoforge
 
     compileOnly "org.projectlombok:lombok:1.18.34"
     annotationProcessor "org.projectlombok:lombok:1.18.34"

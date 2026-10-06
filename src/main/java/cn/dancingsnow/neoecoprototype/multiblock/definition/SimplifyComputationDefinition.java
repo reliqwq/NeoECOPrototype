@@ -83,8 +83,9 @@ public final class SimplifyComputationDefinition {
                         level.setBlockAndUpdate(blockPos, formedState);
                     }
                 })
-                .create(definition -> {
-                });
+                // See SimplifyStorageDefinition: create() is the overload that joins the list the two
+                // recipe viewers walk, so the L1 structure shows up in JEI and EMI.
+                .create();
     }
 
     private static BlockPos pos(int x, int y, int z) {

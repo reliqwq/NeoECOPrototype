@@ -119,6 +119,18 @@ AE2 Part 不是普通方块模型。保留 AE2 的 Part 几何、背面和侧面
 - **还能再往前一步**：把覆写从 `verifyInternalStructure` 缩到上游新增的 `protected verifyStructure(...)`，那样 `setMirrored` / 冷却控制器 / `network_switch` 的写回就交回上游。我们现在必须自己写，因为检查一旦路由给我们，上游那半段不跑。
 - **mixin 实盘形状**：7 个类（`mixins.json` 里 5 server + 2 client），注解级是 5 个 `@Inject` + 1 个 `@Redirect`，另有 3 个 `@Accessor` + 4 个 `@Invoker`。其中 `InterfaceLogicAccess` 与 `SlotYAccessor` 是纯访问器、没有注入点。旧条目里"从 16 条降到 7 条"的那个 16 是 PR 合并前的数，**别再引用**。
 
+## EMI 的多方块工作台清单是上游硬编码的，我们的主机要自己登记
+
+`NeoECOAEEmiPlugin.register()` 干两件事：按名字把 eco 自己的九台控制器（`NEBlocks.{STORAGE,CRAFTING,COMPUTATION}_SYSTEM_L{4,6,9}`）登记成 `MULTIBLOCK` 分类的工作台，然后无条件走一遍 `NEMultiBlocks.DEFINITIONS` 加结构配方。前一半不是白送的（`NeoECOPrototypeEmiPlugin` 补三行 `addWorkstation`），后一半要写对重载才是白送的。
+
+- **`Builder` 有两个 `create`，只有一个进那张表**：`create()` 构造完 `NEMultiBlocks.DEFINITIONS.add(def)`；`create(Consumer)` 只 `consumer.accept(def)`，**不加**。我们三条 L1 定义从首发（`8bfed03`）起一直用的是 `.create(definition -> {})`，理由只记成一句"勿污染 eco DEFINITIONS"（`进度/SESSION_SUMMARY_2026-09-05.md:47`），于是两个百科页都翻不到我们的结构。2026-10-06 改成 `create()`。
+- **那张表在 eco 里只有两个读者**：`integration/jei/categories/multiblock/MultiBlockInfoCategory` 与 `integration/emi/NeoECOAEEmiPlugin`（外加 `Builder` 自己那行 add、`NEMultiBlocks` 那行声明，全 jar 就这四个 class）。机器成型走 BE 的 `getBuildDefinition()`，不扫这张表——所以"进去会污染功能"这个担心没有对应的代码，进去的代价只是百科页多出三条。
+- **Trinity 反过来，故意留在 `create(Consumer)` 上**：那就是"Trinity 不进 JEI/EMI"的真正实现处，比 `TRINITY_VISIBLE_IN_JEI` 那个开关更底层。别顺手把它也改成 `create()`。
+- **不依赖插件顺序**：`EmiRegistry.addWorkstation` 转给 `EmiRecipes.addWorkstation`，键是分类**对象**本身，不查注册表名字。这跟 JEI 那次"按名字要 eco 的分类"是两回事，那种写法会随插件顺序炸（2026-10-06 实测过，见 `NeoECOPrototypeJeiPlugin` 里那段注释）。
+- **发现机制是注解扫描**：EMI 在 NeoForge 上从 `ModList.getAllScanData()` 里挑 `Ldev/emi/emi/api/EmiEntrypoint;`（CLASS 保留，ASM 读得到），自己 `Class.forName`。所以没装 EMI 的环境根本不会构造我们这个类，`compileOnly` 就够；产物里引用 `dev/emi` 的 class 只有这一个。
+- **没有 COOLING 工作台**：上游还把 `COOLING` 登记在它三台合成主机上，我们没跟。两条证据：全仓对 `NERecipeTypes.COOLING` / `CoolingRecipe` / `ECOCraftingCoolingController` 0 引用，并且我们既不注册合成侧的冷却控制器方块、F1 结构的成员表里也没有它（只有散热口 `SIMPLIFY_CRAFTING_VENT_BLOCK`）。所以给 F1 登记冷却工作台会是假承诺。
+- **套件覆盖是 0**：`gameTestServer` 里没有 EMI，这条只能起客户端看。别把"编译过了"当成"页出来了"。
+
 ## 拒收是静默的时候，先加一行日志再读代码
 
 装配室曾经拒收"重复同一种原料"与"批量"的样板，而玩家看到的是"材料不动"。根因是 AE2 的 `IInput.multiplier` 一词两义——既表示槽内重复份数，又表示整张样板的批量倍数——区分它的是样板自己的输出量；只读数量会误拒，直接乘进去会造出 64 倍回归，修法是按输出量归一化。

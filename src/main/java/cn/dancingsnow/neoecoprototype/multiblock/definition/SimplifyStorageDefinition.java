@@ -85,9 +85,10 @@ public final class SimplifyStorageDefinition {
                         level.setBlockAndUpdate(blockPos, formedState);
                     }
                 })
-                // Do not add the addon definition to eco's global definition list.
-                .create(definition -> {
-                });
+                // create() is the overload that appends to NEMultiBlocks.DEFINITIONS, and that list is
+                // what both recipe viewers walk to build eco's multiblock page - create(Consumer) leaves
+                // the definition out, which is how this structure went missing from JEI and EMI.
+                .create();
     }
 
     private static BlockPos pos(int x, int y, int z) {

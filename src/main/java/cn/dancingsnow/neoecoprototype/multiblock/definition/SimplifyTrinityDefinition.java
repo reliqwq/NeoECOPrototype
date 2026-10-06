@@ -56,6 +56,8 @@ public final class SimplifyTrinityDefinition {
         return builder
                 .expandMin(1)
                 .expandMax(1)
+                // Left on the non-registering overload on purpose: NEMultiBlocks.DEFINITIONS is the only
+                // thing eco's JEI and EMI multiblock pages read, so this is what keeps Trinity out of both.
                 .create(definition -> {
                 });
     }
