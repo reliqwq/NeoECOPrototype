@@ -22,11 +22,17 @@ public class SimplifyComputationDriveBlockEntity extends ECOComputationDriveBloc
     public void updateState(boolean updateExposed) {
         super.updateState(updateExposed);
         if (level != null) {
+            // Deliberately not upstream's shape: eco only ever writes true, from the one branch of
+            // addBlockEntity() where the block below is not a transmitter, so a drive whose neighbour
+            // changes after formation keeps a stale flag. Writing the computed value every update keeps
+            // the two states honest.
             boolean lower = !(level.getBlockState(worldPosition.below()).getBlock()
                     instanceof SimplifyComputationTransmitterBlock);
             setLowerDrive(lower);
         }
-        // ECO's inherited @DescSynced field targets eco_tier, which cannot encode addon enums.
+        // The inherited LDLib2 @DescSynced field is typed to eco's own tier and marked @Nullable - eco
+        // itself writes null here whenever the drive has no cluster - so leaving it null is upstream's
+        // own shape, not a value we invented. getTier() above is the only reader of the field.
         setTier(null);
     }
 }
