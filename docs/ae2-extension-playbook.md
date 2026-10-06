@@ -163,6 +163,24 @@ AE2 的下限从始至终是 `[19.2.17,)`，现在也是编译所依据的版本
 - 位置判断和结构校验必须同时传递 `mirrored`，否则镜像结构会把合法成员判到错误的一侧。
 - GameTest 中 `helper.assertTrue` 只记录失败，不会中断后续代码。异步测试遇到前置失败时必须使用 `helper.fail(...); return;`，否则继续调用 `succeed()` 可能让批次静默卡住。
 
+## 装配室一轮合成的两个调用点（升级 AE2 时只重量这两处）
+
+`MolecularAssemblerBlockEntity.tickingRequest()` 在一轮结束时按这个顺序问我们的 pattern。下面是 AE2 19.2.17 的字节码偏移，升级后**先重量这张表**再谈别的：
+
+| 偏移 | 调用 | 对我们的意义 |
+| --- | --- | --- |
+| 375 → 384 | `craftingInv.asPositionedCraftInput()` → `CraftingInput$Positioned.input()`，结果存进 local 5 | 后面两次调用共用**同一个** `CraftingInput` |
+| 404 | `myPlan.assemble(local5, level)` | 必须是纯函数：只返回产出，不发东西、不动网络 |
+| 425 | `result.onCraftedBySystem(level)` | 原版行为，与我们无关 |
+| 442 | `CraftingEvent.fireAutoCraftingEvent(level, plan, result, craftingInv)` | 见第 3 条 |
+| 451 | `myPlan.getRemainingItems(local5)` | 超出一次的份数在这里交付（`ProcessorAssemblyPattern` 的 `surplusSink`） |
+
+三条要记住的：
+
+1. **`hasMats()`（偏移 361）也调 `assemble`**，而它只是探询"这轮跑不跑得动"。所以任何副作用都不能放进 `assemble`。`getRemainingItems` 在全类里**只有 451 这一个调用点**，一轮一次 —— 副作用放这里。
+2. **两次调用拿到的是同一个 input 实例**（local 5，中间没人重建）。所以"把 `cycleOutput` 的结果缓存到 pattern 字段"这种写法是错的：`myPlan` 在一次推送里被反复使用，字段缓存会让第二轮沿用第一轮的数量，那才是真会丢东西或 dup 的写法。
+3. **残余风险在 442**：`fireAutoCraftingEvent` 用 `Platform.getFakePlayer(serverLevel, ...)` 造一个假玩家，把 **`PlayerEvent.ItemCraftedEvent`** 发到 `NeoForge.EVENT_BUS` 上，并把**那个 `craftingInv` 本身**交给监听者。任何第三方 handler 都能在 `assemble` 与 `getRemainingItems` 之间同步改这个网格。我们没防（防它要把 input 复制一份）。下面这两半都是照我们自己的算法推出来的，**没有做过实验**：handler **清空**网格会让我们少交付（安全方向），handler **往网格里添**东西会让 `cycleOutput` 按添后的量算、可能多交付。已知，未防。
+
 ## 验证清单
 
 - `compileJava processResources` 通过。
