@@ -62,9 +62,14 @@ side = "BOTH"
 # The L1 small-bulk matrix family (item/fluid/chemical) is built on the mega cell
 # types and the long-bulk storage backend from neoecoae's MEGA Cells integration;
 # without MegaCells the family stays unregistered and the rest of the mod works.
-# Open range for the same reason as appflux below: the four code gates all ask
-# ModList.isLoaded("megacells"), never a version, and 4.11.0 is the only build we
-# have measured - a floor here would enforce nothing and claim an untested break.
+# Open range, measured rather than assumed: a version range here IS enforced
+# whenever the mod is present - pointing this entry at [9.9.9,) produced
+# "Mod neoecoprototype only supports megacells 9.9.9 or above / Currently,
+# megacells is 4.11.0" as a FATAL during pre-loading and the server refused to
+# start. So a floor we never tested would lock out players running an older
+# MegaCells, while our own gates only ever ask ModList.isLoaded("megacells").
+# 4.11.0 stays in THIRD_PARTY_NOTICES.md as the build we verified, which is what
+# it actually is.
 [[dependencies.neoecoprototype]]
 modId = "megacells"
 type = "optional"
@@ -76,9 +81,10 @@ side = "BOTH"
 # plus a 1M and a 4M matrix, and the induction card allowance for our interfaces and
 # pattern providers. All of it is registered behind ModList.isLoaded("appflux"), so the
 # family simply does not exist without the mod - no item, no recipe, no creative entry.
-# The range is deliberately open: we measured 1.21-2.1.5 and nothing older, so a floor
-# would claim a break we never saw. The code gate is presence-only anyway, so a version
-# here would decide nothing - it is documentation for pack tooling, not a safety net.
+# The range is open on purpose. It is not decoration: an optional entry with a version
+# range is enforced the moment the mod is there (measured with the megacells entry above),
+# so a floor we never tested - we measured 1.21-2.1.5 and nothing older - would stop people
+# running an earlier AppliedFlux from starting the game at all. Presence is the real gate.
 [[dependencies.neoecoprototype]]
 modId = "appflux"
 type = "optional"
