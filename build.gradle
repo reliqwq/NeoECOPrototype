@@ -143,6 +143,11 @@ neoForge {
         }
         server {
             server()
+            // Own directory, like run-gametest below: the default gameDir is run/, which is the
+            // development client's own world, so a server run saves over the world someone is
+            // editing. Measured the hard way on 2026-10-07 - run/world/level.dat came back with a
+            // server timestamp on it.
+            gameDirectory = file('run-server')
         }
         // NeoForge 21.1.251 GameTest server; keep the namespace enabled explicitly.
         gameTestServer {

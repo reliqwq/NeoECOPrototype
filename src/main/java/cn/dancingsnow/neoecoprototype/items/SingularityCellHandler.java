@@ -35,7 +35,9 @@ public final class SingularityCellHandler implements IECOCellHandler {
 
     /**
      * The world tick the network is running on, or -1 where there is no server to ask: a multiplayer client
-     * has no access to the server's clock, and then the cell simply reports nothing rather than guessing.
+     * cannot reach this JVM's server field. A display on that side should use {@link #clockFor(Level)},
+     * which reads the same tick off the level the client was handed; the cell reports nothing rather than
+     * guessing when neither is available.
      */
     public static long serverGameTime() {
         MinecraftServer server = ServerLifecycleHooks.getCurrentServer();
@@ -44,6 +46,18 @@ public final class SingularityCellHandler implements IECOCellHandler {
         }
         Level level = server.getLevel(Level.OVERWORLD);
         return level == null ? -1L : level.getGameTime();
+    }
+
+    /**
+     * The tick a display should compute the bank from, given whatever level it was handed.
+     *
+     * <p>Both sides of that number are the same clock, which is what makes a client tooltip able to show it
+     * at all: the server sends its game time to every client once a second and the client stores it on the
+     * level it was given, and a dimension that is not the overworld reads that clock through the overworld's
+     * level data and cannot write it, so hovering the cell in the Nether is not a different timeline.
+     */
+    public static long clockFor(@Nullable Level level) {
+        return level != null ? level.getGameTime() : serverGameTime();
     }
 
     @Override

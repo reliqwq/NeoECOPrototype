@@ -89,9 +89,12 @@ public final class NeoECOPrototypeEmiPlugin implements EmiPlugin {
                 continue;
             }
             var output = BuiltInRegistries.ITEM.getKey(derived.result().getItem());
+            // The leading slash is EMI asking for it: a recipe id that has no RecipeHolder behind
+            // it is synthetic to EMI, and without the prefix it logs "not present in recipe manager"
+            // once per derived recipe (measured 16 lines in a client log, 2026-10-07).
             registry.addRecipe(new ProcessorAssemblerEmiRecipe(PROCESSOR_ASSEMBLER,
                     ResourceLocation.fromNamespaceAndPath(NeoECOPrototype.MOD_ID,
-                            "assembler_derived/" + output.getNamespace() + "/" + output.getPath()),
+                            "/assembler_derived/" + output.getNamespace() + "/" + output.getPath()),
                     derived, null));
         }
     }

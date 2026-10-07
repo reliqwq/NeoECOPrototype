@@ -5,8 +5,10 @@ import appeng.core.localization.Tooltips;
 import cn.dancingsnow.neoecoae.api.storage.IECOStorageCell;
 import cn.dancingsnow.neoecoprototype.blockentity.storage.SimplifyDriveBlockEntity;
 import cn.dancingsnow.neoecoprototype.integration.jade.SimplifyJadePlugin;
+import cn.dancingsnow.neoecoprototype.items.SimplifySingularityCellItem;
 import cn.dancingsnow.neoecoprototype.items.SimplifySmallBulkFluidStorageCellItem;
 import cn.dancingsnow.neoecoprototype.items.SimplifySmallBulkStorageCellItem;
+import cn.dancingsnow.neoecoprototype.items.SingularityCellHandler;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
@@ -49,6 +51,13 @@ public enum SimplifyDriveProvider implements IBlockComponentProvider, IServerDat
             tooltip.add(serverData.getBoolean("infiniteTypes")
                     ? Component.translatable("jade.neoecoprototype.types_infinite", used)
                     : Tooltips.typesUsed(used, serverData.getLong("totalItemTypes")));
+        }
+        // The one figure a singularity cell's drive panel can carry: it reports no byte numbers by design,
+        // and the number is computed where the clock is, then sent over like any other server data.
+        if (serverData.contains("singularityStock")) {
+            tooltip.add(Component.translatable("tooltip.neoecoprototype.singularity_stock",
+                    Tooltips.ofNumber(serverData.getLong("singularityStock")))
+                    .withStyle(ChatFormatting.AQUA));
         }
         ItemStack cell = mountedCellOf(serverData);
         if (!cell.isEmpty()) {
@@ -103,6 +112,15 @@ public enum SimplifyDriveProvider implements IBlockComponentProvider, IServerDat
                 tag.putLong("storedItemTypes", cell.getStoredItemTypes());
                 if (!cell.hasInfiniteTypeCapacity()) {
                     tag.putLong("totalItemTypes", markedTypeCap(cellStack, cell));
+                }
+            }
+            // That guard leaves the singularity cell with nothing to say, so its own figure rides here:
+            // read off the mounted stack, on the server, where the world clock is.
+            if (cellStack != null && cellStack.getItem() instanceof SimplifySingularityCellItem) {
+                long stock = SimplifySingularityCellItem
+                        .stockOf(cellStack, SingularityCellHandler.serverGameTime());
+                if (stock >= 0L) {
+                    tag.putLong("singularityStock", stock);
                 }
             }
         }

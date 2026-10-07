@@ -86,6 +86,7 @@
   "item.neoecoprototype.simplify_singularity_cell": "ECO - L1 Singularity Cell",
   "item.neoecoprototype.simplify_singularity_cell.desc": "Takes nothing in; grows singularities batch by batch on the world clock. No bank ceiling - only the long it counts into",
   "eco_cell_type.neoecoprototype.singularity": "Singularity Cell",
+  "emi.category.neoecoprototype.processor_assembler": "L1 Processor Assembler",
   "tooltip.neoecoprototype.singularity_stock": "Singularities stored: %s",
   "eco_cell_type.neoecoprototype.universal": "Universal Storage Matrix",
   "eco_cell_type.neoecoprototype.infinite": "Infinite storage matrix",

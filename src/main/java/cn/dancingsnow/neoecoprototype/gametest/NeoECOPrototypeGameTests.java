@@ -5042,6 +5042,40 @@ public final class NeoECOPrototypeGameTests {
             helper.fail("the singularity cell accepted something - it is meant to grow its own stock only");
             return;
         }
+        // A cell that never went through a crafting table has to start from being carried, because nothing
+        // else asks it for stock before it reaches a drive: handed over by a command, or moved out of a
+        // chest, it would otherwise sit unstamped forever. The dist guard on that hook is not covered here -
+        // a game test has no client level to hand it.
+        var carried = new ItemStack(ModRegistration.SIMPLIFY_SINGULARITY_CELL.get());
+        if (carried.get(ModRegistration.SINGULARITY_CELL_BANK.get()) != null) {
+            helper.fail("a fresh cell should arrive with no stamp at all - that is what this checks against");
+            return;
+        }
+        // -1 is the one rule both display surfaces share: no stamp means no number, not a number of zero.
+        if (cn.dancingsnow.neoecoprototype.items.SimplifySingularityCellItem
+                .stockOf(carried, helper.getLevel().getGameTime()) != -1L) {
+            helper.fail("an unstamped cell should report no figure at all, not a number to be believed");
+            return;
+        }
+        ModRegistration.SIMPLIFY_SINGULARITY_CELL.get()
+                .inventoryTick(carried, helper.getLevel(), null, 0, false);
+        var stamped = carried.get(ModRegistration.SINGULARITY_CELL_BANK.get());
+        if (stamped == null || stamped.startGameTime() != helper.getLevel().getGameTime()
+                || stamped.drawn() != 0L
+                || cn.dancingsnow.neoecoprototype.items.SimplifySingularityCellItem
+                        .stockOf(carried, helper.getLevel().getGameTime()) != 0L) {
+            helper.fail("carrying an unstamped cell should stamp it at the current tick with nothing drawn,"
+                    + " which reads as a stock of zero - the stack holds " + stamped);
+            return;
+        }
+        ModRegistration.SIMPLIFY_SINGULARITY_CELL.get()
+                .inventoryTick(carried, helper.getLevel(), null, 0, false);
+        if (!stamped.equals(carried.get(ModRegistration.SINGULARITY_CELL_BANK.get()))) {
+            helper.fail("carrying the cell a second time must not move its start tick, or the bank would"
+                    + " reset every time it is held - it now holds "
+                    + carried.get(ModRegistration.SINGULARITY_CELL_BANK.get()));
+            return;
+        }
         long interval = cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig
                 .singularityCellTicksPerBatch();
         long batch = cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig
@@ -5065,14 +5099,30 @@ public final class NeoECOPrototypeGameTests {
             helper.fail("a cell with three batches in it reports " + cell.getStatus());
             return;
         }
+        // The premise the hand-held line rests on, pinned where it can go red: the level a display is handed
+        // carries the same tick the bank is derived from, which is why a client can show the number at all.
+        if (helper.getLevel().getGameTime() != now) {
+            helper.fail("the level clock a tooltip would read (" + helper.getLevel().getGameTime()
+                    + ") is not the clock the bank is derived from (" + now + ")");
+            return;
+        }
         // The cell carries its own stock line, because eco's byte line never runs for an item that is not
-        // an ECOStorageCellItem. Hover text is the only place a player can read what this cell holds.
+        // an ECOStorageCellItem. Hover text is the only place a player can read what this cell holds, and on
+        // a multiplayer client the level in the tooltip context is the only clock it can borrow - so the
+        // shape the game itself calls with (TooltipContext.of(level)) is the shape asserted here, not the
+        // null some outside caller passes.
         var hover = new java.util.ArrayList<net.minecraft.network.chat.Component>();
-        ModRegistration.SIMPLIFY_SINGULARITY_CELL.get().appendHoverText(stack, null, hover, null);
+        var hoverWithoutLevel = new java.util.ArrayList<net.minecraft.network.chat.Component>();
+        var cellItem = ModRegistration.SIMPLIFY_SINGULARITY_CELL.get();
+        cellItem.appendHoverText(stack,
+                net.minecraft.world.item.Item.TooltipContext.of(helper.getLevel()), hover, null);
+        cellItem.appendHoverText(stack, null, hoverWithoutLevel, null);
         long stock = 3L * batch;
-        if (hover.stream().noneMatch(line -> line.getString().contains(Long.toString(stock)))) {
-            helper.fail("hovering a cell holding " + stock + " singularities should name that number,"
-                    + " the tooltip is " + hover);
+        if (hover.stream().noneMatch(line -> line.getString().contains(Long.toString(stock)))
+                || hoverWithoutLevel.stream()
+                        .noneMatch(line -> line.getString().contains(Long.toString(stock)))) {
+            helper.fail("hovering a cell holding " + stock + " singularities should name that number both"
+                    + " from the level clock " + hover + " and without one " + hoverWithoutLevel);
             return;
         }
         long paid = cell.extract(singularity, Long.MAX_VALUE, Actionable.MODULATE, null);

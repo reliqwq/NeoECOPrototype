@@ -90,8 +90,17 @@ public final class SimplifySingularityCellItem extends Item implements IBasicECO
     }
 
     /**
-     * The cell needs one world tick to count from. Crafting stamps it; a cell that arrives another way (a
-     * give command, a pack's loot table) is stamped the first time the server asks it what it holds.
+     * How many are ready on the stack in hand, or -1 while it has never been stamped. One rule for both
+     * places that display it: the item's own hover text and Jade's drive panel.
+     */
+    public static long stockOf(ItemStack stack, long nowGameTime) {
+        Bank bank = stack.get(bankComponent());
+        return bank == null ? -1L : bankOf(bank, nowGameTime);
+    }
+
+    /**
+     * The cell needs one world tick to count from. Crafting stamps it, carrying it stamps it, and a cell that
+     * arrived some other way still gets stamped the first time the server asks it what it holds.
      *
      * @return the cell's bank, or null while there is no server clock to stamp with
      */
@@ -115,6 +124,26 @@ public final class SimplifySingularityCellItem extends Item implements IBasicECO
         if (level instanceof ServerLevel serverLevel && stack.get(bankComponent()) == null) {
             stack.set(bankComponent(), new Bank(serverLevel.getGameTime(), 0L));
         }
+    }
+
+    /**
+     * Carrying the cell also starts it. Without this the only stamp a cell can get is from crafting or from
+     * something asking it for stock - and only a drive or a host does that - so a cell handed over by a
+     * command, or moved out of a chest, would sit at nothing in an inventory forever.
+     *
+     * <p>Server side only: {@code Inventory#tick} runs this on both dists, and a write made on the client
+     * never reaches the server - the slot sync carries the stamp back to the hand instead. The covered range
+     * is what that loop walks, {@code Inventory#compartments}: the thirty-six carried slots, the armour
+     * slots and the offhand. A cell left in a chest or dropped on the ground is not ticking here, and starts
+     * when it is picked up or installed.
+     */
+    @Override
+    public void inventoryTick(ItemStack stack, net.minecraft.world.level.Level level,
+                              net.minecraft.world.entity.Entity entity, int slotId, boolean isSelected) {
+        if (level == null || level.isClientSide) {
+            return;
+        }
+        stampIfNeeded(stack, SingularityCellHandler.clockFor(level));
     }
 
     @Override
@@ -180,25 +209,31 @@ public final class SimplifySingularityCellItem extends Item implements IBasicECO
      * same reason the infinite concrete matrix shows no byte figure either. A byte line would say nothing
      * here anyway: the total is unbounded and the used figure is always zero.
      *
-     * <p>No server clock, or a cell that has never been stamped, means no number to claim - the line stays
-     * off rather than guessing.
+     * <p>No clock at all, or a cell that has never been stamped, means no number to claim - the line stays
+     * off rather than guessing. The clock comes from the level this tooltip is being built for, which is the
+     * one number a multiplayer client does have; see {@link SingularityCellHandler#clockFor}.
      */
     @Override
     public void appendHoverText(ItemStack stack, Item.TooltipContext context,
                                  List<Component> tooltip, net.minecraft.world.item.TooltipFlag flag) {
-        long now = SingularityCellHandler.serverGameTime();
-        Bank bank = stack.get(bankComponent());
-        if (now < 0L || bank == null) {
+        // The context can be handed over as null by a caller outside the game's own tooltip path.
+        long now = SingularityCellHandler.clockFor(context == null ? null : context.level());
+        long stock = now < 0L ? -1L : stockOf(stack, now);
+        if (stock < 0L) {
             return;
         }
         tooltip.add(Component.translatable("tooltip.neoecoprototype.singularity_stock",
-                appeng.core.localization.Tooltips.ofNumber(bankOf(bank, now)))
+                appeng.core.localization.Tooltips.ofNumber(stock))
                 .withStyle(net.minecraft.ChatFormatting.AQUA));
     }
 
     /**
      * The preview reads the same arithmetic the network does, and never stamps: this runs on the client too,
      * and a client-side write to the stack would not reach the server. An unstamped cell previews empty.
+     *
+     * <p>This one line stays off on a multiplayer client where the stock line above does not: the preview is
+     * built from the stack alone, with no level in the call to borrow the clock from. The number is the same
+     * one either way, and it is readable from the hover text, so the preview is the cheaper half to lose.
      */
     @Override
     public Optional<TooltipComponent> getTooltipImage(ItemStack stack) {

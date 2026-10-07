@@ -225,8 +225,12 @@ appflux 把 AE2 字节换算成 FE：`FluxKeyType.getAmountPerByte()` 直接返�
 - `appeng.api.storage.cells.StorageCell` 只有 `getStatus / getIdleDrain / canFitInsideCell / persist`；eco 的 `IECOStorageCell` 补的是容量 getter。**两边都没有 tick 入口**，`ICellHandler` 也只有 `isCell / getCellInventory`。
 - `appeng.api.networking.IManagedGridNode` 在 19.2.17 **没有** `setMainAction`；`AEBaseBlockEntity` 不是 `ServerEntity`；我们自己的 L1 驱动器 BE 里一次 `tick` 都没有 —— 全仓库能白拿的钟只有 `SimplifyStorageHostBlockEntity.tick`。
 - 所以"累加"这条走不通（没有地方累加）。可用的形状是**推导**：栈上只存两个数（起始世界 tick、已被取走量），库存 = `(now − start)/间隔 × 每批量 − 已取走`；乘法只做 long 饱和，**没有库存上限**。**读取必须不写状态**，只有真正付货时才写回。
-- 世界时间从 `ServerLifecycleHooks.getCurrentServer().getLevel(Level.OVERWORLD).getGameTime()` 拿；多人客户端那里是 null，所以预览与结算都要能"没钟就空手"，不要猜。
+- 世界时间在**服务端**从 `ServerLifecycleHooks.getCurrentServer().getLevel(Level.OVERWORLD).getGameTime()` 拿；那个字段是 JVM 内的，多人客户端拿到 null。但客户端并不是没有这个数：见下面两条，所以显示走"手上有 level 就读 level"，结算与没 level 的调用者才回落到服务端钟。
+- **客户端确实收到世界 tick，一秒一次**（不是每 tick）：`MinecraftServer.synchronizeTime(ServerLevel)` 用 `serverLevel.getGameTime()` 构造 `ClientboundSetTimePacket`，而 `tickChildren` 只在 `tickCount % 20 == 0` 时调它（`forceTimeSynchronization()` 是插队那条路）；客户端 `ClientPacketListener.handleSetTime` 直接 `ClientLevel.setGameTime(packet.getGameTime())`。NeoForge 另发一份同数的 `ClientboundCustomSetTimePayload`。含义：联机客户端 hover 出来的库存最多比服务端晚 20 tick —— 默认 600 tick 一批看不出来，把间隔调到下限 60 tick 时最坏差三分之一个批量，而 `extract` 是按服务端读数夹的，所以只会"显示得略多"，不会少付。
+- **不在主世界的维度共用同一个钟**：`DerivedLevelData.getGameTime()` 转发包裹着的 `ServerLevelData`，而它的 `setGameTime(long)` 是空方法 —— 只有主世界那份在走。所以在下界 hover 也不是另一条时间线。
+- 拿到 level 的路是 `Item.TooltipContext.level()`：`Screen.getTooltipFromItem(Minecraft, ItemStack)` 传的是 `Item.TooltipContext.of(minecraft.level)`，`EMPTY` 那份的 `level()` 返回 null（`appendHoverText` 也可能被外面直接传进一个 null context，判一下）。反过来 **`Item.getTooltipImage(ItemStack)` 里没有 level** —— 内容预览小图是这一族在多人客户端上唯一还读不到钟的地方，缺图不缺数。
 - 这条成立的前提也量过：`NetworkStorage` 里没有缓存的内容列表字段，终端问网络要内容时会**实时遍历各存储调 `getAvailableStacks`** —— 推导出来的库存不需要任何 mutation 就能长出来。反过来，如果你的单元靠"攒"，就必须自己找到钟，而这里没有。
+- 想给"没人来问也要开始"找一个钩子，原版只有一条路，量过：`Inventory.tick()` 遍历 `compartments = ImmutableList.of(items, armor, offhand)`，对每格调 `ItemStack.inventoryTick` ⇒ **玩家身上 41 格都算**（主物品栏 36 + 盔甲 4 + 副手 1），但**两个 dist 都会跑**，所以要自己判 `level.isClientSide`，写服务端再靠槽位同步带回客户端。`ItemEntity` 里没有这个调用（javap 计数 0 处），所以丢在地上、留在箱子里的都不会 tick —— 那只元件要等被捡起来或插进驱动器。
 
 ## 验证清单
 

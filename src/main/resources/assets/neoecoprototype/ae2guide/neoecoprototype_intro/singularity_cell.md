@@ -33,12 +33,13 @@ At the maximum settings (262,144 per 3 seconds) a single cell outruns anything t
 
 ## The stock is calculated, not stored
 
-Nothing accumulates in the background: the cell keeps only the tick it started from and how much has been drawn, and works out the rest whenever the network asks. Two consequences worth knowing:
+Nothing accumulates in the background: the cell keeps only the tick it started from and how much has been drawn, and works out the rest whenever the network asks. Three consequences worth knowing:
 
 - **Changing the config re-reads the past.** Raising `amount_per_batch` instantly makes the bank bigger; lowering it can empty what you had saved up.
 - **Time only passes when the server ticks.** A paused or stopped server produces nothing, and a world whose clock is behind the tick the cell was stamped at simply reads as empty until it catches up.
+- **Being carried starts it.** The cell takes its start tick as soon as it is on a player - main rows, hotbar and offhand all count - so it does not have to be installed first. A cell lying on the ground or left in a chest waits until it is picked up or put in a drive.
 
-On a multiplayer client the hover line with the current stock may be absent - that number is computed where the server is. Terminals read the server's figure and are always right.
+The stock line reads on a multiplayer client too: the world tick is sent to clients once a second, so a number in hand can be at most a second behind. What stays missing there is the content preview image, which cannot reach a world - the figure itself still reads. Terminals read the server's value and are always right.
 
 ## Where it mounts
 

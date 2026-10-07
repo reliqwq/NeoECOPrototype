@@ -76,6 +76,7 @@
   "item.neoecoprototype.simplify_singularity_cell": "ECO - L1 奇点元件",
   "item.neoecoprototype.simplify_singularity_cell.desc": "不吃任何东西，按世界时间一批一批长出奇点；库存没有上限，只受计数本身封顶",
   "eco_cell_type.neoecoprototype.singularity": "奇点元件",
+  "emi.category.neoecoprototype.processor_assembler": "L1 装配室",
   "tooltip.neoecoprototype.singularity_stock": "奇点库存：%s",
   "eco_cell_type.neoecoprototype.universal": "全能存储矩阵",
   "eco_cell_type.neoecoprototype.infinite": "无限存储矩阵",
