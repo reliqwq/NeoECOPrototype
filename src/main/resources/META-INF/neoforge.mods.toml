@@ -68,3 +68,17 @@ type = "optional"
 versionRange = "[4.11.0,)"
 ordering = "AFTER"
 side = "BOTH"
+
+# AppliedFlux (mod id appflux) carries the flux storage family: our own FE housing
+# plus a 1M and a 4M matrix, and the induction card allowance for our interfaces and
+# pattern providers. All of it is registered behind ModList.isLoaded("appflux"), so the
+# family simply does not exist without the mod - no item, no recipe, no creative entry.
+# The range is deliberately open: we measured 1.21-2.1.5 and nothing older, so a floor
+# would claim a break we never saw. The code gate is presence-only anyway, so a version
+# here would decide nothing - it is documentation for pack tooling, not a safety net.
+[[dependencies.neoecoprototype]]
+modId = "appflux"
+type = "optional"
+versionRange = "*"
+ordering = "AFTER"
+side = "BOTH"
