@@ -19,7 +19,7 @@ item_ids:
 
 # Small Bulk Matrices
 
-Small bulk matrices store a few marked resources with effectively unlimited capacity: three types by default, ten after combining the cell with an expansion card on a crafting table. The family has item, fluid, and chemical variants. The whole family needs MEGA Cells (4.11.0+) - without it none of these items are registered at all - and the chemical variant additionally needs Mekanism and its AE2 bridge, Applied Mekanistics.
+Small bulk matrices store a few marked resources with effectively unlimited capacity: three types by default, ten after combining the cell with an expansion card on a crafting table. The family has item, fluid, and chemical variants. The whole family needs MEGA Cells (4.11.0 is the build we measured) - without it none of these items are registered at all - and the chemical variant additionally needs Mekanism and its AE2 bridge, Applied Mekanistics.
 
 ## Components
 

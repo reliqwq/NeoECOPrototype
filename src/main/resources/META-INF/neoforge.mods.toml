@@ -62,10 +62,13 @@ side = "BOTH"
 # The L1 small-bulk matrix family (item/fluid/chemical) is built on the mega cell
 # types and the long-bulk storage backend from neoecoae's MEGA Cells integration;
 # without MegaCells the family stays unregistered and the rest of the mod works.
+# Open range for the same reason as appflux below: the four code gates all ask
+# ModList.isLoaded("megacells"), never a version, and 4.11.0 is the only build we
+# have measured - a floor here would enforce nothing and claim an untested break.
 [[dependencies.neoecoprototype]]
 modId = "megacells"
 type = "optional"
-versionRange = "[4.11.0,)"
+versionRange = "*"
 ordering = "AFTER"
 side = "BOTH"
 
