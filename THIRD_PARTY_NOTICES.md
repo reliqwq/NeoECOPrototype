@@ -15,7 +15,9 @@ Upstream has not published a `21.2.1` file anywhere public as of `2026-09-30`; t
 
 Neo ECO Prototype is an independent addon and is not the Neo ECO AE Extension project. The local development JAR used during testing is intentionally not redistributed by this repository.
 
-One asset is copied rather than referenced: `src/main/resources/assets/neoecoprototype/models/block/simplify_casing.json` carries the 13-element geometry of upstream `assets/neoecoae/models/block/casing_base.json` verbatim, with its own texture slots. It is inlined on purpose - this addon's CI rejects any asset that points into the `neoecoae` namespace, because an upstream rename would turn our casing into a missing model with nothing to warn us. It is geometry only; the surface artwork is our own.
+One model is copied rather than referenced: `src/main/resources/assets/neoecoprototype/models/block/simplify_casing.json` carries the 13-element geometry of upstream `assets/neoecoae/models/block/casing_base.json` verbatim, with its own texture slots. It is inlined on purpose - this addon's CI rejects any asset that points into the `neoecoae` namespace, because an upstream rename would turn our casing into a missing model with nothing to warn us. It is geometry only; the surface artwork is our own.
+
+Eleven of the thirty-six cell artworks we ship are byte-identical copies of upstream PNGs rather than namespace references, counted by md5 against `neoecobeta/neoecoae-21.2.1-beta2.jar` (415 upstream textures indexed, 25 of ours match nothing upstream). They are copies for the same reason the casing is inlined, and each one is a file the artists can redraw in place without touching a model. Added on 2026-10-07: `textures/item/storage_recolor/eco_fe_cell_housing.png`, copied from upstream `textures/item/eco_cell_compat/energy_cell_housing.png` (which is the same file as their `item/eco_fe_cell_housing.png`), so the flux cells stop wearing the item-cell shell. Upstream ships no `.mcmeta` beside it, so none was carried.
 
 Special thanks to `Yang120` for substantial help from the original Neo ECO AE Extension team.
 
