@@ -43,6 +43,18 @@ public final class NeoECOPrototypeJeiPlugin implements IModPlugin {
 
     @Override
     public void registerRecipes(IRecipeRegistration registration) {
+        // Our three L1 structures, into eco's own category, by category object rather than by name:
+        // asking JEI for the category by uid made this method depend on plugin order and it threw with
+        // EMI installed. eco fills the same page from NEMultiBlocks.DEFINITIONS, but joining that list
+        // runs eco's class initialiser before its server config loads and leaves its own L4-L9
+        // definitions with a build range of 1 .. -4, so we hand the definitions over directly instead.
+        registration.addRecipes(NeoECOAEJeiPlugin.MULTIBLOCK_TYPE, List.of(
+                new cn.dancingsnow.neoecoae.integration.xei.multiblock.MultiBlockInfoWrapper(
+                        cn.dancingsnow.neoecoprototype.multiblock.definition.SimplifyStorageDefinition.L1),
+                new cn.dancingsnow.neoecoae.integration.xei.multiblock.MultiBlockInfoWrapper(
+                        cn.dancingsnow.neoecoprototype.multiblock.definition.SimplifyComputationDefinition.L1),
+                new cn.dancingsnow.neoecoae.integration.xei.multiblock.MultiBlockInfoWrapper(
+                        cn.dancingsnow.neoecoprototype.multiblock.definition.SimplifyCraftingDefinition.L1)));
         var level = net.minecraft.client.Minecraft.getInstance().level;
         if (level == null) {
             return;

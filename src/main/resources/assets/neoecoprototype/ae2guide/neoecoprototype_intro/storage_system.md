@@ -75,6 +75,10 @@ All matrices are partitionable: craft them in the AE2 cell workbench to whitelis
 
 For bulk storage of a few resources, see [Small Bulk Matrices](small_bulk_matrices.md) - three types with effectively unlimited capacity per type.
 
+To keep energy inside the grid, see [Flux Storage Matrices](flux_storage.md) - they need AppliedFlux, and store FE as network content.
+
+To earn singularities without running a condenser, see [L1 Singularity Cell](singularity_cell.md) - a cell that takes nothing in and grows its stock on the world clock.
+
 ## External cells
 
 L1 drives mount native L1 cells and small bulk cells by default. Higher-tier eco cells (including eco's own MegaCells long-bulk cell) are insertable but do not mount unless a server admin whitelists them in the server config (`additional_storage_cells`).

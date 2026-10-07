@@ -1,0 +1,17 @@
+{
+  "neoforge:conditions": [
+    { "type": "neoforge:mod_loaded", "modid": "appflux" }
+  ],
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "A": { "item": "neoecoprototype:simplify_green_crystal_matrix" },
+    "B": { "item": "minecraft:redstone" },
+    "C": { "item": "appflux:harden_insulating_resin" }
+  },
+  "pattern": ["ABA", "B B", "CCC"],
+  "result": {
+    "count": 1,
+    "id": "neoecoprototype:simplify_fe_cell_housing"
+  }
+}

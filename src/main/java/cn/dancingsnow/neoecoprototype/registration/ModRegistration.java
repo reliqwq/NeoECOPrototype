@@ -58,6 +58,9 @@ import cn.dancingsnow.neoecoprototype.block.crafting.SimplifyPatternProviderBloc
 import cn.dancingsnow.neoecoprototype.block.crafting.SimplifyPoweredMEInterfaceBlock;
 import cn.dancingsnow.neoecoprototype.block.crafting.SimplifySuperconductiveInterfaceBlock;
 import cn.dancingsnow.neoecoprototype.blockentity.crafting.SimplifyCraftingSystemBlockEntity;
+import cn.dancingsnow.neoecoprototype.blockentity.crafting.SimplifyCraftingWorkerBlockEntity;
+import cn.dancingsnow.neoecoprototype.blockentity.crafting.SimplifyCraftingParallelCoreBlockEntity;
+import cn.dancingsnow.neoecoprototype.blockentity.crafting.SimplifyCraftingVentBlockEntity;
 import cn.dancingsnow.neoecoprototype.blockentity.crafting.SimplifyStonecuttingAssemblerBlockEntity;
 import cn.dancingsnow.neoecoprototype.blockentity.crafting.SimplifyPoweredMEInterfaceBlockEntity;
 import cn.dancingsnow.neoecoprototype.blockentity.crafting.SimplifySuperconductiveInterfaceBlockEntity;
@@ -82,6 +85,7 @@ import cn.dancingsnow.neoecoprototype.blockentity.computation.SimplifyComputatio
 import cn.dancingsnow.neoecoprototype.items.PigmeeStorageMatrixHousingItem;
 import cn.dancingsnow.neoecoprototype.items.SimplifyComputationCellItem;
 import cn.dancingsnow.neoecoprototype.items.SimplifyConcreteStorageCellItem;
+import cn.dancingsnow.neoecoprototype.items.SimplifySingularityCellItem;
 import cn.dancingsnow.neoecoprototype.items.SimplifyStorageCellItem;
 import cn.dancingsnow.neoecoprototype.items.SimplifySmallBulkFluidStorageCellItem;
 import cn.dancingsnow.neoecoprototype.items.SimplifySmallBulkStorageCellItem;
@@ -150,6 +154,10 @@ public class ModRegistration {
     public static Supplier<? extends Item> OPTIONAL_UNIVERSAL_CELL_1M;
     public static Supplier<? extends Item> OPTIONAL_QUANTUM_CELL_1K;
     public static Supplier<? extends Item> OPTIONAL_QUANTUM_CELL_1M;
+    /** Assigned by FeStorageIntegration only when appflux is installed. */
+    public static Supplier<? extends Item> OPTIONAL_FE_CELL_HOUSING;
+    public static Supplier<? extends Item> OPTIONAL_FE_CELL_1M;
+    public static Supplier<? extends Item> OPTIONAL_FE_CELL_4M;
     public static final Supplier<Item> SIMPLIFY_QUANTUM_STORAGE_MATRIX_HOUSING =
             ITEMS.register("simplify_quantum_storage_matrix_housing", () -> new Item(new Item.Properties()));
     public static final Supplier<Item> SIMPLIFY_UNIVERSAL_STORAGE_MATRIX_HOUSING =
@@ -169,6 +177,13 @@ public class ModRegistration {
     public static final Supplier<DataComponentType<ResolvableProfile>> FUMO_OWNER =
             DATA_COMPONENTS.register("fumo_owner", () -> DataComponentType.<ResolvableProfile>builder()
                     .persistent(ResolvableProfile.CODEC).networkSynchronized(ResolvableProfile.STREAM_CODEC).build());
+    /** The singularity cell's whole state: the tick it started growing from, and what has been drawn. */
+    public static final Supplier<DataComponentType<cn.dancingsnow.neoecoprototype.items.SimplifySingularityCellItem.Bank>>
+            SINGULARITY_CELL_BANK = DATA_COMPONENTS.register("singularity_cell_bank",
+            () -> DataComponentType.<cn.dancingsnow.neoecoprototype.items.SimplifySingularityCellItem.Bank>builder()
+                    .persistent(cn.dancingsnow.neoecoprototype.items.SimplifySingularityCellItem.Bank.CODEC)
+                    .networkSynchronized(cn.dancingsnow.neoecoprototype.items.SimplifySingularityCellItem.Bank.STREAM_CODEC)
+                    .build());
     public static final DeferredRegister<RecipeType<?>> RECIPE_TYPES =
             DeferredRegister.create(Registries.RECIPE_TYPE, NeoECOPrototype.MOD_ID);
     /** The ore feature the cryotheum worldgen JSONs name; it is the config gate, not the shape. */
@@ -573,6 +588,11 @@ public class ModRegistration {
      public static final Supplier<SimplifyConcreteStorageCellItem> SIMPLIFY_CONCRETE_STORAGE_CELL =
              ITEMS.register("simplify_concrete_storage_cell",
                      () -> new SimplifyConcreteStorageCellItem(new Item.Properties().stacksTo(1)));
+
+    /** Grows its own singularities and takes nothing in, so it needs no housing of another medium. */
+    public static final Supplier<SimplifySingularityCellItem> SIMPLIFY_SINGULARITY_CELL =
+            ITEMS.register("simplify_singularity_cell",
+                    () -> new SimplifySingularityCellItem(new Item.Properties().stacksTo(1)));
 
     public static final Supplier<Item> SIMPLIFY_ITEM_STORAGE_MATRIX_HOUSING =
              ITEMS.register("simplify_item_storage_matrix_housing", () -> new Item(new Item.Properties()));
@@ -1022,7 +1042,7 @@ private static Supplier<BlockEntityType<SimplifyStorageVentBlockEntity>> registe
     private static Supplier<BlockEntityType<ECOCraftingWorkerBlockEntity>> registerCraftingWorkerBe() {
         return (Supplier) BLOCK_ENTITIES.register("simplify_crafting_worker",
                 () -> BlockEntityType.Builder.of(
-                        (pos, state) -> new ECOCraftingWorkerBlockEntity(
+                        (pos, state) -> new SimplifyCraftingWorkerBlockEntity(
                                 SIMPLIFY_CRAFTING_WORKER_BE.get(), pos, state),
                         SIMPLIFY_CRAFTING_WORKER_BLOCK.get()).build(null));
     }
@@ -1030,7 +1050,7 @@ private static Supplier<BlockEntityType<SimplifyStorageVentBlockEntity>> registe
     private static Supplier<BlockEntityType<ECOCraftingParallelCoreBlockEntity>> registerCraftingParallelCoreBe() {
         return (Supplier) BLOCK_ENTITIES.register("simplify_crafting_parallel_core",
                 () -> BlockEntityType.Builder.of(
-                        (pos, state) -> new ECOCraftingParallelCoreBlockEntity(
+                        (pos, state) -> new SimplifyCraftingParallelCoreBlockEntity(
                                 SIMPLIFY_CRAFTING_PARALLEL_CORE_BE.get(), pos, state, cn.dancingsnow.neoecoprototype.api.SimplifyCraftingTier.L1),
                         SIMPLIFY_CRAFTING_PARALLEL_CORE_BLOCK.get()).build(null));
     }
@@ -1038,7 +1058,7 @@ private static Supplier<BlockEntityType<SimplifyStorageVentBlockEntity>> registe
     private static Supplier<BlockEntityType<ECOCraftingVentBlockEntity>> registerCraftingVentBe() {
         return (Supplier) BLOCK_ENTITIES.register("simplify_crafting_vent",
                 () -> BlockEntityType.Builder.of(
-                        (pos, state) -> new ECOCraftingVentBlockEntity(
+                        (pos, state) -> new SimplifyCraftingVentBlockEntity(
                                 SIMPLIFY_CRAFTING_VENT_BE.get(), pos, state),
                         SIMPLIFY_CRAFTING_VENT_BLOCK.get()).build(null));
     }
@@ -1216,6 +1236,11 @@ private static Supplier<BlockEntityType<SimplifyStorageVentBlockEntity>> registe
                               output.accept(OPTIONAL_CHEMICAL_CELL_1M.get());
                               output.accept(OPTIONAL_CHEMICAL_CELL_4M.get());
                          }
+                         if (OPTIONAL_FE_CELL_1M != null) {
+                             output.accept(OPTIONAL_FE_CELL_1M.get());
+                             output.accept(OPTIONAL_FE_CELL_4M.get());
+                             output.accept(OPTIONAL_FE_CELL_HOUSING.get());
+                         }
                          if (OPTIONAL_BEYOND_STORAGE_CELL != null) {
                               output.accept(OPTIONAL_BEYOND_STORAGE_CELL.get());
                           }
@@ -1232,6 +1257,7 @@ private static Supplier<BlockEntityType<SimplifyStorageVentBlockEntity>> registe
                           }
                           output.accept(SIMPLIFY_CONCRETE_STORAGE_MATRIX_HOUSING.get());
                           output.accept(SIMPLIFY_CONCRETE_STORAGE_CELL.get());
+                          output.accept(SIMPLIFY_SINGULARITY_CELL.get());
                          output.accept(SIMPLIFY_GREEN_CRYSTAL_MATRIX.get());
                          output.accept(SIMPLIFY_ITEM_STORAGE_MATRIX_HOUSING.get());
                          output.accept(PIGMEE_STORAGE_MATRIX_HOUSING.get());

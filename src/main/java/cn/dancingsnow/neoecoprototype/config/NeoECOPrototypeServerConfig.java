@@ -49,6 +49,18 @@ public final class NeoECOPrototypeServerConfig {
      */
     public static final boolean CRYOTHEUM_METEORITE_ENABLED_DEFAULT = false;
 
+    /** Tick interval of the singularity cell: one batch per this many ticks. */
+    public static final ModConfigSpec.LongValue SINGULARITY_CELL_TICKS_PER_BATCH;
+    /** Singularities the cell makes per batch, up to {@link #SINGULARITY_CELL_AMOUNT_PER_BATCH_MAX}. */
+    public static final ModConfigSpec.IntValue SINGULARITY_CELL_AMOUNT_PER_BATCH;
+    /**
+     * The ceiling on a single batch: 256 Ki singularities, enough that a pack pushing the interval to its
+     * floor fills a bank of {@link Long#MAX_VALUE} in hours rather than centuries.
+     */
+    public static final int SINGULARITY_CELL_AMOUNT_PER_BATCH_MAX = 262_144;
+    /** The shortest interval the cell accepts, in ticks. */
+    public static final long SINGULARITY_CELL_TICKS_PER_BATCH_MIN = 60L;
+
     static {
         ModConfigSpec.Builder builder = new ModConfigSpec.Builder();
         builder.push("l1_storage");
@@ -123,7 +135,33 @@ public final class NeoECOPrototypeServerConfig {
                         "has no recipe yet, and a half-built discovery is worse than none.")
                 .define("enabled", CRYOTHEUM_METEORITE_ENABLED_DEFAULT);
         builder.pop();
+        builder.push("singularity_cell");
+        SINGULARITY_CELL_TICKS_PER_BATCH = builder
+                .comment("How often the singularity cell makes a batch, in ticks. 600 = every 30 seconds.",
+                        "Clamped to at least " + SINGULARITY_CELL_TICKS_PER_BATCH_MIN + " ticks.",
+                        "Default: 600.")
+                .defineInRange("ticks_per_batch", 600L, SINGULARITY_CELL_TICKS_PER_BATCH_MIN, 1L << 24);
+        SINGULARITY_CELL_AMOUNT_PER_BATCH = builder
+                .comment("Singularities one batch is worth, and therefore how coarse the bank is: it jumps",
+                        "by this number once per interval, it does not drip.",
+                        "Clamped to at most " + SINGULARITY_CELL_AMOUNT_PER_BATCH_MAX + ", so the fastest",
+                        "this cell can run is that many per " + SINGULARITY_CELL_TICKS_PER_BATCH_MIN
+                                + " ticks (about 3 seconds).",
+                        "Default: 120.")
+                .defineInRange("amount_per_batch", 120, 1, SINGULARITY_CELL_AMOUNT_PER_BATCH_MAX);
+        builder.pop();
         SPEC = builder.build();
+    }
+
+    /** The cell's interval, floored: the config range is the guard, this is the read-side one. */
+    public static long singularityCellTicksPerBatch() {
+        return Math.max(SINGULARITY_CELL_TICKS_PER_BATCH_MIN, SINGULARITY_CELL_TICKS_PER_BATCH.get());
+    }
+
+    /** The cell's batch size, capped the same way. */
+    public static int singularityCellAmountPerBatch() {
+        return Math.min(SINGULARITY_CELL_AMOUNT_PER_BATCH_MAX,
+                Math.max(1, SINGULARITY_CELL_AMOUNT_PER_BATCH.get()));
     }
 
     /** Shared by the assembler and its JEI page so both agree on what is refused. */

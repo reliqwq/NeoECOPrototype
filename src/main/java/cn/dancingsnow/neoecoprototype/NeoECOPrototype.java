@@ -43,6 +43,10 @@ public class NeoECOPrototype {
         if (ModList.get().isLoaded("beyonddimensions")) {
             BeyondIntegration.register(ModRegistration.ITEMS);
         }
+        if (ModList.get().isLoaded("appflux")) {
+            cn.dancingsnow.neoecoprototype.integration.appflux.FeStorageIntegration
+                    .register(ModRegistration.ITEMS);
+        }
         ModRegistration.ITEMS.register(modBus);
         ModRegistration.BLOCK_ENTITIES.register(modBus);
         ModRegistration.RECIPE_TYPES.register(modBus);
@@ -159,15 +163,12 @@ public class NeoECOPrototype {
     private static void commonSetup(final FMLCommonSetupEvent event) {
         // Bind each block to its BlockEntityType (AE2's AEBaseEntityBlock#setBlockEntity).
         ModRegistration.linkBlockEntityTypes();
-        // eco's multiblock preview page in JEI and EMI is built by walking NEMultiBlocks.DEFINITIONS, and
-        // a definition adds itself to that list inside MultiBlockDefinition.Builder.create() - so our L1
-        // structures only appear if these classes have been initialised by the time the recipe viewers
-        // collect. Touching them here is the earliest point where the registries are already bound.
-        var l1Definitions = java.util.List.of(
-                cn.dancingsnow.neoecoprototype.multiblock.definition.SimplifyStorageDefinition.L1,
-                cn.dancingsnow.neoecoprototype.multiblock.definition.SimplifyComputationDefinition.L1,
-                cn.dancingsnow.neoecoprototype.multiblock.definition.SimplifyCraftingDefinition.L1);
-        LOGGER.info("Made {} L1 multiblock definitions visible to the recipe viewers.", l1Definitions.size());
+        // The L1 definitions are deliberately NOT touched here. Reading NEMultiBlocks.DEFINITIONS runs
+        // eco's class initialiser, which reads NEConfig values that its server config has not filled in
+        // yet, and that leaves eco's own L4-L9 definitions with a build range of 1 .. -4 - their host UI
+        // then throws IllegalArgumentException: 1 > -4 the moment a player opens it. Both recipe viewers
+        // get our structures from our own plugins instead (NeoECOPrototypeJeiPlugin and
+        // NeoECOPrototypeEmiPlugin), which never touches that list.
         // eco 21.2.1 routes a structure check to the calculator of the controller it finds in the range
         // (NEComputationClusterCalculator#controllerCalculator), so naming L1 geometry against the host's
         // block entity type covers every member block of the machine. This replaces the mixin that built a
@@ -197,6 +198,13 @@ public class NeoECOPrototype {
                     appeng.core.definitions.AEItems.CRAFTING_CARD.asItem(), item, 1, interfaceGroup);
             appeng.api.upgrades.Upgrades.add(
                     appeng.core.definitions.AEItems.FUZZY_CARD.asItem(), item, 1, interfaceGroup);
+        }
+        // AppliedFlux's induction card ("lets an AE device receive power") is mixed into AE2's own
+        // InterfaceLogic and PatternProviderLogic, and our machines use those classes rather than
+        // subclasses of them, so only the allowance was missing. One card per machine, like appflux
+        // asks for on AE2's own four.
+        if (ModList.get().isLoaded("appflux")) {
+            cn.dancingsnow.neoecoprototype.integration.appflux.FeStorageIntegration.registerUpgradeCards();
         }
         // AE2 的卡↔元件关联表决定：卡片 tooltip 的"可用于"清单、元件工作台升级槽放行
         // （查无登记即拒绝，界面标红"与单元格不兼容"）。按命名空间扫描以同时覆盖
@@ -232,6 +240,9 @@ public class NeoECOPrototype {
         // The infinite concrete matrix is vanilla-only, so its handler needs no mod check.
         event.enqueueWork(
                 cn.dancingsnow.neoecoprototype.items.InfiniteConcreteCellHandler::register);
+        // Same for the singularity cell: AE2's own singularity is the only thing it ever holds.
+        event.enqueueWork(
+                cn.dancingsnow.neoecoprototype.items.SingularityCellHandler::register);
         // KubeJS custom infinite matrices: the handler only reacts to
         // CustomInfiniteCellItem instances, which exist only when scripts created them.
         event.enqueueWork(

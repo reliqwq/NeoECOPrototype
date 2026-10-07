@@ -4697,6 +4697,164 @@ public final class NeoECOPrototypeGameTests {
     }
 
     /**
+     * The three crafting members are eco's own block entity classes, so the only thing that gives them the
+     * addon's idle rate is ECOCraftingHighPowerMixin - and a formed machine is the only moment a grid node
+     * exists to read. This is that read: without it the mixin could stop firing and nothing would notice.
+     */
+    @GameTest(template = "l1_room", batch = "f1_member_power", timeoutTicks = 200,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void craftingMembersIdleAtTheAddonRate(GameTestHelper helper) {
+        double expected = cn.dancingsnow.neoecoprototype.api.SimplifyPowerProfile.L1
+                .highIdleComponentPower();
+        buildL1Room(helper, new BlockPos(6, 3, 6),
+                ModRegistration.SIMPLIFY_CRAFTING_SYSTEM_BLOCK.get(),
+                ModRegistration.SIMPLIFY_CRAFTING_INTERFACE_BLOCK.get(),
+                ModRegistration.SIMPLIFY_CRAFTING_INTERFACE_BLOCK.get(),
+                host -> {
+                    int checked = 0;
+                    for (int x = 0; x < L1_ROOM_SIZE; x++) {
+                        for (int y = 0; y < L1_ROOM_SIZE; y++) {
+                            for (int z = 0; z < L1_ROOM_SIZE; z++) {
+                                var rel = new BlockPos(x, y, z);
+                                var block = helper.getLevel().getBlockState(helper.absolutePos(rel)).getBlock();
+                                if (block != ModRegistration.SIMPLIFY_CRAFTING_WORKER_BLOCK.get()
+                                        && block != ModRegistration.SIMPLIFY_CRAFTING_PARALLEL_CORE_BLOCK.get()
+                                        && block != ModRegistration.SIMPLIFY_CRAFTING_VENT_BLOCK.get()) {
+                                    continue;
+                                }
+                                var absolute = helper.absolutePos(rel);
+                                if (!(helper.getLevel().getBlockEntity(absolute)
+                                        instanceof NEBlockEntity<?, ?> member)) {
+                                    helper.fail(name(block) + " at " + absolute
+                                            + " is not an NEBlockEntity, so its idle power cannot be read");
+                                    return;
+                                }
+                                var node = member.getMainNode() == null
+                                        ? null : member.getMainNode().getNode();
+                                if (node == null) {
+                                    helper.fail(name(block) + " at " + absolute
+                                            + " has no grid node in a formed machine, so its idle power"
+                                            + " cannot be read");
+                                    return;
+                                }
+                                if (Math.abs(node.getIdlePowerUsage() - expected) > 1e-9) {
+                                    helper.fail(name(block) + " idles at " + node.getIdlePowerUsage()
+                                            + " AE/t in a formed F1, but the addon power mixin should have"
+                                            + " set " + expected);
+                                    return;
+                                }
+                                checked++;
+                            }
+                        }
+                    }
+                    if (checked == 0) {
+                        helper.fail("the formed F1 room holds none of the three crafting members, so this"
+                                + " test would prove nothing");
+                    }
+                });
+    }
+
+    /**
+     * eco builds three of its own placement definitions from {@code NEConfig} values that are only
+     * assigned when its config loads, so whatever initialises {@code NEMultiBlocks} earlier leaves those
+     * definitions with a build range of 1 .. -4 - and eco's host UI then dies with
+     * {@code IllegalArgumentException: 1 > -4} the moment a player opens it. Reading eco's own numbers is
+     * the only way this regression cannot pass unnoticed.
+     */
+    @GameTest(template = "empty", batch = "eco_definition_range", timeoutTicks = 100,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void ecoDefinitionsKeepAUsableBuildRange(GameTestHelper helper) {
+        for (var tier : List.of(cn.dancingsnow.neoecoae.api.ECOTier.L4,
+                cn.dancingsnow.neoecoae.api.ECOTier.L6,
+                cn.dancingsnow.neoecoae.api.ECOTier.L9)) {
+            var storage = cn.dancingsnow.neoecoae.all.NEMultiBlocks.getStorageSystemDefinition(tier);
+            var computation = cn.dancingsnow.neoecoae.all.NEMultiBlocks.getComputationSystemDefinition(tier);
+            var crafting = cn.dancingsnow.neoecoae.all.NEMultiBlocks.getCraftingSystemDefinition(tier);
+            for (var pair : List.of(new Object[][]{{"storage", storage}, {"computation", computation},
+                    {"crafting", crafting}})) {
+                var definition = (cn.dancingsnow.neoecoae.multiblock.definition.MultiBlockDefinition) pair[1];
+                if (definition == null) {
+                    helper.fail(pair[0] + " " + tier + " has no definition at all");
+                    return;
+                }
+                if (definition.getExpandMax() < definition.getExpandMin()) {
+                    helper.fail(pair[0] + " " + tier + " reports build range "
+                            + definition.getExpandMin() + " .. " + definition.getExpandMax()
+                            + ", which makes eco's host UI throw 1 > -4 on open");
+                    return;
+                }
+            }
+        }
+        helper.succeed();
+    }
+
+    /**
+     * The flux cell family is registered only when appflux is installed, so this skips without it - and
+     * it reads the cell through eco's own interface rather than ours, because our compile-time-only
+     * dependency is not on this classpath and loading our item class would resolve appflux's key type.
+     *
+     * <p>The insert at the end is the point of the whole guard. eco's cell engine charges a new type its
+     * per-type byte cost before it will take a single unit of it, and
+     * {@code ECOStorageCell.canHoldNewItem} asks for free bytes strictly greater than that cost, so a
+     * rung sized to one byte with one byte per type refuses its first key forever and stores nothing at
+     * all. Only an actual insert says that out loud.
+     */
+    @GameTest(template = "empty", batch = "fe_cell_l1", timeoutTicks = 100, required = false,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void feCellsCarryTheL1FluxLayout(GameTestHelper helper) {
+        if (ModRegistration.OPTIONAL_FE_CELL_1M == null || ModRegistration.OPTIONAL_FE_CELL_4M == null) {
+            helper.succeed();
+            return;
+        }
+        var ladder = java.util.List.of(
+                new Object[][]{{"1m", ModRegistration.OPTIONAL_FE_CELL_1M.get(),
+                        cn.dancingsnow.neoecoprototype.integration.appflux.SimplifyFeStorageCellItem.BYTES_1M},
+                        {"4m", ModRegistration.OPTIONAL_FE_CELL_4M.get(),
+                        cn.dancingsnow.neoecoprototype.integration.appflux.SimplifyFeStorageCellItem.BYTES_4M}});
+        for (var rung : ladder) {
+            if (!(rung[1] instanceof cn.dancingsnow.neoecoae.api.storage.IBasicECOCellItem cell)) {
+                helper.fail("the " + rung[0] + " flux cell is not an IBasicECOCellItem,"
+                        + " so no cell handler will claim it");
+                return;
+            }
+            long bytes = (Long) rung[2];
+            if (cell.getBytes() != bytes || cell.getBytesPerType() != (int) (bytes >> 8)
+                    || cell.getTotalTypes() != 1) {
+                helper.fail(rung[0] + " flux cell should be " + bytes + " bytes at one byte per 256"
+                        + " against one type, but it reports bytes=" + cell.getBytes()
+                        + " perType=" + cell.getBytesPerType() + " types=" + cell.getTotalTypes());
+                return;
+            }
+            if (cell.getKeyTypes().size() != 1
+                    || !"flux".equals(cell.getKeyTypes().iterator().next().getId().getPath())) {
+                helper.fail(rung[0] + " flux cell should carry exactly appflux's own key type, but it"
+                        + " reports " + cell.getKeyTypes());
+                return;
+            }
+            if (cell.getTier() != cn.dancingsnow.neoecoprototype.api.SimplifyTier.L1) {
+                helper.fail(rung[0] + " flux cell reports " + cell.getTier() + ", so an L1 drive would"
+                        + " refuse to mount it or a higher host would take it for its own tier");
+                return;
+            }
+            var inventory = cn.dancingsnow.neoecoae.api.storage.ECOStorageCells.getCellInventory(
+                    new ItemStack((Item) rung[1]), (appeng.api.storage.cells.ISaveProvider) null);
+            if (inventory == null) {
+                helper.fail("the " + rung[0] + " flux cell has no cell inventory,"
+                        + " so eco's handler never claimed it");
+                return;
+            }
+            long accepted = AppFluxTestProbe.insertEverything(new ItemStack((Item) rung[1]), inventory);
+            if (accepted <= 0) {
+                helper.fail("the " + rung[0] + " flux cell takes no FE at all: " + bytes
+                        + " bytes with " + cell.getBytesPerType()
+                        + " of them reserved for the type leaves nothing for the first key");
+                return;
+            }
+        }
+        helper.succeed();
+    }
+
+    /**
      * A shape parked for one host must not be readable by whatever stands there later. The handoff table
      * is keyed by dimension rather than by world, so a host pulled out before its one-tick handoff ran
      * would otherwise leave a face for the next machine to wear - and in one client process that next
@@ -4729,38 +4887,225 @@ public final class NeoECOPrototypeGameTests {
     }
 
     /**
+     * The induction card must install into our interfaces and pattern providers, and must not start
+     * naming them: AE2's card tooltip folds every machine that shares a group key into that group's
+     * one line, while an ungrouped machine prints its own name instead. Our names differ from AE2's,
+     * so a missing group key shows up here as a new line on somebody else's item.
+     */
+    @GameTest(template = "empty", batch = "fe_induction_card", timeoutTicks = 100, required = false,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void inductionCardAllowsOurMachinesWithoutNamingThem(GameTestHelper helper) {
+        if (ModRegistration.OPTIONAL_FE_CELL_1M == null) {
+            helper.succeed();
+            return;
+        }
+        var card = AppFluxTestProbe.inductionCard();
+        var machines = java.util.List.<net.minecraft.world.level.ItemLike>of(
+                ModRegistration.SIMPLIFY_POWERED_ME_INTERFACE_ITEM.get(),
+                ModRegistration.POWERED_INTERFACE_PART.get(),
+                ModRegistration.SUPERCONDUCTIVE_INTERFACE_ITEM.get(),
+                ModRegistration.SUPERCONDUCTIVE_INTERFACE_PART.get(),
+                ModRegistration.SIMPLIFY_PATTERN_PROVIDER_ITEM.get(),
+                ModRegistration.CABLE_PATTERN_PROVIDER_PART.get());
+        var lines = appeng.api.upgrades.Upgrades.getTooltipLinesForCard(card);
+        for (var machine : machines) {
+            if (appeng.api.upgrades.Upgrades.getMaxInstallable(card, machine) != 1) {
+                helper.fail(machine.asItem().getDescription().getString()
+                        + " does not take an induction card, so it cannot receive power");
+                return;
+            }
+            var name = machine.asItem().getDescription().getString();
+            for (var line : lines) {
+                if (line.getString().equals(name)) {
+                    helper.fail("the induction card tooltip lists " + name
+                            + " on its own line instead of folding it into the family it belongs to");
+                    return;
+                }
+            }
+        }
+        helper.succeed();
+    }
+
+    /**
      * eco's two recipe viewer pages read one thing only: {@code NEMultiBlocks.DEFINITIONS}, and joining it
-     * is the no-arg {@code Builder.create()} - {@code create(Consumer)} deliberately does not join. So this
-     * is the assertion that goes red if an overload is flipped back, which is what hid all three L1
-     * structures from JEI and EMI until 2026-10-06.
+     * is the no-arg {@code Builder.create()} - {@code create(Consumer)} deliberately does not join. We stay
+     * on the non-joining overload and hand our definitions to both viewer plugins directly, because joining
+     * it this early runs eco's own class initialiser before its server config has loaded. The companion
+     * {@link #ecoDefinitionsKeepAUsableBuildRange} is what catches it if anyone "fixes" this by flipping
+     * the overload without moving the timing.
      */
     @GameTest(template = "empty", batch = "viewer_definitions", timeoutTicks = 100,
             templateNamespace = NeoECOPrototype.MOD_ID)
-    public static void l1HostsAreOnTheViewerListAndTrinityIsNot(GameTestHelper helper) {
+    public static void ourDefinitionsStayOutOfEcoListAndEcoStaysUsable(GameTestHelper helper) {
         var owners = new java.util.HashSet<net.minecraft.resources.ResourceLocation>();
         for (var definition : cn.dancingsnow.neoecoae.all.NEMultiBlocks.DEFINITIONS) {
             owners.add(BuiltInRegistries.BLOCK.getKey(definition.getOwner().value()));
         }
-        // Named as List<Block> on purpose: letting javac infer the element type from three different host
+        // Named as List<Block> on purpose: letting javac infer the element type from four different host
         // classes makes it compute an intersection over eco's self-referential NEBlock<C, E> generics, and
         // that fails to reconcile NEBlockEntity#getCluster with AE2's IAEMultiBlock.
         List<Block> hosts = List.of(
                 ModRegistration.SIMPLIFY_STORAGE_CONTROLLER_BLOCK.get(),
                 ModRegistration.SIMPLIFY_COMPUTATION_SYSTEM_BLOCK.get(),
-                ModRegistration.SIMPLIFY_CRAFTING_SYSTEM_BLOCK.get());
+                ModRegistration.SIMPLIFY_CRAFTING_SYSTEM_BLOCK.get(),
+                ModRegistration.SIMPLIFY_TRINITY_CONTROLLER_BLOCK.get());
         for (var host : hosts) {
             var id = BuiltInRegistries.BLOCK.getKey(host);
-            if (!owners.contains(id)) {
-                helper.fail(id + " is absent from NEMultiBlocks.DEFINITIONS, so eco's JEI and EMI"
-                        + " multiblock pages cannot list its structure - build the definition with the"
-                        + " no-arg Builder.create()");
+            if (owners.contains(id)) {
+                helper.fail(id + " is in NEMultiBlocks.DEFINITIONS: joining that list runs eco's class"
+                        + " initialiser before its server config loads, which leaves eco's own L4-L9"
+                        + " definitions with a build range of 1 .. -4 and crashes its host UI on open");
                 return;
             }
         }
-        var trinity = BuiltInRegistries.BLOCK.getKey(ModRegistration.SIMPLIFY_TRINITY_CONTROLLER_BLOCK.get());
-        if (owners.contains(trinity)) {
-            helper.fail(trinity + " joined NEMultiBlocks.DEFINITIONS: Trinity is meant to stay out of both"
-                    + " recipe viewers, and that list is the only thing they read");
+        helper.succeed();
+    }
+
+    /**
+     * The singularity cell is one formula and no accumulator, so the formula is asserted at the boundaries a
+     * player or a pack can reach: before the first batch, exactly on it, the refill after a draw, that a
+     * huge bank is not truncated by any ceiling, and that the arithmetic survives the world clock running
+     * out. The contract numbers ride along, because a silent edit to either of them is a balance change and
+     * not a refactor.
+     */
+    @GameTest(template = "empty", batch = "singularity_cell_math", timeoutTicks = 100,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void singularityCellBankFollowsItsClock(GameTestHelper helper) {
+        long interval = cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig
+                .singularityCellTicksPerBatch();
+        long batch = cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig
+                .singularityCellAmountPerBatch();
+        var fresh = new cn.dancingsnow.neoecoprototype.items.SimplifySingularityCellItem.Bank(1000L, 0L);
+        if (cn.dancingsnow.neoecoprototype.items.SimplifySingularityCellItem.bankOf(fresh, 1000L + interval - 1)
+                != 0L) {
+            helper.fail("the cell handed out a singularity before its first batch finished");
+            return;
+        }
+        if (cn.dancingsnow.neoecoprototype.items.SimplifySingularityCellItem.bankOf(fresh, 1000L + interval)
+                != batch) {
+            helper.fail("one batch should be " + batch + " singularities, the cell reports "
+                    + cn.dancingsnow.neoecoprototype.items.SimplifySingularityCellItem
+                    .bankOf(fresh, 1000L + interval));
+            return;
+        }
+        var drained = new cn.dancingsnow.neoecoprototype.items.SimplifySingularityCellItem.Bank(1000L, batch);
+        if (cn.dancingsnow.neoecoprototype.items.SimplifySingularityCellItem.bankOf(drained, 1000L + 2 * interval)
+                != batch) {
+            helper.fail("drawing one batch should leave the next one to grow into, not empty the clock");
+            return;
+        }
+        long hugeBatches = 100_000_000_000L;
+        long hugeBank = cn.dancingsnow.neoecoprototype.items.SimplifySingularityCellItem
+                .bankOf(fresh, 1000L + interval * hugeBatches);
+        if (hugeBank != hugeBatches * batch) {
+            helper.fail("nothing may truncate the bank any more - " + hugeBatches + " batches at " + batch
+                    + " should be " + (hugeBatches * batch) + ", the cell reports " + hugeBank);
+            return;
+        }
+        if (cn.dancingsnow.neoecoprototype.items.SimplifySingularityCellItem
+                .bankOf(fresh, 1000L + interval * hugeBatches * 2L) <= hugeBank) {
+            helper.fail("doubling the elapsed ticks must double the bank, not stop it");
+            return;
+        }
+        if (cn.dancingsnow.neoecoprototype.items.SimplifySingularityCellItem
+                .bankOf(fresh, Long.MAX_VALUE) <= 0L) {
+            helper.fail("the world clock running out should saturate the bank, not wrap it negative");
+            return;
+        }
+        helper.assertTrue(cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig
+                        .SINGULARITY_CELL_TICKS_PER_BATCH_MIN == 60L,
+                "the cell's shortest interval is part of its contract");
+        helper.assertTrue(cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig
+                        .SINGULARITY_CELL_AMOUNT_PER_BATCH_MAX == 262_144,
+                "the cell's biggest single batch is part of its contract");
+        helper.succeed();
+    }
+
+    /**
+     * The same cell read through eco's own cell API, which is the only way a network sees it: nothing goes
+     * in, only AE2's singularity comes out, and the bank it reports is the bank it will pay.
+     */
+    @GameTest(template = "empty", batch = "singularity_cell_yield", timeoutTicks = 100,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void singularityCellTakesNothingAndPaysWhatItShows(GameTestHelper helper) {
+        var singularity = cn.dancingsnow.neoecoprototype.items.SimplifySingularityCellItem.SINGULARITY;
+        var stack = new ItemStack(ModRegistration.SIMPLIFY_SINGULARITY_CELL.get());
+        var cell = cn.dancingsnow.neoecoae.api.storage.ECOStorageCells
+                .getCellInventory(stack, (appeng.api.storage.cells.ISaveProvider) null);
+        if (cell == null) {
+            helper.fail("no eco cell handler claims the singularity cell, so a drive cannot see it");
+            return;
+        }
+        if (cell.insert(singularity, 64L, Actionable.SIMULATE, null) != 0L
+                || cell.insert(appeng.api.stacks.AEItemKey.of(net.minecraft.world.item.Items.COBBLESTONE),
+                        64L, Actionable.MODULATE, null) != 0L) {
+            helper.fail("the singularity cell accepted something - it is meant to grow its own stock only");
+            return;
+        }
+        long interval = cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig
+                .singularityCellTicksPerBatch();
+        long batch = cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig
+                .singularityCellAmountPerBatch();
+        long now = cn.dancingsnow.neoecoprototype.items.SingularityCellHandler.serverGameTime();
+        if (now < 0L) {
+            helper.fail("a game test runs on a real server, so the cell should have a clock to read");
+            return;
+        }
+        stack.set(ModRegistration.SINGULARITY_CELL_BANK.get(),
+                new cn.dancingsnow.neoecoprototype.items.SimplifySingularityCellItem.Bank(
+                        now - 3L * interval, 0L));
+        var out = new appeng.api.stacks.KeyCounter();
+        cell.getAvailableStacks(out);
+        if (out.size() != 1 || out.get(singularity) != 3L * batch) {
+            helper.fail("three batches should show as " + (3L * batch) + " singularities in one row,"
+                    + " but the cell reports " + out);
+            return;
+        }
+        if (cell.getStatus() != appeng.api.storage.cells.CellState.NOT_EMPTY) {
+            helper.fail("a cell with three batches in it reports " + cell.getStatus());
+            return;
+        }
+        // The cell carries its own stock line, because eco's byte line never runs for an item that is not
+        // an ECOStorageCellItem. Hover text is the only place a player can read what this cell holds.
+        var hover = new java.util.ArrayList<net.minecraft.network.chat.Component>();
+        ModRegistration.SIMPLIFY_SINGULARITY_CELL.get().appendHoverText(stack, null, hover, null);
+        long stock = 3L * batch;
+        if (hover.stream().noneMatch(line -> line.getString().contains(Long.toString(stock)))) {
+            helper.fail("hovering a cell holding " + stock + " singularities should name that number,"
+                    + " the tooltip is " + hover);
+            return;
+        }
+        long paid = cell.extract(singularity, Long.MAX_VALUE, Actionable.MODULATE, null);
+        if (paid != 3L * batch) {
+            helper.fail("the cell promised " + (3L * batch) + " and paid " + paid);
+            return;
+        }
+        var afterPay = stack.get(ModRegistration.SINGULARITY_CELL_BANK.get());
+        if (afterPay == null || afterPay.drawn() != 3L * batch) {
+            helper.fail("paying out should have written drawn=" + (3L * batch) + " onto the stack,"
+                    + " but the stack holds " + afterPay);
+            return;
+        }
+        var drained = new appeng.api.stacks.KeyCounter();
+        cell.getAvailableStacks(drained);
+        if (drained.get(singularity) != 0L) {
+            helper.fail("the cell still advertises " + drained.get(singularity)
+                    + " singularities after paying out its whole bank");
+            return;
+        }
+        long afterDry = cell.extract(singularity, 1L, Actionable.MODULATE, null);
+        if (afterDry != 0L) {
+            helper.fail("the cell paid " + afterDry + " more after the bank ran dry");
+            return;
+        }
+        if (cell.getStatus() != appeng.api.storage.cells.CellState.EMPTY) {
+            helper.fail("an empty bank should report EMPTY, the cell reports " + cell.getStatus()
+                    + " (start " + stack.get(ModRegistration.SINGULARITY_CELL_BANK.get()).startGameTime()
+                    + ", drawn " + stack.get(ModRegistration.SINGULARITY_CELL_BANK.get()).drawn() + ")");
+            return;
+        }
+        if (cell.canFitInsideCell()) {
+            helper.fail("an endless generator must not fit inside another storage cell");
             return;
         }
         helper.succeed();

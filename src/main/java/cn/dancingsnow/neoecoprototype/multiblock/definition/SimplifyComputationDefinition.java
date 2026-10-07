@@ -85,7 +85,14 @@ public final class SimplifyComputationDefinition {
                 })
                 // See SimplifyStorageDefinition: create() is the overload that joins the list the two
                 // recipe viewers walk, so the L1 structure shows up in JEI and EMI.
-                .create();
+                // create(Consumer) deliberately does NOT append to NEMultiBlocks.DEFINITIONS, and
+                // that matters: touching that field runs eco's own <clinit>, which reads
+                // NEConfig.*SystemMaxLength before its server config has loaded, so eco's own L4-L9
+                // definitions come out with a build range of 1 .. -4 and their host UI then throws
+                // IllegalArgumentException: 1 > -4 on open. Guarded by
+                // NeoECOPrototypeGameTests#ecoDefinitionsKeepAUsableBuildRange.
+                .create(definition -> {
+                });
     }
 
     private static BlockPos pos(int x, int y, int z) {

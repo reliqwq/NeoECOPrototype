@@ -102,6 +102,10 @@ dependencies {
     // 同 md5 的那份提供（e4aede758ec7c675d2255234df7ed4ff），没有 EMI 的环境里这个类根本不会被构造
     // —— EMI 是扫描 @EmiEntrypoint 注解才找到插件的，不像软依赖那样能被我们的主类碰到。
     compileOnly files("libs/emi-1.1.24+1.21.1+neoforge.jar") // EMI 1.1.24+1.21.1+neoforge
+    // 可选集成：AppliedFlux（应用通量，modId appflux，作者同 ExtendedAE）。FeStorageIntegration 只在
+    // ModList.isLoaded("appflux") 里被引用，所以 compileOnly 就够；运行时那份在 run/mods。
+    // 它自己硬依赖 glodium + guideme，容量口径是 flux_cell.amount（默认 1 byte = 1 Mi FE）。
+    compileOnly files("libs/appflux-1.21-2.1.5-neoforge.jar") // AppliedFlux 1.21-2.1.5-neoforge
 
     compileOnly "org.projectlombok:lombok:1.18.34"
     annotationProcessor "org.projectlombok:lombok:1.18.34"

@@ -6,7 +6,6 @@
   "mixins": [
     "ECOComputationSystemBlockEntityMixin",
     "NEBlockEntityPowerMixin",
-    "ECOCraftingHighPowerMixin",
     "ECOClientUIBridgeMixin",
     "InterfaceLogicAccess"
   ],

@@ -138,6 +138,8 @@ public final class NeoECOPrototypeClient {
         }
         ECOCellModels.register(ModRegistration.PIGMEE_STORAGE_CELL.get(), cellModel("l1_pigmee"));
         ECOCellModels.register(ModRegistration.SIMPLIFY_CONCRETE_STORAGE_CELL.get(), cellModel("l1_concrete"));
+        // Its own copy of the special-cell housing, so repainting one does not move the other.
+        ECOCellModels.register(ModRegistration.SIMPLIFY_SINGULARITY_CELL.get(), cellModel("l1_singularity"));
         if (ModRegistration.OPTIONAL_UNIVERSAL_CELL_1K != null) {
             ECOCellModels.register(ModRegistration.OPTIONAL_UNIVERSAL_CELL_1K.get(), cellModel("l1_universal"));
             ECOCellModels.register(ModRegistration.OPTIONAL_UNIVERSAL_CELL_1M.get(), cellModel("l1_universal"));
@@ -152,6 +154,13 @@ public final class NeoECOPrototypeClient {
         ECOCellModels.register(ModRegistration.OPTIONAL_CHEMICAL_CELL_64K.get(), cellModel("l0_chemical_64k"));
             ECOCellModels.register(ModRegistration.OPTIONAL_CHEMICAL_CELL_1M.get(), cellModel("l1_chemical"));
             ECOCellModels.register(ModRegistration.OPTIONAL_CHEMICAL_CELL_4M.get(), cellModel("l1r_chemical"));
+        }
+        if (ModRegistration.OPTIONAL_FE_CELL_1M != null) {
+            // Deliberately the item cells' drive models: we have no energy stripe in cell_type (that
+            // texture only carries item / fluid / chemical media groups), so the FE cells show their tier
+            // band and keep the item media band.
+            ECOCellModels.register(ModRegistration.OPTIONAL_FE_CELL_1M.get(), cellModel("l1_item"));
+            ECOCellModels.register(ModRegistration.OPTIONAL_FE_CELL_4M.get(), cellModel("l1r_item"));
         }
         if (ModList.get().isLoaded("kubejs")) {
             ResourceLocation infiniteItemCellModel = ResourceLocation.fromNamespaceAndPath(

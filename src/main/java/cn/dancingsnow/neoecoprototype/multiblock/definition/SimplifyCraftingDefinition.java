@@ -93,7 +93,14 @@ public final class SimplifyCraftingDefinition {
                 // Joins eco's definition list on purpose; see SimplifyStorageDefinition. The old comment
                 // here said "JEI registers it explicitly", and that registration was removed - asking for
                 // eco's category by name made the whole JEI plugin depend on plugin order.
-                .create();
+                // create(Consumer) deliberately does NOT append to NEMultiBlocks.DEFINITIONS, and
+                // that matters: touching that field runs eco's own <clinit>, which reads
+                // NEConfig.*SystemMaxLength before its server config has loaded, so eco's own L4-L9
+                // definitions come out with a build range of 1 .. -4 and their host UI then throws
+                // IllegalArgumentException: 1 > -4 on open. Guarded by
+                // NeoECOPrototypeGameTests#ecoDefinitionsKeepAUsableBuildRange.
+                .create(definition -> {
+                });
     }
 
     private static BlockPos pos(int x, int y, int z) {

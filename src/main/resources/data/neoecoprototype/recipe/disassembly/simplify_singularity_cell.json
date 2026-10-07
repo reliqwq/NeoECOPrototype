@@ -1,0 +1,9 @@
+{
+  "type": "ae2:storage_cell_disassembly",
+  "cell": "neoecoprototype:simplify_singularity_cell",
+  "cell_disassembly_items": [
+    { "id": "neoecoae:eco_infinite_cell_component", "count": 1 },
+    { "id": "neoecoprototype:simplify_green_crystal_matrix", "count": 1 },
+    { "id": "ae2:singularity", "count": 1 }
+  ]
+}
