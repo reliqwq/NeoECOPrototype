@@ -44,6 +44,8 @@ Upgrades.add(AEItems.FUZZY_CARD.asItem(), myBlockItem, 1, group);
 
 方块和 Part 是两个不同的 `ItemLike`，必须分别登记。登记表同时影响升级槽放行和卡片 tooltip。不要为了方便把所有 AE 卡都注册给设备；只登记逻辑真正支持的卡。
 
+**第四个参数是分组键，不是可有可无的装饰。** `Upgrades.add(card, machine, max)` 这个三参重载传的是 `null`，而 `createTooltipLinesForCard` 的处理是：同一个组名的机器塌成**一行组名**，组名已经出现过就整条跳过；没有组的机器**各打自己的显示名**。我们的机器名和上游不同，所以少传这个参数就会在别人的卡片上多出几行。appflux 的感应卡用的两个组是 `GuiText.Interface.getTranslationKey()`（接口）和字面量 `"group.pattern_provider.name"`（样板供应器，它没有常量）。放行照旧生效，但**放行与占行是同一张表的两个后果**，改的时候两样都要看。
+
 ## 供电接口
 
 AE2 被动发电机是网络级竞争关系：一个网络通常只选择一个被动发电源，其他发电源会被设置为 suppressed，`getRate()` 返回 0。这是运行时选择，不代表 Part 或方块失效。L1 供电接口应实现 AE2 的被动发电 API，并在 suppressed 状态下返回 0，默认输出约 200 AE/t。
@@ -117,7 +119,9 @@ AE2 Part 不是普通方块模型。保留 AE2 的 Part 几何、背面和侧面
 - **守卫的强弱两边不一样，要分开说**：计算侧有机壳守卫 `computationCasingCalculatorKnowsL1Geometry`（问的就是机壳自己的计算器，只有走新路由才为真）；**合成侧没有等价守卫**，靠的是既有的 F1 成型测试。所以"合成侧路由断了"这件事现在不会红。
 - **F1 主机的 `getBuildDefinition` / `onReady` 已从注入变成 `SimplifyCraftingSystemBlockEntity` 上的普通覆写**（两者在 21.2.1 里都是 public，而 F1 本来就故意是自己的子类）。
 - **还能再往前一步**：把覆写从 `verifyInternalStructure` 缩到上游新增的 `protected verifyStructure(...)`，那样 `setMirrored` / 冷却控制器 / `network_switch` 的写回就交回上游。我们现在必须自己写，因为检查一旦路由给我们，上游那半段不跑。
-- **mixin 实盘形状**：7 个类（`mixins.json` 里 5 server + 2 client），注解级是 5 个 `@Inject` + 1 个 `@Redirect`，另有 3 个 `@Accessor` + 4 个 `@Invoker`。其中 `InterfaceLogicAccess` 与 `SlotYAccessor` 是纯访问器、没有注入点。旧条目里"从 16 条降到 7 条"的那个 16 是 PR 合并前的数，**别再引用**。
+- **mixin 实盘形状**：7 个类（`mixins.json` 里 4 server + 3 client），注解级是 3 个 `@Inject` + 4 个 `@Redirect`，另有 3 个 `@Accessor` + 4 个 `@Invoker`。其中 `InterfaceLogicAccess`（2 访问器 + 4 invoker）与 `SlotYAccessor` 是纯访问器、没有注入点。旧条目里"从 16 条降到 7 条"的那个 16 是 PR 合并前的数，**别再引用**。
+- **合成侧的功耗已经不靠注入**：`ECOCraftingHighPowerMixin` 删掉了，三块合成成员（worker / parallel core / vent）改成我们自己的子类，`onReady()` 里 `super.onReady()` 之后写 `SimplifyPowerProfile.L1.highIdleComponentPower()`。**注册面一个字没改**：`BlockEntityType` 声明的泛型仍是 eco 的父类，只有工厂 lambda 里 `new` 的类换了，`AEBaseEntityBlock#setBlockEntity` 传的仍是父类的 class —— 与 `6a00d02` 给 F1 主机用的是同一个形状。守卫是 `craftingMembersIdleAtTheAddonRate`：eco 自己三块都写 64.0 AE/t，我们写 **4.0**（`highIdleComponentPower` 的 32.0 也过 1/8 缩放），摘掉任何一块的覆写，那条就点名到具体方块。
+- **同一招还能往下拆**：`NEBlockEntityPowerMixin` 现在管着其余仍复用 eco BE 类的方块（计算侧 threading / parallel / cooling / transmitter、pattern bus、两个流体孔；注册表里一共挂着 12 个 eco 的 BE 类型）。要不要拆看成本，但**每拆一块都得先有读数**——那三块成员在补断言之前是零覆盖，也就是注入坏了没人知道。
 
 ## EMI 的多方块工作台清单是上游硬编码的，我们的主机要自己登记
 
@@ -130,6 +134,19 @@ AE2 Part 不是普通方块模型。保留 AE2 的 Part 几何、背面和侧面
 - **发现机制是注解扫描**：EMI 在 NeoForge 上从 `ModList.getAllScanData()` 里挑 `Ldev/emi/emi/api/EmiEntrypoint;`（CLASS 保留，ASM 读得到），自己 `Class.forName`。所以没装 EMI 的环境根本不会构造我们这个类，`compileOnly` 就够；产物里引用 `dev/emi` 的 class 只有这一个。
 - **没有 COOLING 工作台**：上游还把 `COOLING` 登记在它三台合成主机上，我们没跟。两条证据：全仓对 `NERecipeTypes.COOLING` / `CoolingRecipe` / `ECOCraftingCoolingController` 0 引用，并且我们既不注册合成侧的冷却控制器方块、F1 结构的成员表里也没有它（只有散热口 `SIMPLIFY_CRAFTING_VENT_BLOCK`）。所以给 F1 登记冷却工作台会是假承诺。
 - **套件覆盖是 0**：`gameTestServer` 里没有 EMI，这条只能起客户端看。别把"编译过了"当成"页出来了"。
+
+## 自己写一个 EMI 页面（L1 装配室，2026-10-07）
+
+签名全部在 `libs/emi-1.1.24+1.21.1+neoforge.jar` 上 javap 过，别照 JEI 的形状套：
+
+- `EmiRegistry` **只有 `addRecipe(EmiRecipe)`**，没有收 List 的 `addRecipes`；分类是 `addCategory(EmiRecipeCategory)`，工作台 `addWorkstation(category, EmiIngredient)`。
+- 分类构造是 `EmiRecipeCategory(ResourceLocation, EmiRenderable)`，而 `EmiStack` 自己就 implements `EmiRenderable` ⇒ 图标一行 `EmiStack.of(我们的物品)`。
+- **`EmiIngredient.of(Ingredient)` 存在**（还有 `of(TagKey<T>)` / `of(List, long)`）⇒ 原版原料直接转，**标签不会摊成 N 个格子**。别自己写 `getItems()` 循环。
+- 现成的基类是 `BasicEmiRecipe(category, id, width, height)`（eco 自己的工作间页就继承它），`getInputs/getOutputs/getDisplayWidth...` 都替实现了，**但 `addWidgets(WidgetHolder)` 仍然是抽象的**，版面得自己画（`widgets.addSlot(EmiIngredient,x,y)`、`addTexture(EmiTexture.EMPTY_ARROW,x,y)`）。用之前先确认它在构造里给 `inputs/outputs` 建了列表，再往里 `add`。
+- `getBackingRecipe()` 是有默认实现的：JSON 配方给真 `RecipeHolder`，**我们那种"从冲压器派生"的配方没有 holder，就返回 null**，别造一个假的。
+- **和 JEI 必须读同一套规则**：我们的装配室配方 = JSON 配方 + 配置开启时派生的一批 − `isProcessorRecipeDisabled` 过滤。两边不一致就会被当成"配方丢了"，而且派生那一半在 recipe manager 里根本不存在，只能照抄 JEI 侧的构造过程。
+- 拿读数的办法（EMI 不在套件运行期）：起客户端，日志里要看到 `[EMI] Baked recipes after reload in Nms` + `Reloaded EMI in Nms`，再把 `Exception` 命中行**逐条点开**确认没有一条来自我们的类 —— 这条只证明"注册没炸"，页面排布仍需眼睛。
+
 
 ## 拒收是静默的时候，先加一行日志再读代码
 
@@ -193,6 +210,24 @@ AE2 的下限从始至终是 `[19.2.17,)`，现在也是编译所依据的版本
 2. **两次调用拿到的是同一个 input 实例**（local 5，中间没人重建）。所以"把 `cycleOutput` 的结果缓存到 pattern 字段"这种写法是错的：`myPlan` 在一次推送里被反复使用，字段缓存会让第二轮沿用第一轮的数量，那才是真会丢东西或 dup 的写法。
 3. **残余风险在 442**：`fireAutoCraftingEvent` 用 `Platform.getFakePlayer(serverLevel, ...)` 造一个假玩家，把 **`PlayerEvent.ItemCraftedEvent`** 发到 `NeoForge.EVENT_BUS` 上，并把**那个 `craftingInv` 本身**交给监听者。任何第三方 handler 都能在 `assemble` 与 `getRemainingItems` 之间同步改这个网格。我们没防（防它要把 input 复制一份）。下面这两半都是照我们自己的算法推出来的，**没有做过实验**：handler **清空**网格会让我们少交付（安全方向），handler **往网格里添**东西会让 `cycleOutput` 按添后的量算、可能多交付。已知，未防。
 
+## FE 存储单元的字节尺子（1M 为什么一只都存不进）
+
+appflux 把 AE2 字节换算成 FE：`FluxKeyType.getAmountPerByte()` 直接返回配置 `flux_cell.amount`，默认 1048576，所以 **1 字节 = 1 Mi FE**。但**物品名里的"1m/16m"数的是字节，不是 FE**：appflux 自己的 `ItemFECell(core, n, drain)` 算的是 `totalBytes = n × 1024`，`fe_1m_cell` 是 1,048,576 字节；eco 的 `ECOFeStorageCellItem` 只有三参构造，容量在基类里推 —— `totalBytes = tier.getStorageTotalBytes()`、`bytesPerType = 1 << (12 + tier.getTier())`、`idleDrain = totalBytes / 1048576`、`getTotalTypes() = cellType.typeCount()`。eco 的 "16m" 于是 = 16,777,216 字节 ≈ 1.7e13 FE。照着名字抄数字会抄错一个量级。
+
+**更要紧的是 eco 的字节算法有一道静默死路**：`ECOStorageCell` 给每个新类型先扣一份"每类型字节"，`canHoldNewItem()` 要 `freeBytes > bytesPerType`（相等时只留 `getUnusedItemCount() > 0` 这条后门，空仓走不通），`innerInsert` 接着要 `remainingItemCount − bytesPerType × amountPerByte > 0`。所以 **`totalBytes == bytesPerType` 的仓永远接不下它的第一个 key**，不报错、不提示，只是存不进去。我们的 1M/4M 两只最后落在 `1L<<20 / 1L<<22` 字节、`bytesPerType = bytes >> 8`，正好和 appflux 的 fe_1m/fe_4m 同尺。
+
+**这类容量算术只有真插一次才算验过。** 守卫是 `feCellsCarryTheL1FluxLayout`：读完布局之后拿 `ECOStorageCells.getCellInventory(stack, null)` 真 `insert(FluxKey.of(FE), MAX, MODULATE)` 一次，返回 0 就红。把旧的 1 字节布局种回去，它就在这一条红出来。
+
+## 存储单元没有 tick：会"随时间变化"的单元只能靠推导
+
+想加一只"自己慢慢产东西"的存储单元之前，先接受这个结构事实（AE2 19.2.17 + eco beta2，全部 javap 现量）：
+
+- `appeng.api.storage.cells.StorageCell` 只有 `getStatus / getIdleDrain / canFitInsideCell / persist`；eco 的 `IECOStorageCell` 补的是容量 getter。**两边都没有 tick 入口**，`ICellHandler` 也只有 `isCell / getCellInventory`。
+- `appeng.api.networking.IManagedGridNode` 在 19.2.17 **没有** `setMainAction`；`AEBaseBlockEntity` 不是 `ServerEntity`；我们自己的 L1 驱动器 BE 里一次 `tick` 都没有 —— 全仓库能白拿的钟只有 `SimplifyStorageHostBlockEntity.tick`。
+- 所以"累加"这条走不通（没有地方累加）。可用的形状是**推导**：栈上只存两个数（起始世界 tick、已被取走量），库存 = `(now − start)/间隔 × 每批量 − 已取走`；乘法只做 long 饱和，**没有库存上限**。**读取必须不写状态**，只有真正付货时才写回。
+- 世界时间从 `ServerLifecycleHooks.getCurrentServer().getLevel(Level.OVERWORLD).getGameTime()` 拿；多人客户端那里是 null，所以预览与结算都要能"没钟就空手"，不要猜。
+- 这条成立的前提也量过：`NetworkStorage` 里没有缓存的内容列表字段，终端问网络要内容时会**实时遍历各存储调 `getAvailableStacks`** —— 推导出来的库存不需要任何 mutation 就能长出来。反过来，如果你的单元靠"攒"，就必须自己找到钟，而这里没有。
+
 ## 验证清单
 
 - `compileJava processResources` 通过。
@@ -203,3 +238,4 @@ AE2 的下限从始至终是 `[19.2.17,)`，现在也是编译所依据的版本
 - AE 卡能插入、保存、重新打开，并且不支持的卡被拒绝。
 - 只有 L1 设备获得额外被动供电；普通 AE2 设备行为不变。
 - 至少启动一次客户端检查 Mixin、资源和菜单注册日志。
+- FE 那两条守卫（`fe_cell_l1`、`fe_induction_card`）是 `required = false`：只有把 appflux + guideme + Glodium 三个 jar 放进 `run-gametest/mods/` 才真的执行，不放就是"通过 = 没测"。

@@ -29,12 +29,13 @@ The Trinity system folds storage, configuration and crafting into one structure.
 | Java | 21 |
 | MegaCells | optional; required when the small bulk matrices are used |
 | Mekanism and Applied Mekanistics | optional; required when chemical cells and chemical matrices are used |
+| AppliedFlux | optional; required when the flux storage matrices are used — it brings its own requirements, GuideME and Glodium |
 
 The addon is required on both sides.
 
 ## Installing
 
-Install Minecraft 1.21.1 with NeoForge, then Applied Energistics 2, GuideME, LowDragLib2 and Neo ECO AE Extension at the versions above. Add MegaCells for the small bulk matrices, and Mekanism with Applied Mekanistics for chemical storage. Put the release jar in `mods` and start the game.
+Install Minecraft 1.21.1 with NeoForge, then Applied Energistics 2, GuideME, LowDragLib2 and Neo ECO AE Extension at the versions above. Add MegaCells for the small bulk matrices, Mekanism with Applied Mekanistics for chemical storage, and AppliedFlux for flux (FE) storage. Put the release jar in `mods` and start the game.
 
 The release jar does not bundle any of those dependencies; get them from their own maintainers and follow their licenses.
 

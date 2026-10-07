@@ -29,12 +29,13 @@ Trinity 多方块（三合一联合体）把存储、配置与合成收进同一
 | Java | 21 |
 | MegaCells | 可选；启用小宗存储矩阵时必需 |
 | Mekanism 与 Applied Mekanistics | 可选；启用化学品单元与化学品矩阵时必需 |
+| AppliedFlux | 可选；启用通量存储矩阵时必需，它自己还要 GuideME 与 Glodium |
 
 客户端和服务端都要装本模组。
 
 ## 安装
 
-先安装 Minecraft 1.21.1 和 NeoForge，再装 Applied Energistics 2、GuideME、LowDragLib2 与 Neo ECO AE Extension，版本按上表。要小宗矩阵就加 MegaCells，要化学品存储就加 Mekanism 与 Applied Mekanistics。最后把本模组的发布 JAR 放进 `mods` 目录，启动游戏。
+先安装 Minecraft 1.21.1 和 NeoForge，再装 Applied Energistics 2、GuideME、LowDragLib2 与 Neo ECO AE Extension，版本按上表。要小宗矩阵就加 MegaCells，要化学品存储就加 Mekanism 与 Applied Mekanistics，要通量（FE）存储就加 AppliedFlux。最后把本模组的发布 JAR 放进 `mods` 目录，启动游戏。
 
 发布 JAR 不打包上面任何一个依赖，请从各自的维护者处获取，并遵守其许可条款。
 
