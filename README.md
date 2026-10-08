@@ -25,17 +25,17 @@ The Trinity system folds storage, configuration and crafting into one structure.
 | Minecraft | 1.21.1 |
 | NeoForge | 21.1.251 or a compatible 21.1.x release |
 | Applied Energistics 2 | 19.2.17 or a compatible 19.2.x release |
-| Neo ECO AE Extension | 21.2.1-beta2 or a compatible later release |
+| Neo ECO AE Extension | 21.2.1-beta2 or a compatible later release (the 21.2.1 release also asks for LDLib2 2.2.40 or newer) |
 | Java | 21 |
 | MegaCells | optional; required when the small bulk matrices are used |
 | Mekanism and Applied Mekanistics | optional; required when chemical cells and chemical matrices are used |
-| AppliedFlux | optional; required when the flux storage matrices are used — it brings its own requirements, GuideME and Glodium |
+| AppliedFlux | optional; required when the FE storage matrices are used — it brings its own requirements, GuideME and Glodium |
 
 The addon is required on both sides.
 
 ## Installing
 
-Install Minecraft 1.21.1 with NeoForge, then Applied Energistics 2, GuideME, LowDragLib2 and Neo ECO AE Extension at the versions above. Add MegaCells for the small bulk matrices, Mekanism with Applied Mekanistics for chemical storage, and AppliedFlux for flux (FE) storage. Put the release jar in `mods` and start the game.
+Install Minecraft 1.21.1 with NeoForge, then Applied Energistics 2, GuideME, LowDragLib2 and Neo ECO AE Extension at the versions above. Add MegaCells for the small bulk matrices, Mekanism with Applied Mekanistics for chemical storage, and AppliedFlux for FE storage. Put the release jar in `mods` and start the game.
 
 The release jar does not bundle any of those dependencies; get them from their own maintainers and follow their licenses.
 
@@ -60,7 +60,7 @@ Place lawful copies of the exact compatible dependencies in `libs/`, as listed i
 .\gradlew.bat build --offline
 ```
 
-A build from a fresh clone stops with the names of the jars it is missing, because none of them are redistributed here. The output is `build/libs/neoecoprototype-3.0.0-beta1.jar`. Keep `libs/`, `run/`, `build/`, reference checkouts and local world data out of the repository.
+A build from a fresh clone stops with the names of the jars it is missing, because none of them are redistributed here. The output is `build/libs/neoecoprototype-0.3.1.jar`. Keep `libs/`, `run/`, `build/`, reference checkouts and local world data out of the repository.
 
 Why the dependency floors are written the way they are, including the prerelease range for eco, is recorded in [docs/ae2-extension-playbook.md](docs/ae2-extension-playbook.md). What ships with a release, and how it is published, is in [docs/publishing.md](docs/publishing.md).
 

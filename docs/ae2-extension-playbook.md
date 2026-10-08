@@ -166,9 +166,24 @@ CHANGELOG 现在只写玩家看得见的结果。这一节收着那些"以后改
 
 ## 版本下限怎么定
 
-`neoforge.mods.toml` 里 eco 的下限写成 `[21.2.1-beta2,)`，不是 `[21.2.1,)`。原因：`21.2.1-beta1` 把自己声明成 plain `21.2.1`，所以宽范围恰好收下了它；`beta2` 声明真实版本，而预发布版本比较时排在正式版**之下**，于是 `[21.2.1,)` 直接拒绝启动。上游至今没有发布 `21.2.1` 正式版，这就是第一个带上它的构建只能是预发布版的原因。我们要求这个下限的实际内容是：`gui.GuiTitleProvider` 在 `21.2.0` 里不存在，而我们的通讯接口与样板总线方块实现了它。
+`neoforge.mods.toml` 里 eco 的下限写成 `[21.2.1-beta2,)`，不是 `[21.2.1,)`。原因：`21.2.1-beta1` 把自己声明成 plain `21.2.1`，所以宽范围恰好收下了它；`beta2` 声明真实版本，而预发布版本比较时排在正式版**之下**，于是 `[21.2.1,)` 直接拒绝启动（实测过那句报错）。正式版 `21.2.1` 已经在 2026-10-07 由作者放出，下限仍然留在 beta2 是**故意的**：写成 `[21.2.1,)` 对新增玩家没有多买到什么，却会把还拿着 beta2 的人整台游戏挡在启动之外。我们要求这个下限的实际内容是：`gui.GuiTitleProvider` 在 `21.2.0` 里不存在，而我们的通讯接口与样板总线方块实现了它。
 
-AE2 的下限从始至终是 `[19.2.17,)`，现在也是编译所依据的版本。上游自己在 `21.2.1-beta1` 把它的 AE2 下限抬到 `19.2.18`、在 `beta2` 又退回 `19.2.17`，所以从 `beta2` 起，对 AE2 唯一的闸就是我们这一条声明。依据是对两个 jar 的逐类比对：本模组点名的 AE2 类里只有一个在两者之间发生变化——`core.localization.Tooltips`——而 `19.2.18` 从它里面去掉的是三个我们从未点名的字段，所以 `19.2.18` 的玩家同样被覆盖。
+AE2 的下限从始至终是 `[19.2.17,)`，现在也是编译所依据的版本。上游自己在 `21.2.1-beta1` 把它的 AE2 下限抬到 `19.2.18`、在 `beta2` 又退回 `19.2.17`，所以从 `beta2` 起，对 AE2 唯一的闸就是我们这一条声明。依据是对两个 jar 的逐类比对：本模组点名的 AE2 类里只有一个在两者之间发生变化——`core.localization.Tooltips`——而 `19.2.18` 从它里面去掉的是三个我们从未点名的字段，所以 `19.2.18` 的玩家同样被覆盖。**作者自己那份 `21.2.1` 发布说明写的是同一句话（"AE2 最低版本为 19.2.17，兼容 19.2.17 / 19.2.18"），而那份 jar 的 `META-INF/neoforge.mods.toml` 里 `ae2` 就是 `[19.2.17,)`、`ldlib2` 就是 `[2.2.40,)` —— 与我们声明的完全同一档。**
+
+**`0.3.1` 起，我们那份 `[[dependencies.neoecoprototype]]` 按 eco 21.2.1 的表逐条对齐。** 上游那张表是现量出来的，不是抄文档：`neoecobeta/neoecoae-21.2.1.jar` 里 `META-INF/neoforge.mods.toml` 一共 14 条 —— required 四条（`neoforge [21.1.0,)`、`minecraft [1.21.1, 1.22)`、`ae2 [19.2.17,)`、`ldlib2 [2.2.40,)`），optional 十条（`megacells [4.11.0,)`、`ae2omnicells [1.1.6,)`、`ae2_pattern_disk [0,)`、`extendedae [0,)`、`ae2lt [1.1.3,)`、`appliedenhancements [1.0.9,)`、`molecularmanipulator [2.0.5,),[2.0.5-fix]`、`useless_mod [1.21.1-2.3.7.2,)`、`jade [0,)`、`jei [0,)`）。
+
+我们这一侧落成的样子与理由：
+
+- `neoforge` / `minecraft` / `ae2`：与上游逐字同档，没有二次判断。
+- `ldlib2`：**新增 required `[2.2.40,)`**。我们的 GUI 代码直接站在它上面，所以"我们也需要它"是真话；写出来只改变错误消息归到谁头上，不改变能跑起来的集合（上游本来就拦）。
+- `megacells`：由 `*` 改成 **`[4.11.0,)`**。上游拦的版本我们不拦也没用，所以对齐等于零成本；这一条与"绝不写没量过的地板"不冲突 —— `4.11.0` 正是我们 classpath 里那一只（各 jar 的自报版本现量：ldlib2 `2.2.40`、ae2omnicells `1.1.6`、megacells `4.11.0`、jei `19.57.0.445`，全部落在我们写的区间里）。
+- `ae2omnicells`：**新增 optional `[1.1.6,)`**，全能与量子那两只矩阵读它的 cell type。
+- `jade` / `jei`：**新增 optional `*`**（上游给的是 `[0,)`，同为不设限），我们各有 4 处集成、全部走 `ModList` 判断。
+- `appflux`：上游那份**没有**这一条，FE 那一族是我们自己的依赖，所以地板也不由它代言，保持 `*`。
+- `extendedae`、`ae2lt`、`ae2_pattern_disk`、`appliedenhancements`、`molecularmanipulator`、`useless_mod`：**不声明**。按 mod id 与类包名两向 grep，我们源码里 0 处引用；上游声明它们不代表我们要声明。
+- **还开着的口子**：`mekanism` 与 `appmek` 各有 4 处引用（化学品族），但上游那份表里也没有这两条，所以这一版没写进 toml。要不要单独立 optional，是一个还没拍的判断。
+
+自证方式只有一条：改完跑 `runGameTestServer`。版本区间写错的表现是 pre-load FATAL（`[9.9.9,)` 那次实测过），而不是某条测试红 —— 这一次加载器起来、80 条 2.569 秒全绿。
 
 比对方法记在这里，别重复踩：类清单要取常量池里被引用的 `appeng` 宿主类（源码 grep 会漏掉 `var` 推出来的类型），只比 entry name 不算证明——`21.2.1` 的两代 jar 里 0 个类被删除，但 230 个类的字节变了。
 
@@ -230,7 +245,7 @@ appflux 把 AE2 字节换算成 FE：`FluxKeyType.getAmountPerByte()` 直接返�
 - **不在主世界的维度共用同一个钟**：`DerivedLevelData.getGameTime()` 转发包裹着的 `ServerLevelData`，而它的 `setGameTime(long)` 是空方法 —— 只有主世界那份在走。所以在下界 hover 也不是另一条时间线。
 - 拿到 level 的路是 `Item.TooltipContext.level()`：`Screen.getTooltipFromItem(Minecraft, ItemStack)` 传的是 `Item.TooltipContext.of(minecraft.level)`，`EMPTY` 那份的 `level()` 返回 null（`appendHoverText` 也可能被外面直接传进一个 null context，判一下）。反过来 **`Item.getTooltipImage(ItemStack)` 里没有 level** —— 内容预览小图是这一族在多人客户端上唯一还读不到钟的地方，缺图不缺数。
 - 这条成立的前提也量过：`NetworkStorage` 里没有缓存的内容列表字段，终端问网络要内容时会**实时遍历各存储调 `getAvailableStacks`** —— 推导出来的库存不需要任何 mutation 就能长出来。反过来，如果你的单元靠"攒"，就必须自己找到钟，而这里没有。
-- 想给"没人来问也要开始"找一个钩子，原版只有一条路，量过：`Inventory.tick()` 遍历 `compartments = ImmutableList.of(items, armor, offhand)`，对每格调 `ItemStack.inventoryTick` ⇒ **玩家身上 41 格都算**（主物品栏 36 + 盔甲 4 + 副手 1），但**两个 dist 都会跑**，所以要自己判 `level.isClientSide`，写服务端再靠槽位同步带回客户端。`ItemEntity` 里没有这个调用（javap 计数 0 处），所以丢在地上、留在箱子里的都不会 tick —— 那只元件要等被捡起来或插进驱动器。
+- 想给"没人来问也要开始"找一个钩子，原版只有一条路，量过：`Inventory.tick()` 遍历 `compartments = ImmutableList.of(items, armor, offhand)`，对每格调 `ItemStack.inventoryTick` ⇒ **玩家身上 41 格都算**（主物品栏 36 + 盔甲 4 + 副手 1），但**两个 dist 都会跑**，所以要自己判 `level.isClientSide`，写服务端再靠槽位同步带回客户端。`ItemEntity` 里没有这个调用（javap 计数 0 处），所以丢在地上、留在箱子里的都不会 tick —— 那只元件要等被捡起来或插进驱动器。**3.1.0 起这条钩子我们故意没用**：规则收成"只有驱动器与主机问过库存才起算"，身上起算要多背一个 dist 判断，而且会让创造栏里放着的一只也在产。
 
 ## 验证清单
 

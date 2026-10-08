@@ -25,17 +25,17 @@ Trinity 多方块（三合一联合体）把存储、配置与合成收进同一
 | Minecraft | 1.21.1 |
 | NeoForge | 21.1.251 或兼容的 21.1.x |
 | Applied Energistics 2 | 19.2.17 或兼容的 19.2.x |
-| Neo ECO AE Extension | 21.2.1-beta2 或更高的兼容版本 |
+| Neo ECO AE Extension | 21.2.1-beta2 或更高的兼容版本（正式版 21.2.1 另需 LDLib2 2.2.40 或更新） |
 | Java | 21 |
 | MegaCells | 可选；启用小宗存储矩阵时必需 |
 | Mekanism 与 Applied Mekanistics | 可选；启用化学品单元与化学品矩阵时必需 |
-| AppliedFlux | 可选；启用通量存储矩阵时必需，它自己还要 GuideME 与 Glodium |
+| AppliedFlux | 可选；启用FE存储矩阵时必需，它自己还要 GuideME 与 Glodium |
 
 客户端和服务端都要装本模组。
 
 ## 安装
 
-先安装 Minecraft 1.21.1 和 NeoForge，再装 Applied Energistics 2、GuideME、LowDragLib2 与 Neo ECO AE Extension，版本按上表。要小宗矩阵就加 MegaCells，要化学品存储就加 Mekanism 与 Applied Mekanistics，要通量（FE）存储就加 AppliedFlux。最后把本模组的发布 JAR 放进 `mods` 目录，启动游戏。
+先安装 Minecraft 1.21.1 和 NeoForge，再装 Applied Energistics 2、GuideME、LowDragLib2 与 Neo ECO AE Extension，版本按上表。要小宗矩阵就加 MegaCells，要化学品存储就加 Mekanism 与 Applied Mekanistics，要FE存储就加 AppliedFlux。最后把本模组的发布 JAR 放进 `mods` 目录，启动游戏。
 
 发布 JAR 不打包上面任何一个依赖，请从各自的维护者处获取，并遵守其许可条款。
 
@@ -60,7 +60,7 @@ KubeJS 是可选的。脚本在启动事件与配方事件里注册存储矩阵�
 .\gradlew.bat build --offline
 ```
 
-从全新克隆直接构建会停下来，报它缺的是哪几个 JAR——本仓库不转发任何依赖。产物是 `build/libs/neoecoprototype-3.0.0-beta1.jar`。`libs/`、`run/`、`build/`、参考检出与本地世界数据都不要提交进仓库。
+从全新克隆直接构建会停下来，报它缺的是哪几个 JAR——本仓库不转发任何依赖。产物是 `build/libs/neoecoprototype-0.3.1.jar`。`libs/`、`run/`、`build/`、参考检出与本地世界数据都不要提交进仓库。
 
 依赖下限为什么这么写、eco 那条为什么要带预发布版本号，记在 [docs/ae2-extension-playbook.md](docs/ae2-extension-playbook.md)。一次发布要带什么、怎么发，记在 [docs/publishing.md](docs/publishing.md)。
 

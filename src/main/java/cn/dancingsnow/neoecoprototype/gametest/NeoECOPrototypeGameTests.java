@@ -38,6 +38,7 @@ import cn.dancingsnow.neoecoprototype.block.crafting.SimplifyCraftingSystemBlock
 import cn.dancingsnow.neoecoprototype.block.storage.SimplifyStorageControllerBlock;
 import cn.dancingsnow.neoecoprototype.blockentity.crafting.SimplifySuperconductiveInterfaceBlockEntity;
 import cn.dancingsnow.neoecoprototype.blockentity.decoration.FumoBlockEntity;
+import cn.dancingsnow.neoecoprototype.blockentity.storage.SimplifyStorageHostBlockEntity;
 import cn.dancingsnow.neoecoprototype.blockentity.trinity.SimplifyTrinityComputationModuleBlockEntity;
 import cn.dancingsnow.neoecoprototype.blockentity.trinity.SimplifyTrinityControllerBlockEntity;
 import cn.dancingsnow.neoecoprototype.blockentity.trinity.SimplifyTrinityCraftingModuleBlockEntity;
@@ -4806,6 +4807,15 @@ public final class NeoECOPrototypeGameTests {
             helper.succeed();
             return;
         }
+        // The row the L1 storage host draws for a flux matrix is found by comparing the mounted cell's own
+        // cell type against eco's registered flux type, so that equality is what the panel depends on.
+        var fluxType = cn.dancingsnow.neoecoae.all.NERegistries.CELL_TYPE.get(
+                net.minecraft.resources.ResourceLocation.fromNamespaceAndPath("neoecoae", "flux"));
+        if (fluxType == null) {
+            helper.fail("appflux is loaded yet eco registered no flux cell type,"
+                    + " so the host panel has no energy row to put a flux matrix in");
+            return;
+        }
         var ladder = java.util.List.of(
                 new Object[][]{{"1m", ModRegistration.OPTIONAL_FE_CELL_1M.get(),
                         cn.dancingsnow.neoecoprototype.integration.appflux.SimplifyFeStorageCellItem.BYTES_1M},
@@ -4848,6 +4858,272 @@ public final class NeoECOPrototypeGameTests {
                 helper.fail("the " + rung[0] + " flux cell takes no FE at all: " + bytes
                         + " bytes with " + cell.getBytesPerType()
                         + " of them reserved for the type leaves nothing for the first key");
+                return;
+            }
+            if (!fluxType.equals(inventory.getCellType())) {
+                helper.fail("the mounted " + rung[0] + " flux cell reports the cell type "
+                        + inventory.getCellType() + " instead of eco's flux type, so the host would"
+                        + " count it among the items rather than draw it under the energy row");
+                return;
+            }
+        }
+        // The singularity cell has no row on purpose - it reports an unbounded byte total - which only holds
+        // while its cell type is not any of the media that do have one. Collide them and the cell is quietly
+        // counted as that medium instead of being left out.
+        var unrowed = cn.dancingsnow.neoecoprototype.items.SimplifySingularityCellItem.CELL_TYPE;
+        for (var row : java.util.List.of(
+                cn.dancingsnow.neoecoprototype.items.SimplifyStorageCellItem.getItemCellType(),
+                cn.dancingsnow.neoecoprototype.items.SimplifyStorageCellItem.getMegaItemCellType(),
+                cn.dancingsnow.neoecoprototype.items.SimplifyStorageCellItem.getFluidCellType(),
+                cn.dancingsnow.neoecoprototype.items.SimplifyConcreteStorageCellItem.CELL_TYPE,
+                fluxType)) {
+            if (row.equals(unrowed)) {
+                helper.fail("the singularity cell type is the same object as a row the panel draws,"
+                        + " so it is being counted in a medium it is not part of");
+                return;
+            }
+        }
+        helper.succeed();
+    }
+
+    /**
+     * The host panel joins a cell to a row by number, so this table is the one place where a wrong digit
+     * turns a fluid matrix into a mega item matrix - and the join is invisible until somebody opens the
+     * panel. Asserted off the mapping itself rather than through a formed host, because the mapping is pure.
+     */
+    @GameTest(template = "empty", batch = "storage_panel_rows", timeoutTicks = 100,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void panelRowsPutEachMediumWhereItReads(GameTestHelper helper) {
+        var item = cn.dancingsnow.neoecoprototype.items.SimplifyStorageCellItem.getItemCellType();
+        var mega = cn.dancingsnow.neoecoprototype.items.SimplifyStorageCellItem.getMegaItemCellType();
+        var fluid = cn.dancingsnow.neoecoprototype.items.SimplifyStorageCellItem.getFluidCellType();
+        var items = java.util.Set.of(appeng.api.stacks.AEKeyType.items());
+        var fluids = java.util.Set.of(appeng.api.stacks.AEKeyType.fluids());
+        if (SimplifyStorageHostBlockEntity.panelRowOf(item, items) != SimplifyStorageHostBlockEntity.ROW_ITEM) {
+            helper.fail("an item matrix must be counted in the item row");
+            return;
+        }
+        if (SimplifyStorageHostBlockEntity.panelRowOf(mega, items)
+                != SimplifyStorageHostBlockEntity.ROW_MEGA_ITEM) {
+            helper.fail("a mega item matrix must be counted in the mega item row, not the plain one");
+            return;
+        }
+        if (SimplifyStorageHostBlockEntity.panelRowOf(fluid, fluids)
+                != SimplifyStorageHostBlockEntity.ROW_FLUID) {
+            helper.fail("a fluid matrix read through eco's cell interface must land in the fluid row");
+            return;
+        }
+        // The same cell seen through the fallback: a matrix whose item does not implement eco's cell
+        // interface has only its own cell type to read, and that still says fluid.
+        if (SimplifyStorageHostBlockEntity.panelRowOf(fluid, null)
+                != SimplifyStorageHostBlockEntity.ROW_FLUID) {
+            helper.fail("a fluid matrix without eco's cell interface landed in row "
+                    + SimplifyStorageHostBlockEntity.panelRowOf(fluid, null) + " instead of the fluid row");
+            return;
+        }
+        if (SimplifyStorageHostBlockEntity.panelRowOf(
+                cn.dancingsnow.neoecoprototype.items.SimplifyConcreteStorageCellItem.CELL_TYPE, null)
+                != SimplifyStorageHostBlockEntity.ROW_CONCRETE) {
+            helper.fail("the infinite concrete matrix must keep its own row");
+            return;
+        }
+        if (SimplifyStorageHostBlockEntity.panelRowOf(
+                cn.dancingsnow.neoecoprototype.items.SimplifySingularityCellItem.CELL_TYPE, items)
+                != SimplifyStorageHostBlockEntity.ROW_NONE) {
+            helper.fail("the singularity cell must not be counted in any row at all");
+            return;
+        }
+        var fluxType = cn.dancingsnow.neoecoae.all.NERegistries.CELL_TYPE.get(
+                net.minecraft.resources.ResourceLocation.fromNamespaceAndPath("neoecoae", "flux"));
+        if (fluxType != null && SimplifyStorageHostBlockEntity.panelRowOf(fluxType, java.util.Set.of())
+                != SimplifyStorageHostBlockEntity.ROW_FLUX) {
+            helper.fail("a flux matrix must get the flux row, not the item row it fell into before");
+            return;
+        }
+        if (SimplifyStorageHostBlockEntity.panelKindOf(SimplifyStorageHostBlockEntity.ROW_FLUX)
+                != cn.dancingsnow.neoecoae.gui.storage.StorageHostUI.CellEntry.KIND_OTHER) {
+            helper.fail("the flux row should wear eco's \"other\" icon, not borrow the item one");
+            return;
+        }
+        helper.succeed();
+    }
+
+    /**
+     * The one-click marking, end to end: a built and formed L1 storage host, one drive holding a source cell
+     * with more of a compressible item than the threshold, one drive holding a small-bulk cell.
+     *
+     * <p>Two passes are the point. The first must mark something; the second must mark nothing again and
+     * report it as already marked - which is what proves the comparison is eco's chain rule rather than item
+     * equality, and that the per-drive inventory reads hoisted out of the target loop still see every
+     * source. The rule itself is asserted first, because a fixture that cannot gather a same-chain pair says
+     * nothing either way.
+     */
+    @GameTest(template = "l1_room", batch = "small_bulk_auto_mark", timeoutTicks = 400, required = false,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void autoMarkFollowsEcosChainRule(GameTestHelper helper) {
+        if (!net.neoforged.fml.ModList.get().isLoaded("megacells")) {
+            helper.succeed();
+            return;
+        }
+        var sample = SmallBulkTestProbe.findSamples();
+        if (!sample.isComplete()) {
+            helper.fail("megacells is installed but this fixture could not gather a same-chain pair, a"
+                    + " cross-chain pair and two plain items, so it cannot say anything about the rule: "
+                    + sample);
+            return;
+        }
+        if (!SimplifyStorageHostBlockEntity.sameMarkerChain(sample.sameLeft(), sample.sameRight())) {
+            helper.fail("two members of one compression chain no longer read as the same marker - either eco"
+                    + " changed its rule or we stopped calling it");
+            return;
+        }
+        if (SimplifyStorageHostBlockEntity.sameMarkerChain(sample.otherLeft(), sample.otherRight())) {
+            helper.fail("two different chains read as the same marker, so a second chain could never be marked");
+            return;
+        }
+        if (SimplifyStorageHostBlockEntity.sameMarkerChain(sample.plainLeft(), sample.plainRight())) {
+            helper.fail("two non-compressible items read as the same marker - an empty chain must never match");
+            return;
+        }
+        // The display patch: a small bulk cell must report its own ceiling everywhere, and the hover is the
+        // one place we do not own - eco writes that line from a final backend class that hard-codes 25.
+        var bulkStack = new ItemStack(ModRegistration.SIMPLIFY_SMALL_BULK_CELL.get());
+        var bulkInventory = cn.dancingsnow.neoecoae.api.storage.ECOStorageCells
+                .getCellInventory(bulkStack, null);
+        if (bulkInventory == null
+                || cn.dancingsnow.neoecoprototype.items.SmallBulkTypeCap.of(bulkStack, bulkInventory) != 3L) {
+            helper.fail("the panel's ceiling helper does not report 3 for a base small bulk cell: "
+                    + (bulkInventory == null ? "no cell inventory" : bulkInventory.getTotalItemTypes()));
+            return;
+        }
+        var hover = new java.util.ArrayList<net.minecraft.network.chat.Component>();
+        bulkStack.getItem().appendHoverText(bulkStack, net.minecraft.world.item.Item.TooltipContext.EMPTY,
+                hover, net.minecraft.world.item.TooltipFlag.Default.NORMAL);
+        // Compared as rendered text: AE2 builds this sentence as seven appended pieces, so two identical
+        // lines are never the same object and equals() would report a mismatch that isn't one.
+        var ours = appeng.core.localization.Tooltips.typesUsed(0L, 3L).getString();
+        var ecos = appeng.core.localization.Tooltips.typesUsed(0L, 25L).getString();
+        if (hover.stream().noneMatch(line -> line.getString().equals(ours))) {
+            helper.fail("the small bulk cell's hover does not carry its own 3-type ceiling, so the swap"
+                    + " stopped matching eco's line: " + hover
+                    + " [looking for \"" + ours + "\", eco's line reads \"" + ecos + "\"]");
+            return;
+        }
+        if (hover.stream().anyMatch(line -> line.getString().equals(ecos))) {
+            helper.fail("eco's unreachable 25-type backend ceiling still shows in the hover");
+            return;
+        }
+        // The fluid variant runs on eco's standard engine, so it may already report the item's own slot
+        // count. Measured rather than assumed: both routes have to land on the same sentence.
+        var fluidStack = new ItemStack(ModRegistration.SIMPLIFY_SMALL_BULK_FLUID_CELL.get());
+        var fluidHover = new java.util.ArrayList<net.minecraft.network.chat.Component>();
+        fluidStack.getItem().appendHoverText(fluidStack, net.minecraft.world.item.Item.TooltipContext.EMPTY,
+                fluidHover, net.minecraft.world.item.TooltipFlag.Default.NORMAL);
+        if (fluidHover.stream().noneMatch(line -> line.getString().equals(ours))
+                || fluidHover.stream().anyMatch(line -> line.getString().equals(ecos))) {
+            helper.fail("the fluid small bulk cell's hover does not read the same 3-type ceiling: " + fluidHover);
+            return;
+        }
+        buildL1Room(helper, new BlockPos(6, 3, 6),
+                ModRegistration.SIMPLIFY_STORAGE_CONTROLLER_BLOCK.get(),
+                ModRegistration.SIMPLIFY_STORAGE_INTERFACE_BLOCK.get(),
+                ModRegistration.SIMPLIFY_STORAGE_INTERFACE_BLOCK.get(),
+                host -> {
+                    if (!(host instanceof SimplifyStorageHostBlockEntity storageHost)) {
+                        helper.fail("the L1 storage controller is not our host block entity: " + host);
+                        return;
+                    }
+                    var cluster = storageHost.getCluster();
+                    var drives = cluster == null
+                            ? java.util.List.<cn.dancingsnow.neoecoprototype.blockentity.storage
+                                    .SimplifyDriveBlockEntity>of()
+                            : cluster.getDrives();
+                    if (drives.size() < 2) {
+                        helper.fail("the built room gave us " + drives.size() + " drive(s); this fixture"
+                                + " needs one for the source and one for the small-bulk cell");
+                        return;
+                    }
+                    var sourceCell = new ItemStack(ModRegistration.SIMPLIFY_ITEM_CELL_4M.get());
+                    var sourceInventory = cn.dancingsnow.neoecoae.api.storage.ECOStorageCells
+                            .getCellInventory(sourceCell, null);
+                    if (sourceInventory == null) {
+                        helper.fail("no eco cell handler claims our own 4M item cell");
+                        return;
+                    }
+                    long want = cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig
+                            .MEGA_BULK_AUTO_MARK_THRESHOLD.get() + 1L;
+                    long put = sourceInventory.insert(sample.sameLeft(), want, Actionable.MODULATE, null);
+                    if (put < want) {
+                        helper.fail("the source cell took only " + put + " of " + want
+                                + ", and the marking threshold is " + want);
+                        return;
+                    }
+                    if (!drives.get(0).insertCell(sourceCell)) {
+                        helper.fail("the drive refused the source cell");
+                        return;
+                    }
+                    var bulkCell = new ItemStack(ModRegistration.SIMPLIFY_SMALL_BULK_CELL.get());
+                    if (!drives.get(1).insertCell(bulkCell)) {
+                        helper.fail("the drive refused the small-bulk cell");
+                        return;
+                    }
+                    var first = storageHost.runAutoMark();
+                    if (first.added() < 1) {
+                        helper.fail("the first pass marked nothing at all: " + first);
+                        return;
+                    }
+                    var second = storageHost.runAutoMark();
+                    if (second.added() != 0 || second.alreadyMarked() < 1) {
+                        helper.fail("the second pass re-marked: first=" + first + " second=" + second);
+                        return;
+                    }
+                    var mounted = drives.get(1).getCellStack();
+                    if (!(mounted.getItem()
+                            instanceof cn.dancingsnow.neoecoprototype.items.SimplifySmallBulkStorageCellItem bulk)) {
+                        helper.fail("the small-bulk cell is not what the drive ended up holding: " + mounted);
+                        return;
+                    }
+                    var config = bulk.getConfigInventory(mounted);
+                    if (!sample.sameLeft().equals(config.getKey(0))) {
+                        helper.fail("the mark in slot 0 is " + config.getKey(0) + ", not the chain item "
+                                + sample.sameLeft() + " that was over the threshold");
+                    }
+                });
+    }
+
+    /**
+     * A mark is only worth what it folds. Measured against four chains this environment knows: without a
+     * compression card in the cell the borrowed MEGA backend accepts exactly the marked key and refuses the
+     * rest of the chain - eco's own MEGA long bulk cell measures identically, row for row, so the refusal is
+     * the backend's rule rather than something this addon introduced. One card flips it, and our L1 shell
+     * has the slot and keeps the card (both measured here). How the folded amount is then counted is the
+     * backend's business and not asserted: whole units land under the mark, a remainder can stay as itself.
+     */
+    @GameTest(template = "empty", batch = "small_bulk_chain_folding", timeoutTicks = 100, required = false,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void smallBulkFoldsTheChainItMarks(GameTestHelper helper) {
+        if (!ModList.get().isLoaded("megacells")) {
+            helper.succeed();
+            return;
+        }
+        var pairs = SmallBulkTestProbe.findChainPairs(4);
+        if (pairs.isEmpty()) {
+            helper.fail("no compression chain pair found in this environment");
+            return;
+        }
+        var bulk = ModRegistration.SIMPLIFY_SMALL_BULK_CELL.get();
+        for (var pair : pairs) {
+            var bare = SmallBulkTestProbe.fold(bulk, pair.marked(), pair.offered(), 64L, false);
+            var carded = SmallBulkTestProbe.fold(bulk, pair.marked(), pair.offered(), 64L, true);
+            if (bare.transferred() != 0L) {
+                helper.fail("the cell took " + pair.offered() + " with no compression card, so the mark alone"
+                        + " is no longer the gate: transferred " + bare.transferred() + " while "
+                        + pair.marked() + " was the only mark");
+                return;
+            }
+            if (carded.transferred() <= 0L) {
+                helper.fail("a compression card did not open the chain: marked " + pair.marked()
+                        + ", offered " + pair.offered() + " -> transferred " + carded.transferred());
                 return;
             }
         }
@@ -5042,10 +5318,9 @@ public final class NeoECOPrototypeGameTests {
             helper.fail("the singularity cell accepted something - it is meant to grow its own stock only");
             return;
         }
-        // A cell that never went through a crafting table has to start from being carried, because nothing
-        // else asks it for stock before it reaches a drive: handed over by a command, or moved out of a
-        // chest, it would otherwise sit unstamped forever. The dist guard on that hook is not covered here -
-        // a game test has no client level to hand it.
+        // Being carried must not start the cell: a drive asking it what it holds is the one stamp there is.
+        // This used to be an Item#inventoryTick hook over all forty-one carried slots, and it is what made a
+        // cell sitting in an inventory produce. Put that hook back and the second block below goes red.
         var carried = new ItemStack(ModRegistration.SIMPLIFY_SINGULARITY_CELL.get());
         if (carried.get(ModRegistration.SINGULARITY_CELL_BANK.get()) != null) {
             helper.fail("a fresh cell should arrive with no stamp at all - that is what this checks against");
@@ -5059,20 +5334,52 @@ public final class NeoECOPrototypeGameTests {
         }
         ModRegistration.SIMPLIFY_SINGULARITY_CELL.get()
                 .inventoryTick(carried, helper.getLevel(), null, 0, false);
-        var stamped = carried.get(ModRegistration.SINGULARITY_CELL_BANK.get());
-        if (stamped == null || stamped.startGameTime() != helper.getLevel().getGameTime()
-                || stamped.drawn() != 0L
-                || cn.dancingsnow.neoecoprototype.items.SimplifySingularityCellItem
-                        .stockOf(carried, helper.getLevel().getGameTime()) != 0L) {
-            helper.fail("carrying an unstamped cell should stamp it at the current tick with nothing drawn,"
-                    + " which reads as a stock of zero - the stack holds " + stamped);
+        if (carried.get(ModRegistration.SINGULARITY_CELL_BANK.get()) != null) {
+            helper.fail("being carried must not start the cell - only a reader asking it for stock may, "
+                    + "and the stack now holds " + carried.get(ModRegistration.SINGULARITY_CELL_BANK.get()));
             return;
         }
-        ModRegistration.SIMPLIFY_SINGULARITY_CELL.get()
-                .inventoryTick(carried, helper.getLevel(), null, 0, false);
+        // A display read has no save provider, and must not start the cell: that write lands on the reader's
+        // own copy of the stack, which is how a fresh item in a creative tab ended up counting from tick 0.
+        var display = cn.dancingsnow.neoecoae.api.storage.ECOStorageCells
+                .getCellInventory(carried, (appeng.api.storage.cells.ISaveProvider) null);
+        if (display == null) {
+            helper.fail("no eco cell handler claims the singularity cell, so a drive has nothing to start it");
+            return;
+        }
+        display.getAvailableStacks(new appeng.api.stacks.KeyCounter());
+        if (carried.get(ModRegistration.SINGULARITY_CELL_BANK.get()) != null) {
+            helper.fail("a read with no save provider started the cell - display paths must never write a"
+                    + " start tick, because that copy is not the server's");
+            return;
+        }
+        // A drive does start it: it hands itself in as the save provider, and its level is server-side.
+        helper.setBlock(new BlockPos(1, 1, 1),
+                ModRegistration.SIMPLIFY_DRIVE_BLOCK.get().defaultBlockState());
+        if (!(helper.getBlockEntity(new BlockPos(1, 1, 1)) instanceof appeng.api.storage.cells.ISaveProvider drive)) {
+            helper.fail("our drive is not a save provider, so it cannot start a mounted cell");
+            return;
+        }
+        var mounted = cn.dancingsnow.neoecoae.api.storage.ECOStorageCells.getCellInventory(carried, drive);
+        if (mounted == null) {
+            helper.fail("no eco cell handler claims the singularity cell");
+            return;
+        }
+        mounted.getAvailableStacks(new appeng.api.stacks.KeyCounter());
+        var stamped = carried.get(ModRegistration.SINGULARITY_CELL_BANK.get());
+        // The stamp comes from the server's overworld clock rather than this test level's, so the pair worth
+        // asserting is that it exists and starts owing nothing - not which tick number it landed on.
+        if (stamped == null || stamped.drawn() != 0L
+                || cn.dancingsnow.neoecoprototype.items.SimplifySingularityCellItem
+                        .stockOf(carried, stamped.startGameTime()) != 0L) {
+            helper.fail("a drive asking the cell what it holds should stamp it with nothing drawn, which"
+                    + " reads as a stock of zero - the stack holds " + stamped);
+            return;
+        }
+        mounted.getAvailableStacks(new appeng.api.stacks.KeyCounter());
         if (!stamped.equals(carried.get(ModRegistration.SINGULARITY_CELL_BANK.get()))) {
-            helper.fail("carrying the cell a second time must not move its start tick, or the bank would"
-                    + " reset every time it is held - it now holds "
+            helper.fail("asking a second time must not move its start tick, or the bank would reset every"
+                    + " time the network polls it - it now holds "
                     + carried.get(ModRegistration.SINGULARITY_CELL_BANK.get()));
             return;
         }

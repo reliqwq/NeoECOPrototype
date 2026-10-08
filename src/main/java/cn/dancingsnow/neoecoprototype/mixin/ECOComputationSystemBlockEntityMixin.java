@@ -1,7 +1,7 @@
 package cn.dancingsnow.neoecoprototype.mixin;
 
 /*
- * Version lock: NeoForge 21.1.251, AE2 19.2.17, Eco 21.2.1-beta2. That host class still declares
+ * Version lock: NeoForge 21.1.251, AE2 19.2.17, Eco 21.2.1. That host class still declares
  * public MultiBlockDefinition getBuildDefinition() and no longer overrides onReady(), so the definition
  * is the only thing taken from it.
  */

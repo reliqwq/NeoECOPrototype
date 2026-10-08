@@ -1,6 +1,7 @@
 package cn.dancingsnow.neoecoprototype.mixin;
 
-/* Version lock: NeoForge 21.1.251, eco 21.2.1-beta2. Re-checked against those jars on 2026-10-06:
+/* Version lock: NeoForge 21.1.251, eco 21.2.1. Re-checked against 21.2.1-beta2 on 2026-10-06, and the descriptor again against the 21.2.1
+ * release on 2026-10-08 (same member count, one hit):
  * ClientUIBridge.call is still the five-argument static (String, Class<?>, Object, Class<T>,
  * Supplier<T>), which is what the handler's parameter list below has to match. */
 

@@ -1,6 +1,6 @@
 package cn.dancingsnow.neoecoprototype.mixin;
 
-/* Version lock: eco 21.2.1-beta2. Check that renderFixed still asks ECOComputationModels for one
+/* Version lock: eco 21.2.1. Check that renderFixed still asks ECOComputationModels for one
  * connected and two disconnected cable models, and that SimplifyComputationDriveRenderer overrides
  * renderFixed(ECOComputationDriveBlockEntity, ...) -- that override is what makes "our tier was asked
  * for" mean "the host is eco's". */

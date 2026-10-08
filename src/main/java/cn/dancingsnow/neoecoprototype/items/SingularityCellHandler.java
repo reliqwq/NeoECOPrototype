@@ -68,15 +68,29 @@ public final class SingularityCellHandler implements IECOCellHandler {
     @Override
     @Nullable
     public IECOStorageCell getCellInventory(ItemStack stack, @Nullable ISaveProvider saveProvider) {
-        return isCell(stack) ? new Cell(stack) : null;
+        return isCell(stack) ? new Cell(stack, saveProvider) : null;
     }
 
     /** Bound to the stack it was handed, because the only state worth keeping lives on the stack. */
     private static final class Cell implements IECOStorageCell {
         private final ItemStack stack;
+        @Nullable
+        private final ISaveProvider saveProvider;
 
-        private Cell(ItemStack stack) {
+        private Cell(ItemStack stack, @Nullable ISaveProvider saveProvider) {
             this.stack = stack;
+            this.saveProvider = saveProvider;
+        }
+
+        /**
+         * Only a reader that lives in a server-side world may start the cell growing. Tooltips, item lists
+         * and other display paths either hand us no save provider or a client one, and a start tick written
+         * into their copy of the stack is a stock the server never granted.
+         */
+        private boolean mayStamp() {
+            return saveProvider instanceof net.minecraft.world.level.block.entity.BlockEntity blockEntity
+                    && blockEntity.getLevel() != null
+                    && !blockEntity.getLevel().isClientSide;
         }
 
         private long ready() {
@@ -84,7 +98,7 @@ public final class SingularityCellHandler implements IECOCellHandler {
             if (now < 0L) {
                 return 0L;
             }
-            var bank = SimplifySingularityCellItem.stampIfNeeded(stack, now);
+            var bank = SimplifySingularityCellItem.stampIfNeeded(stack, now, mayStamp());
             return bank == null ? 0L : SimplifySingularityCellItem.bankOf(bank, now);
         }
 

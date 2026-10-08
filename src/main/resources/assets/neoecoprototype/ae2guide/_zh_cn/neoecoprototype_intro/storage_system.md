@@ -75,7 +75,7 @@ L1 存储系统是一个紧凑多方块：一台 <ItemLink id="neoecoprototype:s
 
 要大宗囤少数几种资源，看[小宗存储矩阵](small_bulk_matrices.md)——3 种类型，单类型容量近乎无限。
 
-要把能量留在网络里，看[通量存储矩阵](flux_storage.md) —— 需要 AppliedFlux，把 FE 当成网络内容来存。
+要把能量留在网络里，看[FE存储矩阵](flux_storage.md) —— 需要 AppliedFlux，把 FE 当成网络内容来存。
 
 不想开凝聚器也能拿到奇点，看 [L1 奇点元件](singularity_cell.md) —— 什么都不吃、按世界时间自己长库存的一只单元。
 

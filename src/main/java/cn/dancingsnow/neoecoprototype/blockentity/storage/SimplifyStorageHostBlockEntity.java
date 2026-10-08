@@ -25,6 +25,7 @@ import cn.dancingsnow.neoecoprototype.api.SimplifyTier;
 import cn.dancingsnow.neoecoprototype.block.storage.SimplifyStorageControllerBlock;
 import cn.dancingsnow.neoecoprototype.integration.ae2.SimplifyGridFacade;
 import cn.dancingsnow.neoecoprototype.items.SimplifyConcreteStorageCellItem;
+import cn.dancingsnow.neoecoprototype.items.SimplifySingularityCellItem;
 import cn.dancingsnow.neoecoprototype.items.SimplifyStorageCellItem;
 import cn.dancingsnow.neoecoprototype.items.SimplifySmallBulkStorageCellItem;
 import cn.dancingsnow.neoecoprototype.integration.omni.SimplifyUniversalStorageCellItem;
@@ -257,10 +258,39 @@ public class SimplifyStorageHostBlockEntity
     }
 
     private void autoMarkBulkCells(Player player) {
-        if (!canPlayerInteract(player) || level == null || level.isClientSide) {
+        if (!canPlayerInteract(player)) {
             return;
         }
+        var counts = runAutoMark();
+        player.displayClientMessage(Component.translatable(
+                "gui.neoecoprototype.storage.bulk_mark.result", counts.added(), counts.alreadyMarked()), true);
+    }
+
+    /** What one pass of the marking button did. */
+    public record BulkMarkCounts(int added, int alreadyMarked) {
+    }
+
+    /**
+     * One pass of the marking, without a player: the button only adds the interaction check and the chat line,
+     * so this is the half a test can reach.
+     */
+    public BulkMarkCounts runAutoMark() {
+        if (level == null || level.isClientSide) {
+            return new BulkMarkCounts(0, 0);
+        }
         long threshold = bulkMarkingThreshold();
+        // One inventory read per drive, not one per (target, source) pair: every small-bulk drive in the
+        // cluster is offered the same sources, and getAvailableStacks walks the cell each time it is called.
+        var availableByDrive = new java.util.IdentityHashMap<SimplifyDriveBlockEntity, appeng.api.stacks.KeyCounter>();
+        for (SimplifyDriveBlockEntity source : getCluster().getDrives()) {
+            IECOStorageCell inventory = source.getCellInventory();
+            if (inventory == null) {
+                continue;
+            }
+            appeng.api.stacks.KeyCounter available = new appeng.api.stacks.KeyCounter();
+            inventory.getAvailableStacks(available);
+            availableByDrive.put(source, available);
+        }
         int added = 0;
         int alreadyMarked = 0;
         List<AEItemKey> markedKeys = new ArrayList<>();
@@ -270,25 +300,20 @@ public class SimplifyStorageHostBlockEntity
                 continue;
             }
             var config = item.getConfigInventory(targetStack);
-            for (SimplifyDriveBlockEntity source : getCluster().getDrives()) {
-                IECOStorageCell inventory = source.getCellInventory();
-                if (inventory == null || source == target) {
+            for (var bySource : availableByDrive.entrySet()) {
+                if (bySource.getKey() == target) {
                     continue;
                 }
-                appeng.api.stacks.KeyCounter available = new appeng.api.stacks.KeyCounter();
-                inventory.getAvailableStacks(available);
-                for (var entry : available) {
+                for (var entry : bySource.getValue()) {
                     if (entry.getLongValue() <= threshold || !(entry.getKey() instanceof AEItemKey key)) {
                         continue;
                     }
-                    CompressionChain chain = CompressionService.getChain(key);
-                    if (chain.isEmpty()) {
+                    if (CompressionService.getChain(key).isEmpty()) {
                         continue;
                     }
-                    boolean exists = markedKeys.stream().anyMatch(existing -> sameCompressionChain(existing, key));
+                    boolean exists = markedKeys.stream().anyMatch(existing -> sameMarkerChain(existing, key));
                     for (int slot = 0; slot < config.size() && !exists; slot++) {
-                        if (config.getKey(slot) instanceof AEItemKey existing
-                                && sameCompressionChain(existing, key)) {
+                        if (config.getKey(slot) instanceof AEItemKey existing && sameMarkerChain(existing, key)) {
                             exists = true;
                         }
                     }
@@ -308,13 +333,17 @@ public class SimplifyStorageHostBlockEntity
             }
         }
         refreshDriveStorageProviders();
-        player.displayClientMessage(Component.translatable(
-                "gui.neoecoprototype.storage.bulk_mark.result", added, alreadyMarked), true);
+        return new BulkMarkCounts(added, alreadyMarked);
     }
 
-    private static boolean sameCompressionChain(AEItemKey left, AEItemKey right) {
-        CompressionChain first = CompressionService.getChain(left);
-        return !first.isEmpty() && first.equals(CompressionService.getChain(right));
+    /**
+     * eco's own rule for "these two markers stand for the same compression chain", so the two hosts cannot
+     * drift apart on what counts as already marked. It treats an empty chain as never matching, which is what
+     * the gate above relies on.
+     */
+    public static boolean sameMarkerChain(AEItemKey left, AEItemKey right) {
+        return cn.dancingsnow.neoecoae.integration.StorageBulkMarkingIntegration
+                .isSameMarkerChain(left.toStack(), right.toStack());
     }
 
     public List<SimplifyDriveBlockEntity> smallBulkDrives() {
@@ -345,26 +374,115 @@ public class SimplifyStorageHostBlockEntity
                 createReadOnlyEmptyComponentInventory());
     }
 
+    /**
+     * The panel's rows. eco joins a cell entry to a row by number ({@code entry.typeId() ==
+     * line.registryIndex()}), so the list below and {@link #panelRowOf} have to speak the same numbers -
+     * which is why neither of them writes a bare digit.
+     */
+    public static final int ROW_ITEM = 0;
+    public static final int ROW_MEGA_ITEM = 1;
+    public static final int ROW_FLUID = 2;
+    public static final int ROW_CHEMICAL = 3;
+    public static final int ROW_UNIVERSAL = 4;
+    public static final int ROW_QUANTUM = 5;
+    public static final int ROW_CONCRETE = 6;
+    public static final int ROW_FLUX = 7;
+    /** Not a row: a cell the panel must not count anywhere. */
+    public static final int ROW_NONE = -1;
+
     private java.util.List<StorageHostUI.StorageTypeLine> createStorageTypeLines() {
         java.util.List<StorageHostUI.StorageTypeLine> lines = new java.util.ArrayList<>();
-        lines.add(createStorageTypeLine(SimplifyStorageCellItem.getItemCellType(), 0));
-        lines.add(createStorageTypeLine(SimplifyStorageCellItem.getMegaItemCellType(), 1));
-        lines.add(createStorageTypeLine(SimplifyStorageCellItem.getFluidCellType(), 2));
+        lines.add(createStorageTypeLine(SimplifyStorageCellItem.getItemCellType(), ROW_ITEM));
+        lines.add(createStorageTypeLine(SimplifyStorageCellItem.getMegaItemCellType(), ROW_MEGA_ITEM));
+        lines.add(createStorageTypeLine(SimplifyStorageCellItem.getFluidCellType(), ROW_FLUID));
         ECOCellType chemical = getChemicalCellType();
         if (chemical != null) {
-            lines.add(createStorageTypeLine(chemical, 3));
+            lines.add(createStorageTypeLine(chemical, ROW_CHEMICAL));
         }
         if (ModList.get().isLoaded("ae2omnicells")) {
-            lines.add(createStorageTypeLine(SimplifyUniversalStorageCellItem.getUniversalCellType(), 4));
-            lines.add(createStorageTypeLine(SimplifyQuantumStorageCellItem.getQuantumCellType(), 5));
+            lines.add(createStorageTypeLine(SimplifyUniversalStorageCellItem.getUniversalCellType(), ROW_UNIVERSAL));
+            lines.add(createStorageTypeLine(SimplifyQuantumStorageCellItem.getQuantumCellType(), ROW_QUANTUM));
         }
         // Dedicated row for the infinite concrete matrix.
-        lines.add(createStorageTypeLine(SimplifyConcreteStorageCellItem.CELL_TYPE, 6));
+        lines.add(createStorageTypeLine(SimplifyConcreteStorageCellItem.CELL_TYPE, ROW_CONCRETE));
+        // The flux matrices get their own row. Its name is not ours to write: eco builds the flux cell type's
+        // description out of appflux's own medium word (appflux.key.flux), so this row reads exactly as it
+        // does in eco's host - the same way the item row reads "item" rather than "matrix".
+        ECOCellType flux = getFluxCellType();
+        if (flux != null) {
+            lines.add(createStorageTypeLine(flux, ROW_FLUX));
+        }
         return lines;
+    }
+
+    /**
+     * Which row of the panel a mounted cell belongs to, or {@link #ROW_NONE} when no row claims it.
+     *
+     * @param keyTypes the mounted item's own key types, or null when the stack is not an eco cell item at
+     *                 all - a foreign cell then has nothing to read but its cell type
+     */
+    public static int panelRowOf(ECOCellType cellType, java.util.Set<AEKeyType> keyTypes) {
+        if (SimplifySingularityCellItem.CELL_TYPE.equals(cellType)) {
+            // No row for it, and not because nobody thought of one: it reports an unbounded byte total and
+            // its stock is a world-clock figure, so whichever row it landed in would read as that medium's
+            // own number. The mounted cell is named on the drive and in Jade instead.
+            return ROW_NONE;
+        }
+        int row = SimplifyStorageCellItem.getMegaItemCellType().equals(cellType) ? ROW_MEGA_ITEM : ROW_ITEM;
+        if (SimplifyUniversalStorageCellItem.getUniversalCellType().equals(cellType)) {
+            return ROW_UNIVERSAL;
+        }
+        if (SimplifyQuantumStorageCellItem.getQuantumCellType().equals(cellType)) {
+            return ROW_QUANTUM;
+        }
+        if (SimplifyConcreteStorageCellItem.CELL_TYPE.equals(cellType)) {
+            return ROW_CONCRETE;
+        }
+        ECOCellType flux = registeredFluxType();
+        if (flux != null && flux.equals(cellType)) {
+            return ROW_FLUX;
+        }
+        if (keyTypes != null) {
+            if (keyTypes.contains(AEKeyType.fluids())) {
+                return ROW_FLUID;
+            }
+            if (keyTypes.stream().anyMatch(type -> "chemical".equals(type.getId().getPath()))) {
+                return ROW_CHEMICAL;
+            }
+        } else if (SimplifyStorageCellItem.getFluidCellType().equals(cellType)) {
+            // A fluid matrix whose item does not implement eco's cell interface: still the fluid medium.
+            return ROW_FLUID;
+        }
+        return row;
+    }
+
+    /** The icon eco draws for a row. Flux is neither items nor fluids to appflux, so it takes "other". */
+    public static int panelKindOf(int row) {
+        return switch (row) {
+            case ROW_FLUID -> StorageHostUI.CellEntry.KIND_FLUID;
+            case ROW_CHEMICAL -> StorageHostUI.CellEntry.KIND_GAS;
+            case ROW_FLUX -> StorageHostUI.CellEntry.KIND_OTHER;
+            default -> StorageHostUI.CellEntry.KIND_ITEM;
+        };
+    }
+
+    private static java.util.Set<AEKeyType> keyTypesOf(SimplifyDriveBlockEntity drive) {
+        ItemStack cellStack = drive.getCellStack();
+        return cellStack != null && cellStack.getItem() instanceof IECOStorageCellItem cellItem
+                ? cellItem.getKeyTypes() : null;
     }
 
     private ECOCellType getChemicalCellType() {
         return NERegistries.CELL_TYPE.get(ResourceLocation.fromNamespaceAndPath("neoecoae", "mekanism"));
+    }
+
+    /** eco registers the flux type only while appflux is present; without it this row is simply not drawn. */
+    private ECOCellType getFluxCellType() {
+        return registeredFluxType();
+    }
+
+    private static ECOCellType registeredFluxType() {
+        return NERegistries.CELL_TYPE.get(ResourceLocation.fromNamespaceAndPath("neoecoae", "flux"));
     }
 
     private StorageHostUI.StorageTypeLine createStorageTypeLine(ECOCellType cellType, int registryIndex) {
@@ -390,43 +508,17 @@ public class SimplifyStorageHostBlockEntity
                 continue;
             }
             ECOCellType cellType = cell.getCellType();
-            int typeId = 0;
-            int kind = StorageHostUI.CellEntry.KIND_ITEM;
-            if (SimplifyStorageCellItem.getMegaItemCellType().equals(cellType)) {
-                typeId = 1;
-            }
-            if (SimplifyUniversalStorageCellItem.getUniversalCellType().equals(cellType)) {
-                typeId = 4;
-            } else if (SimplifyQuantumStorageCellItem.getQuantumCellType().equals(cellType)) {
-                typeId = 5;
-            }
-            if (SimplifyConcreteStorageCellItem.CELL_TYPE.equals(cellType)) {
-                typeId = 6;
-                kind = StorageHostUI.CellEntry.KIND_ITEM;
-            } else if (!SimplifyUniversalStorageCellItem.getUniversalCellType().equals(cellType)
-                    && !SimplifyQuantumStorageCellItem.getQuantumCellType().equals(cellType)) {
-                ItemStack cellStack = drive.getCellStack();
-                if (cellStack != null && cellStack.getItem() instanceof IECOStorageCellItem cellItem) {
-                    java.util.Set<AEKeyType> keyTypes = cellItem.getKeyTypes();
-                    if (keyTypes.contains(AEKeyType.fluids())) {
-                        typeId = 2;
-                        kind = StorageHostUI.CellEntry.KIND_FLUID;
-                    } else if (keyTypes.stream().anyMatch(type -> "chemical".equals(type.getId().getPath()))) {
-                        typeId = 3;
-                        kind = StorageHostUI.CellEntry.KIND_GAS;
-                    }
-                } else if (SimplifyStorageCellItem.getFluidCellType().equals(cellType)) {
-                    // KubeJS custom matrix bound to a fluid: show it in the fluid row.
-                    typeId = 1;
-                    kind = StorageHostUI.CellEntry.KIND_FLUID;
-                }
+            int typeId = panelRowOf(cellType, keyTypesOf(drive));
+            if (typeId == ROW_NONE) {
+                continue;
             }
             entries.add(new StorageHostUI.CellEntry(
                     typeId,
                     cell.getTier().getTier(),
-                    kind,
+                    panelKindOf(typeId),
                     Math.max(0L, cell.getStoredItemTypes()),
-                    Math.max(0L, cell.getTotalItemTypes()),
+                    Math.max(0L, cn.dancingsnow.neoecoprototype.items.SmallBulkTypeCap
+                            .of(drive.getCellStack(), cell)),
                     Math.max(0L, cell.getUsedBytes()),
                     Math.max(0L, cell.getTotalBytes()),
                     cell.hasInfiniteTypeCapacity()));
@@ -449,7 +541,8 @@ public class SimplifyStorageHostBlockEntity
                 continue;
             }
             usedTypes = saturatingAdd(usedTypes, Math.max(0L, cell.getStoredItemTypes()));
-            totalTypes = saturatingAdd(totalTypes, Math.max(0L, cell.getTotalItemTypes()));
+            totalTypes = saturatingAdd(totalTypes, Math.max(0L,
+                    cn.dancingsnow.neoecoprototype.items.SmallBulkTypeCap.of(drive.getCellStack(), cell)));
             usedBytes = saturatingAdd(usedBytes, Math.max(0L, cell.getUsedBytes()));
             totalBytes = saturatingAdd(totalBytes, Math.max(0L, cell.getTotalBytes()));
         }

@@ -18,7 +18,6 @@ import net.minecraft.core.component.DataComponentType;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
-import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.inventory.tooltip.TooltipComponent;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -99,51 +98,32 @@ public final class SimplifySingularityCellItem extends Item implements IBasicECO
     }
 
     /**
-     * The cell needs one world tick to count from. Crafting stamps it, carrying it stamps it, and a cell that
-     * arrived some other way still gets stamped the first time the server asks it what it holds.
+     * The cell needs one world tick to count from, and there is exactly one moment that happens: the first
+     * time a server-side reader asks the mounted cell what it holds ({@link SingularityCellHandler.Cell}).
      *
-     * @return the cell's bank, or null while there is no server clock to stamp with
+     * <p>Carrying it is deliberately not such a moment. {@code Item#inventoryTick} runs over all forty-one
+     * carried slots on every holder, which is both the one place this cell would need a ticker and the reason
+     * a cell merely sitting in an inventory was already producing - the rule a player can be told is the
+     * simpler one: it counts once it is in a drive.
+     *
+     * <p>{@code mayWrite} is what enforces that, and it is decided by the caller from the *level*, not from
+     * {@code FMLEnvironment.dist}: in single-player the integrated server runs inside the client's dist, so a
+     * dist check there would switch off legitimate stamping along with the unwanted kind. The unwanted kind is
+     * real - a tooltip or item-list read that walks the cell's statistics stamps *its own copy* of the stack,
+     * and that write never reaches the server, but the copy then shows a stock the server never granted (a
+     * fresh cell in a creative tab was counting from world tick 0 for exactly this reason).
      */
-    public static Bank stampIfNeeded(ItemStack stack, long nowGameTime) {
+    public static Bank stampIfNeeded(ItemStack stack, long nowGameTime, boolean mayWrite) {
         Bank bank = stack.get(bankComponent());
         if (bank != null) {
             return bank;
         }
-        if (nowGameTime < 0L) {
+        if (nowGameTime < 0L || !mayWrite) {
             return null;
         }
         Bank fresh = new Bank(nowGameTime, 0L);
         stack.set(bankComponent(), fresh);
         return fresh;
-    }
-
-    @Override
-    public void onCraftedBy(ItemStack stack, net.minecraft.world.level.Level level,
-                            net.minecraft.world.entity.player.Player player) {
-        // The cell needs a world tick to grow from, and crafting is the one moment we are handed a level.
-        if (level instanceof ServerLevel serverLevel && stack.get(bankComponent()) == null) {
-            stack.set(bankComponent(), new Bank(serverLevel.getGameTime(), 0L));
-        }
-    }
-
-    /**
-     * Carrying the cell also starts it. Without this the only stamp a cell can get is from crafting or from
-     * something asking it for stock - and only a drive or a host does that - so a cell handed over by a
-     * command, or moved out of a chest, would sit at nothing in an inventory forever.
-     *
-     * <p>Server side only: {@code Inventory#tick} runs this on both dists, and a write made on the client
-     * never reaches the server - the slot sync carries the stamp back to the hand instead. The covered range
-     * is what that loop walks, {@code Inventory#compartments}: the thirty-six carried slots, the armour
-     * slots and the offhand. A cell left in a chest or dropped on the ground is not ticking here, and starts
-     * when it is picked up or installed.
-     */
-    @Override
-    public void inventoryTick(ItemStack stack, net.minecraft.world.level.Level level,
-                              net.minecraft.world.entity.Entity entity, int slotId, boolean isSelected) {
-        if (level == null || level.isClientSide) {
-            return;
-        }
-        stampIfNeeded(stack, SingularityCellHandler.clockFor(level));
     }
 
     @Override

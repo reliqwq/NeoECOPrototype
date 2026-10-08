@@ -5,13 +5,14 @@ Neo ECO Prototype is an addon. It does not include the dependency JARs in this r
 ## Neo ECO AE Extension
 
 - Mod ID: `neoecoae`
-- Current development compatibility baseline: `21.2.1-beta2` (local JAR under `neoecobeta/`), which declares its own version as `21.2.1-beta2`
+- Current development compatibility baseline: `21.2.1` (local JAR under `neoecobeta/`), the upstream release, which declares its own version as `21.2.1`
+- Moved off `21.2.1-beta2` on 2026-10-08. The release also raised upstream's own LDLib2 floor from `[2.2.8,)` to `[2.2.40,)`: with the older LDLib2 the loader refuses upstream, and this addon is what reports it, as `NoClassDefFoundError: cn/dancingsnow/neoecoae/gui/GuiTitleProvider` - a downstream symptom. The interface is in the jar, and the six members our mixins inject into match beta2 one for one.
 - Declared compatibility floor: `[21.2.1-beta2,)`, raised from `21.2.0` in `3.0.0-beta1` because addon blocks implement upstream's `gui.GuiTitleProvider`. The floor names a prerelease on purpose: `21.2.1-beta1` declared itself as plain `21.2.1` so `[21.2.1,)` accepted it, but `beta2` declares its real version and a prerelease compares *below* the release, so the loader refused to start with "requires neoecoae 21.2.1 or above"
-- Earlier baselines this addon was built against: `21.2.0-beta2`, `21.2.0-beta4` (first build exposing `IECOBulkMarkableCellItem`), `21.2.0-beta6`, `21.2.0`, `21.2.1-beta1`
+- Earlier baselines this addon was built against: `21.2.0-beta2`, `21.2.0-beta4` (first build exposing `IECOBulkMarkableCellItem`), `21.2.0-beta6`, `21.2.0`, `21.2.1-beta1`, `21.2.1-beta2`
 - License declared by the upstream mod: GNU GPLv3
 - Upstream authors listed by the upstream metadata: DancingSnow, ZhuRuoLing, and Yang120231
 
-Upstream has not published a `21.2.1` file anywhere public as of `2026-09-30`; the JAR used for this baseline came directly from the upstream author, so a fresh clone cannot obtain it from download sites and must ask for it. That is the reason the first addon build on this baseline is published as a prerelease rather than as a stable `3.0.0`.
+The `21.2.1` JAR used for this baseline came from the upstream author on 2026-10-08, over the same channel as `21.2.1-beta1` and `beta2`. This repository has not verified a public download page for it, so a fresh clone still cannot fetch it and has to ask upstream for the file - which is a packaging note, not a stability one: `3.1.0` is published as a stable addon release on this baseline, and the earlier `beta` label was about upstream's own version string being unavailable, not about our readiness.
 
 Neo ECO Prototype is an independent addon and is not the Neo ECO AE Extension project. The local development JAR used during testing is intentionally not redistributed by this repository.
 

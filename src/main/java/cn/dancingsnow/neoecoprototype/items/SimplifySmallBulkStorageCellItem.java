@@ -105,4 +105,17 @@ public final class SimplifySmallBulkStorageCellItem extends ECOStorageCellItem
     public int getTotalTypes() {
         return totalTypes;
     }
+
+    /**
+     * eco's line would say 25 (50 with its upgrade card) - a ceiling this cell cannot reach because it only
+     * has {@code totalTypes} filter slots. See {@link SmallBulkTypeCap}.
+     */
+    @Override
+    public void appendHoverText(ItemStack stack, Item.TooltipContext context,
+                                java.util.List<net.minecraft.network.chat.Component> tooltip,
+                                net.minecraft.world.item.TooltipFlag flag) {
+        int beforeEcoWrote = tooltip.size();
+        super.appendHoverText(stack, context, tooltip, flag);
+        SmallBulkTypeCap.swapTooltipLine(tooltip, beforeEcoWrote, getCellInventory(stack), totalTypes);
+    }
 }

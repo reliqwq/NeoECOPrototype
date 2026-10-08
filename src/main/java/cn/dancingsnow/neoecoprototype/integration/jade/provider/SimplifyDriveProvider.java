@@ -133,13 +133,7 @@ public enum SimplifyDriveProvider implements IBlockComponentProvider, IServerDat
      * is the ceiling that is reachable. Every other cell reports what its inventory says.
      */
     private static long markedTypeCap(ItemStack stack, IECOStorageCell cell) {
-        if (stack.getItem() instanceof SimplifySmallBulkStorageCellItem item) {
-            return item.getTotalTypes();
-        }
-        if (stack.getItem() instanceof SimplifySmallBulkFluidStorageCellItem fluid) {
-            return fluid.getTotalTypes();
-        }
-        return cell.getTotalItemTypes();
+        return cn.dancingsnow.neoecoprototype.items.SmallBulkTypeCap.of(stack, cell);
     }
 
     /**

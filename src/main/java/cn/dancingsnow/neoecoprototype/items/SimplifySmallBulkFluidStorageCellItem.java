@@ -90,4 +90,14 @@ public final class SimplifySmallBulkFluidStorageCellItem extends ECOStorageCellI
     public int getTotalTypes() {
         return totalTypes;
     }
+
+    /** The item's own slot count rather than eco's backend ceiling; see {@link SmallBulkTypeCap}. */
+    @Override
+    public void appendHoverText(ItemStack stack, Item.TooltipContext context,
+                                java.util.List<net.minecraft.network.chat.Component> tooltip,
+                                net.minecraft.world.item.TooltipFlag flag) {
+        int beforeEcoWrote = tooltip.size();
+        super.appendHoverText(stack, context, tooltip, flag);
+        SmallBulkTypeCap.swapTooltipLine(tooltip, beforeEcoWrote, getCellInventory(stack), totalTypes);
+    }
 }

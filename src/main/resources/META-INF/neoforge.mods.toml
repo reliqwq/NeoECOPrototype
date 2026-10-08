@@ -4,7 +4,7 @@ license = "GPL-3.0-only"
 
 [[mods]]
 modId = "neoecoprototype"
-version = "3.0.0-beta1"
+version = "0.3.1"
 displayName = "Neo ECO Prototype"
 authors = "reliqwq"
 description = "A unified Trinity addon for Neo ECO AE Extension and AE2: multiblock storage, network crafting entry, task diagnostics, and UI below eco's L4 tier."
@@ -59,21 +59,42 @@ versionRange = "[21.2.1-beta2,)"
 ordering = "NONE"
 side = "BOTH"
 
+# LDLib2: eco 21.2.1 requires [2.2.40,) from its own side and this addon's GUI code sits on the same
+# library, so the floor here is eco's floor verbatim - declaring it changes who refuses, not who can run.
+# What that floor is for is measured: with the 2.2.8 jar eco 21.2.1 raised this addon reported
+# NoClassDefFoundError: cn/dancingsnow/neoecoae/gui/GuiTitleProvider while loading our block classes,
+# which is eco refusing to start, not a class of ours missing.
+[[dependencies.neoecoprototype]]
+modId = "ldlib2"
+mandatory = true
+versionRange = "[2.2.40,)"
+ordering = "NONE"
+side = "BOTH"
+
 # The L1 small-bulk matrix family (item/fluid/chemical) is built on the mega cell
 # types and the long-bulk storage backend from neoecoae's MEGA Cells integration;
 # without MegaCells the family stays unregistered and the rest of the mod works.
-# Open range, measured rather than assumed: a version range here IS enforced
-# whenever the mod is present - pointing this entry at [9.9.9,) produced
-# "Mod neoecoprototype only supports megacells 9.9.9 or above / Currently,
-# megacells is 4.11.0" as a FATAL during pre-loading and the server refused to
-# start. So a floor we never tested would lock out players running an older
-# MegaCells, while our own gates only ever ask ModList.isLoaded("megacells").
-# 4.11.0 stays in THIRD_PARTY_NOTICES.md as the build we verified, which is what
-# it actually is.
+# 4.11.0 is not a floor we invented: it is what eco 21.2.1 declares for this mod, so a player
+# running an older MegaCells is refused by eco with or without this entry. Matching it costs
+# nothing and puts the refusal under the mod that actually needs it. Range enforcement is real -
+# pointing this entry at [9.9.9,) produced "Mod neoecoprototype only supports megacells 9.9.9 or
+# above / Currently, megacells is 4.11.0" as a FATAL during pre-loading and the server refused to
+# start, which is why a floor here is only ever a version somebody has measured.
 [[dependencies.neoecoprototype]]
 modId = "megacells"
 type = "optional"
-versionRange = "*"
+versionRange = "[4.11.0,)"
+ordering = "AFTER"
+side = "BOTH"
+
+# AE2 Omni Cells carries the universal and quantum matrix line (the omni-family matrices built by the
+# KubeJS builder and by StorageMatrixBuilder read its cell types). eco 21.2.1 declares this mod as an
+# optional dependency at [1.1.6,), and the jar in our development classpath is exactly that build,
+# so the range below is eco's wording rather than a floor we picked.
+[[dependencies.neoecoprototype]]
+modId = "ae2omnicells"
+type = "optional"
+versionRange = "[1.1.6,)"
 ordering = "AFTER"
 side = "BOTH"
 
@@ -87,6 +108,24 @@ side = "BOTH"
 # running an earlier AppliedFlux from starting the game at all. Presence is the real gate.
 [[dependencies.neoecoprototype]]
 modId = "appflux"
+type = "optional"
+versionRange = "*"
+ordering = "AFTER"
+side = "BOTH"
+
+# Two viewer integrations, both behind ModList checks: Jade gets providers for our drives and hosts,
+# JEI and EMI get the multiblock and assembler recipe pages. eco 21.2.1 declares both as optional with
+# an open range, so an open range here is the same claim - the integration simply does not register
+# when the mod is absent, and no version of either mod is excluded.
+[[dependencies.neoecoprototype]]
+modId = "jade"
+type = "optional"
+versionRange = "*"
+ordering = "AFTER"
+side = "BOTH"
+
+[[dependencies.neoecoprototype]]
+modId = "jei"
 type = "optional"
 versionRange = "*"
 ordering = "AFTER"
