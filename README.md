@@ -60,7 +60,7 @@ Place lawful copies of the exact compatible dependencies in `libs/`, as listed i
 .\gradlew.bat build --offline
 ```
 
-A build from a fresh clone stops with the names of the jars it is missing, because none of them are redistributed here. The output is `build/libs/neoecoprototype-0.3.1.jar`. Keep `libs/`, `run/`, `build/`, reference checkouts and local world data out of the repository.
+A build from a fresh clone stops with the names of the jars it is missing, because none of them are redistributed here. The output is `build/libs/neoecoprototype-1.3.1.jar`. Keep `libs/`, `run/`, `build/`, reference checkouts and local world data out of the repository.
 
 Why the dependency floors are written the way they are, including the prerelease range for eco, is recorded in [docs/ae2-extension-playbook.md](docs/ae2-extension-playbook.md). What ships with a release, and how it is published, is in [docs/publishing.md](docs/publishing.md).
 

@@ -60,7 +60,7 @@ KubeJS 是可选的。脚本在启动事件与配方事件里注册存储矩阵�
 .\gradlew.bat build --offline
 ```
 
-从全新克隆直接构建会停下来，报它缺的是哪几个 JAR——本仓库不转发任何依赖。产物是 `build/libs/neoecoprototype-0.3.1.jar`。`libs/`、`run/`、`build/`、参考检出与本地世界数据都不要提交进仓库。
+从全新克隆直接构建会停下来，报它缺的是哪几个 JAR——本仓库不转发任何依赖。产物是 `build/libs/neoecoprototype-1.3.1.jar`。`libs/`、`run/`、`build/`、参考检出与本地世界数据都不要提交进仓库。
 
 依赖下限为什么这么写、eco 那条为什么要带预发布版本号，记在 [docs/ae2-extension-playbook.md](docs/ae2-extension-playbook.md)。一次发布要带什么、怎么发，记在 [docs/publishing.md](docs/publishing.md)。
 

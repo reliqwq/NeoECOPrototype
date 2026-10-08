@@ -170,7 +170,7 @@ CHANGELOG 现在只写玩家看得见的结果。这一节收着那些"以后改
 
 AE2 的下限从始至终是 `[19.2.17,)`，现在也是编译所依据的版本。上游自己在 `21.2.1-beta1` 把它的 AE2 下限抬到 `19.2.18`、在 `beta2` 又退回 `19.2.17`，所以从 `beta2` 起，对 AE2 唯一的闸就是我们这一条声明。依据是对两个 jar 的逐类比对：本模组点名的 AE2 类里只有一个在两者之间发生变化——`core.localization.Tooltips`——而 `19.2.18` 从它里面去掉的是三个我们从未点名的字段，所以 `19.2.18` 的玩家同样被覆盖。**作者自己那份 `21.2.1` 发布说明写的是同一句话（"AE2 最低版本为 19.2.17，兼容 19.2.17 / 19.2.18"），而那份 jar 的 `META-INF/neoforge.mods.toml` 里 `ae2` 就是 `[19.2.17,)`、`ldlib2` 就是 `[2.2.40,)` —— 与我们声明的完全同一档。**
 
-**`0.3.1` 起，我们那份 `[[dependencies.neoecoprototype]]` 按 eco 21.2.1 的表逐条对齐。** 上游那张表是现量出来的，不是抄文档：`neoecobeta/neoecoae-21.2.1.jar` 里 `META-INF/neoforge.mods.toml` 一共 14 条 —— required 四条（`neoforge [21.1.0,)`、`minecraft [1.21.1, 1.22)`、`ae2 [19.2.17,)`、`ldlib2 [2.2.40,)`），optional 十条（`megacells [4.11.0,)`、`ae2omnicells [1.1.6,)`、`ae2_pattern_disk [0,)`、`extendedae [0,)`、`ae2lt [1.1.3,)`、`appliedenhancements [1.0.9,)`、`molecularmanipulator [2.0.5,),[2.0.5-fix]`、`useless_mod [1.21.1-2.3.7.2,)`、`jade [0,)`、`jei [0,)`）。
+**`1.3.1` 起，我们那份 `[[dependencies.neoecoprototype]]` 按 eco 21.2.1 的表逐条对齐。** 上游那张表是现量出来的，不是抄文档：`neoecobeta/neoecoae-21.2.1.jar` 里 `META-INF/neoforge.mods.toml` 一共 14 条 —— required 四条（`neoforge [21.1.0,)`、`minecraft [1.21.1, 1.22)`、`ae2 [19.2.17,)`、`ldlib2 [2.2.40,)`），optional 十条（`megacells [4.11.0,)`、`ae2omnicells [1.1.6,)`、`ae2_pattern_disk [0,)`、`extendedae [0,)`、`ae2lt [1.1.3,)`、`appliedenhancements [1.0.9,)`、`molecularmanipulator [2.0.5,),[2.0.5-fix]`、`useless_mod [1.21.1-2.3.7.2,)`、`jade [0,)`、`jei [0,)`）。
 
 我们这一侧落成的样子与理由：
 
