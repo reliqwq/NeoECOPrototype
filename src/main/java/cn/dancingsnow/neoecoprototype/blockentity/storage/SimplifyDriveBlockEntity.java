@@ -6,6 +6,7 @@ import cn.dancingsnow.neoecoprototype.api.SimplifyPowerProfile;
 import cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig;
 import cn.dancingsnow.neoecoprototype.items.SimplifySmallBulkStorageCellItem;
 import cn.dancingsnow.neoecoprototype.integration.ae2.SimplifyGridFacade;
+import cn.dancingsnow.neoecoae.util.ICellHost;
 import cn.dancingsnow.neoecoae.util.ServerTaskUtil;
 import cn.dancingsnow.neoecoae.blocks.entity.NEBlockEntity;
 import cn.dancingsnow.neoecoprototype.block.storage.SimplifyDriveBlock;
@@ -45,7 +46,7 @@ import java.util.List;
  * node once the cluster is formed.
  */
 public class SimplifyDriveBlockEntity extends NEBlockEntity<SimplifyStorageCluster, SimplifyDriveBlockEntity>
-        implements ISyncPersistRPCBlockEntity, ISaveProvider, IStorageProvider {
+        implements ISyncPersistRPCBlockEntity, ISaveProvider, IStorageProvider, ICellHost {
 
     private final FieldManagedStorage syncStorage = new FieldManagedStorage(this);
 
@@ -140,6 +141,27 @@ public class SimplifyDriveBlockEntity extends NEBlockEntity<SimplifyStorageClust
         setChanged();
         markForUpdate();
         return removed;
+    }
+
+    /**
+     * eco's {@link ICellHost} entry point. {@code null} clears the slot; a valid single cell
+     * replaces whatever is already mounted, and the replaced cell is released and lost exactly as
+     * eco's own drive loses it - a caller that must keep it removes the cell first. Everything else
+     * is refused, and {@link ItemStack#EMPTY} is everything else: eco documents clearing as
+     * {@code null}-only, and its own drive rejects an empty stack here too.
+     */
+    @Override
+    public void setCellStack(@Nullable ItemStack stack) {
+        if (stack == null) {
+            removeCell();
+        } else if (cellStack.isEmpty()) {
+            insertCell(stack);
+        } else if (isItemValid(stack)) {
+            // Checked before the old cell is torn down: an invalid replacement must not cost the
+            // player the cell that is already mounted.
+            removeCell();
+            insertCell(stack);
+        }
     }
 
     /** Ask this drive's provider node to remount its cell. */

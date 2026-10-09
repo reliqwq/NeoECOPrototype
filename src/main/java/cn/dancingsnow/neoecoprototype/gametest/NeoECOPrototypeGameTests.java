@@ -5467,4 +5467,82 @@ public final class NeoECOPrototypeGameTests {
         }
         helper.succeed();
     }
+
+    /**
+     * The drive has to answer eco's {@code ICellHost} contract, because that is the name a third-party
+     * terminal reaches for. Checked at runtime rather than by assigning to the interface type, so a
+     * dropped {@code implements} turns this red instead of failing the build.
+     *
+     * <p>The three refusals are the part worth pinning: {@code null} clears while an empty stack does
+     * not, and an invalid replacement must not cost the player the cell already mounted. Both read
+     * like detail until a terminal clears a slot by passing {@code EMPTY} and wipes a drive.</p>
+     */
+    @GameTest(template = "l1_room", batch = "drive_cell_host_api", timeoutTicks = 400,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void driveSpeaksEcosCellHostContract(GameTestHelper helper) {
+        buildL1Room(helper, new BlockPos(6, 3, 6),
+                ModRegistration.SIMPLIFY_STORAGE_CONTROLLER_BLOCK.get(),
+                ModRegistration.SIMPLIFY_STORAGE_INTERFACE_BLOCK.get(),
+                ModRegistration.SIMPLIFY_STORAGE_INTERFACE_BLOCK.get(),
+                host -> {
+                    if (!(host instanceof SimplifyStorageHostBlockEntity storageHost)) {
+                        helper.fail("the L1 storage controller is not our host block entity: " + host);
+                        return;
+                    }
+                    var cluster = storageHost.getCluster();
+                    var drives = cluster == null
+                            ? java.util.List.<cn.dancingsnow.neoecoprototype.blockentity.storage
+                                    .SimplifyDriveBlockEntity>of()
+                            : cluster.getDrives();
+                    if (drives.isEmpty()) {
+                        helper.fail("the built room gave us no drive to talk to");
+                        return;
+                    }
+                    var drive = drives.get(0);
+                    if (!(drive instanceof cn.dancingsnow.neoecoae.util.ICellHost cellHost)) {
+                        helper.fail("the drive no longer implements eco's ICellHost, so a third-party"
+                                + " terminal has to keep probing it by method name");
+                        return;
+                    }
+                    var first = new ItemStack(ModRegistration.SIMPLIFY_ITEM_CELL_4M.get());
+                    cellHost.setCellStack(first);
+                    if (cellHost.getCellStack() == null
+                            || cellHost.getCellStack().getItem() != first.getItem()) {
+                        helper.fail("setCellStack did not install the cell: the slot reads "
+                                + cellHost.getCellStack());
+                        return;
+                    }
+                    // eco documents clearing as null-only and rejects an empty stack; matching it keeps
+                    // one contract for both hosts, so this must leave the mounted cell alone.
+                    cellHost.setCellStack(ItemStack.EMPTY);
+                    if (cellHost.getCellStack() == null
+                            || cellHost.getCellStack().getItem() != first.getItem()) {
+                        helper.fail("an empty stack cleared the slot, which eco's own drive does not do:"
+                                + " the slot reads " + cellHost.getCellStack());
+                        return;
+                    }
+                    var dirt = new ItemStack(net.minecraft.world.item.Items.DIRT);
+                    cellHost.setCellStack(dirt);
+                    if (cellHost.getCellStack() == null
+                            || cellHost.getCellStack().getItem() != first.getItem()) {
+                        helper.fail("an invalid replacement destroyed the mounted cell instead of being"
+                                + " refused; the slot reads " + cellHost.getCellStack());
+                        return;
+                    }
+                    var second = new ItemStack(ModRegistration.SIMPLIFY_SMALL_BULK_CELL.get());
+                    cellHost.setCellStack(second);
+                    if (cellHost.getCellStack() == null
+                            || cellHost.getCellStack().getItem() != second.getItem()) {
+                        helper.fail("setCellStack refused to replace a mounted cell, which eco's drive"
+                                + " does: the slot reads " + cellHost.getCellStack());
+                        return;
+                    }
+                    cellHost.setCellStack(null);
+                    if (cellHost.getCellStack() != null) {
+                        helper.fail("setCellStack(null) left a cell in the slot: " + cellHost.getCellStack());
+                        return;
+                    }
+                    helper.succeed();
+                });
+    }
 }
