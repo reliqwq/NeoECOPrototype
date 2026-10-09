@@ -3,7 +3,6 @@ package cn.dancingsnow.neoecoprototype.blockentity.storage;
 import appeng.api.networking.IGridNodeListener;
 import appeng.api.stacks.AEKeyType;
 import appeng.api.stacks.AEItemKey;
-import gripe._90.megacells.misc.CompressionChain;
 import gripe._90.megacells.misc.CompressionService;
 import appeng.api.storage.IStorageMounts;
 import appeng.api.storage.IStorageProvider;
@@ -278,6 +277,12 @@ public class SimplifyStorageHostBlockEntity
         if (level == null || level.isClientSide) {
             return new BulkMarkCounts(0, 0);
         }
+        if (!ModList.get().isLoaded("megacells")) {
+            // The chain lookup further down is MegaCells' own code. Small-bulk cells cannot be
+            // registered without the mod, but a world made while it was installed still carries the
+            // drives, so the button can still be pressed with the mod gone.
+            return new BulkMarkCounts(0, 0);
+        }
         long threshold = bulkMarkingThreshold();
         // One inventory read per drive, not one per (target, source) pair: every small-bulk drive in the
         // cluster is offered the same sources, and getAvailableStacks walks the cell each time it is called.
@@ -429,11 +434,16 @@ public class SimplifyStorageHostBlockEntity
             return ROW_NONE;
         }
         int row = SimplifyStorageCellItem.getMegaItemCellType().equals(cellType) ? ROW_MEGA_ITEM : ROW_ITEM;
-        if (SimplifyUniversalStorageCellItem.getUniversalCellType().equals(cellType)) {
-            return ROW_UNIVERSAL;
-        }
-        if (SimplifyQuantumStorageCellItem.getQuantumCellType().equals(cellType)) {
-            return ROW_QUANTUM;
+        // The same gate as the two rows above, and for the same reason: our omni item classes extend
+        // eco's, which extend OmniCells', so reaching for them at all without that mod loaded is a
+        // NoClassDefFoundError - not a null.
+        if (ModList.get().isLoaded("ae2omnicells")) {
+            if (SimplifyUniversalStorageCellItem.getUniversalCellType().equals(cellType)) {
+                return ROW_UNIVERSAL;
+            }
+            if (SimplifyQuantumStorageCellItem.getQuantumCellType().equals(cellType)) {
+                return ROW_QUANTUM;
+            }
         }
         if (SimplifyConcreteStorageCellItem.CELL_TYPE.equals(cellType)) {
             return ROW_CONCRETE;

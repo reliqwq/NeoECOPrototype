@@ -227,6 +227,16 @@ public final class StorageMatrixBuilder extends ItemBuilder {
             throw new IllegalStateException(
                     "Matrix '%s' needs AE2 Omni Cells for the universal/quantum backend".formatted(id));
         }
+        if (type == StorageMatrixDefinition.MatrixType.CHEMICAL
+                && !(net.neoforged.fml.ModList.get().isLoaded("mekanism")
+                        && net.neoforged.fml.ModList.get().isLoaded("appmek"))) {
+            // Same reason as the omni check above: the chemical cell's own constructor reaches into
+            // Applied Mekanistics, so without this the script fails as a NoClassDefFoundError instead
+            // of a sentence that says what to install.
+            throw new IllegalStateException(
+                    "Matrix '%s' needs Mekanism and Applied Mekanistics for the chemical backend"
+                            .formatted(id));
+        }
         long bytes = customBytes != null ? customBytes : size.bytes();
         int totalTypes = customTotalTypes != null
                 ? customTotalTypes
