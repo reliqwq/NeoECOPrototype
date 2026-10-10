@@ -5304,7 +5304,7 @@ public final class NeoECOPrototypeGameTests {
     @GameTest(template = "empty", batch = "singularity_cell_yield", timeoutTicks = 100,
             templateNamespace = NeoECOPrototype.MOD_ID)
     public static void singularityCellTakesNothingAndPaysWhatItShows(GameTestHelper helper) {
-        var singularity = cn.dancingsnow.neoecoprototype.items.SimplifySingularityCellItem.SINGULARITY;
+        var singularity = cn.dancingsnow.neoecoprototype.items.SimplifySingularityCellItem.singularity();
         var stack = new ItemStack(ModRegistration.SIMPLIFY_SINGULARITY_CELL.get());
         var cell = cn.dancingsnow.neoecoae.api.storage.ECOStorageCells
                 .getCellInventory(stack, (appeng.api.storage.cells.ISaveProvider) null);

@@ -110,7 +110,7 @@ public final class SingularityCellHandler implements IECOCellHandler {
 
         @Override
         public long extract(AEKey what, long amount, Actionable mode, IActionSource source) {
-            if (!SimplifySingularityCellItem.SINGULARITY.equals(what)) {
+            if (!SimplifySingularityCellItem.singularity().equals(what)) {
                 return 0L;
             }
             long ready = ready();
@@ -132,7 +132,7 @@ public final class SingularityCellHandler implements IECOCellHandler {
         public void getAvailableStacks(KeyCounter out) {
             long ready = ready();
             if (ready > 0L) {
-                out.add(SimplifySingularityCellItem.SINGULARITY, ready);
+                out.add(SimplifySingularityCellItem.singularity(), ready);
             }
         }
 

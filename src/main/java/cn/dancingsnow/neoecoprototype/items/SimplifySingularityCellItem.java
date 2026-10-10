@@ -37,7 +37,18 @@ import java.util.Optional;
 public final class SimplifySingularityCellItem extends Item implements IBasicECOCellItem {
 
     /** The one thing this cell ever holds. */
-    public static final AEItemKey SINGULARITY = AEItemKey.of(AEItems.SINGULARITY);
+    public static AEItemKey singularity() {
+        return SingularityKey.SINGULARITY;
+    }
+
+    /**
+     * Resolved on first use instead of in this class's initialiser. Our own item registration is what
+     * loads this class, and AE2 binds its registry objects during its own RegisterEvent, so reading one
+     * statically is a startup crash whenever the loader happens to run us first (issue #6).
+     */
+    private static final class SingularityKey {
+        private static final AEItemKey SINGULARITY = AEItemKey.of(AEItems.SINGULARITY);
+    }
 
     /** One type, one row. */
     public static final int TYPES = 1;
@@ -227,7 +238,7 @@ public final class SimplifySingularityCellItem extends Item implements IBasicECO
         }
         long ready = bankOf(bank, now);
         List<GenericStack> content = ready > 0L
-                ? List.of(new GenericStack(SINGULARITY, ready))
+                ? List.of(new GenericStack(singularity(), ready))
                 : List.of();
         return Optional.of(new StorageCellTooltipComponent(List.of(), content, false, true));
     }
