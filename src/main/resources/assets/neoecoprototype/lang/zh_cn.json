@@ -111,6 +111,7 @@
   "gui.neoecoprototype.multiblock.missing_items": "无法搭建：背包中缺少所需方块。",
   "gui.neoecoprototype.storage.bulk_mark.result": "MEGA 标记：新增 %s，已存在 %s；实际自动压缩需要安装 MEGA 压缩升级卡",
   "gui.neoecoprototype.storage.bulk_mark.unavailable": "小宗自动标记不可用；压缩需要 MEGA 压缩升级卡",
+  "gui.neoecoprototype.storage.bulk_mark.no_space": "；标记格已满，还有 %s 个够格的候选没标上",
   "gui.neoecoprototype.l1_storage_cells": "L1 存储元件",
   "item.neoecoprototype.simplify_small_bulk_fluid_storage_cell": "ECO - L1 小宗流体存储矩阵（3种类型）",
   "item.neoecoprototype.simplify_small_bulk_fluid_storage_cell_expanded": "ECO - L1 小宗流体扩展存储矩阵（10种类型）",

@@ -261,12 +261,55 @@ public class SimplifyStorageHostBlockEntity
             return;
         }
         var counts = runAutoMark();
-        player.displayClientMessage(Component.translatable(
-                "gui.neoecoprototype.storage.bulk_mark.result", counts.added(), counts.alreadyMarked()), true);
+        // One line, because the action bar shows one line: a second call would erase the first.
+        var line = Component.translatable("gui.neoecoprototype.storage.bulk_mark.result",
+                counts.added(), counts.alreadyMarked());
+        if (counts.noSpace() > 0) {
+            line = line.append(Component.translatable("gui.neoecoprototype.storage.bulk_mark.no_space",
+                    counts.noSpace()));
+        }
+        player.displayClientMessage(line, true);
     }
 
-    /** What one pass of the marking button did. */
-    public record BulkMarkCounts(int added, int alreadyMarked) {
+    /**
+     * What one pass of the marking button did.
+     *
+     * @param noSpace candidates that were over the threshold and in a chain nothing marks yet, but found
+     *                no free marker slot - without this the button just reports fewer marks and the
+     *                player cannot tell "nothing was worth marking" from "the cell is full of marks"
+     */
+    public record BulkMarkCounts(int added, int alreadyMarked, int noSpace) {
+    }
+
+    /**
+     * The keys worth marking in this pass, biggest pile first, with one drive left out of the pool.
+     *
+     * <p>Aggregated before anything else: the same key sitting in three source cells is one candidate for
+     * one chain, not three, and ordering means nothing while duplicates are still in the way. The order is
+     * what eco's own pass fills by, and it is not cosmetic - the marked form is what decides the fold
+     * factor the cell then uses, so an unordered pool can mark the cheap end of a chain.</p>
+     */
+    private static List<AEItemKey> markingCandidates(
+            java.util.Map<SimplifyDriveBlockEntity, appeng.api.stacks.KeyCounter> availableByDrive,
+            SimplifyDriveBlockEntity except, long threshold) {
+        java.util.Map<AEItemKey, Long> amounts = new java.util.HashMap<>();
+        for (var source : availableByDrive.entrySet()) {
+            if (source.getKey() == except) {
+                continue;
+            }
+            for (var entry : source.getValue()) {
+                if (!(entry.getKey() instanceof AEItemKey key)
+                        || CompressionService.getChain(key).isEmpty()) {
+                    continue;
+                }
+                amounts.merge(key, entry.getLongValue(), Long::sum);
+            }
+        }
+        return amounts.entrySet().stream()
+                .filter(entry -> entry.getValue() > threshold)
+                .sorted(java.util.Map.Entry.<AEItemKey, Long>comparingByValue().reversed())
+                .map(java.util.Map.Entry::getKey)
+                .toList();
     }
 
     /**
@@ -275,13 +318,13 @@ public class SimplifyStorageHostBlockEntity
      */
     public BulkMarkCounts runAutoMark() {
         if (level == null || level.isClientSide) {
-            return new BulkMarkCounts(0, 0);
+            return new BulkMarkCounts(0, 0, 0);
         }
         if (!ModList.get().isLoaded("megacells")) {
             // The chain lookup further down is MegaCells' own code. Small-bulk cells cannot be
             // registered without the mod, but a world made while it was installed still carries the
             // drives, so the button can still be pressed with the mod gone.
-            return new BulkMarkCounts(0, 0);
+            return new BulkMarkCounts(0, 0, 0);
         }
         long threshold = bulkMarkingThreshold();
         // One inventory read per drive, not one per (target, source) pair: every small-bulk drive in the
@@ -298,6 +341,7 @@ public class SimplifyStorageHostBlockEntity
         }
         int added = 0;
         int alreadyMarked = 0;
+        int noSpace = 0;
         List<AEItemKey> markedKeys = new ArrayList<>();
         for (SimplifyDriveBlockEntity target : smallBulkDrives()) {
             ItemStack targetStack = target.getCellStack();
@@ -305,40 +349,39 @@ public class SimplifyStorageHostBlockEntity
                 continue;
             }
             var config = item.getConfigInventory(targetStack);
-            for (var bySource : availableByDrive.entrySet()) {
-                if (bySource.getKey() == target) {
-                    continue;
-                }
-                for (var entry : bySource.getValue()) {
-                    if (entry.getLongValue() <= threshold || !(entry.getKey() instanceof AEItemKey key)) {
-                        continue;
-                    }
-                    if (CompressionService.getChain(key).isEmpty()) {
-                        continue;
-                    }
-                    boolean exists = markedKeys.stream().anyMatch(existing -> sameMarkerChain(existing, key));
-                    for (int slot = 0; slot < config.size() && !exists; slot++) {
-                        if (config.getKey(slot) instanceof AEItemKey existing && sameMarkerChain(existing, key)) {
-                            exists = true;
-                        }
-                    }
-                    if (exists) {
-                        alreadyMarked++;
-                        continue;
-                    }
+            for (AEItemKey key : markingCandidates(availableByDrive, target, threshold)) {
+                boolean exists = markedKeys.stream().anyMatch(existing -> sameMarkerChain(existing, key));
+                if (!exists) {
                     for (int slot = 0; slot < config.size(); slot++) {
-                        if (config.getKey(slot) == null) {
-                            config.setStack(slot, new appeng.api.stacks.GenericStack(key, 0L));
-                            markedKeys.add(key);
-                            added++;
+                        if (config.getKey(slot) instanceof AEItemKey existing
+                                && sameMarkerChain(existing, key)) {
+                            exists = true;
                             break;
                         }
                     }
                 }
+                if (exists) {
+                    alreadyMarked++;
+                    continue;
+                }
+                int free = -1;
+                for (int slot = 0; slot < config.size(); slot++) {
+                    if (config.getKey(slot) == null) {
+                        free = slot;
+                        break;
+                    }
+                }
+                if (free < 0) {
+                    noSpace++;
+                    continue;
+                }
+                config.setStack(free, new appeng.api.stacks.GenericStack(key, 0L));
+                markedKeys.add(key);
+                added++;
             }
         }
         refreshDriveStorageProviders();
-        return new BulkMarkCounts(added, alreadyMarked);
+        return new BulkMarkCounts(added, alreadyMarked, noSpace);
     }
 
     /**

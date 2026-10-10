@@ -139,6 +139,7 @@
   "cmd.neoecoprototype.fumo.invalid": "Not a valid player name: %s",
   "item.neoecoprototype.simplify_small_bulk_storage_matrix_housing": "ECO - Small Bulk Storage Matrix Housing",
   "gui.neoecoprototype.storage.bulk_mark.unavailable": "Small bulk automatic marking is unavailable; compression requires the MEGA compression upgrade",
+  "gui.neoecoprototype.storage.bulk_mark.no_space": "; the marker slots are full and %s eligible candidate(s) were left unmarked",
   "gui.neoecoprototype.storage.bulk_mark.result": "MEGA marking: %s added, %s already marked; automatic compression needs the MEGA compression upgrade",
   "jei.neoecoprototype.processor_assembler.encode_hint": "Crafts processors directly, working much like the Molecular Assembler.",
   "jei.neoecoprototype.processor_assembler.no_match": "One ingredient of this recipe currently matches no item, so no pattern can be encoded.",

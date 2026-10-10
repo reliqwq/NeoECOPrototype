@@ -5088,6 +5088,98 @@ public final class NeoECOPrototypeGameTests {
                         helper.fail("the mark in slot 0 is " + config.getKey(0) + ", not the chain item "
                                 + sample.sameLeft() + " that was over the threshold");
                     }
+                    // A candidate that fits nowhere still has to be said out loud. A second chain goes into
+                    // the source, the two remaining marker slots are filled by hand, and the pass must come
+                    // back reporting what it could not place rather than placing nothing in silence.
+                    // Through the drive's own handler, not the local stack: mounting copied it.
+                    var liveSource = drives.get(0).getCellInventory();
+                    if (liveSource == null) {
+                        helper.fail("the source drive no longer holds a cell to fill");
+                        return;
+                    }
+                    if (liveSource.insert(sample.otherLeft(), want, Actionable.MODULATE, null) < want) {
+                        helper.fail("the source cell took no " + sample.otherLeft()
+                                + " for the overflow pass");
+                        return;
+                    }
+                    config.setStack(1, new appeng.api.stacks.GenericStack(sample.plainLeft(), 0L));
+                    config.setStack(2, new appeng.api.stacks.GenericStack(sample.plainRight(), 0L));
+                    var overflow = storageHost.runAutoMark();
+                    if (overflow.added() != 0 || overflow.noSpace() < 1) {
+                        helper.fail("with every marker slot taken the button reported " + overflow
+                                + " instead of saying a candidate did not fit");
+                    }
+                });
+    }
+
+    /**
+     * Which end of a chain becomes the marker is not cosmetic: the marked form decides the fold factor the
+     * cell then works in, so marking the cheap variant of a chain costs the player more slots-worth of
+     * storage than marking the expensive one. eco fills its slots by amount, largest first; this is our own
+     * pass honouring that order.
+     */
+    @GameTest(template = "l1_room", batch = "small_bulk_marks_bigger_end", timeoutTicks = 400, required = false,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void autoMarkPrefersTheBiggerEndOfAChain(GameTestHelper helper) {
+        var sample = SmallBulkTestProbe.findSamples();
+        if (!sample.isComplete()) {
+            helper.fail("megacells is installed but the probe gathered no same-chain pair, so this test"
+                    + " cannot say anything about which end gets marked: " + sample);
+            return;
+        }
+        buildL1Room(helper, new BlockPos(6, 3, 6),
+                ModRegistration.SIMPLIFY_STORAGE_CONTROLLER_BLOCK.get(),
+                ModRegistration.SIMPLIFY_STORAGE_INTERFACE_BLOCK.get(),
+                ModRegistration.SIMPLIFY_STORAGE_INTERFACE_BLOCK.get(),
+                host -> {
+                    if (!(host instanceof SimplifyStorageHostBlockEntity storageHost)) {
+                        helper.fail("the L1 storage controller is not our host block entity: " + host);
+                        return;
+                    }
+                    var drives = storageHost.getCluster() == null
+                            ? java.util.List.<cn.dancingsnow.neoecoprototype.blockentity.storage
+                                    .SimplifyDriveBlockEntity>of()
+                            : storageHost.getCluster().getDrives();
+                    if (drives.size() < 2) {
+                        helper.fail("this fixture needs two drives and got " + drives.size());
+                        return;
+                    }
+                    long want = cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig
+                            .MEGA_BULK_AUTO_MARK_THRESHOLD.get() + 1L;
+                    var sourceCell = new ItemStack(ModRegistration.SIMPLIFY_ITEM_CELL_4M.get());
+                    var sourceInventory = cn.dancingsnow.neoecoae.api.storage.ECOStorageCells
+                            .getCellInventory(sourceCell, null);
+                    if (sourceInventory == null) {
+                        helper.fail("no eco cell handler claims our own 4M item cell");
+                        return;
+                    }
+                    // Two variants of one chain, both over the threshold, the second one clearly larger.
+                    if (sourceInventory.insert(sample.sameLeft(), want, Actionable.MODULATE, null) < want) {
+                        helper.fail("the source cell took no " + sample.sameLeft());
+                        return;
+                    }
+                    long bigger = want * 4L;
+                    if (sourceInventory.insert(sample.sameRight(), bigger, Actionable.MODULATE, null) < bigger) {
+                        helper.fail("the source cell took no " + sample.sameRight());
+                        return;
+                    }
+                    if (!drives.get(0).insertCell(sourceCell)
+                            || !drives.get(1).insertCell(new ItemStack(ModRegistration.SIMPLIFY_SMALL_BULK_CELL.get()))) {
+                        helper.fail("a drive refused its cell, so the pass has nothing to work on");
+                        return;
+                    }
+                    storageHost.runAutoMark();
+                    var mounted = drives.get(1).getCellStack();
+                    if (!(mounted.getItem() instanceof SimplifySmallBulkStorageCellItem bulk)) {
+                        helper.fail("the small-bulk cell is not what the drive holds: " + mounted);
+                        return;
+                    }
+                    var marked = bulk.getConfigInventory(mounted).getKey(0);
+                    if (!sample.sameRight().equals(marked)) {
+                        helper.fail("the chain was marked at its cheaper end: slot 0 holds " + marked
+                                + ", not " + sample.sameRight() + " which had " + bigger + " stored against"
+                                + " " + want + " of " + sample.sameLeft());
+                    }
                 });
     }
 
