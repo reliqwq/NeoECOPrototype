@@ -2508,6 +2508,80 @@ public final class NeoECOPrototypeGameTests {
 
 
     /**
+     * The plushie is on eco's fast path for foreign CPUs, and this is the only face that claim has.
+     *
+     * <p>{@code mixins/ae2/crafting/Ae2CraftingCpuFastPathMixin} injects a {@code neoecoae$fastPath} field
+     * (type {@code ECOExternalCpuFastPath}, which also writes itself into the cluster's NBT) into AE2's
+     * {@code CraftingCpuLogic} - the object whose {@code inventory}/{@code cluster}/{@code job} the mixin
+     * shadows - reachable from the cluster through its public final {@code craftingLogic} field. Our CPU's
+     * block entity *is* AE2's {@code CraftingBlockEntity} - deliberately, from the V1 decision - so the
+     * cluster it hands out should carry that field with nothing for us to implement. If eco ever retargets
+     * the mixin or renames the field, this goes red and the plushie silently drops back to the plain path.
+     *
+     * <p>The last check is the control: the same walk looking for a name that cannot exist must come up
+     * empty, so the first check cannot be green because the walker always says yes.
+     */
+    @GameTest(template = "empty", batch = "doll_cpu", timeoutTicks = 240,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void plushieCpuCarriesEcosExternalCpuFastPath(GameTestHelper helper) {
+        var dollPos = new BlockPos(2, 3, 2);
+        var powerPos = dollPos.below();
+        helper.setBlock(powerPos, AEBlocks.CREATIVE_ENERGY_CELL.block());
+        helper.setBlock(dollPos, ModRegistration.FUMO_DOLL_YANG120_CPU_BLOCK.get());
+        Runnable leave = () -> {
+            helper.setBlock(dollPos, Blocks.AIR);
+            helper.setBlock(powerPos, Blocks.AIR);
+        };
+        waitUntil(helper, 8, () -> {
+            var cpu = plushieCpuAt(helper, dollPos);
+            return cpu != null && cpu.isFormed() && cpu.getCluster() != null;
+        }, () -> {
+            var cpu = plushieCpuAt(helper, dollPos);
+            var why = "no formed plushie CPU with a cluster at " + at(dollPos) + ": blockEntity="
+                    + (cpu == null ? "not AE2's crafting block entity" : "present")
+                    + " formed=" + (cpu != null && cpu.isFormed());
+            leave.run();
+            return why;
+        }, () -> {
+            var cluster = plushieCpuAt(helper, dollPos).getCluster();
+            var logic = cluster.craftingLogic;
+            var field = ecoFastPathField(logic.getClass(), "neoecoae$fastPath");
+            if (field == null) {
+                leave.run();
+                helper.fail("the plushie's " + logic.getClass().getName() + " carries no neoecoae$fastPath "
+                        + "field up its class chain, so eco's external-CPU fast path is not attached to it");
+                return;
+            }
+            if (!"cn.dancingsnow.neoecoae.crafting.execution.ECOExternalCpuFastPath"
+                    .equals(field.getType().getName())) {
+                leave.run();
+                helper.fail("neoecoae$fastPath is typed " + field.getType().getName()
+                        + ", expected eco's ECOExternalCpuFastPath");
+                return;
+            }
+            if (ecoFastPathField(logic.getClass(), "neoecoae$noSuchField") != null) {
+                leave.run();
+                helper.fail("the field walk found a name that cannot exist, so the check above proves nothing");
+                return;
+            }
+            leave.run();
+            helper.succeed();
+        });
+    }
+
+    /** Walks a class and its superclasses for a declared field name, the way the mixin attaches its state. */
+    private static java.lang.reflect.Field ecoFastPathField(Class<?> type, String name) {
+        for (Class<?> c = type; c != null && c != Object.class; c = c.getSuperclass()) {
+            try {
+                return c.getDeclaredField(name);
+            } catch (NoSuchFieldException ignored) {
+                // keep walking up
+            }
+        }
+        return null;
+    }
+
+    /**
      * The plushie CPU is a whole machine in one block: it forms on its own, sits on the network, carries
      * the bytes and the threads it advertises, and is the one entry the crafting service lists. Twelve and
      * twelve are the design and are written here rather than read back from the registration, so a change
