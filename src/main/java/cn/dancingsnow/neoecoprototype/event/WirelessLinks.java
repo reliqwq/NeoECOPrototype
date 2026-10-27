@@ -1,6 +1,7 @@
 package cn.dancingsnow.neoecoprototype.event;
 
 import appeng.api.networking.GridHelper;
+import appeng.api.networking.IGrid;
 import appeng.api.networking.IGridConnection;
 import appeng.api.networking.IGridNode;
 import cn.dancingsnow.neoecoprototype.NeoECOPrototype;
@@ -60,6 +61,23 @@ public final class WirelessLinks {
     public static final int MAX_LINKS_PER_ENDPOINT = 4;
 
     /**
+     * What one tapped controller buys. This is our own price, not a number AE2 hands out: measured in
+     * {@code appeng.me.GridNode#getMaxChannels()} and {@code appeng.me.GridConnection#getMaxChannels()}, AE2
+     * has no "channels per controller block" arithmetic at all - capacity is a flag on the node or edge
+     * (8, or 32 when {@code DENSE_CAPACITY}) multiplied by the network's {@code ChannelMode}, and an
+     * {@code INFINITE} network answers 2^31-1 there. What a controller does is make channel use possible and
+     * constrain routing ({@code GridConnection#setControllerRoute}); {@code ControllerValidator} only checks
+     * the shape and bounds. So 32 was chosen because that is what one dense link costs in AE2 - one grant
+     * buys a link's worth - and a device is charged what it reports as used (measured 1), not that.
+     *
+     * <p>Read this as a gate on whether we build the edge, never as a cap: neither {@code IGridConnection}
+     * nor {@code IGridNode} exposes a way to limit channels (both {@code getMaxChannels()} have no setter,
+     * and {@code GridConnection#setAdHocChannels} writes the <em>used</em> field), so AE2 stays free to hand
+     * a device more later. The accounting is recomputed on every question for exactly that reason.</p>
+     */
+    public static final int CHANNELS_PER_CONTROLLER = 32;
+
+    /**
      * The timed pass is only a fallback - the moments a link actually has to be re-established are the
      * player's click (handled synchronously) and a chunk waking up (handled by {@code ChunkEvent.Load},
      * see {@link #rebuildAround}). Nothing else needs it, so it is deliberately slow: five seconds between
@@ -79,6 +97,7 @@ public final class WirelessLinks {
     private static final int MAX_REBUILD_ATTEMPTS = 5;
 
     private static final String TAG_LINKS = "links";
+    private static final String TAG_GRANTS = "grants";
     private static final String TAG_A = "a";
     private static final String TAG_B = "b";
     private static final String TAG_DIM = "dim";
@@ -127,9 +146,15 @@ public final class WirelessLinks {
         GONE
     }
 
-    /** The persisted half is the list of pairs; the edges are ours only for as long as both ends are up. */
+    /** The persisted half is the list of pairs and the controller taps; edges are ours only while both ends are up. */
     public static final class Data {
         final List<Link> links = new ArrayList<>();
+        /**
+         * Controllers the player tapped with the card. Stored as positions, not as a running total, because
+         * the total is meaningless without knowing which network each controller is sitting on right now -
+         * and that answer only exists while the chunk is loaded.
+         */
+        final List<GlobalPos> grants = new ArrayList<>();
         final Map<Link, IGridConnection> edges = new HashMap<>();
         /** Per-pair bookkeeping for the rebuild throttle; none of it is persisted. */
         final Map<Link, Long> lastAttemptTick = new HashMap<>();
@@ -184,6 +209,14 @@ public final class WirelessLinks {
                             }
                         }
                     }
+                    for (Tag entry : tag.getList(TAG_GRANTS, Tag.TAG_COMPOUND)) {
+                        if (entry instanceof CompoundTag single) {
+                            GlobalPos at = readEndpoint(single);
+                            if (at != null && !data.grants.contains(at)) {
+                                data.grants.add(at);
+                            }
+                        }
+                    }
                     return data;
                 }
 
@@ -196,8 +229,13 @@ public final class WirelessLinks {
                         pair.put(TAG_B, writeEndpoint(link.b()));
                         list.add(pair);
                     }
+                    ListTag grants = new ListTag();
+                    for (GlobalPos at : data.grants) {
+                        grants.add(writeEndpoint(at));
+                    }
                     CompoundTag tag = new CompoundTag();
                     tag.put(TAG_LINKS, list);
+                    tag.put(TAG_GRANTS, grants);
                     return tag;
                 }
             };
@@ -275,6 +313,18 @@ public final class WirelessLinks {
         if (a.getGrid() == b.getGrid()) {
             return "the two are already on one network, so an edge between them proves nothing";
         }
+        // The budget gate, and it is a gate not a cap: everything from here on is what these two networks
+        // bought and what their linked devices report as used. AE2 is still free to hand a machine more
+        // channels later, because nothing in its API lets anyone limit an edge or a node.
+        int granted = grantedFor(owner, data, a.getGrid(), b.getGrid());
+        int spent = spentOn(owner, data, a.getGrid(), b.getGrid());
+        int cost = channelCost(a) + channelCost(b);
+        if (spent + cost > granted) {
+            return "this link needs " + cost + " channel(s) and these two networks have "
+                    + Math.max(0, granted - spent) + " free (channels=" + spent + "/" + granted
+                    + ") - sneak-right-click an AE2 controller here with the card to buy "
+                    + CHANNELS_PER_CONTROLLER + " more";
+        }
         data.links.add(link);
         // No dirty flag to set: LevelAttachmentsSavedData.isDirty() answers true unconditionally, so a
         // level save always re-reads whatever this object currently holds.
@@ -288,6 +338,106 @@ public final class WirelessLinks {
                     + " node when that block first ticks, so binding it again in a moment should work";
         }
         return "recorded " + describe(link) + " but no edge was made (see log)";
+    }
+
+    /**
+     * True when that position holds an AE2 controller - the only block whose tap buys channel capacity,
+     * because the controller is the thing AE2 itself counts channels against.
+     */
+    public static boolean isController(ServerLevel acting, GlobalPos at) {
+        if (!at.dimension().equals(acting.dimension()) || !chunkIsHere(acting, at)) {
+            return false;
+        }
+        return acting.getBlockState(at.pos()).getBlock()
+                == appeng.core.definitions.AEBlocks.CONTROLLER.block();
+    }
+
+    /**
+     * The controller tap: buys {@link #CHANNELS_PER_CONTROLLER} channels for the network that controller is
+     * sitting on right now. Tapping the same one twice changes nothing. A controller with no grid is refused
+     * rather than filed, because the grant is only meaningful as a property of a network.
+     */
+    public static String grant(ServerLevel acting, Supplier<AttachmentType<Data>> type, GlobalPos at) {
+        if (!isController(acting, at)) {
+            return describe(at) + " is not an AE2 controller, so it buys nothing";
+        }
+        ServerLevel owner = levelOf(acting, at.dimension());
+        if (owner == null) {
+            return "that dimension is not loaded";
+        }
+        Data data = owner.getData(type.get());
+        var node = node(owner, at);
+        if (node == null || node.getGrid() == null) {
+            return describe(at) + " is not on a network yet, so there is nothing to buy channels for";
+        }
+        if (data.grants.contains(at)) {
+            return "already granted " + describe(at) + ": "
+                    + ledger(owner, data, node.getGrid());
+        }
+        data.grants.add(at);
+        return "granted " + CHANNELS_PER_CONTROLLER + " channel(s) at " + describe(at) + " | "
+                + ledger(owner, data, node.getGrid());
+    }
+
+    /** What these networks bought and what they are using, in the one line the player is shown. */
+    private static String ledger(ServerLevel acting, Data data, IGrid... grids) {
+        return "channels=" + spentOn(acting, data, grids) + "/" + grantedFor(acting, data, grids);
+    }
+
+    private static int grantedFor(ServerLevel acting, Data data, IGrid... grids) {
+        int channels = 0;
+        for (GlobalPos grant : data.grants) {
+            // The grant is a property of a controller, not of a coordinate: without this second question a
+            // player could take the controller away, stand any other device on that square, and keep the
+            // allowance. Measured the hard way - a stale grant position was paying for a fresh network.
+            if (!isController(acting, grant)) {
+                continue;
+            }
+            var node = node(acting, grant);
+            if (node != null && sitsInAny(node, grids)) {
+                channels += CHANNELS_PER_CONTROLLER;
+            }
+        }
+        return channels;
+    }
+
+    /**
+     * What every device that already carries a link reports as used, counting each device once. Recomputed
+     * from live nodes on every question: a running total would go stale the moment AE2 re-pathed the grid,
+     * and we have no hook that tells us when that happens.
+     */
+    private static int spentOn(ServerLevel acting, Data data, IGrid... grids) {
+        Set<GlobalPos> counted = new HashSet<>();
+        int used = 0;
+        for (Link link : data.links) {
+            for (GlobalPos end : new GlobalPos[]{link.a(), link.b()}) {
+                var node = node(acting, end);
+                if (node == null || !sitsInAny(node, grids) || !counted.add(end)) {
+                    continue;
+                }
+                used += channelCost(node);
+            }
+        }
+        return used;
+    }
+
+    /**
+     * One device's price. Measured at 1 for the machines we and AE2 ship ({@code used=1} against
+     * {@code max=8} on every endpoint read so far), so the number follows what a device actually occupies -
+     * its capacity would have charged 8 for something that uses one. The floor exists because a node that
+     * has not been assigned yet answers 0 and would otherwise be free.
+     */
+    private static int channelCost(IGridNode node) {
+        return Math.max(1, node.getUsedChannels());
+    }
+
+    private static boolean sitsInAny(IGridNode node, IGrid... grids) {
+        for (IGrid grid : grids) {
+            if (grid != null && grid == node.getGrid()) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
@@ -310,7 +460,11 @@ public final class WirelessLinks {
                 // thing appeng.me.GridConnection#destroy() does is ask sideA for its grid, and a node that
                 // already left the world answers null.
                 IGridConnection held = data.edges.get(link);
-                if (held != null && isStillBetween(level, held, link)) {
+                boolean provable = isStillBetween(level, held, link);
+                NeoECOPrototype.LOGGER.info("wireless link: unlink {} held={} provable={} (a)={} (b)={}",
+                        describe(link), held != null, provable, node(level, link.a()) != null,
+                        node(level, link.b()) != null);
+                if (provable) {
                     held.destroy();
                 }
                 data.drop(link);
@@ -346,7 +500,20 @@ public final class WirelessLinks {
      */
     public static String status(ServerLevel acting, Supplier<AttachmentType<Data>> type, GlobalPos endpoint) {
         return describe(endpoint) + " wirelessLinks=" + linksAtEverywhere(acting, type, endpoint)
-                + " live=" + liveLinksAt(acting, type, endpoint);
+                + " live=" + liveLinksAt(acting, type, endpoint) + " " + ledgerAt(acting, type, endpoint);
+    }
+
+    /**
+     * The ledger for the network this endpoint sits on. Saying "unknown" when the device has no live grid is
+     * the honest half of the design: the numbers only exist while the controllers can be asked.
+     */
+    private static String ledgerAt(ServerLevel acting, Supplier<AttachmentType<Data>> type, GlobalPos endpoint) {
+        var node = node(acting, endpoint);
+        ServerLevel owner = levelOf(acting, endpoint.dimension());
+        if (node == null || node.getGrid() == null || owner == null || !owner.hasData(type.get())) {
+            return "channels=unknown (this device has no live network to count)";
+        }
+        return ledger(owner, owner.getData(type.get()), node.getGrid());
     }
 
     private static int liveLinksAt(ServerLevel acting, Supplier<AttachmentType<Data>> type, GlobalPos endpoint) {
@@ -454,7 +621,7 @@ public final class WirelessLinks {
                 it.remove();
                 continue;
             }
-            if (!rebuildLink(acting, data, link)) {
+            if (!rebuildLink(acting, data, link, "wake burst")) {
                 data.links.remove(link);
                 it.remove();
             }
@@ -476,7 +643,7 @@ public final class WirelessLinks {
         }
         Data data = acting.getData(type.get());
         for (Iterator<Link> it = data.links.iterator(); it.hasNext(); ) {
-            if (!rebuildLink(acting, data, it.next())) {
+            if (!rebuildLink(acting, data, it.next(), "sweep")) {
                 it.remove();
             }
         }
@@ -517,17 +684,30 @@ public final class WirelessLinks {
     /**
      * One recorded pair, one decision.
      *
+     * @param trigger which pass is asking, so the line that reports a dropped record names who killed it
      * @return false when the record is dead and the caller should drop it (an endpoint is no longer a
      *         network device)
      */
-    private static boolean rebuildLink(ServerLevel acting, Data data, Link link) {
+    private static boolean rebuildLink(ServerLevel acting, Data data, Link link, String trigger) {
         Presence pa = presence(acting, link.a());
         Presence pb = presence(acting, link.b());
         if (pa == Presence.GONE || pb == Presence.GONE) {
             GlobalPos gone = pa == Presence.GONE ? link.a() : link.b();
+            GlobalPos other = pa == Presence.GONE ? link.b() : link.a();
+            Presence otherPresence = pa == Presence.GONE ? pb : pa;
+            // This is the one decision that deletes a player's pairing, so it names what it saw. The
+            // boundary is narrower than "the machine is not ready": presence() asks for a block entity of
+            // AE2's hierarchy, not for a node, so a device that was placed one tick ago and has not built
+            // its node yet is AWAKE here and survives. What can still be killed is a square whose block was
+            // swapped for something outside that hierarchy - which for a player usually means they broke it
+            // and the sweep landed in the gap before they put it back.
+            IGridConnection held = data.edges.get(link);
             data.drop(link);
-            NeoECOPrototype.LOGGER.info("wireless link: dropped {} because {} is no longer a device",
-                    describe(link), describe(gone));
+            NeoECOPrototype.LOGGER.warn("wireless link: dropped {} in {} because {} is no longer a device;"
+                            + " there is {} (held edge={}, other end {} is {}, node={})",
+                    describe(link), trigger, describe(gone), whatStandsThere(acting, gone),
+                    held == null ? "none" : "virtual edge", describe(other), name(otherPresence),
+                    node(acting, other) != null);
             return false;
         }
         // Keep what we can still prove. Rebuilding an edge that is already in the graph buys a full
@@ -539,10 +719,38 @@ public final class WirelessLinks {
         data.edges.remove(link);
         EdgeResult result = ensureEdge(acting, data, link);
         if (result.edge() != null) {
-            NeoECOPrototype.LOGGER.info("wireless link: rebuilt {} | {}", describe(link),
+            NeoECOPrototype.LOGGER.info("wireless link: rebuilt {} in {} | {}", describe(link), trigger,
                     readings(result.edge(), result.a(), result.b()));
         }
         return true;
+    }
+
+    /**
+     * What stands on a recorded position, for the drop line. Only legal because {@link Presence#GONE} is
+     * concluded from a chunk that {@link #chunkIsHere} already answered non-null for, and every caller of
+     * this runs from the tick pass on the main thread - so this is a cache hit, not a load request.
+     *
+     * <p>Two names, because they separate the two ways a record can die: {@code air} means the player took
+     * it away and the drop is right; a block with a class name means something is standing there that we do
+     * not recognise as a device, and {@link #presence} already excluded both {@code IGridConnectedBlockEntity}
+     * and a node-host capability, so this is the only line that can name what it excluded.</p>
+     */
+    private static String whatStandsThere(ServerLevel acting, GlobalPos at) {
+        if (!at.dimension().equals(acting.dimension()) || !chunkIsHere(acting, at)) {
+            return "unreadable (that dimension is not the one this pass is running in)";
+        }
+        var block = acting.getBlockState(at.pos()).getBlock();
+        var entity = acting.getBlockEntity(at.pos());
+        return (block == net.minecraft.world.level.block.Blocks.AIR ? "air" : block.getDescriptionId())
+                + ", blockEntity=" + (entity == null ? "none" : entity.getClass().getName());
+    }
+
+    private static String name(Presence presence) {
+        return switch (presence) {
+            case AWAKE -> "awake";
+            case ASLEEP -> "asleep";
+            case GONE -> "gone";
+        };
     }
 
     /**

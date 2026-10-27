@@ -46,6 +46,11 @@ public class WirelessLinkCardItem extends Item {
 
     @Override
     public InteractionResult useOn(UseOnContext context) {
+        if (!cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig.WIRELESS_LINKS.get()) {
+            // Switched off for this release: answer PASS rather than consume, so the device under the cursor
+            // behaves exactly as it would with any other item in hand and no half-gesture is left recorded.
+            return InteractionResult.PASS;
+        }
         Level level = context.getLevel();
         Player player = context.getPlayer();
         if (!(level instanceof ServerLevel serverLevel) || player == null) {
@@ -60,6 +65,11 @@ public class WirelessLinkCardItem extends Item {
             // Clicking the marked block again is the way out of a link the player can see.
             report = WirelessLinks.unlink(serverLevel, ModRegistration.WIRELESS_LINKS, clicked);
             clearEndpoint(card);
+        } else if (held == null && WirelessLinks.isController(serverLevel, clicked)) {
+            // An empty card tapping a controller buys that network's channel budget instead of marking it.
+            // With an anchor already held the controller is still bindable as an endpoint, because measured
+            // behaviour says a controller carries no channels of its own - it just joins the two networks.
+            report = WirelessLinks.grant(serverLevel, ModRegistration.WIRELESS_LINKS, clicked);
         } else if (held == null) {
             if (!WirelessLinks.isDevice(serverLevel, clicked)) {
                 report = "no network device at " + WirelessLinks.describe(clicked);
@@ -70,9 +80,9 @@ public class WirelessLinkCardItem extends Item {
             }
         } else {
             report = WirelessLinks.bind(serverLevel, ModRegistration.WIRELESS_LINKS, held, clicked);
-            if (report.startsWith("linked ") || report.startsWith("recorded ")) {
-                clearEndpoint(card);
-            }
+            // The mark deliberately survives a successful join: one tap on the hub and then one tap per
+            // device is how a player wires a hub to several spokes. The brake on that is not the gesture but
+            // the channel allowance the join spends, and the reply line names both.
         }
         NeoECOPrototype.LOGGER.info("wireless link card: {}", report);
         player.sendSystemMessage(Component.literal("wireless link: " + report));
@@ -88,6 +98,10 @@ public class WirelessLinkCardItem extends Item {
                 ? Component.translatable("item.neoecoprototype.wireless_link_card.tooltip")
                 : Component.translatable("item.neoecoprototype.wireless_link_card.holds",
                         WirelessLinks.describe(held)));
+        // Named because the honest reading is the opposite of what a player reaches for: a device whose own
+        // grid still has power looks alive after its link is gone, so "is the link there" has exactly one
+        // answer source - the live= count the card prints.
+        tooltip.add(Component.translatable("item.neoecoprototype.wireless_link_card.check"));
     }
 
     // ==================== what the card is carrying ====================

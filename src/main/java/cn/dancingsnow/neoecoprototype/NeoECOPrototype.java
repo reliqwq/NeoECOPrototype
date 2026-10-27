@@ -87,18 +87,28 @@ public class NeoECOPrototype {
         // edge back. This pass is that rebuild, and it only walks the links the dimension signed up for -
         // every hundred ticks, which is why it can be that leisurely.
         net.neoforged.neoforge.common.NeoForge.EVENT_BUS.addListener(
-                (net.neoforged.neoforge.event.tick.LevelTickEvent.Post event) ->
-                        cn.dancingsnow.neoecoprototype.event.WirelessLinks.sweep(
-                                event.getLevel(), ModRegistration.WIRELESS_LINKS));
+                (net.neoforged.neoforge.event.tick.LevelTickEvent.Post event) -> {
+                    if (!cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig
+                            .WIRELESS_LINKS.get()) {
+                        return;
+                    }
+                    cn.dancingsnow.neoecoprototype.event.WirelessLinks.sweep(
+                            event.getLevel(), ModRegistration.WIRELESS_LINKS);
+                });
         // The event that actually matters is a chunk waking up next to a link. ChunkEvent.Load still fires
         // before AE2 has built the endpoint's node (that happens on the block entity's first tick), so what
         // this really buys is the short burst of follow-up passes it arms - the link comes back in under a
         // second instead of on the next slow sweep.
         net.neoforged.neoforge.common.NeoForge.EVENT_BUS.addListener(
-                (net.neoforged.neoforge.event.level.ChunkEvent.Load event) ->
-                        cn.dancingsnow.neoecoprototype.event.WirelessLinks.rebuildAround(
-                                event.getLevel(), ModRegistration.WIRELESS_LINKS,
-                                event.getChunk().getPos().x, event.getChunk().getPos().z));
+                (net.neoforged.neoforge.event.level.ChunkEvent.Load event) -> {
+                    if (!cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig
+                            .WIRELESS_LINKS.get()) {
+                        return;
+                    }
+                    cn.dancingsnow.neoecoprototype.event.WirelessLinks.rebuildAround(
+                            event.getLevel(), ModRegistration.WIRELESS_LINKS,
+                            event.getChunk().getPos().x, event.getChunk().getPos().z);
+                });
     }
 
     /**

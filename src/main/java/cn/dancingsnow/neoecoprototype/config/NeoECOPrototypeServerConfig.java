@@ -38,6 +38,14 @@ public final class NeoECOPrototypeServerConfig {
      * guard asserts this is empty, so re-enabling a dimension is a deliberate edit.
      */
     public static final List<String> CRYOTHEUM_ORE_DIMENSIONS_DEFAULT = List.of();
+    /**
+     * The wireless link card ships switched off. The feature is written, guarded and controlled-tested, and
+     * what is not settled is its balance: what a controller grant should buy, and whether a link whose
+     * payment source disappears should be torn down. Keeping the code in and the default off makes turning
+     * it on a one-line decision instead of a re-write, and keeps the saved records readable meanwhile.
+     */
+    public static final boolean WIRELESS_LINKS_DEFAULT = false;
+    public static final ModConfigSpec.BooleanValue WIRELESS_LINKS;
     /** How much of the vanilla powder-snow chill one broken cryotheum ore is worth. */
     public static final ModConfigSpec.IntValue CRYOTHEUM_ORE_FREEZE_TICKS;
     /** Whether the floating End comet generates at all; it is the family's only remaining world entry. */
@@ -96,6 +104,13 @@ public final class NeoECOPrototypeServerConfig {
                         "On by default - off, every shift-click prints either of them for nothing, and a",
                         "pattern is a real recipe that stays in the world once it is made.")
                 .define("structure_card_consumes_items", STRUCTURE_CARD_CONSUMES_ITEMS_DEFAULT);
+        WIRELESS_LINKS = builder
+                .comment("Wireless ME links: the link card, the level's rebuild pass and its chunk wake.",
+                        "Off by default in this release - the feature works and is guarded, but what a",
+                        "controller grant should buy is not settled. Turning it on lets a player join two",
+                        "devices with no cable between them; links recorded while it was on stay in the",
+                        "world's data and come back when it is switched on again.")
+                .define("wireless_links", WIRELESS_LINKS_DEFAULT);
         DERIVE_PROCESSOR_RECIPES_FROM_INSCRIBER = builder
                 .comment("Also accept processor recipes derived from AE2's inscriber (press-mode recipes, with",
                         "printed parts unfolded into the material inscribed into them).",
