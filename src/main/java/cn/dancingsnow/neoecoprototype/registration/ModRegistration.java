@@ -96,6 +96,7 @@ import cn.dancingsnow.neoecoprototype.items.SimplifyStructureExpansionCardItem;
 import cn.dancingsnow.neoecoprototype.items.SimplifyStorageCellItem;
 import cn.dancingsnow.neoecoprototype.items.SimplifySmallBulkFluidStorageCellItem;
 import cn.dancingsnow.neoecoprototype.items.SimplifySmallBulkStorageCellItem;
+import cn.dancingsnow.neoecoprototype.event.WirelessLinks;
 import net.minecraft.core.component.DataComponentType;
 import net.minecraft.core.registries.Registries;
 import cn.dancingsnow.neoecoprototype.recipe.ProcessorAssemblerRecipe;
@@ -205,6 +206,13 @@ public class ModRegistration {
             cn.dancingsnow.neoecoprototype.worldgen.ConfigGatedOreFeature::new);
     public static final DeferredRegister<RecipeSerializer<?>> RECIPE_SERIALIZERS =
             DeferredRegister.create(Registries.RECIPE_SERIALIZER, NeoECOPrototype.MOD_ID);
+    /** NeoForge saves an attachment of this registry on whatever holds it, and a level is one of them. */
+    public static final DeferredRegister<net.neoforged.neoforge.attachment.AttachmentType<?>> ATTACHMENT_TYPES =
+            DeferredRegister.create(net.neoforged.neoforge.registries.NeoForgeRegistries.Keys.ATTACHMENT_TYPES,
+                    NeoECOPrototype.MOD_ID);
+    /** Wireless link pairs, filed on the dimension that owns the first endpoint. */
+    public static final Supplier<net.neoforged.neoforge.attachment.AttachmentType<WirelessLinks.Data>>
+            WIRELESS_LINKS = ATTACHMENT_TYPES.register("wireless_links", WirelessLinks::dataType);
     /**
      * AE2's MenuTypeBuilder.build() queues into its own InitMenuTypes, whose queue is already drained
      * because AE2 loads first, so the type has to go through this mod's register.

@@ -60,6 +60,7 @@ public class NeoECOPrototype {
         ModRegistration.BLOCK_ENTITIES.register(modBus);
         ModRegistration.RECIPE_TYPES.register(modBus);
         ModRegistration.RECIPE_SERIALIZERS.register(modBus);
+        ModRegistration.ATTACHMENT_TYPES.register(modBus);
         ModRegistration.FEATURES.register(modBus);
         cn.dancingsnow.neoecoprototype.worldgen.ModWorldgen.STRUCTURE_TYPES.register(modBus);
         cn.dancingsnow.neoecoprototype.worldgen.ModWorldgen.STRUCTURE_PIECES.register(modBus);
@@ -81,6 +82,23 @@ public class NeoECOPrototype {
                 (net.neoforged.neoforge.event.server.ServerStoppingEvent event) ->
                         cn.dancingsnow.neoecoprototype.block.computation
                                 .SimplifyComputationSystemBlock.clearPendingShapes());
+        // A wireless link joins two devices that belong to other mods, so there is no hook inside them to
+        // rebuild it from: the probe measured a pairing that survived a reload while nothing ever put the
+        // edge back. This pass is that rebuild, and it only walks the links the dimension signed up for -
+        // every hundred ticks, which is why it can be that leisurely.
+        net.neoforged.neoforge.common.NeoForge.EVENT_BUS.addListener(
+                (net.neoforged.neoforge.event.tick.LevelTickEvent.Post event) ->
+                        cn.dancingsnow.neoecoprototype.event.WirelessLinks.sweep(
+                                event.getLevel(), ModRegistration.WIRELESS_LINKS));
+        // The event that actually matters is a chunk waking up next to a link. ChunkEvent.Load still fires
+        // before AE2 has built the endpoint's node (that happens on the block entity's first tick), so what
+        // this really buys is the short burst of follow-up passes it arms - the link comes back in under a
+        // second instead of on the next slow sweep.
+        net.neoforged.neoforge.common.NeoForge.EVENT_BUS.addListener(
+                (net.neoforged.neoforge.event.level.ChunkEvent.Load event) ->
+                        cn.dancingsnow.neoecoprototype.event.WirelessLinks.rebuildAround(
+                                event.getLevel(), ModRegistration.WIRELESS_LINKS,
+                                event.getChunk().getPos().x, event.getChunk().getPos().z));
     }
 
     /**

@@ -50,6 +50,7 @@ import cn.dancingsnow.neoecoprototype.blockentity.trinity.SimplifyTrinityControl
 import cn.dancingsnow.neoecoprototype.blockentity.trinity.SimplifyTrinityCraftingModuleBlockEntity;
 import cn.dancingsnow.neoecoprototype.blockentity.trinity.SimplifyTrinityStorageModuleBlockEntity;
 import cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig;
+import cn.dancingsnow.neoecoprototype.event.WirelessLinks;
 import cn.dancingsnow.neoecoprototype.integration.ae2.OversizeInterfaceLogic;
 import cn.dancingsnow.neoecoprototype.integration.ae2.SimplifyGridFacade;
 import cn.dancingsnow.neoecoprototype.items.SimplifyMigrationDriveItem;
@@ -62,6 +63,7 @@ import cn.dancingsnow.neoecoprototype.multiblock.definition.SimplifyStorageDefin
 import cn.dancingsnow.neoecoprototype.multiblock.trinity.TrinityCraftingExecutor;
 import cn.dancingsnow.neoecoprototype.registration.ModRegistration;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.GlobalPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.gametest.framework.GameTest;
@@ -12489,5 +12491,366 @@ public final class NeoECOPrototypeGameTests {
             return;
         }
         helper.succeed();
+    }
+
+    /**
+     * The wireless link card, at the layer this suite can actually reach: two devices that share no space,
+     * joined by {@code GridHelper.createConnection}, then asked whether they are one network. The edge is
+     * read back as {@code edge=virtual} because a connection that passes through zero cable blocks must not
+     * look like a cable to AE2's own cleanup - and that cleanup is the reason this needs a test: an
+     * in-world connection whose side stops being exposed is destroyed by
+     * {@code appeng.me.InWorldGridNode#cleanupConnections}, which walks {@code getConnections()} and
+     * skips only what answers {@code isInWorld() == false}.
+     *
+     * <p>What this does NOT cover, so nobody reads it as covered: the pairing surviving a real chunk
+     * unload, and an eco interface being bindable. Both endpoints here are our own block entities, and the
+     * rebuild pass is only provable in a client where chunks actually go to sleep.</p>
+     */
+    @GameTest(template = "empty", batch = "wireless_link_card", timeoutTicks = 400,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void wirelessLinkCardJoinsTwoDevicesWithoutACable(GameTestHelper helper) {
+        var near = new BlockPos(0, 1, 0);
+        var far = new BlockPos(0, 1, 8);
+        helper.setBlock(near, ModRegistration.SUPERCONDUCTIVE_INTERFACE_BLOCK.get());
+        helper.setBlock(far, ModRegistration.SIMPLIFY_STORAGE_CASING_BLOCK.get());
+        var level = (ServerLevel) helper.getLevel();
+        var a = GlobalPos.of(level.dimension(), helper.absolutePos(near));
+        var b = GlobalPos.of(level.dimension(), helper.absolutePos(far));
+        waitUntil(helper, 25,
+                () -> separateNetworks(level, a, b),
+                () -> "the two devices never became two separate network nodes: a=" + nodeSummary(level, a)
+                        + " b=" + nodeSummary(level, b) + ", so a link between them would prove nothing",
+                () -> {
+                    String bound = WirelessLinks.bind(level, ModRegistration.WIRELESS_LINKS, a, b);
+                    NeoECOPrototype.LOGGER.info("wireless link card test: bind said {}", bound);
+                    if (!bound.startsWith("linked ") || !bound.contains("edge=virtual")) {
+                        helper.fail("binding two separate devices reported \"" + bound
+                                + "\", expected \"linked\" over an edge=virtual");
+                        return;
+                    }
+                    if (!oneNetwork(level, a, b)) {
+                        helper.fail("the link was reported but the two devices are still on different "
+                                + "networks, so nothing merged: " + nodeSummary(level, a) + " / "
+                                + nodeSummary(level, b));
+                        return;
+                    }
+                    if (!WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS, a)
+                                    .endsWith("wirelessLinks=1 live=1")
+                            || !WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS, b)
+                                    .endsWith("wirelessLinks=1 live=1")) {
+                        helper.fail("one edge should count for both ends: a="
+                                + WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS, a) + " b="
+                                + WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS, b));
+                        return;
+                    }
+                    String twice = WirelessLinks.bind(level, ModRegistration.WIRELESS_LINKS, a, b);
+                    if (!twice.startsWith("already linked ")) {
+                        helper.fail("binding the same pair again reported \"" + twice
+                                + "\", expected it to be refused - a second edge between the same two "
+                                + "nodes is a second cable nobody asked for");
+                        return;
+                    }
+                    String unlinked = WirelessLinks.unlink(level, ModRegistration.WIRELESS_LINKS, a);
+                    if (!unlinked.startsWith("dropped 1 link(s)")) {
+                        helper.fail("unbinding the near end reported \"" + unlinked
+                                + "\", expected exactly one link dropped");
+                        return;
+                    }
+                    waitUntil(helper, 20,
+                            () -> separateNetworks(level, a, b),
+                            () -> "after dropping the only link the two devices stayed on one network ("
+                                    + nodeSummary(level, a) + " / " + nodeSummary(level, b)
+                                    + "), so the edge outlived its record",
+                            () -> {
+                                if (!WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS, b)
+                                        .endsWith("wirelessLinks=0 live=0")) {
+                                    helper.fail("the far end still believes it is linked: "
+                                            + WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS, b));
+                                    return;
+                                }
+                                helper.succeed();
+                            });
+                });
+    }
+
+    /**
+     * The one number in this feature that is ours to set rather than AE2's: how many wireless edges a
+     * single device may carry. It has to be enforced where the record is written, because a link costs
+     * nothing in blocks and a player can therefore make as many as they can click.
+     */
+    @GameTest(template = "empty", batch = "wireless_link_card", timeoutTicks = 400,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void wirelessLinkCardRefusesAFifthLinkAtOneDevice(GameTestHelper helper) {
+        var hub = new BlockPos(0, 1, 0);
+        helper.setBlock(hub, ModRegistration.SUPERCONDUCTIVE_INTERFACE_BLOCK.get());
+        var spokes = new java.util.ArrayList<BlockPos>();
+        for (int i = 0; i < WirelessLinks.MAX_LINKS_PER_ENDPOINT + 1; i++) {
+            var pos = new BlockPos(2 + i, 1, 6);
+            helper.setBlock(pos, ModRegistration.SIMPLIFY_STORAGE_CASING_BLOCK.get());
+            spokes.add(pos);
+        }
+        var level = (ServerLevel) helper.getLevel();
+        var hubPos = GlobalPos.of(level.dimension(), helper.absolutePos(hub));
+        waitUntil(helper, 25,
+                () -> spokes.stream().allMatch(spoke -> separateNetworks(level, hubPos,
+                        GlobalPos.of(level.dimension(), helper.absolutePos(spoke)))),
+                () -> "a device in the cap fixture never became a separate network node: hub="
+                        + nodeSummary(level, hubPos) + " last spoke="
+                        + nodeSummary(level, GlobalPos.of(level.dimension(),
+                        helper.absolutePos(spokes.get(spokes.size() - 1))))
+                        + " - a block entity answers as a device the moment it is placed, but AE2 only "
+                        + "builds its node in onReady, which is what this poll waits for",
+                () -> {
+                    for (int i = 0; i < WirelessLinks.MAX_LINKS_PER_ENDPOINT; i++) {
+                        var spoke = GlobalPos.of(level.dimension(),
+                                helper.absolutePos(spokes.get(i)));
+                        String bound = WirelessLinks.bind(level, ModRegistration.WIRELESS_LINKS, hubPos, spoke);
+                        if (!bound.startsWith("linked ")) {
+                            helper.fail("link " + (i + 1) + " of " + WirelessLinks.MAX_LINKS_PER_ENDPOINT
+                                    + " was refused: \"" + bound + "\"");
+                            return;
+                        }
+                    }
+                    var extra = GlobalPos.of(level.dimension(),
+                            helper.absolutePos(spokes.get(WirelessLinks.MAX_LINKS_PER_ENDPOINT)));
+                    String refused = WirelessLinks.bind(level, ModRegistration.WIRELESS_LINKS, hubPos, extra);
+                    if (!refused.contains("max " + WirelessLinks.MAX_LINKS_PER_ENDPOINT)) {
+                        helper.fail("a link past the cap was accepted: \"" + refused + "\"");
+                        return;
+                    }
+                    if (!WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS, extra)
+                            .endsWith("wirelessLinks=0 live=0")) {
+                        helper.fail("the refused pair still left a record behind: "
+                                + WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS, extra));
+                        return;
+                    }
+                    helper.succeed();
+                });
+    }
+
+    /**
+     * The rebuild pass has to survive losing its own reference while AE2 keeps the edge - which is the
+     * state a chunk unload leaves behind, and the one that costs the most to get wrong:
+     * {@code appeng.me.GridConnection#create} answers {@code IllegalStateException} for a pair that is
+     * already connected, and on the success path it merges grids with a full propagation of both networks
+     * plus a repath. So a pass that asks instead of adopts is either spamming a refusal every ten ticks, or
+     * recalculating the main network for a link it already has.
+     *
+     * <p>This is the control group for that: it forces exactly the "record without a reference" state
+     * through {@link WirelessLinks#forgetEdge}, runs the pass, and demands one edge and one live link out
+     * of it. Before the adopt path existed, the pass went through {@code createConnection} here, the pair
+     * already had that connection, and the reference stayed null - which is what the second assertion
+     * below would catch.</p>
+     */
+    @GameTest(template = "empty", batch = "wireless_link_card", timeoutTicks = 400,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void wirelessLinkRebuildAdoptsTheEdgeAe2AlreadyHas(GameTestHelper helper) {
+        var near = new BlockPos(0, 1, 0);
+        var far = new BlockPos(0, 1, 8);
+        helper.setBlock(near, ModRegistration.SUPERCONDUCTIVE_INTERFACE_BLOCK.get());
+        helper.setBlock(far, ModRegistration.SIMPLIFY_STORAGE_CASING_BLOCK.get());
+        var level = (ServerLevel) helper.getLevel();
+        var a = GlobalPos.of(level.dimension(), helper.absolutePos(near));
+        var b = GlobalPos.of(level.dimension(), helper.absolutePos(far));
+        var link = WirelessLinks.linkOf(a, b);
+        waitUntil(helper, 25,
+                () -> separateNetworks(level, a, b),
+                () -> "the two devices never became two separate network nodes: " + nodeSummary(level, a)
+                        + " / " + nodeSummary(level, b) + ", so this measures nothing",
+                () -> {
+                    String bound = WirelessLinks.bind(level, ModRegistration.WIRELESS_LINKS, a, b);
+                    if (!bound.startsWith("linked ")) {
+                        helper.fail("binding the pair reported \"" + bound + "\", expected a link");
+                        return;
+                    }
+                    WirelessLinks.forgetEdge(level, ModRegistration.WIRELESS_LINKS, link);
+                    if (WirelessLinks.edgeOf(level, ModRegistration.WIRELESS_LINKS, link) != null) {
+                        helper.fail("forgetEdge left a reference behind, so the pass has nothing to prove");
+                        return;
+                    }
+                    if (!oneNetwork(level, a, b)) {
+                        helper.fail("dropping only our reference split the network, so AE2 was holding the "
+                                + "edge for us and the fixture is not the state being tested");
+                        return;
+                    }
+                    int before = connectionsBetween(level, a, b);
+                    WirelessLinks.rebuildNow(level, ModRegistration.WIRELESS_LINKS);
+                    WirelessLinks.rebuildNow(level, ModRegistration.WIRELESS_LINKS);
+                    if (WirelessLinks.edgeOf(level, ModRegistration.WIRELESS_LINKS, link) == null) {
+                        helper.fail("two passes never got hold of the edge AE2 already had: the pair has "
+                                + before + " connection(s) between them and our reference is still null");
+                        return;
+                    }
+                    if (connectionsBetween(level, a, b) != before) {
+                        helper.fail("the pass added connections instead of adopting the one there was: "
+                                + before + " before, " + connectionsBetween(level, a, b) + " after");
+                        return;
+                    }
+                    if (!WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS, a)
+                            .endsWith("wirelessLinks=1 live=1")) {
+                        helper.fail("after rebuilding, the device itself still reports: "
+                                + WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS, a));
+                        return;
+                    }
+                    helper.succeed();
+                });
+    }
+
+    /**
+     * The chunk wake has to be a *targeted* wake: a world generates chunks constantly, and if every load
+     * swept the whole table - or if the matching were wrong and matched nothing - the cheap fallback pass
+     * would stop being cheap, or the link would not come back when it should.
+     *
+     * <p>Both directions are asserted, and the first one is the control: waking a chunk that holds neither
+     * endpoint must leave the dropped reference dropped. Without the chunk test in {@code rebuildAround}
+     * that assertion would go green by accident, which is why the second half wakes the right chunk.</p>
+     */
+    @GameTest(template = "empty", batch = "wireless_link_card", timeoutTicks = 400,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void wirelessLinkWakeOnlyRebuildsTheLinkInThatChunk(GameTestHelper helper) {
+        var near = new BlockPos(0, 1, 0);
+        var far = new BlockPos(0, 1, 8);
+        helper.setBlock(near, ModRegistration.SUPERCONDUCTIVE_INTERFACE_BLOCK.get());
+        helper.setBlock(far, ModRegistration.SIMPLIFY_STORAGE_CASING_BLOCK.get());
+        var level = (ServerLevel) helper.getLevel();
+        var a = GlobalPos.of(level.dimension(), helper.absolutePos(near));
+        var b = GlobalPos.of(level.dimension(), helper.absolutePos(far));
+        var link = WirelessLinks.linkOf(a, b);
+        waitUntil(helper, 25,
+                () -> separateNetworks(level, a, b),
+                () -> "the two devices never became two separate network nodes: " + nodeSummary(level, a)
+                        + " / " + nodeSummary(level, b) + ", so this measures nothing",
+                () -> {
+                    if (!WirelessLinks.bind(level, ModRegistration.WIRELESS_LINKS, a, b).startsWith("linked ")) {
+                        helper.fail("the fixture could not bind the pair, so the wake path has nothing to wake");
+                        return;
+                    }
+                    WirelessLinks.forgetEdge(level, ModRegistration.WIRELESS_LINKS, link);
+                    var here = helper.absolutePos(near);
+                    // A chunk 16 sections away from both endpoints - same dimension, loaded, irrelevant.
+                    WirelessLinks.rebuildAround(level, ModRegistration.WIRELESS_LINKS,
+                            (here.getX() >> 4) + 512, (here.getZ() >> 4) + 512);
+                    if (WirelessLinks.edgeOf(level, ModRegistration.WIRELESS_LINKS, link) != null) {
+                        helper.fail("waking an unrelated chunk rebuilt the link, so the match is not by chunk");
+                        return;
+                    }
+                    WirelessLinks.rebuildAround(level, ModRegistration.WIRELESS_LINKS,
+                            here.getX() >> 4, here.getZ() >> 4);
+                    if (WirelessLinks.edgeOf(level, ModRegistration.WIRELESS_LINKS, link) == null) {
+                        helper.fail("waking the chunk that holds an endpoint did not take the link back over");
+                        return;
+                    }
+                    helper.succeed();
+                });
+    }
+
+    /** How many edges AE2 currently has between these two nodes - the number a rebuild must not raise. */
+    private static int connectionsBetween(ServerLevel level, GlobalPos a, GlobalPos b) {
+        var nodeA = networkNode(level, a);
+        var nodeB = networkNode(level, b);
+        if (nodeA == null || nodeB == null) {
+            return -1;
+        }
+        int count = 0;
+        for (var connection : nodeA.getConnections()) {
+            if (connection.getOtherSide(nodeA) == nodeB) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    /**
+     * Two devices that are already wired together with blocks must not get a wireless link, and the reason
+     * is not tidiness: an adopted in-world connection would be destroyed the next time the player unbinds,
+     * so the card would tear out a cable. Both AE2 addons we read make this same split -
+     * ae2lt's {@code WirelessLinkOps#createVirtualConnection} answers
+     * "A physical connection already exists between the target and transmitter." and only adopts a
+     * connection that answers {@code isInWorld() == false}.
+     *
+     * <p>The control is the message itself: before the physical check existed, this pair was refused by the
+     * later "already on one network" rule, so the words the player got were different - and the rule that
+     * caught it there was a coincidence of adjacency, not a guard against adoption.</p>
+     */
+    @GameTest(template = "empty", batch = "wireless_link_card", timeoutTicks = 400,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void wirelessLinkCardRefusesTwoBlocksAlreadyWiredTogether(GameTestHelper helper) {
+        var near = new BlockPos(0, 1, 0);
+        var far = new BlockPos(1, 1, 0);
+        helper.setBlock(near, ModRegistration.SUPERCONDUCTIVE_INTERFACE_BLOCK.get());
+        helper.setBlock(far, ModRegistration.SUPERCONDUCTIVE_INTERFACE_BLOCK.get());
+        var level = (ServerLevel) helper.getLevel();
+        var a = GlobalPos.of(level.dimension(), helper.absolutePos(near));
+        var b = GlobalPos.of(level.dimension(), helper.absolutePos(far));
+        waitUntil(helper, 25,
+                () -> physicalEdgesBetween(level, a, b) >= 1,
+                () -> "the two adjacent devices never formed an in-world connection ("
+                        + physicalEdgesBetween(level, a, b) + "), so this fixture cannot test the refusal",
+                () -> {
+                    String refused = WirelessLinks.bind(level, ModRegistration.WIRELESS_LINKS, a, b);
+                    if (!refused.startsWith("those two are already wired")) {
+                        helper.fail("binding two blocks that are already wired reported \"" + refused
+                                + "\", expected the physical-connection refusal");
+                        return;
+                    }
+                    if (physicalEdgesBetween(level, a, b) < 1) {
+                        helper.fail("the refusal destroyed the connection the player built with blocks");
+                        return;
+                    }
+                    if (WirelessLinks.edgeOf(level, ModRegistration.WIRELESS_LINKS,
+                            WirelessLinks.linkOf(a, b)) != null) {
+                        helper.fail("the refused pair still ended up holding a connection reference");
+                        return;
+                    }
+                    if (!WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS, a)
+                            .endsWith("wirelessLinks=0 live=0")) {
+                        helper.fail("a refused bind left a record behind: "
+                                + WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS, a));
+                        return;
+                    }
+                    helper.succeed();
+                });
+    }
+
+    /** How many block-built connections AE2 currently has between these two nodes. */
+    private static int physicalEdgesBetween(ServerLevel level, GlobalPos a, GlobalPos b) {
+        var nodeA = networkNode(level, a);
+        var nodeB = networkNode(level, b);
+        if (nodeA == null || nodeB == null) {
+            return -1;
+        }
+        int count = 0;
+        for (var connection : nodeA.getConnections()) {
+            if (connection.getOtherSide(nodeA) == nodeB && connection.isInWorld()) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    /** Both endpoints awake, both holding a node, and on two different networks. */
+    private static boolean separateNetworks(ServerLevel level, GlobalPos a,
+                                            GlobalPos b) {
+        var nodeA = networkNode(level, a);
+        var nodeB = networkNode(level, b);
+        return nodeA != null && nodeB != null && nodeA.getGrid() != nodeB.getGrid();
+    }
+
+    private static boolean oneNetwork(ServerLevel level, GlobalPos a,
+                                      GlobalPos b) {
+        var nodeA = networkNode(level, a);
+        var nodeB = networkNode(level, b);
+        return nodeA != null && nodeB != null && nodeA.getGrid() == nodeB.getGrid();
+    }
+
+    private static IGridNode networkNode(ServerLevel level, GlobalPos at) {
+        return level.getBlockEntity(at.pos()) instanceof IGridConnectedBlockEntity connected
+                ? connected.getGridNode() : null;
+    }
+
+    private static String nodeSummary(ServerLevel level, GlobalPos at) {
+        var node = networkNode(level, at);
+        return at.pos().toShortString() + "(node=" + (node == null ? "none" : "max"
+                + node.getMaxChannels() + "/used" + node.getUsedChannels()) + ")";
     }
 }
