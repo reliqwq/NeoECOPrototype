@@ -99,6 +99,7 @@ import java.util.Map;
 import java.util.List;
 import java.util.function.BooleanSupplier;
 import java.util.regex.Pattern;
+import javax.annotation.Nullable;
 import net.neoforged.fml.ModList;
 import net.neoforged.neoforge.gametest.GameTestHolder;
 import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
@@ -5428,6 +5429,400 @@ public final class NeoECOPrototypeGameTests {
                 });
     }
 
+    /**
+     * eco's fast planner is not a property of a machine, it is two network-level switches:
+     * {@code ECOCraftingNetworkSettings#shouldUseFastPlanner()} reads {@code isFastPlannerEnabled() &&
+     * hasComputationHost()} (measured in eco's own default method, offsets 0-23), and the host half - eco's
+     * {@code CraftingServiceMixin}, offsets 0-60 - walks
+     * {@code getMachines(grid, ECOComputationSystemBlockEntity.class)} for any entry that answers
+     * {@code isFormed()} with an online main node. Our C1 deliberately <em>is</em> that block entity class,
+     * so the question worth pinning for the whole L1 line is exactly this one: does a formed C1 flip that
+     * switch, or does eco only count its own hosts.
+     *
+     * <p>The second half is the control and it is the reason this is more than a reading: the same call,
+     * taken after the host's block is gone, has to answer false. Without that, "true" here would not tell
+     * our lookup apart from a switch that is simply always on.</p>
+     */
+    @GameTest(template = "l1_room", batch = "doll_cpu", timeoutTicks = 400,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void formedComputationHostIsTheGateForEcosFastPlanner(GameTestHelper helper) {
+        var hostPos = new BlockPos(13, 3, 4);
+        buildComputationStructureKept(helper, hostPos,
+                ModRegistration.SIMPLIFY_COMPUTATION_THREADING_CORE_BLOCK.get(),
+                ModRegistration.SIMPLIFY_COMPUTATION_THREADING_CORE_BLOCK.get(), 0, false, 1,
+                (controller, finish) -> {
+                    Wiring[] wired = new Wiring[1];
+                    Runnable leave = () -> {
+                        if (wired[0] != null) {
+                            helper.setBlock(wired[0].cable(), Blocks.AIR);
+                            helper.setBlock(wired[0].power(), Blocks.AIR);
+                        }
+                        finish.run();
+                    };
+                    if (!controller.isFormed()) {
+                        leave.run();
+                        helper.fail("the L1 host never formed, so the gate has nothing to count: "
+                                + helper.getLevel().getBlockState(helper.absolutePos(hostPos)));
+                        return;
+                    }
+                    wired[0] = wireTheInterfaceCell(helper, hostPos);
+                    if (wired[0] == null) {
+                        leave.run();
+                        helper.fail("no interface in the built machine had two free cells on a side, so the"
+                                + " host is never reachable as a grid and the switch cannot be asked");
+                        return;
+                    }
+                    var power = wired[0].power();
+                    // Two separate waits, because "on the same grid" and "AE2 calls that node online" are
+                    // different moments: eco's gate reads isOnline() on the host's own managed node, and a
+                    // node can sit on a live grid while still booting. Polling the cheaper one and reading
+                    // the other is how a fixture goes red on a premise instead of on a bug.
+                    waitUntil(helper, 12,
+                            () -> sharesGridWithPower(helper, controller, power) && hostIsOnline(controller),
+                            () -> {
+                                var why = "the network never reached the host, or the host never came"
+                                        + " online: host=" + gridOf(controller) + " power@" + at(power)
+                                        + "=" + nodeGrid(helper, power) + " " + gridStateReport(controller);
+                                leave.run();
+                                return why;
+                            },
+                            () -> {
+                                var grid = gridOf(controller);
+                                var settings = cn.dancingsnow.neoecoae.api.me.network
+                                        .ECOCraftingNetworkSettings.of(grid);
+                                if (settings == null) {
+                                    var why = "the crafting service carries no eco network settings, so"
+                                            + " shouldUseFastPlanner() has no subject here: grid=" + grid
+                                            + " service=" + grid.getCraftingService().getClass().getName();
+                                    leave.run();
+                                    helper.fail(why);
+                                    return;
+                                }
+                                if (!settings.neoecoae$hasComputationHost()) {
+                                    var why = "a formed, online L1 host did not count as eco's computation"
+                                            + " host, so the fast planner stays off for our whole tier:"
+                                            + " isFastPlannerEnabled=" + settings.neoecoae$isFastPlannerEnabled()
+                                            + " " + gridStateReport(controller);
+                                    leave.run();
+                                    helper.fail(why);
+                                    return;
+                                }
+                                if (settings.neoecoae$shouldUseFastPlanner()
+                                        != settings.neoecoae$isFastPlannerEnabled()) {
+                                    var why = "with the host counted, shouldUseFastPlanner() must be exactly"
+                                            + " the config switch: planner="
+                                            + settings.neoecoae$isFastPlannerEnabled() + " should="
+                                            + settings.neoecoae$shouldUseFastPlanner();
+                                    leave.run();
+                                    helper.fail(why);
+                                    return;
+                                }
+                                NeoECOPrototype.LOGGER.info(
+                                        "fast planner gate: formed L1 host counted,"
+                                                + " hasComputationHost=true isFastPlannerEnabled={}"
+                                                + " shouldUseFastPlanner={} {}",
+                                        settings.neoecoae$isFastPlannerEnabled(),
+                                        settings.neoecoae$shouldUseFastPlanner(), computationHostReport(grid));
+                                // The same reading with the host gone. The power block keeps its own node,
+                                // so the grid survives and the switch is still askable.
+                                helper.setBlock(hostPos, Blocks.AIR);
+                                waitUntil(helper, 8, () -> !hostCounts(helper, power),
+                                        () -> {
+                                            var node = nodeAt(helper, power);
+                                            var why = "hasComputationHost() still answers true after the host"
+                                                    + " block was removed, so eco's machine table is holding a"
+                                                    + " machine that no longer exists: "
+                                                    + (node == null ? "no grid left to ask"
+                                                            : computationHostReport(node.getGrid()));
+                                            leave.run();
+                                            return why;
+                                        },
+                                        () -> {
+                                            leave.run();
+                                            helper.succeed();
+                                        });
+                            });
+                });
+    }
+
+    /** Whether eco's settings still count a computation host on the grid the block at {@code at} sits on. */
+    private static boolean hostCounts(GameTestHelper helper, BlockPos at) {
+        var node = nodeAt(helper, at);
+        if (node == null) {
+            return true;
+        }
+        var settings = cn.dancingsnow.neoecoae.api.me.network.ECOCraftingNetworkSettings.of(node.getGrid());
+        return settings == null || settings.neoecoae$hasComputationHost();
+    }
+
+    /** Whether AE2 calls the host's own managed node online - the flag eco's second gate reads. */
+    private static boolean hostIsOnline(ECOComputationSystemBlockEntity controller) {
+        var mainNode = controller.getMainNode();
+        return mainNode != null && mainNode.isOnline();
+    }
+
+    /** The three grid facts that decide whether a node is allowed to be online, for the failure line. */
+    private static String gridStateReport(ECOComputationSystemBlockEntity controller) {
+        var grid = gridOf(controller);
+        if (grid == null) {
+            return "grid=none (the host has no grid at all)";
+        }
+        int nodes = 0;
+        for (var unused : grid.getNodes()) {
+            nodes++;
+        }
+        var pathing = grid.getPathingService();
+        return "nodes=" + nodes + " booting=" + pathing.isNetworkBooting()
+                + " controller=" + pathing.getControllerState()
+                + " powered=" + grid.getEnergyService().isNetworkPowered()
+                + " " + computationHostReport(grid);
+    }
+
+    /**
+     * What eco's own query sees, machine by machine - both flags its loop reads are in here, because "the
+     * table is empty" and "the table has one that answers not-formed" are different bugs and the failure
+     * line has to say which one it found.
+     */
+    private static String computationHostReport(IGrid grid) {
+        var machines = grid.getMachines(ECOComputationSystemBlockEntity.class);
+        StringBuilder report = new StringBuilder("machines=").append(machines.size()).append(" [");
+        for (var machine : machines) {
+            var mainNode = machine.getMainNode();
+            report.append(at(machine.getBlockPos())).append(" formed=").append(machine.isFormed())
+                    .append(" online=").append(mainNode != null && mainNode.isOnline()).append(' ');
+        }
+        return report.append(']').toString();
+    }
+
+    /**
+     * eco's fast planner has a second gate that is not a switch: {@code ECOExternalCpuSupport#supportsPlan}
+     * decides whether a given {@code ICraftingPlan} is eligible at all, and eco's own planner is asked
+     * through {@code ECOPlannerRequester}, which wraps AE2's simulation requester with
+     * {@code ECOPlannerOptions}. Our {@code TrinityCraftingExecutor} asks AE2 directly (line 163), so the
+     * question worth pinning is whether a plan produced that way is eligible, or whether eligibility only
+     * appears when the request carries eco's options.
+     *
+     * <p>Measured with the two assertions below and one reading that is deliberately not asserted: the
+     * third plan asked here is one the network cannot build, and eco's gate answers {@code true} for it too
+     * - so this gate reports a capability, not a quality, and "eligible" must not be read as "the fast
+     * planner will take this job". What is pinned is that both routes hand back the same
+     * {@code appeng.crafting.CraftingPlan} at the same cost, and that eco's gate accepts it: if eco ever
+     * starts wrapping plans or tightening acceptance, this goes red instead of us guessing.</p>
+     */
+    @GameTest(template = "trinity_room", batch = "fast_planner_contract", timeoutTicks = 400,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void ecoPlanEligibilityReadsTheSameJobPlannedBothWays(GameTestHelper helper) {
+        BlockPos rigMin = new BlockPos(3, 3, 3);
+        withTrinityCraftRig(helper, rigMin,
+                module -> {
+                    ItemStack[] slots = emptyPatternGrid();
+                    slots[0] = new ItemStack(Items.OAK_LOG);
+                    module.getLogic().getPatternInv().setItemDirect(0,
+                            PatternDetailsHelper.encodeCraftingPattern(
+                                    craftingRecipe(helper, 1, 1, new ItemStack(Items.OAK_LOG)),
+                                    slots, new ItemStack(Items.OAK_PLANKS, 4), false, false));
+                },
+                (controller, network) -> {
+                    var service = network.getCraftingService();
+                    var target = AEItemKey.of(Items.OAK_PLANKS);
+                    var source = IActionSource.ofMachine(controller);
+                    long stocked = network.getStorageService().getInventory().insert(
+                            AEItemKey.of(Items.OAK_LOG), 4, Actionable.MODULATE, source);
+                    if (stocked < 4) {
+                        helper.fail("only " + stocked + "/4 oak logs reached the network, so no plan can be"
+                                + " built and the gate has nothing to judge");
+                        return;
+                    }
+                    if (!service.isCraftable(target)) {
+                        NeoECOPrototype.LOGGER.info(
+                                "eco plan eligibility: planks not craftable yet (patterns indexed for"
+                                        + " planks={}), waiting for AE2's refresh",
+                                service.getCraftingFor(target).size());
+                    }
+                    waitUntil(helper, 12, () -> service.isCraftable(target),
+                            () -> "the rig never considered oak planks craftable, so both plans below would be"
+                                    + " empty and the reading would measure nothing: patterns for planks="
+                                    + service.getCraftingFor(target).size() + " cpus="
+                                    + service.getCpus().size() + " "
+                                    + trinityCraftModuleReport(helper, rigMin, network),
+                            () -> {
+                                var settings = cn.dancingsnow.neoecoae.api.me.network
+                                        .ECOCraftingNetworkSettings.of(network);
+                                if (settings == null) {
+                                    helper.fail("the crafting service carries no eco network settings, so the"
+                                            + " wrapped route cannot be built: service="
+                                            + service.getClass().getName());
+                                    return;
+                                }
+                                planBothWays(helper, service, network, target, source, settings,
+                                        controller.getActionableNode(), cpusOf(service));
+                            });
+                });
+    }
+
+    /** The CPUs on this grid, captured for eco's {@code accepts} ask. */
+    private static java.util.List<appeng.api.networking.crafting.ICraftingCPU> cpusOf(
+            appeng.api.networking.crafting.ICraftingService service) {
+        return java.util.List.copyOf(service.getCpus());
+    }
+
+    /** Plans the same job twice - once the way our executor asks, once through eco's planner request - and
+     *  reports what eco's eligibility gate says about each. */
+    private static void planBothWays(GameTestHelper helper,
+            appeng.api.networking.crafting.ICraftingService service, IGrid network,
+            appeng.api.stacks.AEKey target,
+            IActionSource source,
+            cn.dancingsnow.neoecoae.api.me.network.ECOCraftingNetworkSettings settings,
+            @Nullable appeng.api.networking.IGridNode node,
+            java.util.List<appeng.api.networking.crafting.ICraftingCPU> cpus) {
+        var requester = new appeng.api.networking.crafting.ICraftingSimulationRequester() {
+            @Override
+            public IActionSource getActionSource() {
+                return source;
+            }
+
+            @Override
+            @Nullable
+            public appeng.api.networking.IGridNode getGridNode() {
+                return node;
+            }
+        };
+        var strategy = appeng.api.networking.crafting.CalculationStrategy.REPORT_MISSING_ITEMS;
+        java.util.concurrent.Future<appeng.api.networking.crafting.ICraftingPlan> direct;
+        java.util.concurrent.Future<appeng.api.networking.crafting.ICraftingPlan> wrapped;
+        java.util.concurrent.Future<appeng.api.networking.crafting.ICraftingPlan> impossible;
+        try {
+            direct = service.beginCraftingCalculation(helper.getLevel(), requester, target, 4, strategy);
+            wrapped = service.beginCraftingCalculation(helper.getLevel(),
+                    new cn.dancingsnow.neoecoae.api.me.planning.ECOPlannerRequester(requester,
+                            cn.dancingsnow.neoecoae.api.me.planning.ECOPlannerOptions.from(settings)),
+                    target, 4, strategy);
+            // Recorded, not asserted. Measured here: this gate answers true even for a plan the network
+            // cannot build, so "true" for our plans is a capability answer, not evidence about quality -
+            // which is why the two assertions below are about eligibility and route-equivalence instead.
+            impossible = service.beginCraftingCalculation(helper.getLevel(), requester,
+                    appeng.api.stacks.AEItemKey.of(net.minecraft.world.item.Items.DIAMOND_BLOCK), 1, strategy);
+        } catch (RuntimeException exception) {
+            helper.fail("the crafting calculation could not even be started: " + exception);
+            return;
+        }
+        waitUntil(helper, 20, () -> direct.isDone() && wrapped.isDone() && impossible.isDone(),
+                () -> "the crafting calculation never finished: direct=" + direct.isDone()
+                        + " wrapped=" + wrapped.isDone() + " impossible=" + impossible.isDone(),
+                () -> {
+                    var directPlan = finishedPlan(helper, direct, "direct");
+                    var wrappedPlan = finishedPlan(helper, wrapped, "wrapped");
+                    var impossiblePlan = finishedPlan(helper, impossible, "impossible");
+                    if (directPlan == null || wrappedPlan == null || impossiblePlan == null) {
+                        return;
+                    }
+                    var cpu = cpus.isEmpty() ? null : cpus.get(0);
+                    NeoECOPrototype.LOGGER.info(
+                            "eco plan eligibility: {} | {} | {} | cpus={} hasComputationHost={}"
+                                    + " shouldUseFastPlanner={}",
+                            planReport("direct", directPlan, cpu),
+                            planReport("wrapped", wrappedPlan, cpu),
+                            planReport("impossible", impossiblePlan, cpu), cpus.size(),
+                            settings.neoecoae$hasComputationHost(), settings.neoecoae$shouldUseFastPlanner());
+                    if (directPlan.missingItems().iterator().hasNext()
+                            || wrappedPlan.missingItems().iterator().hasNext()) {
+                        helper.fail("a plan came back with missing items ("
+                                + missingReport(directPlan) + " / " + missingReport(wrappedPlan)
+                                + "), so neither route proved anything about eligibility");
+                        return;
+                    }
+                    if (cpu == null) {
+                        helper.fail("the rig built no crafting CPU, so eco's accepts(cpu, plan) gate was"
+                                + " never asked - the reading above would be half empty");
+                        return;
+                    }
+                    if (!ecoSupports(directPlan, cpu) || !ecoSupports(wrappedPlan, cpu)) {
+                        helper.fail("our own plan stopped being eligible for eco's fast planner: "
+                                + "direct supportsPlan=" + ecoSupportsPlan(directPlan)
+                                + " accepts=" + ecoAccepts(directPlan, cpu)
+                                + ", wrapped supportsPlan=" + ecoSupportsPlan(wrappedPlan)
+                                + " accepts=" + ecoAccepts(wrappedPlan, cpu));
+                        return;
+                    }
+                    if (!directPlan.getClass().getName().equals(wrappedPlan.getClass().getName())
+                            || directPlan.bytes() != wrappedPlan.bytes()) {
+                        helper.fail("asking through eco's planner options changed what the calculation"
+                                + " returns: direct=" + directPlan.getClass().getName() + " bytes="
+                                + directPlan.bytes() + " vs wrapped=" + wrappedPlan.getClass().getName()
+                                + " bytes=" + wrappedPlan.bytes() + " - the two routes are no longer the"
+                                + " same plan and the eligibility reading above has to be re-taken");
+                        return;
+                    }
+                    helper.succeed();
+                });
+    }
+
+    private static boolean ecoSupportsPlan(appeng.api.networking.crafting.ICraftingPlan plan) {
+        return cn.dancingsnow.neoecoae.crafting.execution.ECOExternalCpuSupport.supportsPlan(plan);
+    }
+
+    private static boolean ecoAccepts(appeng.api.networking.crafting.ICraftingPlan plan,
+                                      appeng.api.networking.crafting.ICraftingCPU cpu) {
+        return cn.dancingsnow.neoecoae.crafting.execution.ECOExternalCpuSupport.accepts(cpu, plan);
+    }
+
+    private static boolean ecoSupports(appeng.api.networking.crafting.ICraftingPlan plan,
+                                       appeng.api.networking.crafting.ICraftingCPU cpu) {
+        return ecoSupportsPlan(plan) && ecoAccepts(plan, cpu);
+    }
+
+    /** Which half of the rig is missing when the grid refuses to consider the output craftable. */
+    private static String trinityCraftModuleReport(GameTestHelper helper, BlockPos min, IGrid network) {
+        var pos = min.offset(SimplifyTrinityClusterCalculator.CRAFTING_MODULE_OFFSET);
+        if (!(helper.getLevel().getBlockEntity(helper.absolutePos(pos))
+                instanceof SimplifyTrinityCraftingModuleBlockEntity module)) {
+            return "craftModule@" + at(pos) + "=absent";
+        }
+        var node = module.getMainNode().getNode();
+        return "craftModule@" + at(pos) + " patterns=" + module.getAvailablePatterns().size()
+                + " provider=" + (node != null && node.getService(
+                        appeng.api.networking.crafting.ICraftingProvider.class) != null)
+                + " sameGrid=" + (node != null && node.getGrid() == network);
+    }
+
+    /** Unwraps a finished calculation. A plan that could not be built has to end the test, not the branch. */
+    @Nullable
+    private static appeng.api.networking.crafting.ICraftingPlan finishedPlan(
+            GameTestHelper helper,
+            java.util.concurrent.Future<appeng.api.networking.crafting.ICraftingPlan> future, String route) {
+        try {
+            return future.get();
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            helper.fail("the " + route + " crafting calculation was interrupted: " + exception);
+            return null;
+        } catch (java.util.concurrent.ExecutionException exception) {
+            helper.fail("the " + route + " crafting calculation threw, so there is no plan to judge: "
+                    + exception.getCause());
+            return null;
+        }
+    }
+
+    /** One line per plan: what it is, what it costs, and what eco's gate says about it. */
+    private static String planReport(String route, appeng.api.networking.crafting.ICraftingPlan plan,
+                                     @Nullable appeng.api.networking.crafting.ICraftingCPU cpu) {
+        return route + " class=" + plan.getClass().getName()
+                + " bytes=" + plan.bytes()
+                + " simulation=" + plan.simulation()
+                + " patterns=" + plan.patternTimes().size()
+                + " missing=" + missingReport(plan)
+                + " supportsPlan=" + ecoSupportsPlan(plan)
+                + (cpu == null ? " accepts=no cpu to ask" : " accepts=" + ecoAccepts(plan, cpu));
+    }
+
+    private static String missingReport(appeng.api.networking.crafting.ICraftingPlan plan) {
+        StringBuilder line = new StringBuilder();
+        for (var entry : plan.missingItems()) {
+            line.append(entry.getKey().getId()).append('x').append(entry.getLongValue()).append(' ');
+        }
+        return line.isEmpty() ? "none" : line.toString().trim();
+    }
+
     /** True once the host and the power block at {@code power} sit on the same ME grid. */
     private static boolean sharesGridWithPower(GameTestHelper helper,
                                                ECOComputationSystemBlockEntity controller, BlockPos power) {
@@ -5821,6 +6216,164 @@ public final class NeoECOPrototypeGameTests {
     }
 
     /** True when {@code pos} is inside the template and holds nothing. */
+    /**
+     * Stands an AE2 controller on the first free face-adjacent cell of {@code at} and taps it with the card's
+     * own grant call. Idempotent so it can sit inside a poll: the second and later visits find the controller
+     * already there and only ask whether the network is up yet. Returning false while the controller has no
+     * node is the point - the budget is a property of a live network, not of a coordinate.
+     */
+    /** Clears whichever face cell {@link #grantBudgetBeside} ended up choosing, and says which one that was. */
+    private static BlockPos takeControllerBeside(GameTestHelper helper, BlockPos at) {
+        for (var side : CONTROLLER_SIDES) {
+            var cell = at.relative(side);
+            if (helper.getLevel().getBlockState(helper.absolutePos(cell))
+                    .getBlock() == appeng.core.definitions.AEBlocks.CONTROLLER.block()) {
+                helper.setBlock(cell, Blocks.AIR);
+                return cell;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * One tap on the hub, then one tap per device: the mark survives a join, so wiring a hub to several
+     * spokes costs one re-mark instead of one per spoke. The brake is not the gesture count but the channel
+     * allowance each join spends, which is why this asserts both halves - the surviving mark, and the escape
+     * hatch that only exists because of it (clicking the held device drops every link on it).
+     */
+    @GameTest(template = "empty", batch = "wireless_link_card", timeoutTicks = 400,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void wirelessLinkCardKeepsItsMarkUntilTheHubIsClickedAgain(GameTestHelper helper) {
+        var hub = new BlockPos(0, 1, 0);
+        var spokeOne = new BlockPos(0, 1, 8);
+        var spokeTwo = new BlockPos(8, 1, 0);
+        helper.setBlock(hub, ModRegistration.SUPERCONDUCTIVE_INTERFACE_BLOCK.get());
+        helper.setBlock(spokeOne, ModRegistration.SIMPLIFY_STORAGE_CASING_BLOCK.get());
+        helper.setBlock(spokeTwo, ModRegistration.SIMPLIFY_STORAGE_CASING_BLOCK.get());
+        var level = (ServerLevel) helper.getLevel();
+        var hubPos = GlobalPos.of(level.dimension(), helper.absolutePos(hub));
+        var onePos = GlobalPos.of(level.dimension(), helper.absolutePos(spokeOne));
+        var twoPos = GlobalPos.of(level.dimension(), helper.absolutePos(spokeTwo));
+        waitUntil(helper, 25,
+                () -> separateNetworks(level, hubPos, onePos) && separateNetworks(level, hubPos, twoPos)
+                        && grantBudgetBeside(helper, level, hub),
+                () -> "the three devices never became three separate nodes, or the hub's network would not buy"
+                        + " an allowance: " + nodeSummary(level, hubPos) + " / "
+                        + nodeSummary(level, onePos) + " / " + nodeSummary(level, twoPos),
+                () -> {
+                    // Half one is the shipped state: off means the card must not even touch the ledger, and
+                    // it answers PASS so the device under the cursor behaves like any other item in hand.
+                    var flag = cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig.WIRELESS_LINKS;
+                    if (cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig.WIRELESS_LINKS_DEFAULT) {
+                        helper.fail("the wireless feature ships enabled, but this release promises it is off");
+                        return;
+                    }
+                    if (flag.get()) {
+                        helper.fail("the server config reads on at test start, so the off-half below is not the"
+                                + " default it claims to be");
+                        return;
+                    }
+                    int start = linksOf(WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS, hubPos));
+                    var player = helper.makeMockPlayer(GameType.CREATIVE);
+                    player.setShiftKeyDown(true);
+                    var card = new ItemStack(ModRegistration.WIRELESS_LINK_CARD.get());
+                    tapWithCard(helper, player, card, hub);
+                    if (linksOf(WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS, hubPos)) != start) {
+                        helper.fail("an off-by-default card still recorded something on the hub: " + start
+                                + " -> " + WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS, hubPos));
+                        return;
+                    }
+                    flag.set(true);
+                    try {
+                        tapWithCard(helper, player, card, hub);
+                        tapWithCard(helper, player, card, spokeOne);
+                        String afterOne = WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS, hubPos);
+                        if (linksOf(afterOne) != start + 1) {
+                            helper.fail("the item's own two taps did not make exactly one link: " + afterOne);
+                            return;
+                        }
+                        tapWithCard(helper, player, card, spokeTwo);
+                        String afterTwo = WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS, hubPos);
+                        int spokeAfterBind = linksOf(WirelessLinks.status(level,
+                                ModRegistration.WIRELESS_LINKS, onePos));
+                        if (linksOf(afterTwo) != start + 2) {
+                            helper.fail("the mark did not survive the first join, so tapping the second device"
+                                    + " marked it instead of joining it: " + afterOne + " -> " + afterTwo);
+                            return;
+                        }
+                        tapWithCard(helper, player, card, hub);
+                        String cleared = WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS, hubPos);
+                        if (linksOf(cleared) > start || linksOf(WirelessLinks.status(level,
+                                ModRegistration.WIRELESS_LINKS, onePos)) >= spokeAfterBind) {
+                            helper.fail("clicking the device the card still holds was expected to drop every"
+                                    + " link on it: hub " + afterTwo + " -> " + cleared + ", spoke was "
+                                    + spokeAfterBind + " and is now "
+                                    + linksOf(WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS, onePos)));
+                            return;
+                        }
+                        helper.succeed();
+                    } finally {
+                        flag.set(false);
+                    }
+                });
+    }
+
+    /** Sneak-right-clicks {@code cell} with the card so the item's own anchor logic runs, not our calls. */
+    private static void tapWithCard(GameTestHelper helper, net.minecraft.world.entity.player.Player player,
+                                    ItemStack card, BlockPos cell) {
+        var absolute = helper.absolutePos(cell);
+        var hit = new net.minecraft.world.phys.BlockHitResult(Vec3.atCenterOf(absolute),
+                Direction.UP, absolute, false);
+        card.getItem().useOn(new UseOnContext(helper.getLevel(), player, InteractionHand.MAIN_HAND, card, hit));
+    }
+
+    /** The record count out of a status line; -1 when the line does not carry one. */
+    private static int linksOf(String status) {
+        var matched = java.util.regex.Pattern.compile("wirelessLinks=(\\d+)").matcher(status);
+        return matched.find() ? Integer.parseInt(matched.group(1)) : -1;
+    }
+
+    /** Reads the {@code channels=spent/granted} pair out of a status line; null when the line says unknown. */
+    private static int[] ledgerOf(String status) {
+        var matched = java.util.regex.Pattern.compile("channels=(\\d+)/(\\d+)").matcher(status);
+        return matched.find()
+                ? new int[]{Integer.parseInt(matched.group(1)), Integer.parseInt(matched.group(2))}
+                : null;
+    }
+
+    private static boolean grantBudgetBeside(GameTestHelper helper, ServerLevel level, BlockPos at) {
+        for (var side : CONTROLLER_SIDES) {
+            var cell = at.relative(side);
+            if (helper.getLevel().getBlockState(helper.absolutePos(cell))
+                    .getBlock() == appeng.core.definitions.AEBlocks.CONTROLLER.block()) {
+                var answer = WirelessLinks.grant(level, ModRegistration.WIRELESS_LINKS,
+                        GlobalPos.of(level.dimension(), helper.absolutePos(cell)));
+                if (answer.startsWith("granted") || answer.startsWith("already granted")) {
+                    return true;
+                }
+                NeoECOPrototype.LOGGER.info("fixture grant not yet: {}", answer);
+                return false;
+            }
+        }
+        for (var side : CONTROLLER_SIDES) {
+            var cell = at.relative(side);
+            if (!helper.getLevel().getBlockState(helper.absolutePos(cell)).isAir()) {
+                continue;
+            }
+            helper.setBlock(cell, appeng.core.definitions.AEBlocks.CONTROLLER.block());
+            return false;
+        }
+        helper.fail("no air cell beside " + at + " to stand a controller in,"
+                + " so this fixture cannot buy the budget a bind now needs");
+        return false;
+    }
+
+    /** Horizontal faces first: a controller under a machine would sit in the room's floor. */
+    private static final net.minecraft.core.Direction[] CONTROLLER_SIDES = {
+            net.minecraft.core.Direction.SOUTH, net.minecraft.core.Direction.NORTH,
+            net.minecraft.core.Direction.EAST, net.minecraft.core.Direction.WEST,
+            net.minecraft.core.Direction.UP};
+
     private static boolean freeTemplateCell(GameTestHelper helper, BlockPos pos) {
         if (pos.getX() < 0 || pos.getY() < 0 || pos.getZ() < 0 || pos.getX() >= L1_ROOM_SIZE
                 || pos.getY() >= L1_ROOM_SIZE || pos.getZ() >= L1_ROOM_SIZE) {
@@ -12583,6 +13136,20 @@ public final class NeoECOPrototypeGameTests {
     @GameTest(template = "empty", batch = "wireless_link_card", timeoutTicks = 400,
             templateNamespace = NeoECOPrototype.MOD_ID)
     public static void wirelessLinkCardJoinsTwoDevicesWithoutACable(GameTestHelper helper) {
+        // The card has to say out loud that only its own live= reading settles whether a link exists,
+        // because the device's own panel is a lie about it (measured: a grid that still holds power keeps
+        // the far device looking alive after its edge is gone). A missing key prints the key itself and
+        // raises no error anywhere, so the two languages are checked here.
+        for (String lang : new String[]{"en_us", "zh_cn"}) {
+            String json = readResource("/assets/neoecoprototype/lang/" + lang + ".json", helper);
+            if (json == null) {
+                return;
+            }
+            if (!json.contains("wireless_link_card.check")) {
+                helper.fail("lang/" + lang + ".json has no wireless_link_card.check key");
+                return;
+            }
+        }
         var near = new BlockPos(0, 1, 0);
         var far = new BlockPos(0, 1, 8);
         helper.setBlock(near, ModRegistration.SUPERCONDUCTIVE_INTERFACE_BLOCK.get());
@@ -12591,7 +13158,7 @@ public final class NeoECOPrototypeGameTests {
         var a = GlobalPos.of(level.dimension(), helper.absolutePos(near));
         var b = GlobalPos.of(level.dimension(), helper.absolutePos(far));
         waitUntil(helper, 25,
-                () -> separateNetworks(level, a, b),
+                () -> separateNetworks(level, a, b) && grantBudgetBeside(helper, level, near),
                 () -> "the two devices never became two separate network nodes: a=" + nodeSummary(level, a)
                         + " b=" + nodeSummary(level, b) + ", so a link between them would prove nothing",
                 () -> {
@@ -12609,9 +13176,9 @@ public final class NeoECOPrototypeGameTests {
                         return;
                     }
                     if (!WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS, a)
-                                    .endsWith("wirelessLinks=1 live=1")
+                                    .contains("wirelessLinks=1 live=1")
                             || !WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS, b)
-                                    .endsWith("wirelessLinks=1 live=1")) {
+                                    .contains("wirelessLinks=1 live=1")) {
                         helper.fail("one edge should count for both ends: a="
                                 + WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS, a) + " b="
                                 + WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS, b));
@@ -12631,16 +13198,120 @@ public final class NeoECOPrototypeGameTests {
                         return;
                     }
                     waitUntil(helper, 20,
-                            () -> separateNetworks(level, a, b),
+                            () -> separateNetworks(level, a, b) && grantBudgetBeside(helper, level, near),
                             () -> "after dropping the only link the two devices stayed on one network ("
                                     + nodeSummary(level, a) + " / " + nodeSummary(level, b)
+                                    + " edges between=" + connectionsBetween(level, a, b)
+                                    + " physical=" + physicalEdgesBetween(level, a, b)
+                                    + " nodes on this grid=" + gridNodeCount(level, a) + "/"
+                                    + gridNodeCount(level, b)
                                     + "), so the edge outlived its record",
                             () -> {
                                 if (!WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS, b)
-                                        .endsWith("wirelessLinks=0 live=0")) {
+                                        .contains("wirelessLinks=0 live=0")) {
                                     helper.fail("the far end still believes it is linked: "
                                             + WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS, b));
                                     return;
+                                }
+                                helper.succeed();
+                            });
+                });
+    }
+
+    /**
+     * The channel budget is the only thing this feature charges a player for, so it has to be what refuses a
+     * bind, and the refusal has to say the three numbers that make the decision reproducible (what this
+     * needs, what is free, where to buy more).
+     *
+     * <p>The last half is a decision, not a measurement: taking the controller away collapses the grant to
+     * zero but leaves the sold link standing. Dropping live links because a payment source vanished would
+     * tear networks apart according to the order a player built things in, and nothing about removing a
+     * block says "unwire that device". Put a controller back on that same spot and the grant comes back too,
+     * because grants are stored as positions and resolved against a live node every time they are counted.</p>
+     */
+    @GameTest(template = "empty", batch = "wireless_link_card", timeoutTicks = 400,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void wirelessLinkCardChargesChannelsAndAControllerTapPaysThem(GameTestHelper helper) {
+        var near = new BlockPos(0, 1, 0);
+        var far = new BlockPos(0, 1, 8);
+        helper.setBlock(near, ModRegistration.SUPERCONDUCTIVE_INTERFACE_BLOCK.get());
+        helper.setBlock(far, ModRegistration.SIMPLIFY_STORAGE_CASING_BLOCK.get());
+        var level = (ServerLevel) helper.getLevel();
+        var a = GlobalPos.of(level.dimension(), helper.absolutePos(near));
+        var b = GlobalPos.of(level.dimension(), helper.absolutePos(far));
+        waitUntil(helper, 25,
+                () -> separateNetworks(level, a, b),
+                () -> "the two devices never became two separate network nodes: " + nodeSummary(level, a)
+                        + " / " + nodeSummary(level, b) + ", so there is nothing for the budget to charge",
+                () -> {
+                    String broke = WirelessLinks.bind(level, ModRegistration.WIRELESS_LINKS, a, b);
+                    if (!broke.contains("channels=0/0") || !broke.contains("controller")) {
+                        helper.fail("a bind with no controller tapped reported \"" + broke
+                                + "\", expected a refusal naming channels=0/0 and the controller tap");
+                        return;
+                    }
+                    if (!WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS, a)
+                            .contains("wirelessLinks=0 live=0")) {
+                        helper.fail("the refused bind left a record behind: "
+                                + WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS, a));
+                        return;
+                    }
+                    grantBudgetBeside(helper, level, near);
+                    waitUntil(helper, 20, () -> grantBudgetBeside(helper, level, near),
+                            () -> "the controller beside the near device never became a network the card"
+                                    + " could charge against: "
+                                    + WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS, a),
+                            () -> {
+                                // Read the ledger before and after rather than asserting absolute numbers:
+                                // every gameTest in one run shares a single overworld, so this attachment
+                                // also holds other tests' records and controller taps. What is ours to pin is
+                                // the difference one link of ours makes - one channel per device.
+                                String before = WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS, a);
+                                String paid = WirelessLinks.bind(level, ModRegistration.WIRELESS_LINKS, a, b);
+                                if (!paid.startsWith("linked ")) {
+                                    helper.fail("after buying channels the bind was still refused: \""
+                                            + paid + "\" (ledger before: " + before + ")");
+                                    return;
+                                }
+                                String after = WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS, a);
+                                int[] was = ledgerOf(before);
+                                int[] now = ledgerOf(after);
+                                if (was == null || now == null) {
+                                    helper.fail("no channels= figure in the status lines, so the charge cannot"
+                                            + " be read: " + before + " / " + after);
+                                    return;
+                                }
+                                if (now[0] <= was[0] || now[0] > now[1]
+                                        || now[1] < WirelessLinks.CHANNELS_PER_CONTROLLER) {
+                                    helper.fail("a link was added without raising the spent total, or spent"
+                                            + " more than the grant covers, or with no controller grant behind"
+                                            + " it: " + before + " -> " + after);
+                                    return;
+                                }
+                                var soldCell = takeControllerBeside(helper, near);
+                                String unpaid = WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS, a);
+                                int[] gone = ledgerOf(unpaid);
+                                // Asked of our own pair rather than of the endpoint's totals, because a batch
+                                // shares one attachment and another test's record can also be riding here.
+                                if (soldCell == null || gone == null || gone[1] >= now[1]
+                                        || WirelessLinks.edgeOf(level,
+                                        ModRegistration.WIRELESS_LINKS, WirelessLinks.linkOf(a, b)) == null) {
+                                    helper.fail("removing the controller was expected to shrink the grant while"
+                                            + " leaving the sold link alive (granted below " + now[1]
+                                            + " and our own edge still held), got " + after + " -> " + unpaid);
+                                }
+                                // The grant follows the controller, not the square. Measured the hard way:
+                                // with only "is there a node at that position" asked, a stale grant paid for a
+                                // network that had no controller in it any more - so a player could take the
+                                // controller away, stand any device there, and keep the allowance.
+                                helper.setBlock(soldCell, ModRegistration.SIMPLIFY_STORAGE_CASING_BLOCK.get());
+                                String swapped = WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS, a);
+                                int[] back = ledgerOf(swapped);
+                                if (back == null || back[1] > gone[1]) {
+                                    helper.fail("a device swapped onto the old controller's square restored the"
+                                            + " allowance: granted went " + now[1] + " -> " + gone[1]
+                                            + " -> " + (back == null ? "unreadable" : String.valueOf(back[1]))
+                                            + " on " + swapped);
                                 }
                                 helper.succeed();
                             });
@@ -12667,7 +13338,8 @@ public final class NeoECOPrototypeGameTests {
         var hubPos = GlobalPos.of(level.dimension(), helper.absolutePos(hub));
         waitUntil(helper, 25,
                 () -> spokes.stream().allMatch(spoke -> separateNetworks(level, hubPos,
-                        GlobalPos.of(level.dimension(), helper.absolutePos(spoke)))),
+                        GlobalPos.of(level.dimension(), helper.absolutePos(spoke))))
+                        && grantBudgetBeside(helper, level, hub),
                 () -> "a device in the cap fixture never became a separate network node: hub="
                         + nodeSummary(level, hubPos) + " last spoke="
                         + nodeSummary(level, GlobalPos.of(level.dimension(),
@@ -12693,7 +13365,7 @@ public final class NeoECOPrototypeGameTests {
                         return;
                     }
                     if (!WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS, extra)
-                            .endsWith("wirelessLinks=0 live=0")) {
+                            .contains("wirelessLinks=0 live=0")) {
                         helper.fail("the refused pair still left a record behind: "
                                 + WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS, extra));
                         return;
@@ -12728,7 +13400,7 @@ public final class NeoECOPrototypeGameTests {
         var b = GlobalPos.of(level.dimension(), helper.absolutePos(far));
         var link = WirelessLinks.linkOf(a, b);
         waitUntil(helper, 25,
-                () -> separateNetworks(level, a, b),
+                () -> separateNetworks(level, a, b) && grantBudgetBeside(helper, level, near),
                 () -> "the two devices never became two separate network nodes: " + nodeSummary(level, a)
                         + " / " + nodeSummary(level, b) + ", so this measures nothing",
                 () -> {
@@ -12761,7 +13433,7 @@ public final class NeoECOPrototypeGameTests {
                         return;
                     }
                     if (!WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS, a)
-                            .endsWith("wirelessLinks=1 live=1")) {
+                            .contains("wirelessLinks=1 live=1")) {
                         helper.fail("after rebuilding, the device itself still reports: "
                                 + WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS, a));
                         return;
@@ -12793,7 +13465,7 @@ public final class NeoECOPrototypeGameTests {
         var b = GlobalPos.of(level.dimension(), helper.absolutePos(far));
         var link = WirelessLinks.linkOf(a, b);
         waitUntil(helper, 25,
-                () -> separateNetworks(level, a, b),
+                () -> separateNetworks(level, a, b) && grantBudgetBeside(helper, level, near),
                 () -> "the two devices never became two separate network nodes: " + nodeSummary(level, a)
                         + " / " + nodeSummary(level, b) + ", so this measures nothing",
                 () -> {
@@ -12854,7 +13526,7 @@ public final class NeoECOPrototypeGameTests {
         var b = GlobalPos.of(level.dimension(), helper.absolutePos(far));
         var link = WirelessLinks.linkOf(a, b);
         waitUntil(helper, 25,
-                () -> separateNetworks(level, a, b),
+                () -> separateNetworks(level, a, b) && grantBudgetBeside(helper, level, near),
                 () -> "the two devices never became two separate network nodes: " + nodeSummary(level, a)
                         + " / " + nodeSummary(level, b) + ", so this measures nothing",
                 () -> {
@@ -12929,7 +13601,7 @@ public final class NeoECOPrototypeGameTests {
         var a = GlobalPos.of(level.dimension(), helper.absolutePos(near));
         var b = GlobalPos.of(level.dimension(), helper.absolutePos(far));
         waitUntil(helper, 25,
-                () -> separateNetworks(level, a, b),
+                () -> separateNetworks(level, a, b) && grantBudgetBeside(helper, level, near),
                 () -> "the two devices never became two separate network nodes: " + nodeSummary(level, a)
                         + " / " + nodeSummary(level, b) + ", so this measures nothing",
                 () -> {
@@ -13111,7 +13783,7 @@ public final class NeoECOPrototypeGameTests {
                         return;
                     }
                     if (!WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS, a)
-                            .endsWith("wirelessLinks=0 live=0")) {
+                            .contains("wirelessLinks=0 live=0")) {
                         helper.fail("a refused bind left a record behind: "
                                 + WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS, a));
                         return;
