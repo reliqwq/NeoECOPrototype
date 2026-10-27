@@ -45,7 +45,8 @@ dependencies {
     // here (core.localization.Tooltips lost three public static fields) and would then throw on 18.
     implementation files("libs/ae2-19.2.17.jar")               // AE2 (modId: ae2)
     implementation files("libs/guideme-21.1.1.jar")            // GuideME (AE2 强制依赖, modId: guideme)
-    // LDLib2 (modId: ldlib2) - eco 21.2.1 raised its floor to [2.2.40,) and 21.2.10 keeps it, so this is both
+    // LDLib2 (modId: ldlib2) - eco 21.2.1 raised its floor to [2.2.40,), and 21.2.10 and 21.2.11 both keep it,
+    // so this is both
     // the compile baseline and the dev runtime. It briefly read `compileOnly 2.2.40 + runtimeOnly 2.2.42`
     // because ae2lt 2.1.2-beta4 demands [2.2.42,3.0.0) and eco 21.2.10 would not start without ae2lt; eco
     // re-uploaded 21.2.10 on 2026-10-25 (md5 444dcfc3fdab, two classes changed) with that gate in place, so
@@ -54,6 +55,35 @@ dependencies {
     implementation files("libs/ldlib2-neoforge-1.21.1-2.2.40-all.jar")
     implementation "dev.vfyjxf:taffy:1.1.3"
     implementation "org.appliedenergistics.yoga:yoga:1.0.0"
+// ABI target: eco 21.2.11 (moved 2026-10-27; the previous line of sight was 21.2.10, moved 2026-10-25).
+// Jar md5 26f1c96a4791, 4188 -> 4309 entries: +143 (131 classes) / -22 (15 classes) / 198 changed (173 classes).
+// Class level: none of the 15 removed classes is named by our bytecode - scanned all 278 of our class files for
+// each removed path in both slash and dot form, 0 hits, and the same scan finds 45 hits for api/IECOTier and 2
+// for impl/storage/ECOStorageCell, so the 0 is the scan working. What eco took out is its megacells bulk
+// backend (MegaBulkMarkingService, MegaBulkUnits, ECOMegaLongBulkStorageCell*, ECOMegaDecompressionService), a
+// dataenergistics bridge, and it put the same idea back in core under impl/storage/bulk - we name none of it
+// either way, because the 10-21 cut already removed our side of that coupling.
+// Member level: tools/audit_eco_abi.py over classes compiled against 21.2.10 prints 155 lines for the 21.2.10
+// control and 156 for 21.2.11. The reading is that single delta, not the length: one line appears.
+// ONE REAL BREAK, and it is the kind AGENTS.md §5 warns about. ECOFluidInputHatchBlockEntity.tank changes
+// declared type, net.neoforged...FluidTank -> eco's new util/LongFluidTank (a class added this release). Field
+// references carry the owner AND an exact descriptor, so a jar built on 21.2.10 that reads that field throws
+// NoSuchFieldError on 21.2.11 - and a jar built on 21.2.11 cannot run on 21.2.10. Our four reads of .tank
+// (SimplifyFluidInputHatchBlock, SimplifyFluidOutputHatchBlock, and the two Capabilities.FluidHandler.BLOCK
+// registrations) all pass the field straight through, so no source line changes, but the floor must move with
+// the baseline: neoforge.mods.toml says [21.2.11,) for that descriptor alone.
+// Eco's own floors are unchanged - neoforge [21.1.0,), ae2 [19.2.17,), ldlib2 [2.2.40,) - so this sync moves
+// nothing else on the table. The only dependency line it touches is an optional one we do not install:
+// "Useless Mod" [1.21.1-2.3.7.2,) -> [1.21.1-2.4.6.2,) for eco's LongFluidTank input hatch.
+// What 21.2.11 hands us, none of it adopted yet: (1) issue #136 is fixed upstream - grid/PatternCatalog gains
+// containsPatternOtherThanSource(Object,AEItemKey,ECOPatternSourceSlot), claimExternalPatternCandidates(...)
+// returning IECOPatternStorageService$ExternalPatternClaim, and a 3-argument insertPreparedPatternReporting
+// that threads the source slot through; that is the door back for our pattern bus, see AGENTS §15.
+// (2) api/me/diagnostics ECOProcessingStatusReader + ECOProcessingTargetProvider - an extension point for
+// "a machine is stuck and nothing says so" (AGENTS §15 row 4). (3) bulk marking left the megacells backend for
+// eco core (impl/storage/bulk/ECOBulkMarkingService, ECOBulkMarkerMenu, ECOBulkCellActionsPopup), which is the
+// other half of that §15 row. (4) LongFluidTank + a whole FluidInputHatchUI family, and a network_pull_card
+// item. Unsurveyed: the other ~120 added classes.
 // ABI target: eco 21.2.10 (moved 2026-10-25; the previous line of sight was 21.2.9, moved 2026-10-21).
 // The jar was re-uploaded the same day (md5 444dcfc3fdab, replacing 5b607afc4446): two entries change,
 // recipe/LargeWorkstationRecipeSources and its $LightningBorrowing inner class, and the only thing they do is
@@ -139,7 +169,7 @@ dependencies {
 // GuiTitleProvider (PR #110) and grid.NEMachineLookup (PR #109) are still carried; both are in the 104.
 // A sync is certified by compiling against that jar and running the suite. tools/audit_eco_abi.py is a
 // companion check, not a verdict -- read its docstring before believing its "MISSING" list.
-    implementation files("neoecobeta/neoecoae-21.2.10.jar")
+    implementation files("neoecobeta/neoecoae-21.2.11.jar")
     // MegaCells 4.11.0 is the supported optional integration version.
     implementation files("libs/megacells-4.11.0.jar")
     // Dev-runtime only: keep them off the compile classpath but on the runtime classpath.

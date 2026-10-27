@@ -1,11 +1,11 @@
 package cn.dancingsnow.neoecoprototype.mixin;
 
-/* Version lock: NeoForge 21.1.251, eco 21.2.10. Re-checked against that jar on 2026-10-25:
+/* Version lock: NeoForge 21.1.251, eco 21.2.11. Re-checked against that jar on 2026-10-27:
  * FixedBlockEntityRenderers.render(AddSectionGeometryEvent$SectionRenderingContext, BlockPos) is still
  * the descriptor below and still asks BlockAndTintGetter.getBlockEntity inside it (offset 59) with no
  * bounds check - no withinRange, no isAnyOfSectionsLoaded - which is why the guard below is needed.
  * The class is eco's, not NeoForge's - only the parameter type comes from NeoForge.
- * Earlier checks: 21.2.9 on 2026-10-22, 21.2.1-beta2 on 2026-10-06, the 21.2.1 release on 2026-10-08. */
+ * Earlier checks: 21.2.10 on 2026-10-25, 21.2.9 on 2026-10-22, 21.2.1-beta2 on 2026-10-06, the 21.2.1 release on 2026-10-08. */
 
 import cn.dancingsnow.neoecoae.client.rendering.FixedBlockEntityRenderers;
 import net.minecraft.core.BlockPos;
