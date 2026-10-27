@@ -97,6 +97,7 @@ import cn.dancingsnow.neoecoprototype.items.SimplifyStorageCellItem;
 import cn.dancingsnow.neoecoprototype.items.SimplifySmallBulkFluidStorageCellItem;
 import cn.dancingsnow.neoecoprototype.items.SimplifySmallBulkStorageCellItem;
 import cn.dancingsnow.neoecoprototype.event.WirelessLinks;
+import cn.dancingsnow.neoecoprototype.items.WirelessLinkCardItem;
 import net.minecraft.core.component.DataComponentType;
 import net.minecraft.core.registries.Registries;
 import cn.dancingsnow.neoecoprototype.recipe.ProcessorAssemblerRecipe;
@@ -657,6 +658,14 @@ public class ModRegistration {
             ITEMS.register("energized_energy_cell_512g",
                     () -> new cn.dancingsnow.neoecoprototype.items.EnergizedEnergyCellBlockItem(
                             ENERGIZED_ENERGY_CELL_512G_BLOCK.get(), new Item.Properties()));
+
+    /**
+     * The wireless link card's gesture, not its memory: the pairs themselves are filed on the level, so an
+     * edge outlives the card that made it.
+     */
+    public static final Supplier<WirelessLinkCardItem> WIRELESS_LINK_CARD =
+            ITEMS.register("wireless_link_card",
+                    () -> new WirelessLinkCardItem(new Item.Properties().stacksTo(1)));
 
     public static final Supplier<BlockItem> SIMPLIFY_STORAGE_CASING_ITEM =
             ITEMS.register("simplify_storage_casing",
@@ -1532,6 +1541,7 @@ private static Supplier<BlockEntityType<SimplifyStorageVentBlockEntity>> registe
                         output.accept(SIMPLIFY_ENERGY_CELL_ITEM.get());
                         output.accept(ENERGIZED_ENERGY_CELL_16G_ITEM.get());
                         output.accept(ENERGIZED_ENERGY_CELL_512G_ITEM.get());
+                        output.accept(WIRELESS_LINK_CARD.get());
                         output.accept(SIMPLIFY_STORAGE_CASING_ITEM.get());
                          output.accept(SIMPLIFY_GREEN_ALUMINUM_CASING_ITEM.get());
                         // The whole cryotheum family is out of the tab: it generates nowhere by default and
