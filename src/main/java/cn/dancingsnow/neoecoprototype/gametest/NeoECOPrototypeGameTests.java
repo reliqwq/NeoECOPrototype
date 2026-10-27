@@ -12701,9 +12701,11 @@ public final class NeoECOPrototypeGameTests {
      * swept the whole table - or if the matching were wrong and matched nothing - the cheap fallback pass
      * would stop being cheap, or the link would not come back when it should.
      *
-     * <p>Both directions are asserted, and the first one is the control: waking a chunk that holds neither
-     * endpoint must leave the dropped reference dropped. Without the chunk test in {@code rebuildAround}
-     * that assertion would go green by accident, which is why the second half wakes the right chunk.</p>
+     * <p>The wake marks urgency and reads nothing (see {@code WirelessLinks.mayReadBlocks} for why it may not), so
+     * a wake's scope is asserted on the mark itself - both directions, and the first one is the control: waking
+     * a chunk that holds neither endpoint must leave the pair unmarked. Without the chunk test in
+     * {@code rebuildAround} that assertion would go green by accident, which is why the second half wakes the
+     * right chunk and then asks for the main-thread pass by name, to prove the mark is not a dead letter.</p>
      */
     @GameTest(template = "empty", batch = "wireless_link_card", timeoutTicks = 400,
             templateNamespace = NeoECOPrototype.MOD_ID)
@@ -12730,14 +12732,21 @@ public final class NeoECOPrototypeGameTests {
                     // A chunk 16 sections away from both endpoints - same dimension, loaded, irrelevant.
                     WirelessLinks.rebuildAround(level, ModRegistration.WIRELESS_LINKS,
                             (here.getX() >> 4) + 512, (here.getZ() >> 4) + 512);
-                    if (WirelessLinks.edgeOf(level, ModRegistration.WIRELESS_LINKS, link) != null) {
-                        helper.fail("waking an unrelated chunk rebuilt the link, so the match is not by chunk");
+                    if (WirelessLinks.isUrgent(level, ModRegistration.WIRELESS_LINKS, link)) {
+                        helper.fail("waking an unrelated chunk marked the pair urgent, so the match is not by chunk");
                         return;
                     }
                     WirelessLinks.rebuildAround(level, ModRegistration.WIRELESS_LINKS,
                             here.getX() >> 4, here.getZ() >> 4);
+                    if (!WirelessLinks.isUrgent(level, ModRegistration.WIRELESS_LINKS, link)) {
+                        helper.fail("waking the chunk that holds an endpoint did not hand the pair to the burst");
+                        return;
+                    }
+                    // On a live server this pass is the tick that follows; a test has to ask for it by name.
+                    WirelessLinks.rebuildNow(level, ModRegistration.WIRELESS_LINKS);
                     if (WirelessLinks.edgeOf(level, ModRegistration.WIRELESS_LINKS, link) == null) {
-                        helper.fail("waking the chunk that holds an endpoint did not take the link back over");
+                        helper.fail("the urgent mark never became an edge once a main-thread pass ran, so the wake "
+                                + "defers the work and then loses it");
                         return;
                     }
                     helper.succeed();
@@ -12821,6 +12830,152 @@ public final class NeoECOPrototypeGameTests {
                     }
                     helper.succeed();
                 });
+    }
+
+    /**
+     * Abandoning a filed pair must not leave the survivor wired to a node that has no block behind it.
+
+     * <p>The size yardstick, not a "did they split" question, is what can actually be answered: once the near
+     * block is gone there is no node left there to ask about, so the first draft of this test - which called
+     * {@code separateNetworks} after the removal - could only ever fail. And the edge itself turns out to be
+     * taken down by AE2 along with the node, even though {@code Data#drop} never calls
+     * {@code IGridConnection#destroy}: an earlier reading of {@code GridNode#cleanupConnections} ("it skips
+     * non-in-world connections, so a wireless edge outlives its block") was wrong for this path, and this test
+     * now pins the upstream behaviour instead of my inference about it. If that ever moves, the assertion on
+     * {@code virtualEdgesOn} goes red and {@code drop} starts owing a {@code destroy()}.</p>
+     */
+    @GameTest(template = "empty", batch = "wireless_link_card", timeoutTicks = 400,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void wirelessLinkDyingEndpointLeavesNoEdgeBehind(GameTestHelper helper) {
+        var near = new BlockPos(0, 1, 0);
+        var far = new BlockPos(0, 1, 8);
+        helper.setBlock(near, ModRegistration.SUPERCONDUCTIVE_INTERFACE_BLOCK.get());
+        helper.setBlock(far, ModRegistration.SIMPLIFY_STORAGE_CASING_BLOCK.get());
+        var level = (ServerLevel) helper.getLevel();
+        var a = GlobalPos.of(level.dimension(), helper.absolutePos(near));
+        var b = GlobalPos.of(level.dimension(), helper.absolutePos(far));
+        waitUntil(helper, 25,
+                () -> separateNetworks(level, a, b),
+                () -> "the two devices never became two separate network nodes: " + nodeSummary(level, a)
+                        + " / " + nodeSummary(level, b) + ", so this measures nothing",
+                () -> {
+                    int alone = gridNodeCount(level, b);
+                    if (alone <= 0) {
+                        helper.fail("the far device had no grid of its own before the bind (" + alone
+                                + " nodes), so there is no size to come back to");
+                        return;
+                    }
+                    if (!WirelessLinks.bind(level, ModRegistration.WIRELESS_LINKS, a, b).startsWith("linked ")) {
+                        helper.fail("the fixture could not bind the pair, so there is no edge to sever");
+                        return;
+                    }
+                    if (virtualEdgesOn(level, b) == 0) {
+                        helper.fail("the far node holds no virtual edge after a successful bind, so the reading"
+                                + " below has nothing to assert about");
+                        return;
+                    }
+                    if (gridNodeCount(level, b) <= alone) {
+                        helper.fail("the bind did not merge anything: " + alone + " nodes before, "
+                                + gridNodeCount(level, b) + " after");
+                        return;
+                    }
+                    helper.setBlock(near, Blocks.AIR);
+                    WirelessLinks.rebuildNow(level, ModRegistration.WIRELESS_LINKS);
+                    if (WirelessLinks.linksAtEverywhere(level, ModRegistration.WIRELESS_LINKS, b) != 0) {
+                        helper.fail("the record for a device that is no longer there was never dropped");
+                        return;
+                    }
+                    int leftover = virtualEdgesOn(level, b);
+                    if (leftover != 0) {
+                        helper.fail("the survivor still holds " + leftover + " virtual edge(s) to a node with no"
+                                + " block behind it, so the far device is online inside a broken network");
+                        return;
+                    }
+                    int back = gridNodeCount(level, b);
+                    if (back != alone) {
+                        helper.fail("the survivor's grid counts " + back + " nodes after the far end was removed"
+                                + " and our record dropped, but it counted " + alone + " before the bind");
+                        return;
+                    }
+                    helper.succeed();
+                });
+    }
+
+    /** How many nodes AE2 counts in the grid the device at this position currently belongs to. */
+    private static int gridNodeCount(ServerLevel level, GlobalPos at) {
+        var node = networkNode(level, at);
+        if (node == null || node.getGrid() == null) {
+            return -1;
+        }
+        int count = 0;
+        for (var ignored : node.getGrid().getNodes()) {
+            count++;
+        }
+        return count;
+    }
+
+    /** How many direction-less edges AE2 currently reports for the device at this position. */
+    private static int virtualEdgesOn(ServerLevel level, GlobalPos at) {
+        var node = networkNode(level, at);
+        if (node == null) {
+            return -1;
+        }
+        int virtual = 0;
+        for (var connection : node.getConnections()) {
+            if (!connection.isInWorld()) {
+                virtual++;
+            }
+        }
+        return virtual;
+    }
+
+    /**
+     * The predicate every level read hangs off of, asserted directly: false for a caller that is not on the
+     * server thread, true on it. The behavioural tests only catch this guard if the blocking read is re-armed as
+     * well, so the guard gets its own face.
+     *
+     * <p>The control is the one-line neuter - make it answer {@code server != null} and the worker-thread half
+     * goes red on its own sentence with nothing else in the batch moving.</p>
+     */
+    @GameTest(template = "empty", batch = "wireless_link_card", timeoutTicks = 200,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void wirelessLinkLevelReadIsRefusedOffTheServerThread(GameTestHelper helper) {
+        var level = (ServerLevel) helper.getLevel();
+        if (!WirelessLinks.mayReadBlocks(level)) {
+            helper.fail("the main thread was refused a level read, so every rebuild would silently decline");
+            return;
+        }
+        var answered = new java.util.concurrent.CountDownLatch(1);
+        var workerSays = new boolean[1];
+        var workerIsMain = new boolean[1];
+        var worker = new Thread(() -> {
+            workerIsMain[0] = Thread.currentThread() == level.getServer().getRunningThread();
+            workerSays[0] = WirelessLinks.mayReadBlocks(level);
+            answered.countDown();
+        }, "neoecoprototype-off-thread-predicate");
+        worker.setDaemon(true);
+        worker.start();
+        boolean finished;
+        try {
+            finished = answered.await(5, java.util.concurrent.TimeUnit.SECONDS);
+        } catch (InterruptedException interrupted) {
+            Thread.currentThread().interrupt();
+            finished = false;
+        }
+        if (!finished) {
+            helper.fail("the predicate itself blocked off the server thread, so it is not a pure in-memory answer");
+            return;
+        }
+        if (workerIsMain[0]) {
+            helper.fail("the test's own worker ran on the server thread, so the refusal below measures nothing");
+            return;
+        }
+        if (workerSays[0]) {
+            helper.fail("mayReadBlocks answered true for a thread that is not the server thread - that answer is "
+                    + "what parks world load at 0%");
+            return;
+        }
+        helper.succeed();
     }
 
     /** How many edges AE2 currently has between these two nodes - the number a rebuild must not raise. */
