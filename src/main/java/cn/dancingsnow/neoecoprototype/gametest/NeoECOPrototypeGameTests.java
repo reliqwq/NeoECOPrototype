@@ -12744,6 +12744,85 @@ public final class NeoECOPrototypeGameTests {
                 });
     }
 
+    /**
+     * The chunk wake must not read blocks when it is not on the server thread, and that is a live bug, not
+     * tidiness. {@code ChunkEvent.Load} is posted from a chunk worker inside {@code ChunkStatusTasks.full};
+     * {@code ServerChunkCache.getChunk} opens with "not the main thread? queue the read on the main thread
+     * and join"; and during world load the main thread sits in {@code BlockableEventLoop.waitForTasks}
+     * waiting on that same worker pool - so the two wait on each other and start-region generation never
+     * leaves 0%. A live client reproduced exactly that: two thread dumps 44 s apart with identical stacks,
+     * our own {@code presence} frame parked on the join.
+     *
+     * <p>How this goes red instead of wedging: the main thread holds still inside {@code latch.await}, which
+     * does not drain Minecraft's queue, so an unguarded read cannot be serviced and the 5 s await simply
+     * expires - after that the worker finishes normally and nothing is left stuck. The rest is the fixed
+     * path's own contract: declining is answered as "I cannot tell", so the record survives and no edge is
+     * built off-thread, and {@code rebuildNow} on the main thread still takes it over.</p>
+     */
+    @GameTest(template = "empty", batch = "wireless_link_card", timeoutTicks = 400,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void wirelessLinkWakeFromAnotherThreadNeverReadsBlocks(GameTestHelper helper) {
+        var near = new BlockPos(0, 1, 0);
+        var far = new BlockPos(0, 1, 8);
+        helper.setBlock(near, ModRegistration.SUPERCONDUCTIVE_INTERFACE_BLOCK.get());
+        helper.setBlock(far, ModRegistration.SIMPLIFY_STORAGE_CASING_BLOCK.get());
+        var level = (ServerLevel) helper.getLevel();
+        var a = GlobalPos.of(level.dimension(), helper.absolutePos(near));
+        var b = GlobalPos.of(level.dimension(), helper.absolutePos(far));
+        var link = WirelessLinks.linkOf(a, b);
+        waitUntil(helper, 25,
+                () -> separateNetworks(level, a, b),
+                () -> "the two devices never became two separate network nodes: " + nodeSummary(level, a)
+                        + " / " + nodeSummary(level, b) + ", so this measures nothing",
+                () -> {
+                    if (!WirelessLinks.bind(level, ModRegistration.WIRELESS_LINKS, a, b).startsWith("linked ")) {
+                        helper.fail("the fixture could not bind the pair, so the wake path has nothing to wake");
+                        return;
+                    }
+                    WirelessLinks.forgetEdge(level, ModRegistration.WIRELESS_LINKS, link);
+                    var here = helper.absolutePos(near);
+                    int wakeX = here.getX() >> 4;
+                    int wakeZ = here.getZ() >> 4;
+                    var answered = new java.util.concurrent.CountDownLatch(1);
+                    var worker = new Thread(() -> {
+                        WirelessLinks.rebuildAround(level, ModRegistration.WIRELESS_LINKS, wakeX, wakeZ);
+                        answered.countDown();
+                    }, "neoecoprototype-off-thread-wake");
+                    worker.setDaemon(true);
+                    worker.start();
+                    boolean answeredInTime;
+                    try {
+                        answeredInTime = answered.await(5, java.util.concurrent.TimeUnit.SECONDS);
+                    } catch (InterruptedException interrupted) {
+                        Thread.currentThread().interrupt();
+                        answeredInTime = false;
+                    }
+                    if (!answeredInTime) {
+                        helper.fail("an off-thread wake could not answer within 5s of the main thread holding its "
+                                + "queue still, so it is waiting on a block read only the main thread can run - "
+                                + "that is the world-load deadlock (see WirelessLinks.mayReadBlocks)");
+                        return;
+                    }
+                    if (WirelessLinks.edgeOf(level, ModRegistration.WIRELESS_LINKS, link) != null) {
+                        helper.fail("the off-thread wake rebuilt the link, so it read block entities off the "
+                                + "server thread instead of declining to look");
+                        return;
+                    }
+                    if (WirelessLinks.linksAtEverywhere(level, ModRegistration.WIRELESS_LINKS, a) == 0) {
+                        helper.fail("the off-thread wake dropped the record: a declined read answered \"this "
+                                + "device is gone\" instead of \"I cannot tell\"");
+                        return;
+                    }
+                    WirelessLinks.rebuildNow(level, ModRegistration.WIRELESS_LINKS);
+                    if (WirelessLinks.edgeOf(level, ModRegistration.WIRELESS_LINKS, link) == null) {
+                        helper.fail("the record survived the off-thread wake but the main-thread pass did not take "
+                                + "it over either, so the guard is not deferring the work - it is losing it");
+                        return;
+                    }
+                    helper.succeed();
+                });
+    }
+
     /** How many edges AE2 currently has between these two nodes - the number a rebuild must not raise. */
     private static int connectionsBetween(ServerLevel level, GlobalPos a, GlobalPos b) {
         var nodeA = networkNode(level, a);

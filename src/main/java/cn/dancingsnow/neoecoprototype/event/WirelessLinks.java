@@ -480,9 +480,11 @@ public final class WirelessLinks {
     /**
      * A chunk just woke up, which is the one moment a link is genuinely expected to need rebuilding - so the
      * timed pass can afford to be slow. Only links with an endpoint inside that chunk are touched, and the
-     * test is a chunk-coordinate long, not a world query. The attempt made here usually finds the node
-     * missing (AE2 builds it on the block entity's first tick, after this event); what it does buy is the
-     * burst of passes that follows, which catches the edge within a second instead of at the next slow sweep.
+     * test is a chunk-coordinate long, not a world query. Nothing is read from the level on this path either:
+     * the event fires on a chunk worker, so {@link #mayReadBlocks} declines every endpoint and the record is
+     * simply marked urgent. What the hook buys is that urgency - the burst of main-thread passes that follows
+     * catches the edge within a second instead of at the next slow sweep, and AE2 would not have built the
+     * node yet anyway (it comes on the block entity's first tick, after this event).
      */
     public static void rebuildAround(net.minecraft.world.level.LevelAccessor level,
                                      Supplier<AttachmentType<Data>> type, int chunkX, int chunkZ) {
@@ -657,7 +659,8 @@ public final class WirelessLinks {
         if (level == null) {
             return Presence.ASLEEP;
         }
-        if (!level.hasChunk(at.pos().getX() >> 4, at.pos().getZ() >> 4)) {
+        if (!mayReadBlocks(level)
+                || !level.hasChunk(at.pos().getX() >> 4, at.pos().getZ() >> 4)) {
             return Presence.ASLEEP;
         }
         // Either answer means "AE2 would run a network through this position", which is the only question
@@ -677,7 +680,8 @@ public final class WirelessLinks {
      */
     private static IGridNode node(ServerLevel acting, GlobalPos at) {
         ServerLevel level = levelOf(acting, at.dimension());
-        if (level == null || !level.hasChunk(at.pos().getX() >> 4, at.pos().getZ() >> 4)) {
+        if (level == null || !mayReadBlocks(level)
+                || !level.hasChunk(at.pos().getX() >> 4, at.pos().getZ() >> 4)) {
             return null;
         }
         if (level.getBlockEntity(at.pos()) instanceof appeng.me.helpers.IGridConnectedBlockEntity connected) {
@@ -694,6 +698,21 @@ public final class WirelessLinks {
             }
         }
         return null;
+    }
+
+    /**
+     * Whether it is safe to look at a block entity right now, and the answer is load-bearing. Measured on a
+     * live client: {@code ServerChunkCache.getChunk} opens with "if this is not the main thread, queue the read
+     * on the main thread and join", and {@code ChunkEvent.Load} is posted from a chunk worker inside
+     * {@code ChunkStatusTasks.full} - so a block read from that listener waits on the main thread while the
+     * main thread sits in {@code BlockableEventLoop.waitForTasks} waiting on the chunk pool, and world load
+     * stops at 0% forever. {@code getChunkNow} is no escape: it returns null off the main thread by design.
+     * An off-thread caller therefore gets the same answer as an asleep endpoint, which is the answer every
+     * caller here already treats as "leave the record alone".
+     */
+    private static boolean mayReadBlocks(ServerLevel acting) {
+        MinecraftServer server = acting.getServer();
+        return server != null && server.isSameThread();
     }
 
     /** Asking for a dimension never loads it: an unloaded one is simply not in the map. */
