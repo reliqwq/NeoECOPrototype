@@ -249,5 +249,6 @@
   "advancement.neoecoprototype.powered_interface.title": "它在发电！",
   "advancement.neoecoprototype.powered_interface.description": "获得一个供能接口或盈能超导接口，以取代原始的水晶谐振发电机。",
   "advancement.neoecoprototype.migration_drive.title": "一步登顶",
-  "advancement.neoecoprototype.migration_drive.description": "拿到一个升格驱动。安全又高效。"
+  "advancement.neoecoprototype.migration_drive.description": "拿到一个升格驱动。安全又高效。",
+  "chemical.neoecoprototype.milk": "牛奶"
 }

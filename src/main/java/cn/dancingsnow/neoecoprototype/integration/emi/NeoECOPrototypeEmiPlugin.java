@@ -39,6 +39,10 @@ public final class NeoECOPrototypeEmiPlugin implements EmiPlugin {
 
     @Override
     public void register(EmiRegistry registry) {
+        registry.removeRecipes(recipe -> {
+            if (cn.dancingsnow.neoecoprototype.integration.HiddenEasterEggRecipes.isHidden(recipe.getId())) return true;
+            return cn.dancingsnow.neoecoprototype.integration.HiddenEasterEggRecipes.isHiddenRecipe(recipe.getBackingRecipe());
+        });
         // eco's own page loop walks NEMultiBlocks.DEFINITIONS, which we must not join this early - see
         // NeoECOPrototype#commonSetup. So we build its recipe wrapper for our three structures here.
         registry.addRecipe(new MultiblockEmiRecipe(

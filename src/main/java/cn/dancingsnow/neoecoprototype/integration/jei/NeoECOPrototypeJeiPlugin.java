@@ -113,6 +113,9 @@ public final class NeoECOPrototypeJeiPlugin implements IModPlugin {
 
     @Override
     public void onRuntimeAvailable(IJeiRuntime runtime) {
+        var manager = runtime.getRecipeManager();
+        manager.createRecipeCategoryLookup().includeHidden().get()
+                .forEach(category -> HiddenJeiRecipes.hide(manager, category.getRecipeType()));
         if (TRINITY_VISIBLE_IN_JEI) {
             return;
         }

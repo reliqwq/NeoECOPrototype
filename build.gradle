@@ -226,6 +226,7 @@ dependencies {
 
     testImplementation platform("org.junit:junit-bom:5.10.2")
     testImplementation "org.junit.jupiter:junit-jupiter"
+    testImplementation "org.mockito:mockito-core:5.15.2"
 }
 
 // Every mod dependency resolves from a local file so a build needs no network, and none of those files
@@ -257,6 +258,7 @@ tasks.named('processResources', ProcessResources) {
 }
 tasks.named('test', Test) {
     useJUnitPlatform()
+    maxHeapSize = '2G'
     // Point the cable-model contract test at any eco jar to watch it disagree with us - the way this file
     // proves it is reading upstream rather than our own assumptions:
     //   ./gradlew test -Dneoecoprototype.test.ecoJar=neoecobeta/neoecoae-21.2.9.jar
@@ -270,6 +272,9 @@ tasks.named('test', Test) {
 // which ModDev puts on main only. Without these lines the test source set cannot see them.
 sourceSets.test.compileClasspath += sourceSets.main.compileClasspath
 sourceSets.test.runtimeClasspath += sourceSets.main.compileClasspath
+// Headless transport tests bootstrap Minecraft's registries and need its default language assets.
+sourceSets.test.runtimeClasspath += files(layout.buildDirectory.file(
+        'moddev/artifacts/neoforge-21.1.251-client-extra-aka-minecraft-resources.jar'))
 
 neoForge {
     version = '21.1.251'

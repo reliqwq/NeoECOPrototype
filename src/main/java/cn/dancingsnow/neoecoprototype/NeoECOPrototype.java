@@ -29,6 +29,10 @@ public class NeoECOPrototype {
 
     public NeoECOPrototype(IEventBus modBus, ModContainer container) {
         LOGGER.info("Loading {}...", MOD_ID);
+        if (ModList.get().isLoaded("neoecoae") && ModList.get().isLoaded("mekanism")
+                && ModList.get().isLoaded("useless_stretcher")) {
+            cn.dancingsnow.neoecoprototype.integration.mekanism.MilkInfusionCompatibility.register(modBus);
+        }
         // AE2's part-model list is write-once: whoever resolves the cable-bus model or handles
         // ModelEvent.RegisterAdditional first closes it, and registerModels throws after that. Mod
         // construction is the one phase where no mod can have baked anything yet, so it cannot be a race -

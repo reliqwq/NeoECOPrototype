@@ -249,5 +249,6 @@
   "advancement.neoecoprototype.powered_interface.title": "It generates!",
   "advancement.neoecoprototype.powered_interface.description": "Obtain a powered or superconductive interface, in place of the crude quartz resonance generator.",
   "advancement.neoecoprototype.migration_drive.title": "Straight to the top",
-  "advancement.neoecoprototype.migration_drive.description": "Obtain a migration drive. Safe and efficient."
+  "advancement.neoecoprototype.migration_drive.description": "Obtain a migration drive. Safe and efficient.",
+  "chemical.neoecoprototype.milk": "Milk"
 }
