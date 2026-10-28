@@ -11,6 +11,8 @@ import cn.dancingsnow.neoecoae.api.storage.ECOCellType;
 import cn.dancingsnow.neoecoae.api.storage.ECOStorageCells;
 import cn.dancingsnow.neoecoae.api.storage.IECOCellHandler;
 import cn.dancingsnow.neoecoae.api.storage.IECOStorageCell;
+import cn.dancingsnow.neoecoae.crafting.amount.ExactAmount;
+import cn.dancingsnow.neoecoae.crafting.display.terminal.ExactAmountSource;
 import cn.dancingsnow.neoecoprototype.api.SimplifyTier;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
@@ -18,6 +20,7 @@ import net.minecraft.world.level.block.Blocks;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
+import java.util.function.BiConsumer;
 
 /**
  * Bridges the infinite concrete storage matrix into Neo ECO's cell API, in the
@@ -67,7 +70,7 @@ public final class InfiniteConcreteCellHandler implements IECOCellHandler {
     }
 
     /** A stateless endless source: every concrete color, always, forever. */
-    private static final class Cell implements IECOStorageCell {
+    private static final class Cell implements IECOStorageCell, ExactAmountSource {
         private static final Component DESCRIPTION = Component.translatable(
                 "item.neoecoprototype.simplify_concrete_storage_cell");
 
@@ -164,6 +167,23 @@ public final class InfiniteConcreteCellHandler implements IECOCellHandler {
         @Override
         public boolean isInfiniteStorageEligible() {
             return false;
+        }
+
+        /**
+         * eco only believes a listing is endless through this interface. Asked plainly, AE2 hands it our
+         * {@code REPORTED_AMOUNT_PER_TYPE}, a finite number big enough to be moved - which is what let an
+         * interface keep stocking concrete out of this cell and billing the network for every unit.
+         */
+        @Override
+        public void neoecoae$visitExactAmounts(BiConsumer<AEKey, ExactAmount> visitor) {
+            for (AEItemKey concrete : CONCRETE_KEYS) {
+                visitor.accept(concrete, ExactAmount.unbounded());
+            }
+        }
+
+        @Override
+        public boolean neoecoae$hasSaturatingListing() {
+            return true;
         }
     }
 }

@@ -10,10 +10,14 @@ import cn.dancingsnow.neoecoae.api.storage.ECOCellType;
 import cn.dancingsnow.neoecoae.api.storage.ECOStorageCells;
 import cn.dancingsnow.neoecoae.api.storage.IECOCellHandler;
 import cn.dancingsnow.neoecoae.api.storage.IECOStorageCell;
+import cn.dancingsnow.neoecoae.crafting.amount.ExactAmount;
+import cn.dancingsnow.neoecoae.crafting.display.terminal.ExactAmountSource;
 import cn.dancingsnow.neoecoprototype.api.SimplifyTier;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
 import org.jetbrains.annotations.Nullable;
+
+import java.util.function.BiConsumer;
 
 /**
  * KubeJS 自定义无限存储矩阵的接入：与 {@link InfiniteConcreteCellHandler} 同一套
@@ -39,7 +43,7 @@ public final class CustomInfiniteCellHandler implements IECOCellHandler {
     }
 
     /** A stateless endless source bound to one script-chosen key. */
-    private static final class Cell implements IECOStorageCell {
+    private static final class Cell implements IECOStorageCell, ExactAmountSource {
         private final CustomInfiniteCellItem item;
 
         private Cell(CustomInfiniteCellItem item) {
@@ -139,6 +143,21 @@ public final class CustomInfiniteCellHandler implements IECOCellHandler {
         @Override
         public boolean isInfiniteStorageEligible() {
             return false;
+        }
+
+        /**
+         * eco 只经这个接口才承认一份库存是"无限"。裸着问 AE2，它拿到的是
+         * {@code REPORTED_AMOUNT} 乘单位量——一个有限但大到可以搬的数，
+         * 于是接口会没完没了地从这里取货并按量向电网计费。
+         */
+        @Override
+        public void neoecoae$visitExactAmounts(BiConsumer<AEKey, ExactAmount> visitor) {
+            visitor.accept(item.getRecord(), ExactAmount.unbounded());
+        }
+
+        @Override
+        public boolean neoecoae$hasSaturatingListing() {
+            return true;
         }
     }
 }
