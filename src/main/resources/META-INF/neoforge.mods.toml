@@ -83,7 +83,12 @@ side = "BOTH"
 [[dependencies.neoecoprototype]]
 modId = "neoecoae"
 mandatory = true
-versionRange = "[21.2.11,)"
+versionRange = "[21.2.12,)"
+# Forced again, and by the same kind of surprise: 21.2.12 moved eco's impl/storage/** tree to storage/**,
+# and our bytecode names two of those classes directly - one in the return descriptor of the
+# createCellInventory override, one as a static call in the drive renderer. A moved class is a
+# NoClassDefFoundError on the side that still asks for the old name, so the floor cannot stay at 21.2.11
+# once the baseline is 21.2.12. The tank field that forced the previous floor is unchanged here.
 # The floor is forced, not chosen: eco 21.2.11 re-typed ECOFluidInputHatchBlockEntity.tank from
 # a neoforge FluidTank to its own util.LongFluidTank, and a field reference carries that exact
 # descriptor, so our four reads of .tank cannot be satisfied by 21.2.10. See build.gradle.

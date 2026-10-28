@@ -169,7 +169,18 @@ dependencies {
 // GuiTitleProvider (PR #110) and grid.NEMachineLookup (PR #109) are still carried; both are in the 104.
 // A sync is certified by compiling against that jar and running the suite. tools/audit_eco_abi.py is a
 // companion check, not a verdict -- read its docstring before believing its "MISSING" list.
-    implementation files("neoecobeta/neoecoae-21.2.11.jar")
+// 21.2.12 (30 commits past 21.2.11) moved eco's whole impl/storage/** tree to storage/** - 45 renames,
+// 23 removed, 23 added by the compare API - and that is what our compile has to follow: our small-bulk
+// cell names impl.storage.ECOStorageCell in the return descriptor of the createCellInventory override,
+// SimplifyDriveRenderer calls impl.storage.infinite.ECOInfiniteStorageMember.isMember, and one game test
+// asserts an exact class identity against the same type. The member-level scan over the 109 types we
+// reference reports one absent class plus a wall of supertype false positives, so the compiler is the
+// instrument here, as the line above says. What did NOT move: ECOFluidInputHatchBlockEntity.tank is still
+// util.LongFluidTank (the reason 21.2.11 forced its floor), crafting/display/terminal/ExactAmountSource is
+// still where our endless-cell credential sits, and the infinite sand cell is now registered (3 hits for
+// eco_infinite_sand_cell, 0 in 21.2.11) - which is what the milk easter egg's item_exists condition waits
+// on, so on this baseline that recipe loads.
+    implementation files("neoecobeta/neoecoae-21.2.12.jar")
     // MegaCells 4.11.0 is the supported optional integration version.
     implementation files("libs/megacells-4.11.0.jar")
     // Dev-runtime only: keep them off the compile classpath but on the runtime classpath.

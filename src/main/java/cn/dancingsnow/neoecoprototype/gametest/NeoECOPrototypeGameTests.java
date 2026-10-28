@@ -220,7 +220,7 @@ public final class NeoECOPrototypeGameTests {
             helper.fail("the small bulk cell got no storage inventory, so it cannot mount in a drive");
             return;
         }
-        if (cell.getClass() != cn.dancingsnow.neoecoae.impl.storage.ECOStorageCell.class) {
+        if (cell.getClass() != cn.dancingsnow.neoecoae.storage.ECOStorageCell.class) {
             helper.fail("the small bulk cell mounted through " + cell.getClass().getSimpleName()
                     + " instead of eco's standard storage engine");
             return;

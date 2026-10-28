@@ -14,19 +14,25 @@ import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.MethodInsnNode;
 
 /**
- * The two places our bytecode names an {@code impl.storage} class, read off upstream's own class files.
+ * The two places our bytecode names one of eco's storage implementation classes, read off upstream's own
+ * class files.
  *
- * <p>eco 21.2.11 keeps these under {@code impl/storage}, and every build after {@code f4fe4e9} on its main
- * branch has moved the whole tree to {@code storage}. A package move is the one upstream change that does
- * not have to crash us: {@code SimplifySmallBulkStorageCellItem} overrides
- * {@code createCellInventory(ItemStack, ISaveProvider)} whose <em>return type</em> is the moved class, so if
- * eco re-declares that method with the new return type, our method simply stops being an override. The
- * class still loads, the cell still works, and the byte-infinite engine we wrote is quietly replaced by
- * eco's standard one - which is a silent behaviour change, not a crash, and is exactly what this file is
- * here to make loud before we ship rather than after a player reports a small-bulk cell that stores less.
+ * <p>eco 21.2.11 kept them under {@code impl/storage}; 21.2.12 moved the whole tree to {@code storage}
+ * (compare: 45 renames, 23 removed, 23 added), so this file is now reading the post-move names. That move
+ * is the one upstream change that does not have to crash us: {@code SimplifySmallBulkStorageCellItem}
+ * overrides {@code createCellInventory(ItemStack, ISaveProvider)} whose <em>return type</em> is one of the
+ * moved classes, so when eco re-declares that method with the new return type, our method simply stops
+ * being an override. The class still loads, the cell still works, and the byte-infinite engine we wrote is
+ * quietly replaced by eco's standard one - a silent behaviour change, not a crash, and exactly what this
+ * file is here to make loud before we ship rather than after a player reports a small-bulk cell that
+ * stores less.
  *
- * <p>The second one is the drive renderer's static call into {@code ECOInfiniteStorageMember}: that path only
- * runs on the client, so the game-test server can never see it break either.
+ * <p>The second one is the drive renderer's static call into {@code ECOInfiniteStorageMember}; that path
+ * only runs on the client, so the game-test server can never see it break either.
+ *
+ * <p>Both names in this file reddened on the real event, not just on a control: run against 21.2.12 while
+ * the constants still said {@code impl/storage}, the renderer test failed - and its message blamed the
+ * classpath, which is why {@link #ecoClass} now says "moved" out loud.
  */
 final class UpstreamStoragePackageMoveContractTest {
 
@@ -34,7 +40,7 @@ final class UpstreamStoragePackageMoveContractTest {
     private static final String OUR_SMALL_BULK =
             "cn/dancingsnow/neoecoprototype/items/SimplifySmallBulkStorageCellItem";
     private static final String INFINITE_MEMBER =
-            "cn/dancingsnow/neoecoae/impl/storage/infinite/ECOInfiniteStorageMember";
+            "cn/dancingsnow/neoecoae/storage/infinite/ECOInfiniteStorageMember";
     private static final String OUR_DRIVE_RENDERER =
             "cn/dancingsnow/neoecoprototype/client/renderer/blockentity/SimplifyDriveRenderer";
 
@@ -103,8 +109,18 @@ final class UpstreamStoragePackageMoveContractTest {
         }
         var input = UpstreamStoragePackageMoveContractTest.class.getClassLoader()
                 .getResourceAsStream(internalName + ".class");
-        assertNotNull(input, "no " + internalName + " on the test classpath - the eco jar is not being"
-                + " resolved, so this test is not reading upstream at all");
+        if (input == null) {
+            // Distinguishing the two ways this can be empty matters: 21.2.12 took this branch because a
+            // class moved package, and the old wording sent the reader to the build file instead.
+            assertNotNull(UpstreamStoragePackageMoveContractTest.class.getClassLoader()
+                            .getResourceAsStream(CELL_ITEM + ".class"),
+                    "no eco class at all on the test classpath - the eco jar is not being resolved, so this"
+                            + " test is not reading upstream at all");
+            throw new AssertionError("eco no longer ships " + internalName + " at that path, although the rest"
+                    + " of its classes resolve. That is a move or a rename, not a broken classpath: find the"
+                    + " new location in the jar, repoint the constant in this file AND every reference in"
+                    + " src/main, then re-run the suite.");
+        }
         return read(input);
     }
 
