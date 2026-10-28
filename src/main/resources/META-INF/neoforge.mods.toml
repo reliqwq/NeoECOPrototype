@@ -91,7 +91,10 @@ versionRange = "[21.2.12,)"
 # once the baseline is 21.2.12. The tank field that forced the previous floor is unchanged here.
 # The floor is forced, not chosen: eco 21.2.11 re-typed ECOFluidInputHatchBlockEntity.tank from
 # a neoforge FluidTank to its own util.LongFluidTank, and a field reference carries that exact
-# descriptor, so our four reads of .tank cannot be satisfied by 21.2.10. See build.gradle.
+# descriptor, so the four reads of .tank that shipped in 1.4.2 cannot be satisfied by 21.2.10.
+# We no longer read that field: this tree reads every hatch tank through getFluidTankHandler(), which
+# is new in 21.2.12 (0 declarations in 21.2.10 and 21.2.11, 2 in 21.2.12), so it is the accessor that
+# holds this floor now, not the descriptor. See build.gradle.
 # AFTER for the same reason as AE2 above: several of our items extend eco's cell items, so binding our
 # registry entry loads eco's class and runs its statics, which read eco's and AE2's registries.
 ordering = "AFTER"

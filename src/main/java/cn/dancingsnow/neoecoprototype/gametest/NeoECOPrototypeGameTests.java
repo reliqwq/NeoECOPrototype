@@ -716,10 +716,12 @@ public final class NeoECOPrototypeGameTests {
     }
 
     /**
-     * The two fluid hatches are the only pair of blocks whose UI we build ourselves - we hand eco's
-     * {@code FluidHatchUI} the tank field instead of letting the block entity do it - and until now
-     * nothing in the suite ever made that call. A player right-clicks these, so a throw here is a
-     * crash report rather than a failed build.
+     * Right-clicking either fluid hatch must open something. Only the output hatch's UI is still built by
+     * us - {@code SimplifyFluidOutputHatchBlock} hands eco's {@code FluidHatchUI} the tank it reads through
+     * eco's {@code getFluidTankHandler()} - while the input hatch's {@code createUI} override was deleted
+     * on 2026-10-27 because eco 21.2.11 moved that decision into its block entity. So this call covers our
+     * own UI path and eco's delegate in one pass; nothing else in the suite made either call, and a player
+     * right-clicks these, so a throw here is a crash report rather than a failed build.
      */
     @GameTest(template = "empty", batch = "fluid_hatch_ui", timeoutTicks = 100,
             templateNamespace = NeoECOPrototype.MOD_ID)
@@ -758,6 +760,66 @@ public final class NeoECOPrototypeGameTests {
                     helper.fail("right-clicking " + state.getBlock() + " throws " + failure + ", first frames: "
                             + java.util.Arrays.toString(java.util.Arrays.copyOf(
                                     failure.getStackTrace(), Math.min(5, failure.getStackTrace().length))));
+                    return;
+                }
+            }
+            helper.succeed();
+        });
+    }
+
+    /**
+     * The two {@code Capabilities.FluidHandler.BLOCK} faces are what a pipe talks to, and until now the
+     * suite never asked them: the guard above only opens the screen, and the ASM contract test only proves
+     * which descriptor our own bytecode names. Both faces now come from eco's {@code getFluidTankHandler()}
+     * instead of the {@code tank} field, so this asserts the face answers and hands back the <em>same</em>
+     * tank object the machine holds - an accessor that returned a fresh copy would compile, pass every
+     * symbol scan, and make each pipe fill a tank that is thrown away on the next tick.
+     */
+    @GameTest(template = "empty", batch = "fluid_hatch_faces", timeoutTicks = 100,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void fluidHatchFacesServeTheLiveTank(GameTestHelper helper) {
+        var blocks = List.of(ModRegistration.SIMPLIFY_FLUID_INPUT_HATCH_BLOCK.get(),
+                ModRegistration.SIMPLIFY_FLUID_OUTPUT_HATCH_BLOCK.get());
+        for (int i = 0; i < blocks.size(); i++) {
+            helper.setBlock(new BlockPos(i, 1, 0), blocks.get(i));
+        }
+        helper.runAfterDelay(5, () -> {
+            for (int i = 0; i < blocks.size(); i++) {
+                var absolute = helper.absolutePos(new BlockPos(i, 1, 0));
+                var state = helper.getLevel().getBlockState(absolute);
+                var blockEntity = helper.getLevel().getBlockEntity(absolute);
+                net.neoforged.neoforge.fluids.capability.templates.FluidTank live;
+                if (blockEntity instanceof cn.dancingsnow.neoecoae.blocks.entity.crafting.ECOFluidInputHatchBlockEntity be) {
+                    live = be.getFluidTankHandler();
+                } else if (blockEntity instanceof cn.dancingsnow.neoecoae.blocks.entity.crafting.ECOFluidOutputHatchBlockEntity be) {
+                    live = be.getFluidTankHandler();
+                } else {
+                    helper.fail(state.getBlock() + " at " + absolute + " holds " + blockEntity
+                            + ", so there is no hatch block entity to ask for its tank");
+                    return;
+                }
+                if (live == null) {
+                    helper.fail(state.getBlock() + ": getFluidTankHandler() itself answered null");
+                    return;
+                }
+                var face = helper.getLevel().getCapability(
+                        net.neoforged.neoforge.capabilities.Capabilities.FluidHandler.BLOCK, absolute, Direction.UP);
+                if (face == null) {
+                    helper.fail(state.getBlock() + " exposes no fluid face on UP, so a pipe standing there"
+                            + " finds nothing to fill - the registration in NeoECOPrototype is gone or the"
+                            + " block entity type is no longer the one it lists");
+                    return;
+                }
+                if (face != live) {
+                    helper.fail(state.getBlock() + " serves " + face.getClass().getName()
+                            + " to pipes but its own machine runs on " + live.getClass().getName()
+                            + " - two objects, so whatever a pipe fills is not what the hatch drains");
+                    return;
+                }
+                if (face.getTanks() < 1 || face.getTankCapacity(0) <= 0) {
+                    helper.fail(state.getBlock() + " serves the live tank but reports tanks="
+                            + face.getTanks() + " capacity=" + face.getTankCapacity(0)
+                            + ", which no filler can use");
                     return;
                 }
             }

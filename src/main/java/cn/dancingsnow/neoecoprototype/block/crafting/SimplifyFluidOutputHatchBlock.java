@@ -15,7 +15,7 @@ public class SimplifyFluidOutputHatchBlock extends ECOFluidOutputHatchBlock {
     public ModularUI createUI(BlockUIMenuType.BlockUIHolder holder) {
         if (holder.player.level().getBlockEntity(holder.pos) instanceof ECOFluidOutputHatchBlockEntity be) {
             return FluidHatchUI.createFluidHatchUI(
-                    holder, be.tank, "block.neoecoprototype.simplify_fluid_output_hatch", false, true);
+                    holder, be.getFluidTankHandler(), "block.neoecoprototype.simplify_fluid_output_hatch", false, true);
         }
         return null;
     }

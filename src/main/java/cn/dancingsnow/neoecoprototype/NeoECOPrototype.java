@@ -182,12 +182,15 @@ public class NeoECOPrototype {
         registerNodeHost(event, ModRegistration.SIMPLIFY_CRAFTING_VENT_BE.get());
         registerNodeHost(event, ModRegistration.SIMPLIFY_FLUID_INPUT_HATCH_BE.get());
         registerNodeHost(event, ModRegistration.SIMPLIFY_FLUID_OUTPUT_HATCH_BE.get());
+        // Read through eco's accessor, not the field. 21.2.11 re-typed the input hatch's tank from
+        // FluidTank to util.LongFluidTank, and a getfield eats the exact descriptor, so the released 1.4.2
+        // threw NoSuchFieldError on 21.2.11 from these two lines without a single source change of ours.
         event.registerBlockEntity(Capabilities.FluidHandler.BLOCK,
                 ModRegistration.SIMPLIFY_FLUID_INPUT_HATCH_BE.get(),
-                (blockEntity, side) -> blockEntity.tank);
+                (blockEntity, side) -> blockEntity.getFluidTankHandler());
         event.registerBlockEntity(Capabilities.FluidHandler.BLOCK,
                 ModRegistration.SIMPLIFY_FLUID_OUTPUT_HATCH_BE.get(),
-                (blockEntity, side) -> blockEntity.tank);
+                (blockEntity, side) -> blockEntity.getFluidTankHandler());
         registerNodeHost(event, ModRegistration.SIMPLIFY_CRAFTING_INTERFACE_BE.get());
         registerNodeHost(event, ModRegistration.SIMPLIFY_CRAFTING_CASING_BE.get());
         // The dissociator must be in this list too, or a cable placed against a machine that was already
