@@ -3900,6 +3900,55 @@ public final class NeoECOPrototypeGameTests {
      */
     private record CellTypeBand(String northUv, String texture, int faces, int litFaces) { }
 
+    /**
+     * The small-bulk family exists exactly when MegaCells is installed, and nothing else may decide that.
+     *
+     * <p>All eight members are registered inside one {@code isLoaded("megacells")} block, so the family can
+     * only go wrong in two silent ways: a member added outside the gate, which then ships on packs without
+     * MEGA and reaches for eco's mega cell type the first time it is built; or a member that stops
+     * registering while MEGA is present, which reads as "that item just does not exist" rather than as a
+     * broken gate. The rest of the suite cannot see either, because the only test that walks the family is
+     * currently disabled.
+     *
+     * <p>There is deliberately no assertion that eco still ships {@code neoecoae:mega_item} - that cannot go
+     * missing quietly. {@code SimplifyStorageCellItem.ecoCellType} throws
+     * {@code IllegalStateException("Missing eco cell type: ...")} the first time any member is built, so a
+     * rename or a package move on eco's side stops startup, which is louder than anything asserted here.
+     */
+    @GameTest(template = "empty", templateNamespace = NeoECOPrototype.MOD_ID, batch = "small_bulk_gate")
+    public static void smallBulkFamilyIsGatedExactlyOnMegaCells(GameTestHelper helper) {
+        var present = new java.util.LinkedHashMap<String, Boolean>();
+        present.put("simplify_small_bulk_storage_cell", ModRegistration.SIMPLIFY_SMALL_BULK_CELL != null);
+        present.put("simplify_small_bulk_storage_cell_expanded",
+                ModRegistration.SIMPLIFY_SMALL_BULK_CELL_EXPANDED != null);
+        present.put("simplify_small_bulk_fluid_storage_cell",
+                ModRegistration.SIMPLIFY_SMALL_BULK_FLUID_CELL != null);
+        present.put("simplify_small_bulk_fluid_storage_cell_expanded",
+                ModRegistration.SIMPLIFY_SMALL_BULK_FLUID_CELL_EXPANDED != null);
+        present.put("simplify_small_bulk_expansion_card",
+                ModRegistration.SIMPLIFY_SMALL_BULK_EXPANSION_CARD != null);
+        present.put("simplify_small_bulk_storage_matrix_housing",
+                ModRegistration.SIMPLIFY_SMALL_BULK_STORAGE_MATRIX_HOUSING != null);
+        present.put("simplify_small_bulk_fluid_storage_matrix_housing",
+                ModRegistration.SIMPLIFY_SMALL_BULK_FLUID_STORAGE_MATRIX_HOUSING != null);
+        present.put("simplify_small_bulk_chemical_storage_matrix_housing",
+                ModRegistration.SIMPLIFY_SMALL_BULK_CHEMICAL_STORAGE_MATRIX_HOUSING != null);
+
+        var megacells = ModList.get().isLoaded("megacells");
+        var wrong = new ArrayList<String>();
+        for (var member : present.entrySet()) {
+            if (member.getValue() != megacells) {
+                wrong.add(member.getKey() + (member.getValue() ? "=registered" : "=absent"));
+            }
+        }
+        if (!wrong.isEmpty()) {
+            helper.fail("small-bulk family does not follow the megacells gate: isLoaded(\"megacells\")="
+                    + megacells + " but these members disagree: " + wrong + " (all " + present.size()
+                    + " are registered inside that one if-block in ModRegistration)");
+        }
+        helper.succeed();
+    }
+
     @GameTest(template = "empty", templateNamespace = NeoECOPrototype.MOD_ID, batch = "cell_type_stripe")
     public static void driveCellModelsReadTheirOwnTypeStripe(GameTestHelper helper) {
         // The reader is pointed at planted models first, both ways round, because a scan that finds no type
