@@ -54,38 +54,27 @@ import javax.annotation.Nullable;
  * <p>Storage is a level attachment, which is what keeps this off the list of things {@code AGENTS.md}
  * forbids: the records are held by the {@link ServerLevel} instance itself and saved into its
  * {@code neoforge_data_attachments}, not in a static table keyed by dimension.</p>
+ *
+ * <p><b>There is no channel price, allowance or budget here, and there was one until 2026-10-29.</b> It was
+ * charged against a quantity AE2 does not have: with a controller online {@code PathingService} assigns
+ * channels per path and keeps no network-wide pool (the only budget arithmetic in that class is the
+ * controllerless branch, {@code channelsByBlocks = grid.size() x calculateAdHocChannels()}, which feeds power
+ * usage rather than a cap), and neither {@code IGridNode} nor {@code IGridConnection} can be told to limit
+ * channels - both {@code getMaxChannels()} answers have no setter. So the numbers drifted the way invented
+ * ones do (nine taps on one controller row read {@code channels=0/128}), and the gate blocked setups that
+ * work: a player's base is many small controllerless networks, and the advice the refusal gave - "tap an AE2
+ * controller" - landed the credit on the network they were standing on rather than the one being refused
+ * (three refusals in one client session, each {@code channels=0/0} with {@code controller=NO_CONTROLLER} on
+ * both ends). What a link consumes is whatever AE2 decides to give the machines at its two ends, and the card
+ * now reports that rather than rationing it: {@link #status} prints AE2's own mode, controller verdict and
+ * per-face ledger. The one rule still ours to set is structural and stays:
+ * {@link #MAX_LINKS_PER_ENDPOINT} edges per device, because a wireless edge costs no blocks and a player
+ * could otherwise click one machine into a hundred-port hub.</p>
  */
 public final class WirelessLinks {
 
     /** The product rule from the sketch: a device answers for at most this many wireless edges. */
     public static final int MAX_LINKS_PER_ENDPOINT = 4;
-
-    /**
-     * What one tapped controller buys. This is our own price, not a number AE2 hands out: measured in
-     * {@code appeng.me.GridNode#getMaxChannels()} and {@code appeng.me.GridConnection#getMaxChannels()}, AE2
-     * has no "channels per controller block" arithmetic at all - capacity is a flag on the node or edge
-     * (8, or 32 when {@code DENSE_CAPACITY}) multiplied by the network's {@code ChannelMode}, and an
-     * {@code INFINITE} network answers 2^31-1 there. What a controller does is make channel use possible and
-     * constrain routing ({@code GridConnection#setControllerRoute}); {@code ControllerValidator} only checks
-     * the shape and bounds. So 32 was chosen because that is what one dense link costs in AE2 - one grant
-     * buys a link's worth - and it stays in the same unit AE2 counts in, so the devices a grant pays for are
-     * as many as the channels it sells: 32 devices holding one channel each, while a device that really holds
-     * sixteen ({@link #channelCost}, measured in the client on a busy endpoint) takes a quarter of the grant
-     * rather than a quarter of a face.
-     *
-     * <p>Read this as a gate on whether we build the edge, never as a cap: neither {@code IGridConnection}
-     * nor {@code IGridNode} exposes a way to limit channels (both {@code getMaxChannels()} have no setter,
-     * and {@code GridConnection#setAdHocChannels} writes the <em>used</em> field), so AE2 stays free to hand
-     * a device more later. The accounting is recomputed on every question for exactly that reason.</p>
-     *
-     * <p>One allowance per network, not per controller block. This was per block until a client showed a
-     * player pricing a single group one block at a time (four taps on one row of controllers read
-     * {@code channels=0/128}) - AE2 gives nothing to price per block, because
-     * {@code ControllerValidator#calculateState} treats every controller node reachable in the grid as one
-     * group and answers {@code CONTROLLER_CONFLICT} (zero channels, measured in
-     * {@code PathingService#updateControllerState}) the moment a second unreachable pile appears.</p>
-     */
-    public static final int CHANNELS_PER_CONTROLLER = 32;
 
     /**
      * The timed pass is only a fallback - the moments a link actually has to be re-established are the
@@ -107,7 +96,6 @@ public final class WirelessLinks {
     private static final int MAX_REBUILD_ATTEMPTS = 5;
 
     private static final String TAG_LINKS = "links";
-    private static final String TAG_GRANTS = "grants";
     private static final String TAG_A = "a";
     private static final String TAG_B = "b";
     private static final String TAG_DIM = "dim";
@@ -156,15 +144,9 @@ public final class WirelessLinks {
         GONE
     }
 
-    /** The persisted half is the list of pairs and the controller taps; edges are ours only while both ends are up. */
+    /** The persisted half is the list of pairs; edges are ours only while both ends are up. */
     public static final class Data {
         final List<Link> links = new ArrayList<>();
-        /**
-         * Controllers the player tapped with the card. Stored as positions, not as a running total, because
-         * the total is meaningless without knowing which network each controller is sitting on right now -
-         * and that answer only exists while the chunk is loaded.
-         */
-        final List<GlobalPos> grants = new ArrayList<>();
         final Map<Link, IGridConnection> edges = new HashMap<>();
         /** Per-pair bookkeeping for the rebuild throttle; none of it is persisted. */
         final Map<Link, Long> lastAttemptTick = new HashMap<>();
@@ -219,14 +201,6 @@ public final class WirelessLinks {
                             }
                         }
                     }
-                    for (Tag entry : tag.getList(TAG_GRANTS, Tag.TAG_COMPOUND)) {
-                        if (entry instanceof CompoundTag single) {
-                            GlobalPos at = readEndpoint(single);
-                            if (at != null && !data.grants.contains(at)) {
-                                data.grants.add(at);
-                            }
-                        }
-                    }
                     return data;
                 }
 
@@ -239,13 +213,8 @@ public final class WirelessLinks {
                         pair.put(TAG_B, writeEndpoint(link.b()));
                         list.add(pair);
                     }
-                    ListTag grants = new ListTag();
-                    for (GlobalPos at : data.grants) {
-                        grants.add(writeEndpoint(at));
-                    }
                     CompoundTag tag = new CompoundTag();
                     tag.put(TAG_LINKS, list);
-                    tag.put(TAG_GRANTS, grants);
                     return tag;
                 }
             };
@@ -332,18 +301,6 @@ public final class WirelessLinks {
         if (a.getGrid() == b.getGrid()) {
             return "the two are already on one network, so an edge between them proves nothing";
         }
-        // The budget gate, and it is a gate not a cap: everything from here on is what these two networks
-        // bought and what their linked devices report as used. AE2 is still free to hand a machine more
-        // channels later, because nothing in its API lets anyone limit an edge or a node.
-        int granted = grantedFor(owner, data, a.getGrid(), b.getGrid());
-        int spent = spentOn(owner, data, a.getGrid(), b.getGrid());
-        int cost = costOfNewDevice(owner, data, a, link.a(), a.getGrid(), b.getGrid())
-                + costOfNewDevice(owner, data, b, link.b(), a.getGrid(), b.getGrid());
-        if (spent + cost > granted) {
-            return "this link needs " + cost + " channel(s) and these two networks have "
-                    + Math.max(0, granted - spent) + " free (channels=" + spent + "/" + granted + ") - "
-                    + shortNetworks(owner, data, link.a(), a.getGrid(), link.b(), b.getGrid());
-        }
         data.links.add(link);
         // No dirty flag to set: LevelAttachmentsSavedData.isDirty() answers true unconditionally, so a
         // level save always re-reads whatever this object currently holds.
@@ -360,11 +317,10 @@ public final class WirelessLinks {
     }
 
     /**
-     * True when that position holds an AE2 controller - the only block whose tap buys channel capacity,
-     * because the controller is the thing AE2 itself counts channels against. Deliberately only the block
-     * question: whether that controller is part of a group AE2 accepts is a separate question
-     * ({@link #groupWorks}), and the card needs to route a conflicted pile into the message that says so
-     * rather than into the device branch.
+     * True when that position holds an AE2 controller - the block whose tap moves the network's channel
+     * mode. Deliberately only the block question: whether that controller is part of a group AE2 actually
+     * accepts is answered by {@link #controllerState}, and the card needs to route a conflicted pile into
+     * the message that says so rather than into the device branch.
      */
     public static boolean isController(ServerLevel acting, GlobalPos at) {
         if (!at.dimension().equals(acting.dimension()) || !chunkIsHere(acting, at)) {
@@ -375,51 +331,9 @@ public final class WirelessLinks {
     }
 
     /**
-     * The controller tap: buys one {@link #CHANNELS_PER_CONTROLLER} allowance for one network - the network
-     * that controller is sitting on right now. Not per block tapped: AE2 has no per-block controller
-     * identity to price. Measured in {@code appeng.me.pathfinding.ControllerValidator}, a "controller" is
-     * the flood of <em>every</em> controller node in the grid, bounded to 7 on each axis, and a second
-     * disconnected pile in the same grid is a conflict rather than a second controller - so the network is
-     * the only unit that can be sold. Tapping the same one twice changes nothing, and a controller with no
-     * grid is refused rather than filed, because the grant is only meaningful as a property of a network.
-     */
-    public static String grant(ServerLevel acting, Supplier<AttachmentType<Data>> type, GlobalPos at) {
-        if (!isController(acting, at)) {
-            return describe(at) + " is not an AE2 controller, so it buys nothing";
-        }
-        ServerLevel owner = levelOf(acting, at.dimension());
-        if (owner == null) {
-            return "that dimension is not loaded";
-        }
-        Data data = owner.getData(type.get());
-        var node = node(owner, at);
-        if (node == null || node.getGrid() == null) {
-            return describe(at) + " is not on a network yet, so there is nothing to buy channels for";
-        }
-        if (!groupWorks(node)) {
-            return describe(at) + " belongs to a controller group AE2 has rejected ("
-                    + controllerStateOf(node.getGrid()) + "): that network gets no channels at all, so"
-                    + " there is nothing here to buy";
-        }
-        var paidFor = payingGrantFor(owner, data, node.getGrid());
-        if (paidFor != null) {
-            return "already granted " + describe(paidFor)
-                    + (paidFor.equals(at) ? "" : " by another block of this network") + ": "
-                    + ledger(owner, data, node.getGrid());
-        }
-        data.grants.add(at);
-        return "granted " + CHANNELS_PER_CONTROLLER + " channel(s) at " + describe(at) + " | "
-                + ledger(owner, data, node.getGrid());
-    }
-
-    /** What these networks bought and what they are using, in the one line the player is shown. */
-    private static String ledger(ServerLevel acting, Data data, IGrid... grids) {
-        return "channels=" + spentOn(acting, data, grids) + "/" + grantedFor(acting, data, grids);
-    }
-
-    /**
-     * Tapping a controller that already sold its allowance pushes that network one AE2 channel mode up -
-     * DEFAULT to X2, X2 to X3, X3 to X4 - and stops there.
+     * Tapping a controller pushes that network one AE2 channel mode up - DEFAULT to X2, X2 to X3, X3 to X4 -
+     * and stops there. This is the whole content of the controller tap: every tap moves one step, so the
+     * card has no purchase, no credit and nothing to re-read about a previous tap.
      *
      * <p>It is the only lever that actually exists. Measured on 19.2.17: {@code GridNode.getMaxChannels()}
      * answers {@code 8 x cableCapacityFactor} for a node without {@code DENSE_CAPACITY} and both our
@@ -468,71 +382,6 @@ public final class WirelessLinks {
                 + next.getCableCapacityFactor() + ")";
     }
 
-    private static int grantedFor(ServerLevel acting, Data data, IGrid... grids) {
-        Set<IGrid> paid = new HashSet<>();
-        for (GlobalPos grant : data.grants) {
-            // The grant is a property of a controller, not of a coordinate: without this second question a
-            // player could take the controller away, stand any other device on that square, and keep the
-            // allowance. Measured the hard way - a stale grant position was paying for a fresh network.
-            if (!isController(acting, grant)) {
-                continue;
-            }
-            var node = node(acting, grant);
-            if (node != null && sitsInAny(node, grids) && groupWorks(node)) {
-                paid.add(node.getGrid());
-            }
-        }
-        return CHANNELS_PER_CONTROLLER * paid.size();
-    }
-
-    /**
-     * A refused bind has to say which of the two networks is short, and what AE2 thinks of the controller
-     * standing in it. Measured in the client on 2026-10-29: the old line said "sneak-right-click an AE2
-     * controller here", but the controllers he could reach were on a neighbour network - so he bought
-     * credit four times on networks that were not the one being refused, and every further tap still
-     * answered "these two networks have 0 free". A tap buys credit for the network its controller stands in,
-     * which is the sentence this refusal now gives.
-     */
-    private static String shortNetworks(ServerLevel acting, Data data, GlobalPos atA, IGrid gridA,
-                                        GlobalPos atB, IGrid gridB) {
-        return "network of " + describe(atA) + " is worth " + grantedFor(acting, data, gridA)
-                + " (controller=" + controllerStateOf(gridA) + "), network of " + describe(atB)
-                + " is worth " + grantedFor(acting, data, gridB) + " (controller="
-                + controllerStateOf(gridB) + ") - a tap buys credit for the network its controller stands in,"
-                + " so tap one that is on the short one";
-    }
-
-    /** The recorded tap that is currently paying for this network, or null when nothing is. */
-    @Nullable
-    private static GlobalPos payingGrantFor(ServerLevel acting, Data data, IGrid grid) {
-        for (GlobalPos grant : data.grants) {
-            if (isController(acting, grant)) {
-                var node = node(acting, grant);
-                if (node != null && node.getGrid() == grid && groupWorks(node)) {
-                    return grant;
-                }
-            }
-        }
-        return null;
-    }
-
-    /**
-     * AE2's own verdict on the group this block sits in, asked before any money moves. A group can be
-     * rejected for reasons a player can create: a pile AE2's flood cannot reach from the first controller
-     * block, a block sandwiched on two axes (measured in {@code ControllerValidator#hasControllerCross} -
-     * one through-line is fine, that is how a row or a column is legal), or anything wider than 7 on an
-     * axis. What every rejection costs is the same and it is total: {@code appeng.me.service.PathingService}
-     * writes zero channels for the whole grid, so charging for it would sell capacity the network cannot
-     * have. A grid whose pathing service cannot be read is treated the same way - we do not take payment
-     * for something we just admitted we cannot check.
-     */
-    private static boolean groupWorks(IGridNode node) {
-        var grid = node.getGrid();
-        return grid != null && grid.getPathingService() != null
-                && grid.getPathingService().getControllerState()
-                != appeng.api.networking.pathing.ControllerState.CONTROLLER_CONFLICT;
-    }
-
     /** AE2's controller verdict for a position's network, spelled out because the card has to say it back. */
     public static String controllerState(ServerLevel acting, GlobalPos at) {
         var node = node(acting, at);
@@ -544,85 +393,9 @@ public final class WirelessLinks {
         return pathing == null ? "unreadable pathing service" : String.valueOf(pathing.getControllerState());
     }
 
-    /**
-     * What every device that already carries a link is charged, counting each device once no matter how many
-     * edges run through it. Recomputed from live nodes on every question - a running total would go stale
-     * the moment AE2 re-pathed the grid, and we have no hook that tells us when that happens. A device whose
-     * square is asleep contributes nothing while it is unreadable; its record still exists and it is
-     * charged again when it wakes.
-     */
-    private static int spentOn(ServerLevel acting, Data data, IGrid... grids) {
-        Set<GlobalPos> counted = new HashSet<>();
-        int used = 0;
-        for (Link link : data.links) {
-            for (GlobalPos end : new GlobalPos[]{link.a(), link.b()}) {
-                var node = node(acting, end);
-                if (node == null || !sitsInAny(node, grids) || !counted.add(end)) {
-                    continue;
-                }
-                used += channelCost(node);
-            }
-        }
-        return used;
-    }
-
-    /**
-     * What one linked device is charged: the channels AE2 itself has given it, which is the only number that
-     * keeps the allowance honest. The grant is denominated in channels (32 of them), so thirty-two devices
-     * that each occupy one channel are meant to exhaust it exactly - charging a whole cable face (8) instead
-     * would sell eight times the capacity anyone actually uses, and the player with 32 small devices could
-     * only hang four of them. A device that genuinely carries more pays for more: measured in the client,
-     * one endpoint of a busy link reported {@code used=16}, and a thick line or a machine with many
-     * sub-networks behind it is therefore charged as the thick line it is, following AE2's own assignment
-     * rather than anything here. The floor of 1 exists because a node that has not been assigned yet
-     * answers 0, and a free device would make the gate bind nothing.
-     *
-     * <p>{@code getMaxChannels()} - the face's ceiling, {@code 8 x cableCapacityFactor} for our machines and
-     * {@code 32 x} for a dense node - is deliberately NOT the price. It is printed in {@link #faceLedger} as
-     * what a face is worth, and it is what the card raises with {@code ChannelMode}; the two numbers answer
-     * different questions and confusing them is what made a grant buy a quarter of the devices it should.</p>
-     */
-    private static int channelCost(IGridNode node) {
-        return Math.max(1, node.getUsedChannels());
-    }
-
-    /**
-     * What adding one more pair costs: a device that already carries a link is already inside
-     * {@link #spentOn} (which counts each device once), so billing both ends again would charge the hub once
-     * per spoke. At one channel per device that error was a rounding mistake; it is still wrong, and it is
-     * the difference between a grant of 32 buying 32 devices and buying 21.
-     */
-    private static int costOfNewDevice(ServerLevel owner, Data data, IGridNode device, GlobalPos at,
-                                       IGrid... grids) {
-        if (device == null || chargedByAnExistingLink(data, owner, at, grids)) {
-            return 0;
-        }
-        return channelCost(device);
-    }
-
-    private static boolean chargedByAnExistingLink(Data data, ServerLevel owner, GlobalPos at, IGrid... grids) {
-        var node = node(owner, at);
-        if (node == null || !sitsInAny(node, grids)) {
-            return false;
-        }
-        for (Link existing : data.links) {
-            if (existing.touches(at)) {
-                return true;
-            }
-        }
-        return false;
-    }
 
 
-    private static boolean sitsInAny(IGridNode node, IGrid... grids) {
-        for (IGrid grid : grids) {
-            if (grid != null && grid == node.getGrid()) {
-                return true;
-            }
-        }
-        return false;
-    }
-
+    
     /**
      * Drops every link at one endpoint. The record may be filed under the other endpoint's dimension, so
      * every awake dimension is asked - cheap here, because this only ever runs on a click.
@@ -678,14 +451,17 @@ public final class WirelessLinks {
 
     /**
      * What a player holding a card wants to know about the block in front of them: how many links are
-     * recorded there, and how many of them are backed by an edge right now. The two differ whenever an
-     * endpoint is asleep, and saying both is the only way the card can admit that.
+     * recorded there, how many of them are backed by an edge right now, and what AE2 itself says about the
+     * network - its channel mode, its verdict on the controller group, and the channels every connected face
+     * is worth against what it is using. The two link counts differ whenever an endpoint is asleep, and
+     * saying both is the only way the card can admit that. Everything after them is read out of AE2, because
+     * there is nothing of ours to report: this feature prices nothing.
      */
     public static String status(ServerLevel acting, Supplier<AttachmentType<Data>> type, GlobalPos endpoint) {
         var node = node(acting, endpoint);
         return describe(endpoint) + " wirelessLinks=" + linksAtEverywhere(acting, type, endpoint)
-                + " live=" + liveLinksAt(acting, type, endpoint) + " " + ledgerAt(acting, type, endpoint)
-                + (node == null ? "" : " " + channelMode(node) + " controller="
+                + " live=" + liveLinksAt(acting, type, endpoint)
+                + (node == null ? " (no network node there)" : " " + channelMode(node) + " controller="
                 + controllerStateOf(node.getGrid()) + " " + faceLedger(node));
     }
 
@@ -725,19 +501,7 @@ public final class WirelessLinks {
         return "mode=" + (mode == null ? "unknown" : mode.name());
     }
 
-    /**
-     * The ledger for the network this endpoint sits on. Saying "unknown" when the device has no live grid is
-     * the honest half of the design: the numbers only exist while the controllers can be asked.
-     */
-    private static String ledgerAt(ServerLevel acting, Supplier<AttachmentType<Data>> type, GlobalPos endpoint) {
-        var node = node(acting, endpoint);
-        ServerLevel owner = levelOf(acting, endpoint.dimension());
-        if (node == null || node.getGrid() == null || owner == null || !owner.hasData(type.get())) {
-            return "channels=unknown (this device has no live network to count)";
-        }
-        return ledger(owner, owner.getData(type.get()), node.getGrid());
-    }
-
+    
     private static int liveLinksAt(ServerLevel acting, Supplier<AttachmentType<Data>> type, GlobalPos endpoint) {
         int live = 0;
         for (ServerLevel level : acting.getServer().getAllLevels()) {

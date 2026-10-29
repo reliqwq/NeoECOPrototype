@@ -73,11 +73,14 @@ public class WirelessLinkCardItem extends Item {
             // on a controller would carry nothing - and while we were trying to bind to one, the raise
             // gesture below could never be reached at all, which is exactly what it looked like in the
             // client on 2026-10-29 (34 taps, zero "raised to" lines, because the card held a mark).
-            // First tap sells the network's allowance; every tap after that lifts AE2's channel mode one step.
-            String bought = WirelessLinks.grant(serverLevel, ModRegistration.WIRELESS_LINKS, clicked);
-            report = bought.startsWith("already granted")
-                    ? bought + " | " + WirelessLinks.raiseMode(serverLevel, clicked)
-                    : bought;
+            // Every tap moves AE2's channel mode one step up, and that is all this block does: the card
+            // prices nothing, so there is no purchase to report before the raise.
+            String moved = WirelessLinks.raiseMode(serverLevel, clicked);
+            String verdict = WirelessLinks.controllerState(serverLevel, clicked);
+            report = "CONTROLLER_ONLINE".equals(verdict) || "NO_CONTROLLER".equals(verdict)
+                    ? moved
+                    : moved + " | AE2 reads this controller group as " + verdict + ", which means the"
+                    + " network is getting no channels at all until the shape is fixed";
         } else if (held == null) {
             if (!WirelessLinks.isDevice(serverLevel, clicked)) {
                 report = "no network device at " + WirelessLinks.describe(clicked);

@@ -207,7 +207,7 @@
   "block.neoecoprototype.energized_energy_cell_16g": "盈能能源元件",
   "block.neoecoprototype.energized_energy_cell_512g": "空盈能源元件",
   "item.neoecoprototype.wireless_link_card": "无线链路卡",
-  "item.neoecoprototype.wireless_link_card.tooltip": "空卡潜行右键一只 AE2 控制器，为它所在的网记下 32 份频道额度。潜行右键一台网络设备把它记下来，再潜行右键另一台，两者之间就接上一条不占格子的链路；每台设备占 1 份，额度不够就拒。额度决定的是能接几台设备，不决定 AE2 给那台设备分几条频道。对记下的那台再潜行右键，就拆掉它身上全部链路。",
+  "item.neoecoprototype.wireless_link_card.tooltip": "潜行右键一台网络设备即把它记下，再潜行右键第二台，两者之间就接上一条不用线缆的链路。这张卡不收费：链路能带多少频道是 AE2 给两端设备的，一台设备最多承载 4 条链路。潜行右键一台 AE2 控制器可把那张网络提一档（每面 8 频道，之后 16、24、32）。再潜行右键已标记的那台设备，就拆掉它承载的全部链路。",
   "item.neoecoprototype.wireless_link_card.check": "链路在不在不看设备面板亮不亮：拿这张卡潜行右键那台设备，回的那行写着 wirelessLinks=n live=m，只有 live 才算数——而这一右键也会顺手把它记成锚点。",
   "item.neoecoprototype.wireless_link_card.holds": "已记录：%s",
   "item.neoecoprototype.wireless_link_card.disabled": "本世界的配置关掉了无线 ME 链接（wireless_links），所以现在这张卡点什么都不会有反应。",
