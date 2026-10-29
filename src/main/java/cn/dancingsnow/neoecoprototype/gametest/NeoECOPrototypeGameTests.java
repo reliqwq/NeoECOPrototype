@@ -13926,6 +13926,61 @@ public final class NeoECOPrototypeGameTests {
                 });
     }
 
+    /**
+     * Does a wireless edge carry the energy network with the channel network? Asked because of what he found
+     * in the client: the joined interfaces went "设备离线" until he put a source on <em>their</em> side, and
+     * the supply on the controller's side was not usable through the link. The two words AE2 offers are
+     * different questions - {@code 设备离线} is {@code GridNode.isPowered() = myGrid.getEnergyService()
+     * .isNetworkPowered()} and {@code 设备缺少频道} is {@code meetsChannelRequirements()} - so the test
+     * asserts the energy half specifically: one creative cell feeding side A, side B with no source of its
+     * own, then one tap. After the merge AE2's own reading must say {@code powered=true} and
+     * {@code controller=CONTROLLER_ONLINE} on the far device, because the service collects providers per node
+     * and not per in-world connection (measured: {@code EnergyService} has no {@code isInWorld} use, while
+     * {@code GridNode}, {@code GridConnection}, {@code InWorldGridNode} and {@code CableBusContainer} do).
+     */
+    @GameTest(template = "empty", batch = "wireless_power_cross", timeoutTicks = 600,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void aWirelessEdgeCarriesTheNetworksPowerAndController(GameTestHelper helper) {
+        var cell = new BlockPos(0, 1, 0);
+        var nearDevice = new BlockPos(1, 1, 0);
+        var controller = new BlockPos(2, 1, 0);
+        var farDevice = new BlockPos(10, 1, 0);
+        helper.setBlock(cell, net.minecraft.core.registries.BuiltInRegistries.BLOCK.get(
+                ResourceLocation.fromNamespaceAndPath("ae2", "creative_energy_cell")));
+        helper.setBlock(nearDevice, ModRegistration.SUPERCONDUCTIVE_INTERFACE_BLOCK.get());
+        helper.setBlock(controller, appeng.core.definitions.AEBlocks.CONTROLLER.block());
+        helper.setBlock(farDevice, ModRegistration.SUPERCONDUCTIVE_INTERFACE_BLOCK.get());
+        var level = (ServerLevel) helper.getLevel();
+        var nearPos = GlobalPos.of(level.dimension(), helper.absolutePos(nearDevice));
+        var farPos = GlobalPos.of(level.dimension(), helper.absolutePos(farDevice));
+        waitUntil(helper, 12,
+                () -> separateNetworks(level, nearPos, farPos)
+                        && "CONTROLLER_ONLINE".equals(WirelessLinks.controllerState(level, nearPos))
+                        && WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS, nearPos)
+                                .contains("powered=true")
+                        && WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS, farPos)
+                                .contains("powered=false"),
+                () -> "the fixture never became a powered controller network beside an unpowered device: "
+                        + WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS, nearPos) + " / "
+                        + WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS, farPos),
+                () -> {
+                    String bound = WirelessLinks.bind(level, ModRegistration.WIRELESS_LINKS, nearPos, farPos);
+                    if (!bound.startsWith("linked ")) {
+                        helper.fail("the link was refused: \"" + bound + "\"");
+                        return;
+                    }
+                    String after = WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS, farPos);
+                    if (!after.contains("powered=true") || !after.contains("controller=CONTROLLER_ONLINE")) {
+                        helper.fail("the merge took the channels but not the network: the far device reads "
+                                + after + " although it is now on the powered, controlled grid - a wireless"
+                                + " edge that does not carry energy means every device behind it needs its"
+                                + " own source");
+                        return;
+                    }
+                    helper.succeed();
+                });
+    }
+
     /** Does the card's own balance line name that cell? Reading the mark through the player's gesture. */
     private static boolean cardNames(GameTestHelper helper, ServerLevel level, ItemStack card, BlockPos cell) {
         return cardWords(level, card).contains(helper.absolutePos(cell).toShortString());
