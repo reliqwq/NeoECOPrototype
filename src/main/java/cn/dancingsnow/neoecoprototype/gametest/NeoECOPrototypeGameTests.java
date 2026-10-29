@@ -14037,6 +14037,57 @@ public final class NeoECOPrototypeGameTests {
                 });
     }
 
+    /**
+     * Why the Network Tool can list nothing while the grid knows the machine: {@code NetworkStatus#fromGrid}
+     * walks {@code getMachineClasses()} (which {@code Grid} fills unconditionally - the other guard proves our
+     * classes are in there) but then calls {@code getKey(node)}, and that answers {@code null} - the node is
+     * skipped silently - whenever {@code IGridNode#getVisualRepresentation()} is null. Measured in the jar:
+     * {@code GridNode.getVisualRepresentation()} is a bare field with no fallback, and the only things that
+     * fill it are AE2's own {@code AENetworked*BlockEntity} constructors and anything that calls
+     * {@code IManagedGridNode#setVisualRepresentation} itself. So this asks the question directly, for our
+     * machine and for an AE2 one beside it, and names both values whichever way it goes.
+     */
+    @GameTest(template = "empty", batch = "machine_visual_representation", timeoutTicks = 400,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void ourMachinesCarryTheItemTheNetworkToolNeeds(GameTestHelper helper) {
+        var ours = new BlockPos(0, 1, 0);
+        var controller = new BlockPos(2, 1, 0);
+        helper.setBlock(ours, ModRegistration.SUPERCONDUCTIVE_INTERFACE_BLOCK.get());
+        helper.setBlock(controller, appeng.core.definitions.AEBlocks.CONTROLLER.block());
+        var level = (ServerLevel) helper.getLevel();
+        var oursPos = GlobalPos.of(level.dimension(), helper.absolutePos(ours));
+        var controllerPos = GlobalPos.of(level.dimension(), helper.absolutePos(controller));
+        waitUntil(helper, 12,
+                () -> networkNode(level, oursPos) != null && networkNode(level, controllerPos) != null,
+                () -> "neither device ever got a grid node: " + nodeSummary(level, oursPos) + " / "
+                        + nodeSummary(level, controllerPos),
+                () -> {
+                    String oursHas = described(networkNode(level, oursPos));
+                    String controllerHas = described(networkNode(level, controllerPos));
+                    if (oursHas.equals("none")) {
+                        helper.fail("our interface's node carries no visual representation, so AE2's Network"
+                                + " Tool skips it even though the grid lists it as a machine (an AE2"
+                                + " controller in the same room reads " + controllerHas + ")");
+                        return;
+                    }
+                    if (controllerHas.equals("none")) {
+                        helper.fail("AE2's own controller lost its representation, so the comparison below is"
+                                + " worthless: " + oursHas);
+                        return;
+                    }
+                    helper.succeed();
+                });
+    }
+
+    /** How AE2 would render that node in the Network Tool, or "none" - the value that makes it vanish. */
+    private static String described(IGridNode node) {
+        if (node == null) {
+            return "no node";
+        }
+        var representation = node.getVisualRepresentation();
+        return representation == null ? "none" : representation.toString();
+    }
+
     /** The class names {@code IGrid.getMachineClasses()} answers for that device's grid - the tool's source. */
     private static java.util.List<String> machineClasses(ServerLevel level, GlobalPos at) {
         var node = networkNode(level, at);
@@ -14052,6 +14103,63 @@ public final class NeoECOPrototypeGameTests {
         return names;
     }
 
+    /**
+     * The next filter upstream in the same path, measured because it is the one that can make the list come
+     * back completely empty rather than missing one entry: {@code NetworkStatusMenu#findNode} asks
+     * {@code IInWorldGridNodeHost.getGridNode(direction)} - the <em>side</em> lookup, which only answers a
+     * node when {@code InWorldGridNode#isExposedOnSide} says that face is exposed - and leaves the grid null
+     * when it answers null. A null grid is not "fewer machines", it is an empty screen. So this asks, face by
+     * face, whether one of our machines can be entered at all, and answers the same question for an AE2
+     * controller standing connected to it.
+     */
+    @GameTest(template = "empty", batch = "machine_node_exposure", timeoutTicks = 400,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void ourMachinesCanBeEnteredByTheNetworkToolAtAll(GameTestHelper helper) {
+        var ours = new BlockPos(0, 1, 0);
+        var controller = new BlockPos(1, 1, 0);
+        helper.setBlock(ours, ModRegistration.SUPERCONDUCTIVE_INTERFACE_BLOCK.get());
+        helper.setBlock(controller, appeng.core.definitions.AEBlocks.CONTROLLER.block());
+        var level = (ServerLevel) helper.getLevel();
+        var oursPos = GlobalPos.of(level.dimension(), helper.absolutePos(ours));
+        var controllerPos = GlobalPos.of(level.dimension(), helper.absolutePos(controller));
+        waitUntil(helper, 12,
+                () -> oneNetwork(level, oursPos, controllerPos),
+                () -> "the machine and the controller never became one grid by adjacency, so neither can"
+                        + " answer a face that carries a connection: " + nodeSummary(level, oursPos) + " / "
+                        + nodeSummary(level, controllerPos),
+                () -> {
+                    var oursFaces = exposedFaces(level, helper.absolutePos(ours));
+                    var controllerFaces = exposedFaces(level, helper.absolutePos(controller));
+                    if (controllerFaces.isEmpty()) {
+                        helper.fail("the connected AE2 controller answers no face either, so AE2's own tool"
+                                + " could not be entered on it and the comparison proves nothing: ours="
+                                + oursFaces);
+                        return;
+                    }
+                    if (!oursFaces.containsAll(controllerFaces)) {
+                        helper.fail("our machine is enterable on faces AE2's own controller is not, so the"
+                                + " Network Tool can be opened on theirs and not on ours: ours=" + oursFaces
+                                + " controller=" + controllerFaces);
+                        return;
+                    }
+                    helper.succeed();
+                });
+    }
+
+    /** The faces a right-click on this block could enter a grid through - the tool's only door. */
+    private static java.util.List<String> exposedFaces(net.minecraft.world.level.Level level,
+                                                       net.minecraft.core.BlockPos pos) {
+        var names = new java.util.ArrayList<String>();
+        if (level.getBlockEntity(pos) instanceof appeng.api.networking.IInWorldGridNodeHost host) {
+            for (var side : net.minecraft.core.Direction.values()) {
+                if (host.getGridNode(side) != null) {
+                    names.add(side.name());
+                }
+            }
+        }
+        return names;
+    }
+
     /** Does the card's own balance line name that cell? Reading the mark through the player's gesture. */
     private static boolean cardNames(GameTestHelper helper, ServerLevel level, ItemStack card, BlockPos cell) {
         return cardWords(level, card).contains(helper.absolutePos(cell).toShortString());
@@ -14061,18 +14169,16 @@ public final class NeoECOPrototypeGameTests {
         return cn.dancingsnow.neoecoprototype.items.WirelessLinkCardItem.balanceReport(level, card).getString();
     }
 
-    /** The {@code granted} half of the ledger a device reads about its own network. Only callable after the
 
     /**
      * The one number in this feature that is ours to set rather than AE2's: how many wireless edges a
      * single device may carry. It has to be enforced where the record is written, because a link costs
      * nothing in blocks and a player can therefore make as many as they can click.
      *
-     * <p>This cap, not the channel allowance, is what limits one hub: a device is charged the channels AE2
-     * has actually given it (measured 1 for the machines we and AE2 ship, so a grant of 32 is meant to carry
-     * 32 such devices), so the money only runs out on a hub once something behind it is genuinely heavy - a
-     * busy endpoint measured at {@code used=16} in the client is charged 16. Four ordinary spokes therefore
-     * cost 5 channels in total and the fifth tap is refused by this cap, which is the point of the test.</p>
+     * <p>It is also the only limit left on a hub, because the feature stopped pricing links: an earlier
+     * channel allowance would have run out first and made this cap unreachable, and it is gone for good -
+     * AE2 keeps no network-wide channel pool to price against (see WirelessLinks' class notes), so what a
+     * device occupies is whatever AE2 assigns it and the structure rule is ours to enforce.
      */
     @GameTest(template = "empty", batch = "wireless_link_card", timeoutTicks = 400,
             templateNamespace = NeoECOPrototype.MOD_ID)
