@@ -384,6 +384,53 @@ public final class WirelessLinks {
         return "channels=" + spentOn(acting, data, grids) + "/" + grantedFor(acting, data, grids);
     }
 
+    /**
+     * Tapping a controller that already sold its allowance pushes that network one AE2 channel mode up -
+     * DEFAULT to X2, X2 to X3, X3 to X4 - and stops there.
+     *
+     * <p>It is the only lever that actually exists. Measured on 19.2.17: {@code GridNode.getMaxChannels()}
+     * answers {@code 8 x cableCapacityFactor} for a node without {@code DENSE_CAPACITY} and both our
+     * machines and eco's carry no such flag (eco's {@code NEBlockEntity} constructor sets exactly
+     * {@code MULTIBLOCK, REQUIRE_CHANNEL}), so a wireless edge crossing one of our blocks tops out at 8 -
+     * confirmed live on 2026-10-29: nine interfaces behind one link charged 8 and the ninth got nothing,
+     * while the same rig under X2 charged all nine.
+     *
+     * <p>Never down. The card cannot tell a mode we forced from one the player set in
+     * {@code ae2-common.toml} - {@code channelModeLocked} is private and the public reader returns the
+     * effective value - so lowering would silently overwrite somebody's config. And {@code INFINITE} is
+     * deliberately unreachable here: it answers {@code Integer.MAX_VALUE} for every node, which does not
+     * raise a channel budget, it deletes the concept.
+     */
+    public static String raiseMode(ServerLevel acting, GlobalPos at) {
+        ServerLevel owner = levelOf(acting, at.dimension());
+        if (owner == null) {
+            return "that dimension is not loaded";
+        }
+        var node = node(owner, at);
+        if (node == null || node.getGrid() == null) {
+            return describe(at) + " is not on a network yet, so there is no channel mode to raise";
+        }
+        var pathing = node.getGrid().getService(appeng.api.networking.pathing.IPathingService.class);
+        if (!(pathing instanceof appeng.me.service.PathingService service)) {
+            return "AE2 no longer hands a pathing service this can set (" + pathing
+                    + "), so the card cannot raise a mode";
+        }
+        var current = service.getChannelMode();
+        var next = switch (current) {
+            case DEFAULT -> appeng.api.networking.pathing.ChannelMode.X2;
+            case X2 -> appeng.api.networking.pathing.ChannelMode.X3;
+            case X3 -> appeng.api.networking.pathing.ChannelMode.X4;
+            default -> null;
+        };
+        if (next == null) {
+            return "already at " + current.name() + ", the highest mode this card offers";
+        }
+        service.setForcedChannelMode(next);
+        return "raised to " + next.name() + ": a machine face across this link is now worth "
+                + 8 * next.getCableCapacityFactor() + " channels (this node reads max="
+                + node.getMaxChannels() + ")";
+    }
+
     private static int grantedFor(ServerLevel acting, Data data, IGrid... grids) {
         int channels = 0;
         for (GlobalPos grant : data.grants) {

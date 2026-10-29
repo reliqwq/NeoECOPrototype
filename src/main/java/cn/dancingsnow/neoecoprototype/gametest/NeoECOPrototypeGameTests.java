@@ -6620,6 +6620,83 @@ public final class NeoECOPrototypeGameTests {
                 + " deviceChargedSum=" + charged + " " + devices;
     }
 
+    /**
+     * Tapping the same controller again must move AE2's number, not ours. The ladder is DEFAULT to X2 to X3
+     * to X4 and it stops there: the card cannot tell a mode it forced from one the player chose in
+     * {@code ae2-common.toml} ({@code channelModeLocked} is private, the public reader returns the effective
+     * value), so it never lowers; and {@code INFINITE} would not raise a budget, it would delete the
+     * concept by answering {@code Integer.MAX_VALUE} everywhere. The machine's own {@code max} is asserted
+     * alongside the mode because that is the number the card's status line shows a player.
+     */
+    @GameTest(template = "empty", batch = "channel_mode_ladder", timeoutTicks = 400,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void repeatedControllerTapLiftsAe2sChannelMode(GameTestHelper helper) {
+        var controllerAt = new BlockPos(0, 1, 0);
+        var machineAt = new BlockPos(1, 1, 0);
+        helper.setBlock(controllerAt, appeng.core.definitions.AEBlocks.CONTROLLER.block());
+        helper.setBlock(machineAt, ModRegistration.SUPERCONDUCTIVE_INTERFACE_BLOCK.get());
+        var level = (net.minecraft.server.level.ServerLevel) helper.getLevel();
+        var controller = GlobalPos.of(level.dimension(), helper.absolutePos(controllerAt));
+        var machine = GlobalPos.of(level.dimension(), helper.absolutePos(machineAt));
+        waitUntil(helper, 25, () -> oneNetwork(level, controller, machine) && nodeMax(level, machine) == 8,
+                () -> "the controller and the machine never became one network at the DEFAULT ceiling of 8: "
+                        + nodeSummary(level, controller) + " / " + nodeSummary(level, machine),
+                () -> {
+                    var flag = cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig.WIRELESS_LINKS;
+                    flag.set(true);
+                    try {
+                        var player = helper.makeMockPlayer(GameType.CREATIVE);
+                        player.setShiftKeyDown(true);
+                        var card = new ItemStack(ModRegistration.WIRELESS_LINK_CARD.get());
+                        tapWithCard(helper, player, card, controllerAt);
+                        if (!expectLadder(helper, level, machine, "DEFAULT", 8)) {
+                            return;
+                        }
+                        tapWithCard(helper, player, card, controllerAt);
+                        if (!expectLadder(helper, level, machine, "X2", 16)) {
+                            return;
+                        }
+                        tapWithCard(helper, player, card, controllerAt);
+                        if (!expectLadder(helper, level, machine, "X3", 24)) {
+                            return;
+                        }
+                        tapWithCard(helper, player, card, controllerAt);
+                        if (!expectLadder(helper, level, machine, "X4", 32)) {
+                            return;
+                        }
+                        tapWithCard(helper, player, card, controllerAt);
+                        if (!expectLadder(helper, level, machine, "X4", 32)) {
+                            return;
+                        }
+                        helper.succeed();
+                    } finally {
+                        flag.set(false);
+                    }
+                });
+    }
+
+    private static int nodeMax(net.minecraft.server.level.ServerLevel level, GlobalPos at) {
+        var node = networkNode(level, at);
+        return node == null ? -1 : node.getMaxChannels();
+    }
+
+    /** The mode AE2 reports for that machine's grid and the node ceiling it implies, or a fail line. */
+    private static boolean expectLadder(GameTestHelper helper,
+                                        net.minecraft.server.level.ServerLevel level, GlobalPos at,
+                                        String expectedMode, int expectedMax) {
+        var node = networkNode(level, at);
+        var pathing = node == null || node.getGrid() == null ? null
+                : node.getGrid().getService(appeng.api.networking.pathing.IPathingService.class);
+        var mode = pathing == null ? "none" : pathing.getChannelMode().name();
+        var max = node == null ? -1 : node.getMaxChannels();
+        if (!expectedMode.equals(mode) || max != expectedMax) {
+            helper.fail("expected mode " + expectedMode + " with node max " + expectedMax + ", got mode "
+                    + mode + " with node max " + max + "; " + nodeSummary(level, at));
+            return false;
+        }
+        return true;
+    }
+
     /** Sneak-right-clicks {@code cell} with the card so the item's own anchor logic runs, not our calls. */
     private static void tapWithCard(GameTestHelper helper, net.minecraft.world.entity.player.Player player,
                                     ItemStack card, BlockPos cell) {

@@ -71,7 +71,13 @@ public class WirelessLinkCardItem extends Item {
             // An empty card tapping a controller buys that network's channel budget instead of marking it.
             // With an anchor already held the controller is still bindable as an endpoint, because measured
             // behaviour says a controller carries no channels of its own - it just joins the two networks.
-            report = WirelessLinks.grant(serverLevel, ModRegistration.WIRELESS_LINKS, clicked);
+            String bought = WirelessLinks.grant(serverLevel, ModRegistration.WIRELESS_LINKS, clicked);
+            // Tapping the same controller again sells nothing, so the tap does the one thing that can still
+            // change the network: push AE2's own channel mode one step up. Read the ceiling as AE2 computes
+            // it - a machine face is worth 8 x factor - because our own allowance numbers never moved it.
+            report = bought.startsWith("already granted")
+                    ? bought + " | " + WirelessLinks.raiseMode(serverLevel, clicked)
+                    : bought;
         } else if (held == null) {
             if (!WirelessLinks.isDevice(serverLevel, clicked)) {
                 report = "no network device at " + WirelessLinks.describe(clicked);
