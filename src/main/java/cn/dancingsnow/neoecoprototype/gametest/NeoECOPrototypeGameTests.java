@@ -13791,6 +13791,72 @@ public final class NeoECOPrototypeGameTests {
                 });
     }
 
+    /**
+     * Reproduces the player's report "还是设备离线" without any of our code being to blame: nine of our
+     * machines in one row, no controller in sight. eco's {@code NEBlockEntity} constructor flags every
+     * one of them {@code REQUIRE_CHANNEL}, and AE2's controllerless rules allow only
+     * {@code ChannelMode.adHocNetworkChannels} channels - DEFAULT 8 - so {@code calculateAdHocChannels}
+     * answers 0 with {@code TOO_MANY_CHANNELS} and the whole network is given no channels at all. The card's
+     * job here is to say so, in AE2's numbers: the guard asserts {@code adHocLimit=8} and
+     * {@code adHocError=TOO_MANY_CHANNELS} on the status line, then lifts the mode (X2 = 16 slots, nine
+     * devices fit) and asserts the error is gone. That lift is what a controller tap on the card does, which
+     * is the whole point of the gesture - {@code raiseMode} is called straight here because the test network
+     * has no controller to stand, not because the card would accept a machine.
+     */
+    @GameTest(template = "empty", batch = "ad_hoc_channel_limit", timeoutTicks = 600,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void aControllerlessNetworkTellsThePlayerWhereAe2CappedIt(GameTestHelper helper) {
+        var devices = new java.util.ArrayList<BlockPos>();
+        for (int i = 0; i < 9; i++) {
+            // One contiguous row: two of our machines side by side already connect, which
+            // faceLedgerReportsAe2sOwnCeiling pins, and AE2 19.2.17 has no cable block to place anyway
+            // (AEBlocks.GLASS_CABLE is not in the jar - cable parts are items mounted on a bus).
+            var here = new BlockPos(i, 1, 0);
+            helper.setBlock(here, ModRegistration.SUPERCONDUCTIVE_INTERFACE_BLOCK.get());
+            devices.add(here);
+        }
+        var level = (ServerLevel) helper.getLevel();
+        var first = GlobalPos.of(level.dimension(), helper.absolutePos(devices.get(0)));
+        var last = GlobalPos.of(level.dimension(), helper.absolutePos(devices.get(8)));
+        waitUntil(helper, 12,
+                () -> oneNetwork(level, first, last)
+                        && "NO_CONTROLLER".equals(WirelessLinks.controllerState(level, first)),
+                () -> "the nine machines never became one controllerless network: "
+                        + WirelessLinks.controllerState(level, first) + " / " + nodeSummary(level, first)
+                        + " / " + nodeSummary(level, last),
+                () -> {
+                    String capped = WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS, first);
+                    if (!capped.contains("adHocLimit=8")) {
+                        helper.fail("the status line does not carry AE2's ad-hoc ceiling for a DEFAULT"
+                                + " network: " + capped);
+                        return;
+                    }
+                    if (!capped.contains("adHocError=TOO_MANY_CHANNELS")) {
+                        helper.fail("nine machines on an ad-hoc network did not make AE2 report"
+                                + " TOO_MANY_CHANNELS, so the offline devices the player sees are not this"
+                                + " rule: " + capped);
+                        return;
+                    }
+                    String lifted = WirelessLinks.raiseMode(level, first);
+                    waitUntil(helper, 12,
+                            () -> !WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS, first)
+                                    .contains("adHocError="),
+                            () -> "after lifting the mode the network still reads an ad-hoc error, and the"
+                                    + " reply was \"" + lifted + "\": " + WirelessLinks.status(
+                                    level, ModRegistration.WIRELESS_LINKS, first),
+                            () -> {
+                                String after = WirelessLinks.status(
+                                        level, ModRegistration.WIRELESS_LINKS, first);
+                                if (!after.contains("adHocLimit=16")) {
+                                    helper.fail("the ceiling did not move with the mode the card just set:"
+                                            + " " + lifted + " / " + after);
+                                    return;
+                                }
+                                helper.succeed();
+                            });
+                });
+    }
+
     /** Does the card's own balance line name that cell? Reading the mark through the player's gesture. */
     private static boolean cardNames(GameTestHelper helper, ServerLevel level, ItemStack card, BlockPos cell) {
         return cardWords(level, card).contains(helper.absolutePos(cell).toShortString());

@@ -393,9 +393,33 @@ public final class WirelessLinks {
         return pathing == null ? "unreadable pathing service" : String.valueOf(pathing.getControllerState());
     }
 
-
-
-    
+    /**
+     * What AE2's controllerless ("ad-hoc") rules say about a network, in the two numbers a player can act on.
+     * Measured on 19.2.17: {@code ChannelMode} carries {@code adHocNetworkChannels} - DEFAULT 8, X2 16,
+     * X3 24, X4 32, INFINITE 2^31-1 - and {@code PathingService#calculateAdHocChannels} counts the nodes that
+     * need channels against it; past the limit it stores {@code AdHocNetworkError.TOO_MANY_CHANNELS} and
+     * returns 0, {@code updateControllerState} then writes {@code channelsInUse = channelsByBlocks = 0}, and
+     * every device on the network reads as offline. Nothing about that is ours: the card can lift the limit
+     * one step per controller tap, and a controller in the network leaves this branch entirely. So this
+     * prints only AE2's own verdict - no recount of devices here, because counting them is exactly where an
+     * invented number would come from.
+     */
+    private static String adHocWords(IGrid grid) {
+        var pathing = grid == null ? null : grid.getPathingService();
+        if (pathing == null || pathing.getControllerState()
+                != appeng.api.networking.pathing.ControllerState.NO_CONTROLLER) {
+            return "";
+        }
+        var words = " adHocLimit=" + pathing.getChannelMode().getAdHocNetworkChannels();
+        if (pathing instanceof appeng.me.service.PathingService service
+                && service.getAdHocNetworkError() != null) {
+            words += " adHocError=" + service.getAdHocNetworkError().name()
+                    + " - AE2 has given this whole network zero channels, so every device on it reads"
+                    + " offline: lift the limit with a controller tap on this card, or put an AE2"
+                    + " controller in the network";
+        }
+        return words;
+    }
     /**
      * Drops every link at one endpoint. The record may be filed under the other endpoint's dimension, so
      * every awake dimension is asked - cheap here, because this only ever runs on a click.
@@ -462,7 +486,7 @@ public final class WirelessLinks {
         return describe(endpoint) + " wirelessLinks=" + linksAtEverywhere(acting, type, endpoint)
                 + " live=" + liveLinksAt(acting, type, endpoint)
                 + (node == null ? " (no network node there)" : " " + channelMode(node) + " controller="
-                + controllerStateOf(node.getGrid()) + " " + faceLedger(node));
+                + controllerStateOf(node.getGrid()) + adHocWords(node.getGrid()) + " " + faceLedger(node));
     }
 
     /**
@@ -1000,7 +1024,8 @@ public final class WirelessLinks {
             line.append(" gridNodes=").append(nodes)
                     .append(" mode=").append(pathing.getChannelMode())
                     .append(" controller=").append(pathing.getControllerState())
-                    .append(" gridUsed=").append(pathing.getUsedChannels());
+                    .append(" gridUsed=").append(pathing.getUsedChannels())
+                    .append(adHocWords(grid));
         }
         return line.toString();
     }
