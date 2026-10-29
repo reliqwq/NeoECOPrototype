@@ -12,7 +12,9 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
+import net.minecraft.world.InteractionResultHolder;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -90,6 +92,36 @@ public class WirelessLinkCardItem extends Item {
     }
 
     @Override
+    public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
+        ItemStack card = player.getItemInHand(hand);
+        if (!player.isShiftKeyDown() || !(level instanceof ServerLevel serverLevel)
+                || !cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig.WIRELESS_LINKS.get()) {
+            // Only the sneak gesture, only on the server, and not one word while the switch is off: the
+            // tooltip already says the feature is off, and a reply line here would take back the PASS that
+            // the off path promises to the block under the cursor.
+            return InteractionResultHolder.pass(card);
+        }
+        player.displayClientMessage(balanceReport(serverLevel, card), true);
+        return InteractionResultHolder.consume(card);
+    }
+
+    /**
+     * What a sneak-right-click in mid-air prints: the ledger of the network the card is standing on.
+     *
+     * <p>A card holding nothing gets no number, and that is the honest half. AE2 derives channel capacity
+     * from one network-wide {@code ChannelMode} and offers no setter anywhere in its jar (measured on
+     * 19.2.17: 0 classes name {@code setMaxChannels} or {@code setChannelCapacity}, against 13 that name
+     * {@code getUsedChannels}), so there is no world-wide pool to read - only the network a marked device
+     * sits on, which is what {@link WirelessLinks#status} reports.
+     */
+    public static Component balanceReport(ServerLevel level, ItemStack card) {
+        var held = readEndpoint(card);
+        return held == null
+                ? Component.translatable("item.neoecoprototype.wireless_link_card.balance_none")
+                : Component.literal(WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS, held));
+    }
+
+    @Override
     public void appendHoverText(ItemStack stack, Item.TooltipContext context, List<Component> tooltip,
                                TooltipFlag flag) {
         super.appendHoverText(stack, context, tooltip, flag);
@@ -102,6 +134,12 @@ public class WirelessLinkCardItem extends Item {
         // grid still has power looks alive after its link is gone, so "is the link there" has exactly one
         // answer source - the live= count the card prints.
         tooltip.add(Component.translatable("item.neoecoprototype.wireless_link_card.check"));
+        if (!cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig.WIRELESS_LINKS.get()) {
+            // The switch answers PASS with no reply line, so a player holding this card and tapping a
+            // controller gets the same nothing they would get from a broken item - the tooltip is the only
+            // place left where the card can say the feature exists but is off in this world.
+            tooltip.add(Component.translatable("item.neoecoprototype.wireless_link_card.disabled"));
+        }
     }
 
     // ==================== what the card is carrying ====================

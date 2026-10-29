@@ -6429,6 +6429,57 @@ public final class NeoECOPrototypeGameTests {
                 });
     }
 
+    /**
+     * Sneak-right-clicking mid-air asks the card to read out its own balance, and the value of this test is
+     * the half that refuses: an empty card must print <em>no</em> number, because there is no world-wide
+     * channel pool to read - AE2 derives capacity from one network-wide {@code ChannelMode} and names no
+     * setter anywhere in its jar (measured on 19.2.17: 0 classes carry {@code setMaxChannels} or
+     * {@code setChannelCapacity}, against 13 that carry {@code getUsedChannels}). A card that has marked a
+     * device does have a network to ask, and that is the line the player gets.
+     */
+    @GameTest(template = "empty", batch = "wireless_link_card", timeoutTicks = 400,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void wirelessCardBalanceLineOnlyNamesANetworkItHolds(GameTestHelper helper) {
+        for (String lang : new String[]{"en_us", "zh_cn"}) {
+            String json = readResource("/assets/neoecoprototype/lang/" + lang + ".json", helper);
+            if (json == null) {
+                return;
+            }
+            if (!json.contains("wireless_link_card.balance_none")) {
+                helper.fail("lang/" + lang + ".json has no wireless_link_card.balance_none key, so an empty"
+                        + " card would print the raw key into the action bar");
+                return;
+            }
+        }
+        var device = new BlockPos(0, 1, 0);
+        helper.setBlock(device, ModRegistration.SUPERCONDUCTIVE_INTERFACE_BLOCK.get());
+        var level = (net.minecraft.server.level.ServerLevel) helper.getLevel();
+        var player = helper.makeMockPlayer(GameType.CREATIVE);
+        player.setShiftKeyDown(true);
+        var card = new ItemStack(ModRegistration.WIRELESS_LINK_CARD.get());
+        var empty = cn.dancingsnow.neoecoprototype.items.WirelessLinkCardItem.balanceReport(level, card)
+                .getString();
+        if (empty.contains("channels=") || empty.contains("wirelessLinks=")) {
+            helper.fail("an empty card printed a ledger anyway, so the number would come from a pool that"
+                    + " does not exist: " + empty);
+            return;
+        }
+        var flag = cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig.WIRELESS_LINKS;
+        flag.set(true);
+        try {
+            tapWithCard(helper, player, card, device);
+            waitUntil(helper, 20,
+                    () -> cn.dancingsnow.neoecoprototype.items.WirelessLinkCardItem
+                            .balanceReport(level, card).getString().contains("channels="),
+                    () -> "marking " + device + " never produced a ledger line; the card now reads: "
+                            + cn.dancingsnow.neoecoprototype.items.WirelessLinkCardItem
+                            .balanceReport(level, card).getString(),
+                    helper::succeed);
+        } finally {
+            flag.set(false);
+        }
+    }
+
     /** Sneak-right-clicks {@code cell} with the card so the item's own anchor logic runs, not our calls. */
     private static void tapWithCard(GameTestHelper helper, net.minecraft.world.entity.player.Player player,
                                     ItemStack card, BlockPos cell) {
@@ -13258,6 +13309,13 @@ public final class NeoECOPrototypeGameTests {
             }
             if (!json.contains("wireless_link_card.check")) {
                 helper.fail("lang/" + lang + ".json has no wireless_link_card.check key");
+                return;
+            }
+            // The config switch answers PASS with no reply line, so this tooltip is the only place a player
+            // can learn the feature exists but is off; a missing key would print the raw key at them.
+            if (!json.contains("wireless_link_card.disabled")) {
+                helper.fail("lang/" + lang + ".json has no wireless_link_card.disabled key, so the card "
+                        + "cannot say the switch is off in " + lang);
                 return;
             }
         }
