@@ -13981,6 +13981,77 @@ public final class NeoECOPrototypeGameTests {
                 });
     }
 
+    /**
+     * The second half of the same report: the Network Tool lists nothing for a wirelessly joined network.
+     * Measured where it actually reads from - {@code NetworkStatus.fromGrid} enumerates
+     * {@code IGrid.getMachineClasses()}, and {@code Grid} fills that multimap unconditionally from
+     * {@code node.getOwner().getClass()} when a node is added (the same map {@code Grid#remove} empties, and
+     * {@code Grid#size()} reports its size). So the question is not whether AE2 filters our block entities
+     * out - it does not - but whether a grid that grew by a wireless merge re-registers the nodes it
+     * inherited. This asks exactly that, by name: after the link, the far device's grid must list the class
+     * of the near interface and the class of the energy cell, which is what the tool would then draw.
+     *
+     * <p>If this goes red, the empty tool is AE2's merge not propagating the machine map, which is an
+     * upstream fact worth reporting rather than something to work around here; if it goes green, the data is
+     * there and what he saw is the screen having been built before the merge.</p>
+     */
+    @GameTest(template = "empty", batch = "wireless_machine_list", timeoutTicks = 600,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void aWirelessMergeRegistersBothSidesAsMachines(GameTestHelper helper) {
+        var cell = new BlockPos(0, 1, 0);
+        var nearDevice = new BlockPos(1, 1, 0);
+        var controller = new BlockPos(2, 1, 0);
+        var farDevice = new BlockPos(10, 1, 0);
+        var energyCell = net.minecraft.core.registries.BuiltInRegistries.BLOCK.get(
+                ResourceLocation.fromNamespaceAndPath("ae2", "creative_energy_cell"));
+        helper.setBlock(cell, energyCell);
+        helper.setBlock(nearDevice, ModRegistration.SUPERCONDUCTIVE_INTERFACE_BLOCK.get());
+        helper.setBlock(controller, appeng.core.definitions.AEBlocks.CONTROLLER.block());
+        helper.setBlock(farDevice, ModRegistration.SUPERCONDUCTIVE_INTERFACE_BLOCK.get());
+        var level = (ServerLevel) helper.getLevel();
+        var nearPos = GlobalPos.of(level.dimension(), helper.absolutePos(nearDevice));
+        var farPos = GlobalPos.of(level.dimension(), helper.absolutePos(farDevice));
+        waitUntil(helper, 12,
+                () -> separateNetworks(level, nearPos, farPos)
+                        && !machineClasses(level, farPos).isEmpty()
+                        && machineClasses(level, nearPos).size() >= 2,
+                () -> "the two sides did not start as separate grids each knowing their own machines: far="
+                        + machineClasses(level, farPos) + " near=" + machineClasses(level, nearPos),
+                () -> {
+                    String bound = WirelessLinks.bind(level, ModRegistration.WIRELESS_LINKS, nearPos, farPos);
+                    if (!bound.startsWith("linked ")) {
+                        helper.fail("the link was refused: \"" + bound + "\"");
+                        return;
+                    }
+                    var merged = machineClasses(level, farPos);
+                    var nearClass = level.getBlockEntity(nearPos.pos()).getClass().getName();
+                    var cellClass = level.getBlockEntity(GlobalPos.of(level.dimension(),
+                            helper.absolutePos(cell)).pos()).getClass().getName();
+                    if (!merged.contains(nearClass) || !merged.contains(cellClass)) {
+                        helper.fail("the far device's grid does not list the machines it just inherited (the"
+                                + " Network Tool reads exactly this): wants " + nearClass + " and " + cellClass
+                                + ", has " + merged + " ; link reply was \"" + bound + "\"");
+                        return;
+                    }
+                    helper.succeed();
+                });
+    }
+
+    /** The class names {@code IGrid.getMachineClasses()} answers for that device's grid - the tool's source. */
+    private static java.util.List<String> machineClasses(ServerLevel level, GlobalPos at) {
+        var node = networkNode(level, at);
+        var grid = node == null ? null : node.getGrid();
+        if (grid == null) {
+            return java.util.List.of();
+        }
+        var names = new java.util.ArrayList<String>();
+        for (var machine : grid.getMachineClasses()) {
+            names.add(machine.getName());
+        }
+        java.util.Collections.sort(names);
+        return names;
+    }
+
     /** Does the card's own balance line name that cell? Reading the mark through the player's gesture. */
     private static boolean cardNames(GameTestHelper helper, ServerLevel level, ItemStack card, BlockPos cell) {
         return cardWords(level, card).contains(helper.absolutePos(cell).toShortString());
