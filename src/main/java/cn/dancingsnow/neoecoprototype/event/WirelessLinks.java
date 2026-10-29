@@ -74,6 +74,13 @@ public final class WirelessLinks {
      * nor {@code IGridNode} exposes a way to limit channels (both {@code getMaxChannels()} have no setter,
      * and {@code GridConnection#setAdHocChannels} writes the <em>used</em> field), so AE2 stays free to hand
      * a device more later. The accounting is recomputed on every question for exactly that reason.</p>
+     *
+     * <p>One allowance per network, not per controller block. This was per block until a client showed a
+     * player pricing a single group one block at a time (four taps on one row of controllers read
+     * {@code channels=0/128}) - AE2 gives nothing to price per block, because
+     * {@code ControllerValidator#calculateState} treats every controller node reachable in the grid as one
+     * group and answers {@code CONTROLLER_CONFLICT} (zero channels, measured in
+     * {@code PathingService#updateControllerState}) the moment a second unreachable pile appears.</p>
      */
     public static final int CHANNELS_PER_CONTROLLER = 32;
 
@@ -342,7 +349,10 @@ public final class WirelessLinks {
 
     /**
      * True when that position holds an AE2 controller - the only block whose tap buys channel capacity,
-     * because the controller is the thing AE2 itself counts channels against.
+     * because the controller is the thing AE2 itself counts channels against. Deliberately only the block
+     * question: whether that controller is part of a group AE2 accepts is a separate question
+     * ({@link #groupWorks}), and the card needs to route a conflicted pile into the message that says so
+     * rather than into the device branch.
      */
     public static boolean isController(ServerLevel acting, GlobalPos at) {
         if (!at.dimension().equals(acting.dimension()) || !chunkIsHere(acting, at)) {
@@ -353,9 +363,13 @@ public final class WirelessLinks {
     }
 
     /**
-     * The controller tap: buys {@link #CHANNELS_PER_CONTROLLER} channels for the network that controller is
-     * sitting on right now. Tapping the same one twice changes nothing. A controller with no grid is refused
-     * rather than filed, because the grant is only meaningful as a property of a network.
+     * The controller tap: buys one {@link #CHANNELS_PER_CONTROLLER} allowance for one network - the network
+     * that controller is sitting on right now. Not per block tapped: AE2 has no per-block controller
+     * identity to price. Measured in {@code appeng.me.pathfinding.ControllerValidator}, a "controller" is
+     * the flood of <em>every</em> controller node in the grid, bounded to 7 on each axis, and a second
+     * disconnected pile in the same grid is a conflict rather than a second controller - so the network is
+     * the only unit that can be sold. Tapping the same one twice changes nothing, and a controller with no
+     * grid is refused rather than filed, because the grant is only meaningful as a property of a network.
      */
     public static String grant(ServerLevel acting, Supplier<AttachmentType<Data>> type, GlobalPos at) {
         if (!isController(acting, at)) {
@@ -370,8 +384,15 @@ public final class WirelessLinks {
         if (node == null || node.getGrid() == null) {
             return describe(at) + " is not on a network yet, so there is nothing to buy channels for";
         }
-        if (data.grants.contains(at)) {
-            return "already granted " + describe(at) + ": "
+        if (!groupWorks(node)) {
+            return describe(at) + " belongs to a controller group AE2 has rejected ("
+                    + controllerStateOf(node.getGrid()) + "): that network gets no channels at all, so"
+                    + " there is nothing here to buy";
+        }
+        var paidFor = payingGrantFor(owner, data, node.getGrid());
+        if (paidFor != null) {
+            return "already granted " + describe(paidFor)
+                    + (paidFor.equals(at) ? "" : " by another block of this network") + ": "
                     + ledger(owner, data, node.getGrid());
         }
         data.grants.add(at);
@@ -436,7 +457,7 @@ public final class WirelessLinks {
     }
 
     private static int grantedFor(ServerLevel acting, Data data, IGrid... grids) {
-        int channels = 0;
+        Set<IGrid> paid = new HashSet<>();
         for (GlobalPos grant : data.grants) {
             // The grant is a property of a controller, not of a coordinate: without this second question a
             // player could take the controller away, stand any other device on that square, and keep the
@@ -445,11 +466,53 @@ public final class WirelessLinks {
                 continue;
             }
             var node = node(acting, grant);
-            if (node != null && sitsInAny(node, grids)) {
-                channels += CHANNELS_PER_CONTROLLER;
+            if (node != null && sitsInAny(node, grids) && groupWorks(node)) {
+                paid.add(node.getGrid());
             }
         }
-        return channels;
+        return CHANNELS_PER_CONTROLLER * paid.size();
+    }
+
+    /** The recorded tap that is currently paying for this network, or null when nothing is. */
+    @Nullable
+    private static GlobalPos payingGrantFor(ServerLevel acting, Data data, IGrid grid) {
+        for (GlobalPos grant : data.grants) {
+            if (isController(acting, grant)) {
+                var node = node(acting, grant);
+                if (node != null && node.getGrid() == grid && groupWorks(node)) {
+                    return grant;
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
+     * AE2's own verdict on the group this block sits in, asked before any money moves. A group can be
+     * rejected for reasons a player can create: a pile AE2's flood cannot reach from the first controller
+     * block, a block sandwiched on two axes (measured in {@code ControllerValidator#hasControllerCross} -
+     * one through-line is fine, that is how a row or a column is legal), or anything wider than 7 on an
+     * axis. What every rejection costs is the same and it is total: {@code appeng.me.service.PathingService}
+     * writes zero channels for the whole grid, so charging for it would sell capacity the network cannot
+     * have. A grid whose pathing service cannot be read is treated the same way - we do not take payment
+     * for something we just admitted we cannot check.
+     */
+    private static boolean groupWorks(IGridNode node) {
+        var grid = node.getGrid();
+        return grid != null && grid.getPathingService() != null
+                && grid.getPathingService().getControllerState()
+                != appeng.api.networking.pathing.ControllerState.CONTROLLER_CONFLICT;
+    }
+
+    /** AE2's controller verdict for a position's network, spelled out because the card has to say it back. */
+    public static String controllerState(ServerLevel acting, GlobalPos at) {
+        var node = node(acting, at);
+        return node == null ? "no network node there" : controllerStateOf(node.getGrid());
+    }
+
+    private static String controllerStateOf(IGrid grid) {
+        var pathing = grid == null ? null : grid.getPathingService();
+        return pathing == null ? "unreadable pathing service" : String.valueOf(pathing.getControllerState());
     }
 
     /**

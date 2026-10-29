@@ -13803,6 +13803,276 @@ public final class NeoECOPrototypeGameTests {
     }
 
     /**
+     * What one controller network is worth, however many of its blocks the player clicks. The price used to
+     * be per block tapped, and a client showed what that sold: a row of four controller blocks priced
+     * itself one tap at a time (logged as {@code channels=0/32 -> 0/64 -> 0/96 -> 0/128}) while AE2 counts
+     * that row as the single controller of the grid.
+     *
+     * <p>The fixture is therefore a contiguous row, and that is not a style choice. Measured in
+     * {@code ControllerValidator#visitNode}: it returns false for any node whose owner is not a controller,
+     * so AE2's flood only travels <em>through controller blocks</em>. Two piles one machine apart are not
+     * two groups - they are one grid whose flood cannot reach every controller, and
+     * {@code calculateState} answers {@code found != size} as {@code CONTROLLER_CONFLICT} (the first
+     * version of this test proved that by being red on exactly that word). There is no second group to buy
+     * either way, so the network is the only unit this can price.</p>
+     *
+     * <p>The last third is the accepted cost of that rule rather than a bug: the payment holds a pointer to
+     * one block, because nothing else can say which network a grant belongs to once its chunk is gone. Take
+     * the paying block away and the allowance goes with it; tapping any surviving block re-files it for one
+     * allowance, not two.</p>
+     */
+    @GameTest(template = "empty", batch = "controller_group_budget", timeoutTicks = 600,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void oneControllerNetworkBuysOneAllowanceHoweverManyBlocksAreTapped(GameTestHelper helper) {
+        var device = new BlockPos(0, 1, 0);
+        var paid = new BlockPos(1, 1, 0);
+        var twin = new BlockPos(2, 1, 0);
+        helper.setBlock(device, ModRegistration.SUPERCONDUCTIVE_INTERFACE_BLOCK.get());
+        helper.setBlock(paid, appeng.core.definitions.AEBlocks.CONTROLLER.block());
+        helper.setBlock(twin, appeng.core.definitions.AEBlocks.CONTROLLER.block());
+        var level = (ServerLevel) helper.getLevel();
+        var devicePos = GlobalPos.of(level.dimension(), helper.absolutePos(device));
+        var paidPos = GlobalPos.of(level.dimension(), helper.absolutePos(paid));
+        var twinPos = GlobalPos.of(level.dimension(), helper.absolutePos(twin));
+        waitUntil(helper, 12,
+                () -> "CONTROLLER_ONLINE".equals(WirelessLinks.controllerState(level, devicePos))
+                        && oneNetwork(level, devicePos, paidPos) && oneNetwork(level, devicePos, twinPos),
+                () -> "the two touching controller blocks never became one working group on the device's"
+                        + " network: " + WirelessLinks.controllerState(level, devicePos) + " / "
+                        + nodeSummary(level, paidPos) + " / " + nodeSummary(level, twinPos),
+                () -> {
+                    // Absolute numbers, not deltas: a batch shares one overworld but grantedFor only ever
+                    // counts grants sitting on the grid being asked about, and this grid is ours alone.
+                    String first = WirelessLinks.grant(level, ModRegistration.WIRELESS_LINKS, paidPos);
+                    int bought = grantedOf(level, devicePos);
+                    if (!first.startsWith("granted") || bought != WirelessLinks.CHANNELS_PER_CONTROLLER) {
+                        helper.fail("the first tap on a controller network did not buy exactly one allowance:"
+                                + " \"" + first + "\" (granted " + bought + ", one allowance is "
+                                + WirelessLinks.CHANNELS_PER_CONTROLLER + ")");
+                        return;
+                    }
+                    String second = WirelessLinks.grant(level, ModRegistration.WIRELESS_LINKS, twinPos);
+                    int afterSecond = grantedOf(level, devicePos);
+                    if (!second.startsWith("already granted") || afterSecond != bought) {
+                        helper.fail("a second block of the same controller group bought another allowance:"
+                                + " \"" + second + "\" (granted " + bought + " -> " + afterSecond + ")");
+                        return;
+                    }
+                    // Named, because "already granted" with no reason given reads like the tap was ignored.
+                    if (!second.contains(paidPos.pos().toShortString())) {
+                        helper.fail("\"" + second + "\" refuses the tap without naming the block that is"
+                                + " already paying for this network");
+                        return;
+                    }
+                    helper.setBlock(paid, Blocks.AIR);
+                    waitUntil(helper, 12,
+                            () -> "CONTROLLER_ONLINE".equals(WirelessLinks.controllerState(level, twinPos)),
+                            () -> "removing one controller block left the surviving one without a working"
+                                    + " group: " + WirelessLinks.controllerState(level, twinPos) + " / "
+                                    + nodeSummary(level, twinPos),
+                            () -> {
+                                int reshaped = grantedOf(level, twinPos);
+                                if (reshaped >= bought) {
+                                    helper.fail("the allowance outlived the block that held its pointer: "
+                                            + bought + " -> " + reshaped);
+                                    return;
+                                }
+                                String refiled = WirelessLinks.grant(level, ModRegistration.WIRELESS_LINKS,
+                                        twinPos);
+                                int back = grantedOf(level, twinPos);
+                                if (!refiled.startsWith("granted") || back != bought) {
+                                    helper.fail("re-tapping the surviving block of a reshaped group should"
+                                            + " move the payment to one allowance, not multiply or lose it: \""
+                                            + refiled + "\" (granted " + reshaped + " -> " + back + ")");
+                                    return;
+                                }
+                                helper.succeed();
+                            });
+                });
+    }
+
+    /**
+     * A shape AE2 has rejected is not sellable, and must stop paying if it was sold. Measured in
+     * {@code ControllerValidator#hasControllerCross}: a controller block with neighbours on both sides of
+     * two axes (a plus) makes {@code calculateState} answer {@code CONTROLLER_CONFLICT}, and
+     * {@code PathingService#updateControllerState} then writes zero channels for the whole grid. One
+     * through-line is legal - that is what a row or a column is - so the fixture is a column first and a
+     * plus after, and the single added block is the whole difference.
+     */
+    @GameTest(template = "empty", batch = "controller_conflict_refusal", timeoutTicks = 600,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void aControllerGroupAe2RejectsBuysNothing(GameTestHelper helper) {
+        var device = new BlockPos(0, 1, 2);
+        var west = new BlockPos(1, 1, 2);
+        var centre = new BlockPos(2, 1, 2);
+        var north = new BlockPos(2, 1, 1);
+        var south = new BlockPos(2, 1, 3);
+        var east = new BlockPos(3, 1, 2);
+        var controller = appeng.core.definitions.AEBlocks.CONTROLLER.block();
+        helper.setBlock(device, ModRegistration.SUPERCONDUCTIVE_INTERFACE_BLOCK.get());
+        for (var pos : new BlockPos[]{west, centre, north, south}) {
+            helper.setBlock(pos, controller);
+        }
+        var level = (ServerLevel) helper.getLevel();
+        var devicePos = GlobalPos.of(level.dimension(), helper.absolutePos(device));
+        var centrePos = GlobalPos.of(level.dimension(), helper.absolutePos(centre));
+        var eastPos = GlobalPos.of(level.dimension(), helper.absolutePos(east));
+        waitUntil(helper, 12,
+                () -> "CONTROLLER_ONLINE".equals(WirelessLinks.controllerState(level, devicePos)),
+                () -> "the column of controllers never came online on the device's network: "
+                        + WirelessLinks.controllerState(level, devicePos) + " / "
+                        + nodeSummary(level, devicePos),
+                () -> {
+                    String sold = WirelessLinks.grant(level, ModRegistration.WIRELESS_LINKS, centrePos);
+                    int paid = grantedOf(level, devicePos);
+                    if (!sold.startsWith("granted")
+                            || paid != WirelessLinks.CHANNELS_PER_CONTROLLER) {
+                        helper.fail("a legal column did not buy its one allowance: \"" + sold
+                                + "\" (granted " + paid + ")");
+                        return;
+                    }
+                    // One more block is all it takes to make this a plus: the centre now runs through on the
+                    // X axis as well as the Z axis.
+                    helper.setBlock(east, controller);
+                    waitUntil(helper, 12,
+                            () -> "CONTROLLER_CONFLICT".equals(WirelessLinks.controllerState(level, devicePos)),
+                            () -> "adding the fifth block of a plus did not make AE2 reject the group: "
+                                    + WirelessLinks.controllerState(level, devicePos) + " / "
+                                    + WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS, devicePos),
+                            () -> {
+                                int after = grantedOf(level, devicePos);
+                                if (after >= paid) {
+                                    helper.fail("a conflicted controller group kept its allowance even though"
+                                            + " AE2 gives that network no channels: granted " + paid + " -> "
+                                            + after + " on " + WirelessLinks.status(
+                                            level, ModRegistration.WIRELESS_LINKS, devicePos));
+                                    return;
+                                }
+                                String refused = WirelessLinks.grant(level, ModRegistration.WIRELESS_LINKS,
+                                        eastPos);
+                                if (refused.startsWith("granted") || !refused.contains("has rejected")) {
+                                    helper.fail("a tap on a rejected controller group was answered without"
+                                            + " refusing it: \"" + refused + "\"");
+                                    return;
+                                }
+                                if (grantedOf(level, devicePos) != after) {
+                                    helper.fail("the refused tap still changed the ledger: " + after + " -> "
+                                            + grantedOf(level, devicePos));
+                                    return;
+                                }
+                                helper.succeed();
+                            });
+                });
+    }
+
+    /**
+     * The case {@link #grant}'s refusal cannot reach, and the reason the ledger counts networks rather than
+     * coordinates: two networks that were each paid for before this rule existed - or that a player joins
+     * with our own card - arrive at one grid holding two recorded taps. Both halves are pinned here, in the
+     * order AE2 itself puts them: joining them makes the pair of separate controller piles unreachable from
+     * one flood, so the merged grid is {@code CONTROLLER_CONFLICT} and pays nothing (the allowances do not
+     * add up), and bridging the two piles with real controller blocks makes it one legal group again at the
+     * price of <em>one</em> allowance, not two.
+     *
+     * <p>That last number is what the per-coordinate ledger used to answer as double credit, and it is still
+     * reachable in any world saved before this change: a client read four taps on one row of controllers as
+     * {@code channels=0/128}.</p>
+     */
+    @GameTest(template = "empty", batch = "controller_merged_group_budget", timeoutTicks = 900,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void twoPaidNetworksBridgedIntoOneStillBuyOneAllowance(GameTestHelper helper) {
+        var one = new BlockPos(0, 1, 0);
+        var oneController = new BlockPos(1, 1, 0);
+        var two = new BlockPos(0, 1, 3);
+        var twoController = new BlockPos(1, 1, 3);
+        var controller = appeng.core.definitions.AEBlocks.CONTROLLER.block();
+        var interfaceBlock = ModRegistration.SUPERCONDUCTIVE_INTERFACE_BLOCK.get();
+        helper.setBlock(one, interfaceBlock);
+        helper.setBlock(two, interfaceBlock);
+        helper.setBlock(oneController, controller);
+        helper.setBlock(twoController, controller);
+        var level = (ServerLevel) helper.getLevel();
+        var onePos = GlobalPos.of(level.dimension(), helper.absolutePos(one));
+        var twoPos = GlobalPos.of(level.dimension(), helper.absolutePos(two));
+        var oneControllerPos = GlobalPos.of(level.dimension(), helper.absolutePos(oneController));
+        var twoControllerPos = GlobalPos.of(level.dimension(), helper.absolutePos(twoController));
+        waitUntil(helper, 8,
+                () -> separateNetworks(level, onePos, twoPos)
+                        && "CONTROLLER_ONLINE".equals(WirelessLinks.controllerState(level, onePos))
+                        && "CONTROLLER_ONLINE".equals(WirelessLinks.controllerState(level, twoPos)),
+                () -> "the two device-plus-controller pairs never became two working networks: "
+                        + WirelessLinks.controllerState(level, onePos) + " / "
+                        + WirelessLinks.controllerState(level, twoPos) + " / " + nodeSummary(level, onePos)
+                        + " / " + nodeSummary(level, twoPos),
+                () -> {
+                    WirelessLinks.grant(level, ModRegistration.WIRELESS_LINKS, oneControllerPos);
+                    WirelessLinks.grant(level, ModRegistration.WIRELESS_LINKS, twoControllerPos);
+                    int each = grantedOf(level, onePos);
+                    int other = grantedOf(level, twoPos);
+                    if (each != WirelessLinks.CHANNELS_PER_CONTROLLER
+                            || other != WirelessLinks.CHANNELS_PER_CONTROLLER
+                            || !separateNetworks(level, oneControllerPos, twoControllerPos)) {
+                        helper.fail("two separate controller networks did not each buy one allowance on their"
+                                + " own network: " + each + " / " + other + ", same grid="
+                                + !separateNetworks(level, oneControllerPos, twoControllerPos));
+                        return;
+                    }
+                    String joined = WirelessLinks.bind(level, ModRegistration.WIRELESS_LINKS, onePos, twoPos);
+                    waitUntil(helper, 8,
+                            () -> "CONTROLLER_CONFLICT".equals(WirelessLinks.controllerState(level, onePos)),
+                            () -> "linking the two networks did not put their two controller piles in front"
+                                    + " of AE2 as one conflicted grid: \"" + joined + "\" / "
+                                    + WirelessLinks.controllerState(level, onePos) + " / "
+                                    + WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS, onePos),
+                            () -> {
+                                int merged = grantedOf(level, onePos);
+                                if (merged != 0) {
+                                    helper.fail("the merged network kept " + merged + " of allowance while"
+                                            + " AE2 had its two controller piles in conflict (each network"
+                                            + " had bought " + each + " and " + other + ")");
+                                    return;
+                                }
+                                helper.setBlock(new BlockPos(1, 1, 1), controller);
+                                helper.setBlock(new BlockPos(1, 1, 2), controller);
+                                waitUntil(helper, 8,
+                                        () -> "CONTROLLER_ONLINE".equals(
+                                                WirelessLinks.controllerState(level, onePos)),
+                                        () -> "bridging the two piles with controller blocks did not make one"
+                                                + " legal group: " + WirelessLinks.controllerState(level, onePos)
+                                                + " / " + WirelessLinks.status(
+                                                level, ModRegistration.WIRELESS_LINKS, onePos),
+                                        () -> {
+                                            int oneGroup = grantedOf(level, onePos);
+                                            if (oneGroup != WirelessLinks.CHANNELS_PER_CONTROLLER) {
+                                                helper.fail("one network holding two recorded taps was worth "
+                                                        + oneGroup + ", expected exactly one allowance ("
+                                                        + WirelessLinks.CHANNELS_PER_CONTROLLER
+                                                        + "): the ledger is counting coordinates again");
+                                                return;
+                                            }
+                                            helper.succeed();
+                                        });
+                            });
+                });
+    }
+
+    /**
+     * The {@code granted} half of the ledger a device reads about its own network. Only callable after the
+     * attachment has been touched once: on a level that has never had a link or a tap there is no data to
+     * read, and {@link WirelessLinks#status} says so in words instead of carrying a number - which is the
+     * right answer for a player and the wrong one for an assertion, so this says plainly rather than
+     * reporting a silent zero.
+     */
+    private static int grantedOf(ServerLevel level, GlobalPos at) {
+        var status = WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS, at);
+        var ledger = ledgerOf(status);
+        if (ledger == null) {
+            throw new IllegalStateException("no channels= figure to read in " + status);
+        }
+        return ledger[1];
+    }
+
+    /**
      * The one number in this feature that is ours to set rather than AE2's: how many wireless edges a
      * single device may carry. It has to be enforced where the record is written, because a link costs
      * nothing in blocks and a player can therefore make as many as they can click.
