@@ -337,9 +337,8 @@ public final class WirelessLinks {
         int cost = channelCost(a) + channelCost(b);
         if (spent + cost > granted) {
             return "this link needs " + cost + " channel(s) and these two networks have "
-                    + Math.max(0, granted - spent) + " free (channels=" + spent + "/" + granted
-                    + ") - sneak-right-click an AE2 controller here with the card to buy "
-                    + CHANNELS_PER_CONTROLLER + " more";
+                    + Math.max(0, granted - spent) + " free (channels=" + spent + "/" + granted + ") - "
+                    + shortNetworks(owner, data, link.a(), a.getGrid(), link.b(), b.getGrid());
         }
         data.links.add(link);
         // No dirty flag to set: LevelAttachmentsSavedData.isDirty() answers true unconditionally, so a
@@ -480,6 +479,23 @@ public final class WirelessLinks {
             }
         }
         return CHANNELS_PER_CONTROLLER * paid.size();
+    }
+
+    /**
+     * A refused bind has to say which of the two networks is short, and what AE2 thinks of the controller
+     * standing in it. Measured in the client on 2026-10-29: the old line said "sneak-right-click an AE2
+     * controller here", but the controllers he could reach were on a neighbour network - so he bought
+     * credit four times on networks that were not the one being refused, and every further tap still
+     * answered "these two networks have 0 free". A tap buys credit for the network its controller stands in,
+     * which is the sentence this refusal now gives.
+     */
+    private static String shortNetworks(ServerLevel acting, Data data, GlobalPos atA, IGrid gridA,
+                                        GlobalPos atB, IGrid gridB) {
+        return "network of " + describe(atA) + " is worth " + grantedFor(acting, data, gridA)
+                + " (controller=" + controllerStateOf(gridA) + "), network of " + describe(atB)
+                + " is worth " + grantedFor(acting, data, gridB) + " (controller="
+                + controllerStateOf(gridB) + ") - a tap buys credit for the network its controller stands in,"
+                + " so tap one that is on the short one";
     }
 
     /** The recorded tap that is currently paying for this network, or null when nothing is. */
@@ -625,7 +641,8 @@ public final class WirelessLinks {
         var node = node(acting, endpoint);
         return describe(endpoint) + " wirelessLinks=" + linksAtEverywhere(acting, type, endpoint)
                 + " live=" + liveLinksAt(acting, type, endpoint) + " " + ledgerAt(acting, type, endpoint)
-                + (node == null ? "" : " " + channelMode(node) + " " + faceLedger(node));
+                + (node == null ? "" : " " + channelMode(node) + " controller="
+                + controllerStateOf(node.getGrid()) + " " + faceLedger(node));
     }
 
     /**
