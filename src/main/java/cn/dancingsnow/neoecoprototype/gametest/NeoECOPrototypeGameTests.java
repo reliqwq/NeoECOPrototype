@@ -14395,15 +14395,19 @@ public final class NeoECOPrototypeGameTests {
 
     /**
      * #38 asked whether the card could push two controller piles into the one shape AE2 rejects. Measured, it
-     * cannot. A wireless join always ends on a <em>device</em>, and the controller group is judged from
-     * controller-to-controller adjacency, so a pile that was legal before the tap is still its own group after
-     * it: probed on two rows of two controllers (each row cell-C-C-device, the two rows seven apart), the tap
+     * cannot: probed on two rows of two controllers (each row cell-C-C-device, the rows seven apart), the tap
      * answered {@code sameGrid=true gridNodes=8} with <em>both</em> ends still {@code CONTROLLER_ONLINE} and
      * channels still flowing ({@code gridUsed=1}, both endpoints {@code used=1}). So there is nothing to refuse
      * and nothing new to report - {@code readings} already prints {@code controller=} on every join, so if AE2
      * ever starts judging a merged pile as a conflict, the player reads it from the card in the same click.
-     * This guard is the pin, on a fixture the size of the one that got contaminated: it reddens if an edge ever
-     * starts carrying the controller flood, which is exactly when #38 would have to be reopened.
+     * This guard is the pin: it reddens if an edge ever starts carrying that judgement, which is when #38 would
+     * have to be reopened.
+     *
+     * <p>Behaviour only - do not cite a mechanism from here. The companion guard
+     * {@link #aMachineBetweenTwoControllersIsAe2sOwnConflictNotOurs} reads CONTROLLER_CONFLICT for
+     * controller-device-controller, which no traversal rule that also explains this green is able to predict
+     * ("the flood stops at non-controllers" would make that row two legal groups of one; "the flood passes
+     * devices" would make this join one illegal group of four). Measured 2026-10-30, both ways round.
      */
     @GameTest(template = "empty", batch = "wireless_two_piles", timeoutTicks = 900,
             templateNamespace = NeoECOPrototype.MOD_ID)
@@ -14465,10 +14469,11 @@ public final class NeoECOPrototypeGameTests {
 
     /**
      * The other half of the same question, asked because the answer is not about the card at all: two
-     * controllers with one machine <em>between</em> them is a shape AE2 itself rejects. Measured on its own
-     * (batch {@code machine_between_controllers}, one test per run so nothing writes over it) - see the log
-     * line this test prints. Kept as a probe-shaped guard because the useful claim for the player is the
-     * negative: laying blocks can do this to you, and a wireless edge between two devices cannot.
+     * controllers with one device <em>between</em> them is a shape AE2 itself rejects, and a player who reads
+     * "a wireless edge cannot make a conflict" needs to know which of the two they are looking at. Asserted on
+     * its own batch, one test per run, because the gameTest origins of tests in one round sit ~8 apart in X and
+     * a neighbour's blocks can be written on top of this row. Control run: move the device out of the row
+     * (controller-controller-device) and this reddens at "read CONTROLLER_ONLINE, not CONTROLLER_CONFLICT".
      */
     @GameTest(template = "empty", batch = "machine_between_controllers", timeoutTicks = 600,
             templateNamespace = NeoECOPrototype.MOD_ID)
