@@ -426,9 +426,13 @@ public final class WirelessLinks {
             return "already at " + current.name() + ", the highest mode this card offers";
         }
         service.setForcedChannelMode(next);
-        return "raised to " + next.name() + ": a machine face across this link is now worth "
-                + 8 * next.getCableCapacityFactor() + " channels (this node reads max="
-                + node.getMaxChannels() + ")";
+        // Stated as AE2's own arithmetic rather than read off the block that was tapped: a controller's node
+        // answers getMaxChannels() == 0 because it carries channels rather than using them, so "this node
+        // reads max=0" was a true fact about the wrong object and read like the raise had failed. The ladder
+        // guard asserts the same number straight off a device node, so the sentence and the test agree.
+        return "raised this network to " + next.name() + ": a device without dense capacity now takes "
+                + 8 * next.getCableCapacityFactor() + " channels per face (8 x "
+                + next.getCableCapacityFactor() + ")";
     }
 
     private static int grantedFor(ServerLevel acting, Data data, IGrid... grids) {
