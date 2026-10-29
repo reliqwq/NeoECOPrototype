@@ -14038,6 +14038,180 @@ public final class NeoECOPrototypeGameTests {
     }
 
     /**
+     * The whole server half of the Network Tool at once, because the three guards above each test one filter
+     * inside it and a chain of individually-passing filters can still hand the client an empty list.
+     * {@code appeng.menu.me.networktool.NetworkStatus#fromGrid} is what
+     * {@code NetworkStatusMenu#broadcastChanges} serialises into the packet the screen draws, so this calls
+     * exactly that on the merged grid and counts the groups by the item they would show. It reads the same
+     * number twice, before the tap and after it: before, the far device's grid can only name itself (1);
+     * after, it must name both interfaces and the controller and the cell beside them. That pairing is what
+     * gives the assertion teeth - a test that only ever checked "our item is in the payload" would stay green
+     * if the merge never happened, because the near side names itself too.
+     */
+    @GameTest(template = "empty", batch = "wireless_tool_payload", timeoutTicks = 600,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void thePayloadTheNetworkToolGetsAfterAJoinNamesBothSides(GameTestHelper helper) {
+        var cell = new BlockPos(0, 1, 0);
+        var nearDevice = new BlockPos(1, 1, 0);
+        var controller = new BlockPos(2, 1, 0);
+        var farDevice = new BlockPos(10, 1, 0);
+        var energyCell = net.minecraft.core.registries.BuiltInRegistries.BLOCK.get(
+                ResourceLocation.fromNamespaceAndPath("ae2", "creative_energy_cell"));
+        helper.setBlock(cell, energyCell);
+        helper.setBlock(nearDevice, ModRegistration.SUPERCONDUCTIVE_INTERFACE_BLOCK.get());
+        helper.setBlock(controller, appeng.core.definitions.AEBlocks.CONTROLLER.block());
+        helper.setBlock(farDevice, ModRegistration.SUPERCONDUCTIVE_INTERFACE_BLOCK.get());
+        var level = (ServerLevel) helper.getLevel();
+        var nearPos = GlobalPos.of(level.dimension(), helper.absolutePos(nearDevice));
+        var farPos = GlobalPos.of(level.dimension(), helper.absolutePos(farDevice));
+        waitUntil(helper, 12,
+                () -> separateNetworks(level, nearPos, farPos)
+                        && WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS, nearPos)
+                                .contains("powered=true"),
+                () -> "the fixture never became a powered controller network beside a device of its own: "
+                        + WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS, nearPos) + " / "
+                        + WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS, farPos),
+                () -> {
+                    var ours = networkNode(level, farPos).getVisualRepresentation();
+                    int before = groupedCount(level, farPos, ours);
+                    if (before != 1) {
+                        helper.fail("before the tap the far device's own grid named " + before
+                                + " of our interface, expected 1 - the fixture is not counting what the"
+                                + " tool counts");
+                        return;
+                    }
+                    String bound = WirelessLinks.bind(level, ModRegistration.WIRELESS_LINKS, nearPos, farPos);
+                    if (!bound.startsWith("linked ")) {
+                        helper.fail("the link was refused: \"" + bound + "\"");
+                        return;
+                    }
+                    int after = groupedCount(level, farPos, ours);
+                    if (after != 2) {
+                        helper.fail("the tool's payload still names " + after + " of our interface after the"
+                                + " join, expected 2 - the merge reached the grid but not the list the client"
+                                + " is sent: " + groupedPayload(level, farPos));
+                        return;
+                    }
+                    var named = groupedPayload(level, farPos);
+                    if (!named.contains("controller") || !named.contains("energy_cell")) {
+                        helper.fail("the joined network's payload leaves out AE2's own machines, so the"
+                                + " count above cannot be trusted as the whole list: " + named);
+                        return;
+                    }
+                    helper.succeed();
+                });
+    }
+
+    /** How many of this item the Network Tool would show for that device's grid - the count it draws. */
+    private static int groupedCount(ServerLevel level, GlobalPos at, appeng.api.stacks.AEItemKey wanted) {
+        return groupedCountOn(statusGrid(level, at), wanted);
+    }
+
+    /** The same count taken straight off a grid object, including one the menu would still be holding. */
+    private static int groupedCountOn(appeng.api.networking.IGrid grid, appeng.api.stacks.AEItemKey wanted) {
+        var total = 0;
+        for (var group : statusOf(grid).getGroupedMachines()) {
+            if (wanted != null && wanted.equals(group.getDisplay())) {
+                total += group.getCount();
+            }
+        }
+        return total;
+    }
+
+    /** The same list the client is sent, one line per group: what it would show and how it would label it. */
+    private static String groupedPayload(ServerLevel level, GlobalPos at) {
+        return groupedPayloadOn(statusGrid(level, at));
+    }
+
+    private static String groupedPayloadOn(appeng.api.networking.IGrid grid) {
+        var words = new java.util.ArrayList<String>();
+        for (var group : statusOf(grid).getGroupedMachines()) {
+            words.add(group.getDisplay() + " x" + group.getCount()
+                    + (group.isMissingChannel() ? " (no channel)" : ""));
+        }
+        java.util.Collections.sort(words);
+        return String.join(", ", words);
+    }
+
+    /** The grid that device is standing on, or null while it has no node. */
+    private static appeng.api.networking.IGrid statusGrid(ServerLevel level, GlobalPos at) {
+        var node = networkNode(level, at);
+        return node == null ? null : node.getGrid();
+    }
+
+    /**
+     * The list the tool would be sent for that grid, or an empty status when there is none - built through
+     * AE2's own {@code NetworkStatus#fromGrid}, which is what {@code NetworkStatusMenu} calls on the server
+     * every 15 ticks to fill its packet.
+     */
+    private static appeng.menu.me.networktool.NetworkStatus statusOf(appeng.api.networking.IGrid grid) {
+        return grid == null ? new appeng.menu.me.networktool.NetworkStatus()
+                : appeng.menu.me.networktool.NetworkStatus.fromGrid(grid);
+    }
+
+    /**
+     * The same reading taken twice more, because what he was doing in the client was not one join but three
+     * ("我连接了三个接口，这三个接口都是两个一组") and a chain is a different question from a pair: every merge
+     * retires one {@code IGrid} object and moves its nodes into another, so the grid reachable from the first
+     * endpoint after two joins may not be the one the last endpoint is standing on - and the Network Tool
+     * shows whatever {@code IGridNode#getGrid()} answers for the block it was opened on. This asks the payload
+     * question from all three ends after the chain is complete, and names each end in the failure.
+     */
+    @GameTest(template = "empty", batch = "wireless_tool_chain", timeoutTicks = 900,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void aChainOfTwoJoinsStillNamesEveryMachineFromEveryEnd(GameTestHelper helper) {
+        var cell = new BlockPos(0, 1, 0);
+        var hub = new BlockPos(1, 1, 0);
+        var controller = new BlockPos(2, 1, 0);
+        var mid = new BlockPos(10, 1, 0);
+        var far = new BlockPos(10, 3, 0);
+        var energyCell = net.minecraft.core.registries.BuiltInRegistries.BLOCK.get(
+                ResourceLocation.fromNamespaceAndPath("ae2", "creative_energy_cell"));
+        helper.setBlock(cell, energyCell);
+        helper.setBlock(hub, ModRegistration.SUPERCONDUCTIVE_INTERFACE_BLOCK.get());
+        helper.setBlock(controller, appeng.core.definitions.AEBlocks.CONTROLLER.block());
+        helper.setBlock(mid, ModRegistration.SUPERCONDUCTIVE_INTERFACE_BLOCK.get());
+        helper.setBlock(far, ModRegistration.SUPERCONDUCTIVE_INTERFACE_BLOCK.get());
+        var level = (ServerLevel) helper.getLevel();
+        var hubPos = GlobalPos.of(level.dimension(), helper.absolutePos(hub));
+        var midPos = GlobalPos.of(level.dimension(), helper.absolutePos(mid));
+        var farPos = GlobalPos.of(level.dimension(), helper.absolutePos(far));
+        waitUntil(helper, 12,
+                () -> separateNetworks(level, hubPos, midPos) && separateNetworks(level, midPos, farPos)
+                        && WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS, hubPos)
+                                .contains("powered=true"),
+                () -> "the three devices never became two networks plus a powered controller side: "
+                        + WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS, hubPos) + " / "
+                        + WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS, midPos) + " / "
+                        + WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS, farPos),
+                () -> {
+                    var ours = networkNode(level, hubPos).getVisualRepresentation();
+                    String first = WirelessLinks.bind(level, ModRegistration.WIRELESS_LINKS, hubPos, midPos);
+                    if (!first.startsWith("linked ")) {
+                        helper.fail("the first link was refused: \"" + first + "\"");
+                        return;
+                    }
+                    String second = WirelessLinks.bind(level, ModRegistration.WIRELESS_LINKS, midPos, farPos);
+                    if (!second.startsWith("linked ")) {
+                        helper.fail("the second link was refused: \"" + second + "\"");
+                        return;
+                    }
+                    for (var at : new GlobalPos[]{hubPos, midPos, farPos}) {
+                        int named = groupedCount(level, at, ours);
+                        if (named != 3) {
+                            helper.fail("after two joins the tool's payload read from "
+                                    + WirelessLinks.describe(at)
+                                    + " names " + named + " of our interface, expected 3 - that end is"
+                                    + " standing on a grid that does not know the whole chain: "
+                                    + groupedPayload(level, at));
+                            return;
+                        }
+                    }
+                    helper.succeed();
+                });
+    }
+
+    /**
      * Why the Network Tool can list nothing while the grid knows the machine: {@code NetworkStatus#fromGrid}
      * walks {@code getMachineClasses()} (which {@code Grid} fills unconditionally - the other guard proves our
      * classes are in there) but then calls {@code getKey(node)}, and that answers {@code null} - the node is
@@ -14140,6 +14314,79 @@ public final class NeoECOPrototypeGameTests {
                         helper.fail("our machine is enterable on faces AE2's own controller is not, so the"
                                 + " Network Tool can be opened on theirs and not on ours: ours=" + oursFaces
                                 + " controller=" + controllerFaces);
+                        return;
+                    }
+                    helper.succeed();
+                });
+    }
+
+    /**
+     * The answer to "网络工具里没有这些接口", measured rather than guessed. {@code NetworkStatusMenu} resolves
+     * its grid <em>once</em>, in its constructor ({@code buildForGridHost} → {@code findNode} → {@code this.grid
+     * = node.getGrid()}) and never re-resolves it; every 15 ticks {@code broadcastChanges} sends
+     * {@code NetworkStatus.fromGrid} of that stored object. Measured here on 2026-10-29: a wireless join does
+     * <em>not</em> keep the grid a node was standing on - {@code sameObject=false}, the grid captured before
+     * the tap named 1 of our interface and names <b>0</b> after it (its machine map is emptied), while the
+     * grid the same node stands on after the tap names 2. So a tool opened before the join is not showing
+     * "fewer machines", it is showing a retired grid - and because the stored reference is still non-null,
+     * {@code setValidMenu(false)} never fires, so the screen stays open and empty. That is also why AE2 does
+     * not hit this in normal play: laying a cable merges the new node's singleton grid into the existing one,
+     * so the grid a tool holds always survives; two existing networks meeting over an edge is the case that
+     * retires one. Our compensation is one clause in the link reply telling the player to open the tool again;
+     * this guard reddens if AE2 ever stops retiring the object, which is when that clause should be deleted.
+     */
+    @GameTest(template = "empty", batch = "wireless_tool_stalegrid", timeoutTicks = 600,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void aToolOpenedBeforeTheJoinIsLeftReadingARetiredGrid(GameTestHelper helper) {
+        var cell = new BlockPos(0, 1, 0);
+        var nearDevice = new BlockPos(1, 1, 0);
+        var controller = new BlockPos(2, 1, 0);
+        var farDevice = new BlockPos(10, 1, 0);
+        var energyCell = net.minecraft.core.registries.BuiltInRegistries.BLOCK.get(
+                ResourceLocation.fromNamespaceAndPath("ae2", "creative_energy_cell"));
+        helper.setBlock(cell, energyCell);
+        helper.setBlock(nearDevice, ModRegistration.SUPERCONDUCTIVE_INTERFACE_BLOCK.get());
+        helper.setBlock(controller, appeng.core.definitions.AEBlocks.CONTROLLER.block());
+        helper.setBlock(farDevice, ModRegistration.SUPERCONDUCTIVE_INTERFACE_BLOCK.get());
+        var level = (ServerLevel) helper.getLevel();
+        var nearPos = GlobalPos.of(level.dimension(), helper.absolutePos(nearDevice));
+        var farPos = GlobalPos.of(level.dimension(), helper.absolutePos(farDevice));
+        waitUntil(helper, 12,
+                () -> separateNetworks(level, nearPos, farPos),
+                () -> "the two sides never became two networks: " + nodeSummary(level, nearPos) + " / "
+                        + nodeSummary(level, farPos),
+                () -> {
+                    var ours = networkNode(level, farPos).getVisualRepresentation();
+                    // Exactly what NetworkStatusMenu stores: the IGrid object, captured once, never re-resolved.
+                    var captured = networkNode(level, farPos).getGrid();
+                    if (groupedCountOn(captured, ours) != 1) {
+                        helper.fail("the grid captured before the tap does not name the device it belongs to,"
+                                + " so the reading below compares nothing: " + groupedPayloadOn(captured));
+                        return;
+                    }
+                    String bound = WirelessLinks.bind(level, ModRegistration.WIRELESS_LINKS, nearPos, farPos);
+                    if (!bound.startsWith("linked ")) {
+                        helper.fail("the link was refused: \"" + bound + "\"");
+                        return;
+                    }
+                    var live = networkNode(level, farPos).getGrid();
+                    if (live == captured) {
+                        helper.fail("AE2 now keeps the grid object a tool was already holding, so a tool"
+                                + " opened before a join shows both sides by itself and the reopen clause in"
+                                + " our link reply (and this guard) should be deleted");
+                        return;
+                    }
+                    if (groupedCountOn(captured, ours) != 0 || groupedCountOn(live, ours) != 2) {
+                        helper.fail("the retired grid named " + groupedCountOn(captured, ours)
+                                + " and the live one " + groupedCountOn(live, ours)
+                                + " of our interface, expected 0 and 2 - the reading this compensation is"
+                                + " built on: retired=[" + groupedPayloadOn(captured) + "] live=["
+                                + groupedPayloadOn(live) + "]");
+                        return;
+                    }
+                    if (!bound.contains("open the network tool again")) {
+                        helper.fail("the link reply does not tell the player to reopen the tool, so a screen"
+                                + " left open through the join stays empty with no explanation: \"" + bound + "\"");
                         return;
                     }
                     helper.succeed();

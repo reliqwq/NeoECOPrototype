@@ -308,7 +308,13 @@ public final class WirelessLinks {
         // level save always re-reads whatever this object currently holds.
         EdgeResult result = ensureEdge(owner, data, link);
         if (result.edge() != null) {
-            return "linked " + describe(link) + " | " + readings(result.edge(), result.a(), result.b());
+            // The join retires one of the two IGrid objects and AE2 empties its machine map, while
+            // NetworkStatusMenu stores the grid once in its constructor and never re-resolves it: a tool left
+            // open through a join is reading a retired grid, so it looks like the machines vanished. Measured
+            // 2026-10-29 (batch wireless_tool_stalegrid) and pinned there.
+            return "linked " + describe(link) + " | " + readings(result.edge(), result.a(), result.b())
+                    + " | open the network tool again if one was already open: it is still reading the grid"
+                    + " from before this join, which AE2 has now emptied";
         }
         if (result.missingNode() != null) {
             return "recorded but no network node at " + describe(result.missingNode())
