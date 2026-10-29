@@ -67,14 +67,14 @@ public class WirelessLinkCardItem extends Item {
             // Clicking the marked block again is the way out of a link the player can see.
             report = WirelessLinks.unlink(serverLevel, ModRegistration.WIRELESS_LINKS, clicked);
             clearEndpoint(card);
-        } else if (held == null && WirelessLinks.isController(serverLevel, clicked)) {
-            // An empty card tapping a controller buys that network's channel budget instead of marking it.
-            // With an anchor already held the controller is still bindable as an endpoint, because measured
-            // behaviour says a controller carries no channels of its own - it just joins the two networks.
+        } else if (WirelessLinks.isController(serverLevel, clicked)) {
+            // A controller is the network's knob, never one end of a link: its own node answers
+            // getMaxChannels() == 0 (measured in the client as a(max=0,used=0)), so a wireless edge ending
+            // on a controller would carry nothing - and while we were trying to bind to one, the raise
+            // gesture below could never be reached at all, which is exactly what it looked like in the
+            // client on 2026-10-29 (34 taps, zero "raised to" lines, because the card held a mark).
+            // First tap sells the network's allowance; every tap after that lifts AE2's channel mode one step.
             String bought = WirelessLinks.grant(serverLevel, ModRegistration.WIRELESS_LINKS, clicked);
-            // Tapping the same controller again sells nothing, so the tap does the one thing that can still
-            // change the network: push AE2's own channel mode one step up. Read the ceiling as AE2 computes
-            // it - a machine face is worth 8 x factor - because our own allowance numbers never moved it.
             report = bought.startsWith("already granted")
                     ? bought + " | " + WirelessLinks.raiseMode(serverLevel, clicked)
                     : bought;

@@ -6633,11 +6633,14 @@ public final class NeoECOPrototypeGameTests {
     public static void repeatedControllerTapLiftsAe2sChannelMode(GameTestHelper helper) {
         var controllerAt = new BlockPos(0, 1, 0);
         var machineAt = new BlockPos(1, 1, 0);
+        var otherAt = new BlockPos(1, 1, 4);
         helper.setBlock(controllerAt, appeng.core.definitions.AEBlocks.CONTROLLER.block());
         helper.setBlock(machineAt, ModRegistration.SUPERCONDUCTIVE_INTERFACE_BLOCK.get());
+        helper.setBlock(otherAt, ModRegistration.SUPERCONDUCTIVE_INTERFACE_BLOCK.get());
         var level = (net.minecraft.server.level.ServerLevel) helper.getLevel();
         var controller = GlobalPos.of(level.dimension(), helper.absolutePos(controllerAt));
         var machine = GlobalPos.of(level.dimension(), helper.absolutePos(machineAt));
+        var other = GlobalPos.of(level.dimension(), helper.absolutePos(otherAt));
         waitUntil(helper, 25, () -> oneNetwork(level, controller, machine) && nodeMax(level, machine) == 8,
                 () -> "the controller and the machine never became one network at the DEFAULT ceiling of 8: "
                         + nodeSummary(level, controller) + " / " + nodeSummary(level, machine),
@@ -6650,6 +6653,16 @@ public final class NeoECOPrototypeGameTests {
                         var card = new ItemStack(ModRegistration.WIRELESS_LINK_CARD.get());
                         tapWithCard(helper, player, card, controllerAt);
                         if (!expectLadder(helper, level, machine, "DEFAULT", 8)) {
+                            return;
+                        }
+                        // Mark a device first, because that is the state a player is actually in: the client
+                        // session on 2026-10-29 produced 34 card lines and not one "raised to", because the
+                        // raise used to sit behind "the card must be empty". Marking is decided by the block
+                        // entity's type, not by whether AE2 has given it a node yet, so this tap lands.
+                        tapWithCard(helper, player, card, otherAt);
+                        if (nodeMax(level, other) < 0 || !expectLadder(helper, level, machine, "DEFAULT", 8)) {
+                            helper.fail("marking " + otherAt + " disturbed the grid it did not touch, or the"
+                                    + " tap was not treated as a mark: " + nodeSummary(level, other));
                             return;
                         }
                         tapWithCard(helper, player, card, controllerAt);
