@@ -276,6 +276,15 @@ public final class WirelessLinks {
     }
 
     /**
+     * True only when the square is loaded and demonstrably holds no network device. Deliberately narrower
+     * than "not a device": an asleep chunk or an unloaded dimension answers false here, because a card may
+     * not lose its mark just because nobody has looked at that dimension today (§6's "看不出" is not "没了").
+     */
+    public static boolean endpointIsGone(ServerLevel acting, GlobalPos at) {
+        return presence(acting, at) == Presence.GONE;
+    }
+
+    /**
      * Puts a pair into the record and tries the edge right away, so the player gets the reading in the same
      * click that made the link.
      */

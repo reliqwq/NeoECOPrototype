@@ -86,6 +86,23 @@ public class WirelessLinkCardItem extends Item {
                 report = "marked "
                         + WirelessLinks.status(serverLevel, ModRegistration.WIRELESS_LINKS, clicked);
             }
+        } else if (WirelessLinks.endpointIsGone(serverLevel, held)) {
+            // The square this card marked no longer holds a device, so the mark is void and this tap is
+            // taken for the re-mark it is asking to be. Measured in the client on 2026-10-29: a player who
+            // breaks the marked device is left holding a card that answers "that is not a network device:
+            // <that square>" to every further tap and cannot be re-marked at all - re-marking only happens
+            // while the card holds nothing, and useOn never fires on the air where the device used to be.
+            // Only a confirmed-empty square does this; an asleep one keeps its mark (see endpointIsGone).
+            if (!WirelessLinks.isDevice(serverLevel, clicked)) {
+                report = "the device this card marked at " + WirelessLinks.describe(held) + " is gone, and"
+                        + " there is no network device at " + WirelessLinks.describe(clicked)
+                        + " to mark instead";
+            } else {
+                writeEndpoint(card, clicked);
+                report = "the device this card marked at " + WirelessLinks.describe(held)
+                        + " is gone, so it marks this one instead - "
+                        + WirelessLinks.status(serverLevel, ModRegistration.WIRELESS_LINKS, clicked);
+            }
         } else {
             report = WirelessLinks.bind(serverLevel, ModRegistration.WIRELESS_LINKS, held, clicked);
             // The mark deliberately survives a successful join: one tap on the hub and then one tap per

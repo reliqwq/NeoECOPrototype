@@ -14057,7 +14057,117 @@ public final class NeoECOPrototypeGameTests {
     }
 
     /**
-     * The {@code granted} half of the ledger a device reads about its own network. Only callable after the
+     * A card must not be able to die of a broken mark. The gesture has two ends and only one of them is
+     * checked: re-marking happens while the card holds nothing, so a card whose marked device was taken away
+     * answers "that is not a network device" to every further tap on every real device, forever - and the
+     * square that would free it is air, where {@code useOn} never fires. Measured in the client on
+     * 2026-10-29: the same line, naming the destroyed square, eleven times across two minutes of clicking.
+     *
+     * <p>What is asserted is the card's state rather than the sentence, because the state is what the next
+     * click reads: the empty square reports itself as gone, a non-device is refused without touching the
+     * mark, the next real device replaces it, and the click after that actually links.</p>
+     */
+    @GameTest(template = "empty", batch = "wireless_link_card_remark", timeoutTicks = 600,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void aCardMarkedOnASquareThatIsNowEmptyTakesTheNextDevice(GameTestHelper helper) {
+        var hub = new BlockPos(0, 1, 0);
+        var wall = new BlockPos(2, 1, 0);
+        var spoke = new BlockPos(0, 1, 8);
+        var far = new BlockPos(6, 1, 8);
+        helper.setBlock(wall, Blocks.COBBLESTONE);
+        helper.setBlock(hub, ModRegistration.SUPERCONDUCTIVE_INTERFACE_BLOCK.get());
+        helper.setBlock(spoke, ModRegistration.SUPERCONDUCTIVE_INTERFACE_BLOCK.get());
+        helper.setBlock(far, ModRegistration.SIMPLIFY_STORAGE_CASING_BLOCK.get());
+        var level = (ServerLevel) helper.getLevel();
+        var hubPos = GlobalPos.of(level.dimension(), helper.absolutePos(hub));
+        var spokePos = GlobalPos.of(level.dimension(), helper.absolutePos(spoke));
+        var card = new ItemStack(ModRegistration.WIRELESS_LINK_CARD.get());
+        var player = helper.makeMockPlayer(GameType.CREATIVE);
+        player.setShiftKeyDown(true);
+        var flag = cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig.WIRELESS_LINKS;
+        flag.set(true);
+        // Every exit puts it back: the rest of the suite asserts that an off-by-default card must not touch
+        // the ledger, and this run leaves the value in the same JVM. The only path not covered here is the
+        // batch's own timeout, and the budget is 600 ticks against the ~320 the four waits can spend.
+        Runnable off = () -> flag.set(false);
+        waitUntil(helper, 8,
+                () -> WirelessLinks.isDevice(level, hubPos) && WirelessLinks.isDevice(level, spokePos)
+                        && separateNetworks(level, hubPos, spokePos),
+                () -> {
+                    off.run();
+                    return "the two devices never became two live network nodes: " + nodeSummary(level, hubPos)
+                            + " / " + nodeSummary(level, spokePos);
+                },
+                () -> {
+                    tapWithCard(helper, player, card, hub);
+                    if (!cardNames(helper, level, card, hub)) {
+                        off.run();
+                        helper.fail("the first tap did not mark the device: " + cardWords(level, card));
+                        return;
+                    }
+                    helper.setBlock(hub, Blocks.AIR);
+                    waitUntil(helper, 8,
+                            () -> WirelessLinks.endpointIsGone(level, hubPos),
+                            () -> {
+                                off.run();
+                                return "the square the card marked was emptied but does not report itself as"
+                                        + " gone: " + WirelessLinks.status(level,
+                                        ModRegistration.WIRELESS_LINKS, hubPos);
+                            },
+                            () -> {
+                                // A wall is not a device: the dead mark survives this tap rather than being
+                                // replaced by something nothing can ever link to.
+                                tapWithCard(helper, player, card, wall);
+                                if (!cardNames(helper, level, card, hub)) {
+                                    off.run();
+                                    helper.fail("tapping a plain block replaced the mark with a square that"
+                                            + " cannot be a link end: " + cardWords(level, card));
+                                    return;
+                                }
+                                tapWithCard(helper, player, card, spoke);
+                                if (!cardNames(helper, level, card, spoke)
+                                        || cardNames(helper, level, card, hub)) {
+                                    off.run();
+                                    helper.fail("the next real device did not take over the dead mark: "
+                                            + cardWords(level, card));
+                                    return;
+                                }
+                                // And the card is usable again, not merely re-labelled: this tap is a bind.
+                                waitUntil(helper, 8,
+                                        () -> grantBudgetBeside(helper, level, spoke),
+                                        () -> {
+                                            off.run();
+                                            return "no controller beside the spoke ever became a network the"
+                                                    + " card could charge against: " + WirelessLinks.status(
+                                                    level, ModRegistration.WIRELESS_LINKS, spokePos);
+                                        },
+                                        () -> {
+                                            tapWithCard(helper, player, card, far);
+                                            String read = WirelessLinks.status(
+                                                    level, ModRegistration.WIRELESS_LINKS, spokePos);
+                                            off.run();
+                                            if (!read.contains("wirelessLinks=1")) {
+                                                helper.fail("the card was still useless after the re-mark:"
+                                                        + " spoke reads " + read + " and the card says "
+                                                        + cardWords(level, card));
+                                                return;
+                                            }
+                                            helper.succeed();
+                                        });
+                            });
+                });
+    }
+
+    /** Does the card's own balance line name that cell? Reading the mark through the player's gesture. */
+    private static boolean cardNames(GameTestHelper helper, ServerLevel level, ItemStack card, BlockPos cell) {
+        return cardWords(level, card).contains(helper.absolutePos(cell).toShortString());
+    }
+
+    private static String cardWords(ServerLevel level, ItemStack card) {
+        return cn.dancingsnow.neoecoprototype.items.WirelessLinkCardItem.balanceReport(level, card).getString();
+    }
+
+    /** The {@code granted} half of the ledger a device reads about its own network. Only callable after the
      * attachment has been touched once: on a level that has never had a link or a tap there is no data to
      * read, and {@link WirelessLinks#status} says so in words instead of carrying a number - which is the
      * right answer for a player and the wrong one for an assertion, so this says plainly rather than
