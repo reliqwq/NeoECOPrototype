@@ -468,8 +468,7 @@ public final class WirelessLinks {
             words += " adHocError=" + service.getAdHocNetworkError().name()
                     + " - AE2 has given this whole network zero channels, so every device on it reads"
                     + " offline: this network has no controller, so the card's raise gesture has nothing to"
-                    + " tap - put an AE2 controller in it, or raise AE2's own channel mode for the whole"
-                    + " world in its config";
+                    + " tap - put an AE2 controller into it and this cap goes away entirely";
         }
         return words;
     }
