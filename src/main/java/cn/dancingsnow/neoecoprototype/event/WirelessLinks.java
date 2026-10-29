@@ -68,7 +68,10 @@ public final class WirelessLinks {
      * {@code INFINITE} network answers 2^31-1 there. What a controller does is make channel use possible and
      * constrain routing ({@code GridConnection#setControllerRoute}); {@code ControllerValidator} only checks
      * the shape and bounds. So 32 was chosen because that is what one dense link costs in AE2 - one grant
-     * buys a link's worth - and a device is charged what it reports as used (measured 1), not that.
+     * buys a link's worth - and it stays in the same unit AE2 counts in, so the devices a grant pays for are
+     * as many as the channels it sells: 32 devices holding one channel each, while a device that really holds
+     * sixteen ({@link #channelCost}, measured in the client on a busy endpoint) takes a quarter of the grant
+     * rather than a quarter of a face.
      *
      * <p>Read this as a gate on whether we build the edge, never as a cap: neither {@code IGridConnection}
      * nor {@code IGridNode} exposes a way to limit channels (both {@code getMaxChannels()} have no setter,
@@ -334,7 +337,8 @@ public final class WirelessLinks {
         // channels later, because nothing in its API lets anyone limit an edge or a node.
         int granted = grantedFor(owner, data, a.getGrid(), b.getGrid());
         int spent = spentOn(owner, data, a.getGrid(), b.getGrid());
-        int cost = channelCost(a) + channelCost(b);
+        int cost = costOfNewDevice(owner, data, a, link.a(), a.getGrid(), b.getGrid())
+                + costOfNewDevice(owner, data, b, link.b(), a.getGrid(), b.getGrid());
         if (spent + cost > granted) {
             return "this link needs " + cost + " channel(s) and these two networks have "
                     + Math.max(0, granted - spent) + " free (channels=" + spent + "/" + granted + ") - "
@@ -541,9 +545,11 @@ public final class WirelessLinks {
     }
 
     /**
-     * What every device that already carries a link reports as used, counting each device once. Recomputed
-     * from live nodes on every question: a running total would go stale the moment AE2 re-pathed the grid,
-     * and we have no hook that tells us when that happens.
+     * What every device that already carries a link is charged, counting each device once no matter how many
+     * edges run through it. Recomputed from live nodes on every question - a running total would go stale
+     * the moment AE2 re-pathed the grid, and we have no hook that tells us when that happens. A device whose
+     * square is asleep contributes nothing while it is unreadable; its record still exists and it is
+     * charged again when it wakes.
      */
     private static int spentOn(ServerLevel acting, Data data, IGrid... grids) {
         Set<GlobalPos> counted = new HashSet<>();
@@ -561,14 +567,52 @@ public final class WirelessLinks {
     }
 
     /**
-     * One device's price. Measured at 1 for the machines we and AE2 ship ({@code used=1} against
-     * {@code max=8} on every endpoint read so far), so the number follows what a device actually occupies -
-     * its capacity would have charged 8 for something that uses one. The floor exists because a node that
-     * has not been assigned yet answers 0 and would otherwise be free.
+     * What one linked device is charged: the channels AE2 itself has given it, which is the only number that
+     * keeps the allowance honest. The grant is denominated in channels (32 of them), so thirty-two devices
+     * that each occupy one channel are meant to exhaust it exactly - charging a whole cable face (8) instead
+     * would sell eight times the capacity anyone actually uses, and the player with 32 small devices could
+     * only hang four of them. A device that genuinely carries more pays for more: measured in the client,
+     * one endpoint of a busy link reported {@code used=16}, and a thick line or a machine with many
+     * sub-networks behind it is therefore charged as the thick line it is, following AE2's own assignment
+     * rather than anything here. The floor of 1 exists because a node that has not been assigned yet
+     * answers 0, and a free device would make the gate bind nothing.
+     *
+     * <p>{@code getMaxChannels()} - the face's ceiling, {@code 8 x cableCapacityFactor} for our machines and
+     * {@code 32 x} for a dense node - is deliberately NOT the price. It is printed in {@link #faceLedger} as
+     * what a face is worth, and it is what the card raises with {@code ChannelMode}; the two numbers answer
+     * different questions and confusing them is what made a grant buy a quarter of the devices it should.</p>
      */
     private static int channelCost(IGridNode node) {
         return Math.max(1, node.getUsedChannels());
     }
+
+    /**
+     * What adding one more pair costs: a device that already carries a link is already inside
+     * {@link #spentOn} (which counts each device once), so billing both ends again would charge the hub once
+     * per spoke. At one channel per device that error was a rounding mistake; it is still wrong, and it is
+     * the difference between a grant of 32 buying 32 devices and buying 21.
+     */
+    private static int costOfNewDevice(ServerLevel owner, Data data, IGridNode device, GlobalPos at,
+                                       IGrid... grids) {
+        if (device == null || chargedByAnExistingLink(data, owner, at, grids)) {
+            return 0;
+        }
+        return channelCost(device);
+    }
+
+    private static boolean chargedByAnExistingLink(Data data, ServerLevel owner, GlobalPos at, IGrid... grids) {
+        var node = node(owner, at);
+        if (node == null || !sitsInAny(node, grids)) {
+            return false;
+        }
+        for (Link existing : data.links) {
+            if (existing.touches(at)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
 
     private static boolean sitsInAny(IGridNode node, IGrid... grids) {
         for (IGrid grid : grids) {

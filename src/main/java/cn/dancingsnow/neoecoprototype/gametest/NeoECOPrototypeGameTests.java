@@ -13765,11 +13765,24 @@ public final class NeoECOPrototypeGameTests {
                                             + " be read: " + before + " / " + after);
                                     return;
                                 }
-                                if (now[0] <= was[0] || now[0] > now[1]
+                                var faceA = networkNode(level, a);
+                                var faceB = networkNode(level, b);
+                                if (faceA == null || faceB == null) {
+                                    helper.fail("one endpoint lost its node, so the charge cannot be read:"
+                                            + " " + nodeSummary(level, a) + " / " + nodeSummary(level, b));
+                                    return;
+                                }
+                                // Read off AE2 here rather than copied from our own constant, which is what
+                                // makes this the guard for "a device pays the channels it actually holds":
+                                // one face's worth per device (8) and one payment per end (16) are the two
+                                // other readings, and both fail this equality.
+                                int charged = Math.max(1, faceA.getUsedChannels())
+                                        + Math.max(1, faceB.getUsedChannels());
+                                if (now[0] - was[0] != charged || now[0] > now[1]
                                         || now[1] < WirelessLinks.CHANNELS_PER_CONTROLLER) {
-                                    helper.fail("a link was added without raising the spent total, or spent"
-                                            + " more than the grant covers, or with no controller grant behind"
-                                            + " it: " + before + " -> " + after);
+                                    helper.fail("the new pair was not charged what AE2 says its two devices"
+                                            + " occupy (read here as " + charged + "): spent went " + was[0]
+                                            + " -> " + now[0] + "; " + before + " -> " + after);
                                     return;
                                 }
                                 var soldCell = takeControllerBeside(helper, near);
@@ -14186,6 +14199,12 @@ public final class NeoECOPrototypeGameTests {
      * The one number in this feature that is ours to set rather than AE2's: how many wireless edges a
      * single device may carry. It has to be enforced where the record is written, because a link costs
      * nothing in blocks and a player can therefore make as many as they can click.
+     *
+     * <p>This cap, not the channel allowance, is what limits one hub: a device is charged the channels AE2
+     * has actually given it (measured 1 for the machines we and AE2 ship, so a grant of 32 is meant to carry
+     * 32 such devices), so the money only runs out on a hub once something behind it is genuinely heavy - a
+     * busy endpoint measured at {@code used=16} in the client is charged 16. Four ordinary spokes therefore
+     * cost 5 channels in total and the fifth tap is refused by this cap, which is the point of the test.</p>
      */
     @GameTest(template = "empty", batch = "wireless_link_card", timeoutTicks = 400,
             templateNamespace = NeoECOPrototype.MOD_ID)
