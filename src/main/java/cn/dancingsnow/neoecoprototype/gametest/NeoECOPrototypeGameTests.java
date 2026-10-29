@@ -13826,9 +13826,9 @@ public final class NeoECOPrototypeGameTests {
                         + " / " + nodeSummary(level, last),
                 () -> {
                     String capped = WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS, first);
-                    if (!capped.contains("adHocLimit=8")) {
+                    if (!capped.contains("adHocLimit=8 (this network holds 9 nodes)")) {
                         helper.fail("the status line does not carry AE2's ad-hoc ceiling for a DEFAULT"
-                                + " network: " + capped);
+                                + " network with this fixture's nine machines: " + capped);
                         return;
                     }
                     if (!capped.contains("adHocError=TOO_MANY_CHANNELS")) {
@@ -13854,6 +13854,50 @@ public final class NeoECOPrototypeGameTests {
                                 }
                                 helper.succeed();
                             });
+                });
+    }
+
+    /**
+     * The same-grid refusal is the one this feature answers most often in a real base - one wireless edge
+     * merges two networks, and every later tap between members of the merged whole lands here (eight
+     * identical refusals in the client on 2026-10-29, none of them saying what network it meant). The line
+     * now names the size AE2 itself counts, so this asserts the exact number for a known fixture: one device
+     * joined by a wireless edge to a pair of adjacent machines is a network of three nodes.
+     */
+    @GameTest(template = "empty", batch = "wireless_link_free", timeoutTicks = 400,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void anAlreadyMergedNetworkIsRefusedByNameAndSize(GameTestHelper helper) {
+        var island = new BlockPos(0, 1, 0);
+        var pairOne = new BlockPos(0, 1, 8);
+        var pairTwo = new BlockPos(1, 1, 8);
+        helper.setBlock(island, ModRegistration.SUPERCONDUCTIVE_INTERFACE_BLOCK.get());
+        helper.setBlock(pairOne, ModRegistration.SUPERCONDUCTIVE_INTERFACE_BLOCK.get());
+        helper.setBlock(pairTwo, ModRegistration.SUPERCONDUCTIVE_INTERFACE_BLOCK.get());
+        var level = (ServerLevel) helper.getLevel();
+        var islandPos = GlobalPos.of(level.dimension(), helper.absolutePos(island));
+        var pairOnePos = GlobalPos.of(level.dimension(), helper.absolutePos(pairOne));
+        var pairTwoPos = GlobalPos.of(level.dimension(), helper.absolutePos(pairTwo));
+        waitUntil(helper, 12,
+                () -> separateNetworks(level, islandPos, pairOnePos)
+                        && oneNetwork(level, pairOnePos, pairTwoPos),
+                () -> "the fixture never became one device plus an adjacent pair: "
+                        + nodeSummary(level, islandPos) + " / " + nodeSummary(level, pairOnePos) + " / "
+                        + nodeSummary(level, pairTwoPos),
+                () -> {
+                    String joined = WirelessLinks.bind(level, ModRegistration.WIRELESS_LINKS, islandPos,
+                            pairOnePos);
+                    if (!joined.startsWith("linked ")) {
+                        helper.fail("the first wireless edge was refused: \"" + joined + "\"");
+                        return;
+                    }
+                    String again = WirelessLinks.bind(level, ModRegistration.WIRELESS_LINKS, islandPos,
+                            pairTwoPos);
+                    if (!again.startsWith("those two are already on one network of 3 nodes")) {
+                        helper.fail("a third device inside the merged network was refused without naming its"
+                                + " size: \"" + again + "\"");
+                        return;
+                    }
+                    helper.succeed();
                 });
     }
 

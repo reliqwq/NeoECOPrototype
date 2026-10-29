@@ -299,7 +299,9 @@ public final class WirelessLinks {
                     + "nothing, and unbinding it would tear out the connection you built";
         }
         if (a.getGrid() == b.getGrid()) {
-            return "the two are already on one network, so an edge between them proves nothing";
+            return "those two are already on one network of " + gridNodes(a.getGrid())
+                    + " nodes, so a wireless edge between them would change nothing - they can already reach"
+                    + " each other through the blocks you laid";
         }
         data.links.add(link);
         // No dirty flag to set: LevelAttachmentsSavedData.isDirty() answers true unconditionally, so a
@@ -394,15 +396,34 @@ public final class WirelessLinks {
     }
 
     /**
+     * How many nodes AE2 counts as belonging to that network. Said out loud because "they are already on one
+     * network" is not actionable by itself: a player who marked two machines that look unrelated needs the
+     * size of the thing that already joins them - and the number also separates a real answer from the old
+     * refusal, which was written to make a control group readable rather than to tell a player anything
+     * (eight identical lines of it in one client session, 2026-10-29).
+     */
+    private static int gridNodes(IGrid grid) {
+        int nodes = 0;
+        for (var unused : grid.getNodes()) {
+            nodes++;
+        }
+        return nodes;
+    }
+
+    /**
      * What AE2's controllerless ("ad-hoc") rules say about a network, in the two numbers a player can act on.
      * Measured on 19.2.17: {@code ChannelMode} carries {@code adHocNetworkChannels} - DEFAULT 8, X2 16,
      * X3 24, X4 32, INFINITE 2^31-1 - and {@code PathingService#calculateAdHocChannels} counts the nodes that
      * need channels against it; past the limit it stores {@code AdHocNetworkError.TOO_MANY_CHANNELS} and
      * returns 0, {@code updateControllerState} then writes {@code channelsInUse = channelsByBlocks = 0}, and
      * every device on the network reads as offline. Nothing about that is ours: the card can lift the limit
-     * one step per controller tap, and a controller in the network leaves this branch entirely. So this
-     * prints only AE2's own verdict - no recount of devices here, because counting them is exactly where an
-     * invented number would come from.
+     * one step per controller tap, and a controller in the network leaves this branch entirely. The client
+     * showed why the two numbers have to appear together (2026-10-29): {@code adHocLimit=8} alone reads as
+     * nothing, while {@code adHocLimit=8 (this network holds 92 nodes)} is the whole diagnosis - X4 buys only
+     * 32 slots, so a network that size cannot be raised out of this and needs a controller. The count is
+     * {@code IGrid.getNodes()}, AE2's own total, not a recount of the nodes that need channels: that set is
+     * private to {@code PathingService}, and standing in for it is exactly how the last invented number got
+     * here.
      */
     private static String adHocWords(IGrid grid) {
         var pathing = grid == null ? null : grid.getPathingService();
@@ -410,7 +431,8 @@ public final class WirelessLinks {
                 != appeng.api.networking.pathing.ControllerState.NO_CONTROLLER) {
             return "";
         }
-        var words = " adHocLimit=" + pathing.getChannelMode().getAdHocNetworkChannels();
+        var words = " adHocLimit=" + pathing.getChannelMode().getAdHocNetworkChannels()
+                + " (this network holds " + gridNodes(grid) + " nodes)";
         if (pathing instanceof appeng.me.service.PathingService service
                 && service.getAdHocNetworkError() != null) {
             words += " adHocError=" + service.getAdHocNetworkError().name()
@@ -1016,12 +1038,8 @@ public final class WirelessLinks {
         if (a != null && b != null) {
             line.append(" sameGrid=").append(a.getGrid() == b.getGrid());
             var grid = a.getGrid();
-            int nodes = 0;
-            for (var unused : grid.getNodes()) {
-                nodes++;
-            }
             var pathing = grid.getPathingService();
-            line.append(" gridNodes=").append(nodes)
+            line.append(" gridNodes=").append(gridNodes(grid))
                     .append(" mode=").append(pathing.getChannelMode())
                     .append(" controller=").append(pathing.getControllerState())
                     .append(" gridUsed=").append(pathing.getUsedChannels())
