@@ -6520,6 +6520,106 @@ public final class NeoECOPrototypeGameTests {
                 });
     }
 
+    /**
+     * A reading, not a promise: how many channels a second network really gets through one wireless edge.
+     *
+     * <p>It exists because the premise came from upstream, not from us: eco's {@code NEBlockEntity}
+     * constructor calls {@code getMainNode().setFlags(MULTIBLOCK, REQUIRE_CHANNEL)}, so every one of our
+     * machines inherits a channel requirement while our own source names {@code GridFlags} zero times.
+     * Nine of our interfaces hang off one end of the link, and the endpoint node is worth
+     * {@code 8 x factor} under {@code ChannelMode.DEFAULT} - so if the endpoint really is the bottleneck,
+     * the ninth device cannot be charged and "one edge feeds four dense lanes" is wrong.
+     */
+    @GameTest(template = "empty", batch = "channel_chain_reading", timeoutTicks = 600,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void channelsAcrossOneWirelessEdgeAreCountedPerDevice(GameTestHelper helper) {
+        var controllerAt = new BlockPos(0, 1, 0);
+        helper.setBlock(controllerAt, appeng.core.definitions.AEBlocks.CONTROLLER.block());
+        var spokes = new GlobalPos[9];
+        for (int i = 0; i < spokes.length; i++) {
+            var here = new BlockPos(3 + i, 1, 0);
+            helper.setBlock(here, ModRegistration.SUPERCONDUCTIVE_INTERFACE_BLOCK.get());
+            spokes[i] = GlobalPos.of(helper.getLevel().dimension(), helper.absolutePos(here));
+        }
+        var level = (net.minecraft.server.level.ServerLevel) helper.getLevel();
+        var controller = GlobalPos.of(level.dimension(), helper.absolutePos(controllerAt));
+        waitUntil(helper, 30,
+                () -> separateNetworks(level, controller, spokes[0])
+                        && WirelessLinks.grant(level, ModRegistration.WIRELESS_LINKS, controller)
+                            .startsWith("granted"),
+                () -> "the controller and the nine interfaces never became two separate networks, or the"
+                        + " controller would not buy an allowance: " + nodeSummary(level, controller) + " / "
+                        + nodeSummary(level, spokes[0]),
+                () -> {
+                    String bound = WirelessLinks.bind(level, ModRegistration.WIRELESS_LINKS, controller,
+                            spokes[0]);
+                    NeoECOPrototype.LOGGER.info("channel chain reading bound={}", bound);
+                    helper.runAfterDelay(12, () -> {
+                        String table = chainTable(level, spokes);
+                        NeoECOPrototype.LOGGER.info("channel chain reading {}", table);
+                        // The ceiling is AE2's own formula, not a number copied out of this test: a node
+                        // without DENSE_CAPACITY is worth 8 x cableCapacityFactor (measured on 19.2.17, and
+                        // the X2 A/B on 2026-10-29 confirmed the whole row moves with the factor - DEFAULT
+                        // charged 8 and starved the ninth device, X2 charged all nine). The ad-hoc table
+                        // (8/16/24/32) is the same sequence, so this test cannot tell which of the two is
+                        // binding; it can and does say a link crossing one of our machines tops out there.
+                        var boundNode = networkNode(level, spokes[0]);
+                        var pathing = boundNode == null || boundNode.getGrid() == null ? null
+                                : boundNode.getGrid().getService(
+                                        appeng.api.networking.pathing.IPathingService.class);
+                        if (boundNode == null || pathing == null) {
+                            helper.fail("the bound endpoint has no node or no pathing service, so nothing"
+                                    + " below can be read: " + table);
+                            return;
+                        }
+                        int ceiling = 8 * pathing.getChannelMode().getCableCapacityFactor();
+                        int expected = Math.min(spokes.length, ceiling);
+                        if (pathing.getUsedChannels() != expected) {
+                            helper.fail("the merged grid reports gridUsed=" + pathing.getUsedChannels()
+                                    + ", expected min(devices=" + spokes.length + ", 8 x factor=" + ceiling
+                                    + ")=" + expected + " under mode " + pathing.getChannelMode()
+                                    + " ; " + table);
+                            return;
+                        }
+                        if (boundNode.getUsedChannels() != expected) {
+                            helper.fail("the endpoint device is carrying " + boundNode.getUsedChannels()
+                                    + " channels but the grid says " + expected + ", so the traffic is not"
+                                    + " crossing the one node this link attaches to: " + table);
+                            return;
+                        }
+                        helper.succeed();
+                    });
+                });
+    }
+
+    /** Per-device {@code max/used}, plus what the merged grid and its channel mode actually report. */
+    private static String chainTable(net.minecraft.server.level.ServerLevel level, GlobalPos[] spokes) {
+        var devices = new StringBuilder("devices[");
+        int charged = 0;
+        appeng.api.networking.IGrid grid = null;
+        for (int i = 0; i < spokes.length; i++) {
+            var node = networkNode(level, spokes[i]);
+            if (i > 0) {
+                devices.append(", ");
+            }
+            devices.append(spokes[i].pos().toShortString()).append('=')
+                    .append(node == null ? "none"
+                            : node.getMaxChannels() + "/" + node.getUsedChannels());
+            if (node != null) {
+                charged += node.getUsedChannels();
+                if (grid == null) {
+                    grid = node.getGrid();
+                }
+            }
+        }
+        devices.append(']');
+        var pathing = grid == null ? null
+                : grid.getService(appeng.api.networking.pathing.IPathingService.class);
+        return "mode=" + (pathing == null ? "unknown" : pathing.getChannelMode().name())
+                + " gridUsed=" + (pathing == null ? -1 : pathing.getUsedChannels())
+                + " deviceChargedSum=" + charged + " " + devices;
+    }
+
     /** Sneak-right-clicks {@code cell} with the card so the item's own anchor logic runs, not our calls. */
     private static void tapWithCard(GameTestHelper helper, net.minecraft.world.entity.player.Player player,
                                     ItemStack card, BlockPos cell) {
