@@ -735,6 +735,45 @@ public final class WirelessLinks {
     }
 
     /**
+     * A player is taking this block away, so every pairing pointing at this square dies right now, while the
+     * machine is still in the world to prove which edge belonged to it.
+     *
+     * <p>Nothing later can do this job. The only question a pass can ask is "is there a device in that
+     * square", and a player who replaces the machine in the same square answers yes - so the record
+     * survives and whatever moved in inherits a link belonging to the device that left. That is not a race
+     * to shrink with urgency: an experiment on 2026-10-29 armed the burst and still read
+     * {@code wirelessLinks=1 live=0} six ticks later. It is what a position-keyed pairing costs, and the
+     * break event is the one moment the bill can be paid.
+     *
+     * @return what was dropped; empty when this square claimed nothing
+     */
+    public static String noteBlockBroken(net.minecraft.world.level.LevelAccessor level,
+                                         Supplier<AttachmentType<Data>> type,
+                                         net.minecraft.core.BlockPos broken) {
+        if (!(level instanceof ServerLevel acting) || acting.isClientSide) {
+            return "";
+        }
+        var where = GlobalPos.of(acting.dimension(), broken);
+        // Asked before acting, because this runs on every block a player breaks: unlink would walk every
+        // level and log its own verdict even when the square claimed nothing, which would bury the world in
+        // "carries no wireless link" lines.
+        boolean claims = false;
+        for (ServerLevel each : acting.getServer().getAllLevels()) {
+            if (each.hasData(type.get())
+                    && each.getData(type.get()).links.stream().anyMatch(link -> link.touches(where))) {
+                claims = true;
+                break;
+            }
+        }
+        if (!claims) {
+            return "";
+        }
+        String report = unlink(acting, type, where);
+        NeoECOPrototype.LOGGER.info("wireless link: broken at {} cleared {}", broken.toShortString(), report);
+        return report;
+    }
+
+    /**
      * A chunk just woke up, which is the one moment a link is genuinely expected to need rebuilding - so the
      * timed pass can afford to be slow. Only links with an endpoint inside that chunk are touched, and the
      * test is a chunk-coordinate long, not a world query. Nothing is read from the level on this path either:

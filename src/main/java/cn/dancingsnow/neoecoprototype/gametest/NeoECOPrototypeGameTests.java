@@ -6710,6 +6710,88 @@ public final class NeoECOPrototypeGameTests {
         return true;
     }
 
+    /**
+     * Breaking an endpoint must take the pairing with it, at the moment of the break. A position-keyed link
+     * cannot later tell "the machine came back" from "a different machine moved in" - the only question a
+     * sweep can ask is whether a device stands there, and after a quick replacement the answer is yes - so
+     * the record has to die while the block is still in the world, which is what the break event is for.
+     *
+     * <p>What this does NOT cover: any trigger in game. It calls {@link WirelessLinks#noteBlockBroken}
+     * directly, which is what a future hook would call - the reason nothing is wired yet is in the mod
+     * constructor's comment (BreakEvent was not found firing from destroyBlock, and a survival-only hook
+     * would miss exactly the case this was reported from).
+     */
+    @GameTest(template = "empty", batch = "wireless_link_break", timeoutTicks = 400,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void brokenEndpointLosesItsPairingOnTheBreak(GameTestHelper helper) {
+        var near = new BlockPos(0, 1, 0);
+        var far = new BlockPos(0, 1, 8);
+        helper.setBlock(near, ModRegistration.SUPERCONDUCTIVE_INTERFACE_BLOCK.get());
+        helper.setBlock(far, ModRegistration.SIMPLIFY_STORAGE_CASING_BLOCK.get());
+        var level = (net.minecraft.server.level.ServerLevel) helper.getLevel();
+        var a = GlobalPos.of(level.dimension(), helper.absolutePos(near));
+        var b = GlobalPos.of(level.dimension(), helper.absolutePos(far));
+        waitUntil(helper, 25,
+                () -> separateNetworks(level, a, b) && grantBudgetBeside(helper, level, near),
+                () -> "the two devices never became two separate nodes, or the hub's network would not buy an"
+                        + " allowance: " + nodeSummary(level, a) + " / " + nodeSummary(level, b),
+                () -> {
+                    var flag = cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig.WIRELESS_LINKS;
+                    flag.set(true);
+                    String bound = WirelessLinks.bind(level, ModRegistration.WIRELESS_LINKS, a, b);
+                    if (!bound.startsWith("linked ") || !oneNetwork(level, a, b)) {
+                        helper.fail("the fixture never had a link to lose: bound=\"" + bound + "\", "
+                                + nodeSummary(level, a) + " / " + nodeSummary(level, b));
+                        flag.set(false);
+                        return;
+                    }
+                    // The break event fires while the block is still in the world, so this is the real order:
+                    // clear the pairing first, then see what the player builds on the freed square.
+                    String cleared = WirelessLinks.noteBlockBroken(level, ModRegistration.WIRELESS_LINKS,
+                            helper.absolutePos(far));
+                    if (!cleared.startsWith("dropped 1 ")) {
+                        helper.fail("breaking the endpoint cleared no pairing (got \"" + cleared + "\"), so the"
+                                + " square would be left claiming a machine that is leaving: "
+                                + nodeSummary(level, a) + " / " + nodeSummary(level, b));
+                        flag.set(false);
+                        return;
+                    }
+                    // The other half of the same call: breaking an unpaired square must be a no-op that says
+                    // nothing, because this handler runs on every block a player ever breaks.
+                    if (!WirelessLinks.noteBlockBroken(level, ModRegistration.WIRELESS_LINKS,
+                            helper.absolutePos(new BlockPos(5, 1, 5))).isEmpty()) {
+                        helper.fail("a break on a square that holds no pairing reported one, so every block"
+                                + " mined in the world would add a line to the log");
+                        flag.set(false);
+                        return;
+                    }
+                    helper.setBlock(far, net.minecraft.world.level.block.Blocks.AIR.defaultBlockState());
+                    helper.setBlock(far, ModRegistration.SUPERCONDUCTIVE_INTERFACE_BLOCK.get());
+                    // Six ticks is inside one burst and far outside the hundred-tick sweep, so a record that
+                    // outlived the break would still be claiming this square when the reading is taken.
+                    helper.runAfterDelay(6, () -> {
+                        try {
+                            String hub = WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS, a);
+                            String replacement = WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS, b);
+                            if (linksOf(hub) != 0 || linksOf(replacement) != 0) {
+                                helper.fail("the square still claims a pairing six ticks after the break, so"
+                                        + " what is built there is an endpoint of a machine that is gone: hub "
+                                        + hub + " ; replacement " + replacement);
+                                return;
+                            }
+                            if (oneNetwork(level, a, b)) {
+                                helper.fail("the record is gone but the two grids are still one network, so the"
+                                        + " edge outlived the pairing: " + hub + " / " + replacement);
+                                return;
+                            }
+                            helper.succeed();
+                        } finally {
+                            flag.set(false);
+                        }
+                    });
+                });
+    }
+
     /** Sneak-right-clicks {@code cell} with the card so the item's own anchor logic runs, not our calls. */
     private static void tapWithCard(GameTestHelper helper, net.minecraft.world.entity.player.Player player,
                                     ItemStack card, BlockPos cell) {

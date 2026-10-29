@@ -113,6 +113,14 @@ public class NeoECOPrototype {
                             event.getLevel(), ModRegistration.WIRELESS_LINKS,
                             event.getChunk().getPos().x, event.getChunk().getPos().z);
                 });
+        // Deliberately NOT subscribed: clearing a dead endpoint's pairing at the moment of the break is the
+        // only thing that works (see WirelessLinks.noteBlockBroken - a later pass can only ask "is a device
+        // standing here", and a quick replacement answers yes). It needs an event that actually fires for
+        // every way a block leaves the world, and the one candidate, net.neoforged.neoforge.event.level.
+        // BlockEvent.BreakEvent, was not found firing from ServerPlayerGameMode#destroyBlock on 21.1.251,
+        // and a survival-only hook would silently miss a creative player - the worst case, since that is
+        // how this mod gets tested. Until the trigger is settled, noteBlockBroken stays live for the suite
+        // and for any caller that knows it has seen a device leave a square.
     }
 
     /**
