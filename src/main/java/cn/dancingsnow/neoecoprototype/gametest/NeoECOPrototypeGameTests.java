@@ -14393,6 +14393,112 @@ public final class NeoECOPrototypeGameTests {
                 });
     }
 
+    /**
+     * #38 asked whether the card could push two controller piles into the one shape AE2 rejects. Measured, it
+     * cannot. A wireless join always ends on a <em>device</em>, and the controller group is judged from
+     * controller-to-controller adjacency, so a pile that was legal before the tap is still its own group after
+     * it: probed on two rows of two controllers (each row cell-C-C-device, the two rows seven apart), the tap
+     * answered {@code sameGrid=true gridNodes=8} with <em>both</em> ends still {@code CONTROLLER_ONLINE} and
+     * channels still flowing ({@code gridUsed=1}, both endpoints {@code used=1}). So there is nothing to refuse
+     * and nothing new to report - {@code readings} already prints {@code controller=} on every join, so if AE2
+     * ever starts judging a merged pile as a conflict, the player reads it from the card in the same click.
+     * This guard is the pin, on a fixture the size of the one that got contaminated: it reddens if an edge ever
+     * starts carrying the controller flood, which is exactly when #38 would have to be reopened.
+     */
+    @GameTest(template = "empty", batch = "wireless_two_piles", timeoutTicks = 900,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void twoOnlineControllerPilesStayOnlineAcrossAWirelessEdge(GameTestHelper helper) {
+        // Two piles, each just controller + device, spread along Z rather than X on purpose: the gameTest
+        // origins of neighbouring tests in one run sit ~8 apart in X, and a fixture that reaches x=13 gets its
+        // far end written over by the next test's blocks (measured the ugly way - pile B read
+        // CONTROLLER_CONFLICT only because another test's controller landed on it).
+        helper.setBlock(new BlockPos(0, 1, 0), appeng.core.definitions.AEBlocks.CONTROLLER.block());
+        helper.setBlock(new BlockPos(1, 1, 0), ModRegistration.SUPERCONDUCTIVE_INTERFACE_BLOCK.get());
+        helper.setBlock(new BlockPos(0, 1, 4), ModRegistration.SUPERCONDUCTIVE_INTERFACE_BLOCK.get());
+        helper.setBlock(new BlockPos(1, 1, 4), appeng.core.definitions.AEBlocks.CONTROLLER.block());
+        var level = (ServerLevel) helper.getLevel();
+        var pileA = GlobalPos.of(level.dimension(), helper.absolutePos(new BlockPos(0, 1, 0)));
+        var machineA = GlobalPos.of(level.dimension(), helper.absolutePos(new BlockPos(1, 1, 0)));
+        var machineB = GlobalPos.of(level.dimension(), helper.absolutePos(new BlockPos(0, 1, 4)));
+        var pileB = GlobalPos.of(level.dimension(), helper.absolutePos(new BlockPos(1, 1, 4)));
+        waitUntil(helper, 12,
+                () -> separateNetworks(level, machineA, machineB)
+                        && "CONTROLLER_ONLINE".equals(WirelessLinks.controllerState(level, pileA))
+                        && "CONTROLLER_ONLINE".equals(WirelessLinks.controllerState(level, pileB))
+                        && WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS, machineA)
+                                .contains("powered=true"),
+                () -> "the two piles never both became powered online controller networks on separate grids: "
+                        + WirelessLinks.controllerState(level, pileA) + " / "
+                        + WirelessLinks.controllerState(level, pileB) + " | "
+                        + WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS, machineA) + " / "
+                        + WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS, machineB),
+                () -> {
+                    String bound = WirelessLinks.bind(level, ModRegistration.WIRELESS_LINKS, machineA, machineB);
+                    if (!bound.startsWith("linked ")) {
+                        helper.fail("the join was refused: \"" + bound + "\"");
+                        return;
+                    }
+                    if (!oneNetwork(level, machineA, machineB)) {
+                        helper.fail("the join did not merge the two piles: \"" + bound + "\"");
+                        return;
+                    }
+                    String afterA = WirelessLinks.controllerState(level, pileA);
+                    String afterB = WirelessLinks.controllerState(level, pileB);
+                    if (!"CONTROLLER_ONLINE".equals(afterA) || !"CONTROLLER_ONLINE".equals(afterB)) {
+                        helper.fail("AE2 judged the two piles as one controller group once the edge joined them"
+                                + " (" + afterA + " / " + afterB + "), so a bind CAN now make a player's"
+                                + " channels vanish without saying so - #38 has to be reopened: " + bound);
+                        return;
+                    }
+                    if (bound.contains("CONFLICT")) {
+                        helper.fail("the card's own reading says CONFLICT while both ends read ONLINE: " + bound);
+                        return;
+                    }
+                    if (!bound.contains("controller=CONTROLLER_ONLINE")) {
+                        helper.fail("the join reply does not carry the controller reading, so the check above"
+                                + " would have nothing to notice: " + bound);
+                        return;
+                    }
+                    helper.succeed();
+                });
+    }
+
+    /**
+     * The other half of the same question, asked because the answer is not about the card at all: two
+     * controllers with one machine <em>between</em> them is a shape AE2 itself rejects. Measured on its own
+     * (batch {@code machine_between_controllers}, one test per run so nothing writes over it) - see the log
+     * line this test prints. Kept as a probe-shaped guard because the useful claim for the player is the
+     * negative: laying blocks can do this to you, and a wireless edge between two devices cannot.
+     */
+    @GameTest(template = "empty", batch = "machine_between_controllers", timeoutTicks = 600,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void aMachineBetweenTwoControllersIsAe2sOwnConflictNotOurs(GameTestHelper helper) {
+        helper.setBlock(new BlockPos(0, 1, 0), appeng.core.definitions.AEBlocks.CONTROLLER.block());
+        helper.setBlock(new BlockPos(1, 1, 0), ModRegistration.SUPERCONDUCTIVE_INTERFACE_BLOCK.get());
+        helper.setBlock(new BlockPos(2, 1, 0), appeng.core.definitions.AEBlocks.CONTROLLER.block());
+        var level = (ServerLevel) helper.getLevel();
+        var left = GlobalPos.of(level.dimension(), helper.absolutePos(new BlockPos(0, 1, 0)));
+        var middle = GlobalPos.of(level.dimension(), helper.absolutePos(new BlockPos(1, 1, 0)));
+        var right = GlobalPos.of(level.dimension(), helper.absolutePos(new BlockPos(2, 1, 0)));
+        waitUntil(helper, 12,
+                () -> networkNode(level, left) != null && networkNode(level, middle) != null
+                        && networkNode(level, right) != null && oneNetwork(level, left, right),
+                () -> "the three squares never became one grid: " + nodeSummary(level, left) + " / "
+                        + nodeSummary(level, middle) + " / " + nodeSummary(level, right),
+                () -> {
+                    String state = WirelessLinks.controllerState(level, middle);
+                    if (!"CONTROLLER_CONFLICT".equals(state)) {
+                        helper.fail("the row controller-device-controller read " + state + ", not"
+                                + " CONTROLLER_CONFLICT - the claim that AE2 itself rejects this shape is"
+                                + " wrong for this version, so the comparison in"
+                                + " twoOnlineControllerPilesStayOnlineAcrossAWirelessEdge needs re-reading:"
+                                + " " + WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS, middle));
+                        return;
+                    }
+                    helper.succeed();
+                });
+    }
+
     /** The faces a right-click on this block could enter a grid through - the tool's only door. */
     private static java.util.List<String> exposedFaces(net.minecraft.world.level.Level level,
                                                        net.minecraft.core.BlockPos pos) {
