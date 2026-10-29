@@ -411,6 +411,22 @@ public final class WirelessLinks {
     }
 
     /**
+     * Whether that network can power anything at all, because that is a different question from channels and
+     * a player needs to know which of the two he is short of. Measured in {@code appeng.me.GridNode}:
+     * {@code isPowered()} is {@code myGrid.getEnergyService().isNetworkPowered()} - an energy fact, not a
+     * node fact - while {@code meetsChannelRequirements()} is {@code !hasFlag(REQUIRE_CHANNEL) ||
+     * getUsedChannels() > 0}. AE2's own in-game tooltip (the class {@code igtooltip.GridNodeState}, which is
+     * what Jade and The One Probe draw) turns exactly those two into "Device Offline" and "Device Missing
+     * Channel", so a machine that reads offline is telling us the network has no ME power, and the card has
+     * so far been silent about it.
+     */
+    private static String powerWords(IGrid grid) {
+        var energy = grid == null ? null
+                : grid.getService(appeng.api.networking.energy.IEnergyService.class);
+        return energy == null ? "" : " powered=" + energy.isNetworkPowered();
+    }
+
+    /**
      * What AE2's controllerless ("ad-hoc") rules say about a network, in the two numbers a player can act on.
      * Measured on 19.2.17: {@code ChannelMode} carries {@code adHocNetworkChannels} - DEFAULT 8, X2 16,
      * X3 24, X4 32, INFINITE 2^31-1 - and {@code PathingService#calculateAdHocChannels} counts the nodes that
@@ -508,7 +524,8 @@ public final class WirelessLinks {
         return describe(endpoint) + " wirelessLinks=" + linksAtEverywhere(acting, type, endpoint)
                 + " live=" + liveLinksAt(acting, type, endpoint)
                 + (node == null ? " (no network node there)" : " " + channelMode(node) + " controller="
-                + controllerStateOf(node.getGrid()) + adHocWords(node.getGrid()) + " " + faceLedger(node));
+                + controllerStateOf(node.getGrid()) + powerWords(node.getGrid())
+                + adHocWords(node.getGrid()) + " " + faceLedger(node));
     }
 
     /**
@@ -1043,6 +1060,7 @@ public final class WirelessLinks {
                     .append(" mode=").append(pathing.getChannelMode())
                     .append(" controller=").append(pathing.getControllerState())
                     .append(" gridUsed=").append(pathing.getUsedChannels())
+                    .append(powerWords(grid))
                     .append(adHocWords(grid));
         }
         return line.toString();

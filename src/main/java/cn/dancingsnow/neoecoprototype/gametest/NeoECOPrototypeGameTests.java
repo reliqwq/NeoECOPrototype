@@ -13688,7 +13688,32 @@ public final class NeoECOPrototypeGameTests {
                                 + " link on a network AE2 reports as having no controller: " + read);
                         return;
                     }
-                    helper.succeed();
+                    // The player's next question after a link that works is why Jade still says
+                    // "Device Offline", and the measured answer is that that word is an energy verdict
+                    // (GridNode#isPowered() = myGrid.getEnergyService().isNetworkPowered()), not a channel
+                    // one. So the reading has to carry it, and the A/B has to be in the fixture: nothing in
+                    // this test stores energy until one creative cell goes beside the hub.
+                    if (!read.contains("powered=false")) {
+                        helper.fail("a network with no energy source at all read as powered, so the flag is"
+                                + " not AE2's answer: " + read);
+                        return;
+                    }
+                    var cell = net.minecraft.core.registries.BuiltInRegistries.BLOCK.get(
+                            ResourceLocation.fromNamespaceAndPath("ae2", "creative_energy_cell"));
+                    if (cell == null || cell == Blocks.AIR) {
+                        helper.fail("AE2's creative energy cell is not available, so the powered flag cannot"
+                                + " be given an A/B");
+                        return;
+                    }
+                    helper.setBlock(new BlockPos(1, 1, 0), cell);
+                    waitUntil(helper, 12,
+                            () -> WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS, hubPos)
+                                    .contains("powered=true"),
+                            () -> "the creative cell went onto the merged network but the card still does not"
+                                    + " read the network as powered: " + WirelessLinks.status(
+                                    level, ModRegistration.WIRELESS_LINKS, hubPos) + " / "
+                                    + WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS, farPos),
+                            () -> helper.succeed());
                 });
     }
 
