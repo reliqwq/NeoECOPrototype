@@ -13862,6 +13862,18 @@ public final class NeoECOPrototypeGameTests {
                                 + " rule: " + capped);
                         return;
                     }
+                    // The advice that used to ride on this line told the player to tap a controller with the
+                    // card - in the one branch that only prints when the network HAS no controller to tap.
+                    if (capped.contains("lift the limit with a controller tap")) {
+                        helper.fail("the cap sentence still sends a controllerless player to a controller tap,"
+                                + " which is the gesture this network cannot make: " + capped);
+                        return;
+                    }
+                    if (!capped.contains("no controller, so the card's raise gesture has nothing to tap")) {
+                        helper.fail("the cap sentence does not say which levers this player actually has: "
+                                + capped);
+                        return;
+                    }
                     String lifted = WirelessLinks.raiseMode(level, first);
                     waitUntil(helper, 12,
                             () -> !WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS, first)

@@ -343,12 +343,20 @@ public final class WirelessLinks {
      * and stops there. This is the whole content of the controller tap: every tap moves one step, so the
      * card has no purchase, no credit and nothing to re-read about a previous tap.
      *
-     * <p>It is the only lever that actually exists. Measured on 19.2.17: {@code GridNode.getMaxChannels()}
+     * <p>It is the only <em>per-network</em> lever that exists, and it is reachable only where a controller
+     * already is. Measured on 19.2.17: {@code GridNode.getMaxChannels()}
      * answers {@code 8 x cableCapacityFactor} for a node without {@code DENSE_CAPACITY} and both our
      * machines and eco's carry no such flag (eco's {@code NEBlockEntity} constructor sets exactly
      * {@code MULTIBLOCK, REQUIRE_CHANNEL}), so a wireless edge crossing one of our blocks tops out at 8 -
      * confirmed live on 2026-10-29: nine interfaces behind one link charged 8 and the ninth got nothing,
      * while the same rig under X2 charged all nine.
+     *
+     * <p>Do not "fix" that by hanging this call on a device tap. Every card gesture in the field is already
+     * a sneak one - the shipped tooltip says sneak-right-click to mark and sneak-right-click to join, because
+     * a plain tap on a device is answered by the device's own GUI before the item is ever asked - so a sneak
+     * discriminator would take marking away rather than add a knob. {@code raiseMode} itself asks only for a
+     * node on a grid (the ad-hoc guard has always driven it through a device), which is why the advice line in
+     * {@code adHocWords} names the two levers a controllerless player really has instead of this one.
      *
      * <p>Never down. The card cannot tell a mode we forced from one the player set in
      * {@code ae2-common.toml} - {@code channelModeLocked} is private and the public reader returns the
@@ -459,8 +467,9 @@ public final class WirelessLinks {
                 && service.getAdHocNetworkError() != null) {
             words += " adHocError=" + service.getAdHocNetworkError().name()
                     + " - AE2 has given this whole network zero channels, so every device on it reads"
-                    + " offline: lift the limit with a controller tap on this card, or put an AE2"
-                    + " controller in the network";
+                    + " offline: this network has no controller, so the card's raise gesture has nothing to"
+                    + " tap - put an AE2 controller in it, or raise AE2's own channel mode for the whole"
+                    + " world in its config";
         }
         return words;
     }
