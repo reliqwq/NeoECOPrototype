@@ -499,8 +499,46 @@ public final class WirelessLinks {
      * endpoint is asleep, and saying both is the only way the card can admit that.
      */
     public static String status(ServerLevel acting, Supplier<AttachmentType<Data>> type, GlobalPos endpoint) {
+        var node = node(acting, endpoint);
         return describe(endpoint) + " wirelessLinks=" + linksAtEverywhere(acting, type, endpoint)
-                + " live=" + liveLinksAt(acting, type, endpoint) + " " + ledgerAt(acting, type, endpoint);
+                + " live=" + liveLinksAt(acting, type, endpoint) + " " + ledgerAt(acting, type, endpoint)
+                + (node == null ? "" : " " + channelMode(node) + " " + faceLedger(node));
+    }
+
+    /**
+     * AE2's own ceiling for every face that is actually connected, read the only way its API allows:
+     * {@code IGridConnection} exposes no maximum (only {@code getUsedChannels()} - the
+     * {@code getMaxChannels()} that exists is on the impl class {@code appeng.me.GridConnection}), so a face
+     * is worth the smaller of the two nodes' {@code getMaxChannels()}. That number already carries the
+     * network's multiplier: measured on 19.2.17 a node without {@code DENSE_CAPACITY} answers
+     * {@code 8 x cableCapacityFactor}, a dense one {@code 32 x factor}, and {@code ChannelMode.INFINITE}
+     * short-circuits both to {@code Integer.MAX_VALUE}. Our machines carry no flags at all, so under
+     * {@code channels = "DEFAULT"} every face of one of them reads 8.
+     */
+    private static String faceLedger(IGridNode node) {
+        StringBuilder faces = new StringBuilder();
+        for (var face : node.getInWorldConnections().entrySet()) {
+            var other = face.getValue().getOtherSide(node);
+            if (other == null) {
+                continue;
+            }
+            if (faces.length() > 0) {
+                faces.append(", ");
+            }
+            faces.append(face.getKey().name()).append(' ')
+                    .append(Math.min(node.getMaxChannels(), other.getMaxChannels()))
+                    .append('/').append(face.getValue().getUsedChannels());
+        }
+        return "edges=[" + faces + "]";
+    }
+
+    /** The mode AE2 is actually using for this grid - config, or whatever a previous raise locked in. */
+    private static String channelMode(IGridNode node) {
+        var grid = node.getGrid();
+        var pathing = grid == null
+                ? null : grid.getService(appeng.api.networking.pathing.IPathingService.class);
+        var mode = pathing == null ? null : pathing.getChannelMode();
+        return "mode=" + (mode == null ? "unknown" : mode.name());
     }
 
     /**

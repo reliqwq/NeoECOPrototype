@@ -6480,6 +6480,46 @@ public final class NeoECOPrototypeGameTests {
         }
     }
 
+    /**
+     * The face ledger is the number the channel card now reads out, and this test exists to keep it honest:
+     * it asserts the ceiling comes from AE2 (8 under {@code channels = "DEFAULT"}), not from anything we
+     * wrote. Two of our own machine blocks placed side by side are enough - AE2 wires adjacent in-world
+     * nodes itself, which is exactly what made the card refuse to add an edge between touching blocks in the
+     * client on 2026-10-29.
+     */
+    @GameTest(template = "empty", batch = "wireless_link_card", timeoutTicks = 400,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void faceLedgerReportsAe2sOwnCeiling(GameTestHelper helper) {
+        var first = new BlockPos(0, 1, 0);
+        var second = new BlockPos(1, 1, 0);
+        helper.setBlock(first, ModRegistration.SUPERCONDUCTIVE_INTERFACE_BLOCK.get());
+        helper.setBlock(second, ModRegistration.SUPERCONDUCTIVE_INTERFACE_BLOCK.get());
+        var level = (net.minecraft.server.level.ServerLevel) helper.getLevel();
+        var at = GlobalPos.of(level.dimension(), helper.absolutePos(first));
+        waitUntil(helper, 25,
+                () -> {
+                    String status = WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS, at);
+                    return status.contains("edges=[") && status.contains(" 8/");
+                },
+                () -> "the face ledger never reported AE2's own 8-channel ceiling: last reading "
+                        + WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS, at)
+                        + " (if ae2-common.toml channels is no longer DEFAULT, that config changed, not this code)",
+                () -> {
+                    String status = WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS, at);
+                    if (!status.contains("mode=DEFAULT")) {
+                        helper.fail("the grid does not report the DEFAULT channel mode, so the 8 above is not"
+                                + " the number this test claims: " + status);
+                        return;
+                    }
+                    if (!status.contains("channels=")) {
+                        helper.fail("the ledger dropped its own channels= reading, so guards that parse it"
+                                + " are now blind: " + status);
+                        return;
+                    }
+                    helper.succeed();
+                });
+    }
+
     /** Sneak-right-clicks {@code cell} with the card so the item's own anchor logic runs, not our calls. */
     private static void tapWithCard(GameTestHelper helper, net.minecraft.world.entity.player.Player player,
                                     ItemStack card, BlockPos cell) {
