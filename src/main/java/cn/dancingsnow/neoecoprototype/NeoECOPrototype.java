@@ -113,14 +113,19 @@ public class NeoECOPrototype {
                             event.getLevel(), ModRegistration.WIRELESS_LINKS,
                             event.getChunk().getPos().x, event.getChunk().getPos().z);
                 });
-        // Deliberately NOT subscribed: clearing a dead endpoint's pairing at the moment of the break is the
-        // only thing that works (see WirelessLinks.noteBlockBroken - a later pass can only ask "is a device
-        // standing here", and a quick replacement answers yes). It needs an event that actually fires for
-        // every way a block leaves the world, and the one candidate, net.neoforged.neoforge.event.level.
-        // BlockEvent.BreakEvent, was not found firing from ServerPlayerGameMode#destroyBlock on 21.1.251,
-        // and a survival-only hook would silently miss a creative player - the worst case, since that is
-        // how this mod gets tested. Until the trigger is settled, noteBlockBroken stays live for the suite
-        // and for any caller that knows it has seen a device leave a square.
+        // A broken endpoint has to lose its pairing at the moment of the break: a later pass can only ask
+        // whether some device stands on that square, and a player who replaces the machine answers yes, so
+        // the new device would inherit the link of the one that left. Measured firing point on 21.1.251:
+        // ServerPlayerGameMode#destroyBlock -> CommonHooks#fireBlockBreak, which is how both the survival
+        // and the instant-break paths leave the block, so this is not survival-only. Reads nothing but the
+        // position it is handed and runs on the main thread, per AGENTS section 6. Deliberately not gated on
+        // the switch: a pairing recorded while the feature was on must stop claiming a coordinate once the
+        // machine is gone, even if the switch is off now. Non-player removal (explosion, piston, setBlock)
+        // leaves the square empty first, which is the case the slow sweep already detects correctly.
+        net.neoforged.neoforge.common.NeoForge.EVENT_BUS.addListener(
+                (net.neoforged.neoforge.event.level.BlockEvent.BreakEvent event) -> cn.dancingsnow.neoecoprototype.event
+                        .WirelessLinks.noteBlockBroken(event.getLevel(),
+                                ModRegistration.WIRELESS_LINKS, event.getPos()));
     }
 
     /**

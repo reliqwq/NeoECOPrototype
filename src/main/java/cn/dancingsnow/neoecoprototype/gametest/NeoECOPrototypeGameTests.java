@@ -6716,10 +6716,11 @@ public final class NeoECOPrototypeGameTests {
      * sweep can ask is whether a device stands there, and after a quick replacement the answer is yes - so
      * the record has to die while the block is still in the world, which is what the break event is for.
      *
-     * <p>What this does NOT cover: any trigger in game. It calls {@link WirelessLinks#noteBlockBroken}
-     * directly, which is what a future hook would call - the reason nothing is wired yet is in the mod
-     * constructor's comment (BreakEvent was not found firing from destroyBlock, and a survival-only hook
-     * would miss exactly the case this was reported from).
+     * <p>Coverage, and its edge: this posts {@code BlockEvent.BreakEvent} through the game bus, so the mod
+     * constructor's subscription and the handler both run for real. What remains a client reading is whether
+     * Minecraft actually fires that event when a player breaks a block - traced on 21.1.251 to
+     * {@code CommonHooks#fireBlockBreak}, reached from {@code ServerPlayerGameMode#destroyAndAck} (instant
+     * break) and {@code #tick} (survival), but read off bytecode rather than from a click.
      */
     @GameTest(template = "empty", batch = "wireless_link_break", timeoutTicks = 400,
             templateNamespace = NeoECOPrototype.MOD_ID)
@@ -6745,19 +6746,21 @@ public final class NeoECOPrototypeGameTests {
                         flag.set(false);
                         return;
                     }
-                    // The break event fires while the block is still in the world, so this is the real order:
-                    // clear the pairing first, then see what the player builds on the freed square.
-                    String cleared = WirelessLinks.noteBlockBroken(level, ModRegistration.WIRELESS_LINKS,
-                            helper.absolutePos(far));
-                    if (!cleared.startsWith("dropped 1 ")) {
-                        helper.fail("breaking the endpoint cleared no pairing (got \"" + cleared + "\"), so the"
-                                + " square would be left claiming a machine that is leaving: "
-                                + nodeSummary(level, a) + " / " + nodeSummary(level, b));
+                    // The real trigger, posted rather than called, so the mod constructor's subscription is
+                    // part of what this proves: BlockEvent.BreakEvent is fired from CommonHooks#fireBlockBreak,
+                    // reached by ServerPlayerGameMode#destroyAndAck (instant break) and #tick (survival break).
+                    var broken = helper.absolutePos(far);
+                    net.neoforged.neoforge.common.NeoForge.EVENT_BUS.post(
+                            new net.neoforged.neoforge.event.level.BlockEvent.BreakEvent(level, broken,
+                                    level.getBlockState(broken), helper.makeMockPlayer(GameType.CREATIVE)));
+                    String hubAtOnce = WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS, a);
+                    if (linksOf(hubAtOnce) != 0) {
+                        helper.fail("the break was posted but the pairing outlived it: " + hubAtOnce);
                         flag.set(false);
                         return;
                     }
-                    // The other half of the same call: breaking an unpaired square must be a no-op that says
-                    // nothing, because this handler runs on every block a player ever breaks.
+                    // The same handler must stay silent for a square that claims nothing, because it runs on
+                    // every block a player ever breaks.
                     if (!WirelessLinks.noteBlockBroken(level, ModRegistration.WIRELESS_LINKS,
                             helper.absolutePos(new BlockPos(5, 1, 5))).isEmpty()) {
                         helper.fail("a break on a square that holds no pairing reported one, so every block"
