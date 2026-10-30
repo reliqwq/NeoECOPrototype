@@ -68,13 +68,14 @@ import javax.annotation.Nullable;
  * both ends). What a link consumes is whatever AE2 decides to give the machines at its two ends, and the card
  * now reports that rather than rationing it: {@link #status} prints AE2's own mode, controller verdict and
  * per-face ledger. The one rule still ours to set is structural and stays:
- * {@link #MAX_LINKS_PER_ENDPOINT} edges per device, because a wireless edge costs no blocks and a player
+ * the config's {@code wireless_max_links_per_device} edges per device, because a wireless edge costs no blocks and a player
  * could otherwise click one machine into a hundred-port hub.</p>
  */
 public final class WirelessLinks {
 
     /** The product rule from the sketch: a device answers for at most this many wireless edges. */
-    public static final int MAX_LINKS_PER_ENDPOINT = 4;
+    /** The shipped default for {@code wireless_max_links_per_device}; the config is what binds read. */
+    public static final int DEFAULT_MAX_LINKS_PER_ENDPOINT = 4;
 
     /**
      * The timed pass is only a fallback - the moments a link actually has to be re-established are the
@@ -298,6 +299,30 @@ public final class WirelessLinks {
         if (from.equals(to)) {
             return Reply.untranslated("both ends are the same block");
         }
+        var config = cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig.class;
+        int maxLinks = cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig
+                .WIRELESS_MAX_LINKS_PER_DEVICE.get();
+        boolean sameWorld = from.dimension().equals(to.dimension());
+        if (!sameWorld && !cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig
+                .WIRELESS_ALLOW_CROSS_DIMENSION.get()) {
+            return Reply.untranslated("these two are in different dimensions (" + from.dimension().location()
+                    + " and " + to.dimension().location() + "), and wireless_allow_cross_dimension is off in"
+                    + " this world's config - no cable can do this either, so the switch keeps it a deliberate"
+                    + " choice rather than a default");
+        }
+        int rangeBlocks = cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig
+                .WIRELESS_MAX_RANGE_BLOCKS.get();
+        if (rangeBlocks > 0 && sameWorld) {
+            long dx = from.pos().getX() - to.pos().getX();
+            long dy = from.pos().getY() - to.pos().getY();
+            long dz = from.pos().getZ() - to.pos().getZ();
+            long apart = Math.round(Math.sqrt((double) (dx * dx + dy * dy + dz * dz)));
+            if (apart > rangeBlocks) {
+                return Reply.untranslated("these two are " + apart + " blocks apart and"
+                        + " wireless_max_range_blocks is " + rangeBlocks + " in this world's config - move one"
+                        + " closer, or raise the number if you meant a link to reach that far");
+            }
+        }
         Link link = Link.of(from, to);
         ServerLevel owner = levelOf(acting, link.ownerDimension());
         if (owner == null) {
@@ -311,13 +336,13 @@ public final class WirelessLinks {
             return Reply.untranslated("that is not a network device: " + describe(presence(owner, link.a())
                     == Presence.AWAKE ? link.b() : link.a()));
         }
-        if (linksAtEverywhere(owner, type, link.a()) >= MAX_LINKS_PER_ENDPOINT) {
+        if (linksAtEverywhere(owner, type, link.a()) >= maxLinks) {
             return Reply.untranslated(describe(link.a()) + " already carries "
-                    + linksAtEverywhere(owner, type, link.a()) + " links (max " + MAX_LINKS_PER_ENDPOINT + ")");
+                    + linksAtEverywhere(owner, type, link.a()) + " links (max " + maxLinks + ")");
         }
-        if (linksAtEverywhere(owner, type, link.b()) >= MAX_LINKS_PER_ENDPOINT) {
+        if (linksAtEverywhere(owner, type, link.b()) >= maxLinks) {
             return Reply.untranslated(describe(link.b()) + " already carries "
-                    + linksAtEverywhere(owner, type, link.b()) + " links (max " + MAX_LINKS_PER_ENDPOINT + ")");
+                    + linksAtEverywhere(owner, type, link.b()) + " links (max " + maxLinks + ")");
         }
         IGridNode a = node(owner, link.a());
         IGridNode b = node(owner, link.b());

@@ -55,6 +55,23 @@ public final class NeoECOPrototypeServerConfig {
      */
     public static final boolean WIRELESS_LINKS_DEFAULT = false;
     public static final ModConfigSpec.BooleanValue WIRELESS_LINKS;
+    /**
+     * How many wireless edges one device may carry. This is the only structural brake the feature has, so it
+     * is the knob to turn if a hub of links is too cheap for a pack. Read live on every bind, never cached.
+     */
+    public static final ModConfigSpec.IntValue WIRELESS_MAX_LINKS_PER_DEVICE;
+    /**
+     * How far apart two devices may be to join, in blocks, measured between the two squares. 0 means no
+     * distance limit, which is what the feature shipped with. Applied when a link is made; a link already in
+     * the world stays, because moving a machine to break a silent rule is worse than the rule.
+     */
+    public static final ModConfigSpec.IntValue WIRELESS_MAX_RANGE_BLOCKS;
+    /**
+     * Whether an edge may join devices in different dimensions. Off by default: crossing dimensions is the
+     * one thing a cable can never do, so it is the clearest place where a link is not "free cable" but a
+     * different machine. Links already recorded across dimensions stay until a player unbinds them.
+     */
+    public static final ModConfigSpec.BooleanValue WIRELESS_ALLOW_CROSS_DIMENSION;
     /** How much of the vanilla powder-snow chill one broken cryotheum ore is worth. */
     public static final ModConfigSpec.IntValue CRYOTHEUM_ORE_FREEZE_TICKS;
     /** Whether the floating End comet generates at all; it is the family's only remaining world entry. */
@@ -115,13 +132,30 @@ public final class NeoECOPrototypeServerConfig {
                 .define("structure_card_consumes_items", STRUCTURE_CARD_CONSUMES_ITEMS_DEFAULT);
         WIRELESS_LINKS = builder
                 .comment("Wireless ME links: the link card, the level's rebuild pass and its chunk wake.",
-                        "Off by default in this release - the join works and AE2's own Network Tool lists what",
-                        "it built, but a link is not yet priced: it crosses no cable, no distance and may cross",
-                        "dimensions while carrying 8 x the network's channel multiplier per face, so four of them",
-                        "off one hub are a free dense trunk. Turning it on lets a player join two devices with no",
-                        "cable between them; links recorded while it was on stay in the world's data and come",
-                        "back when it is switched on again.")
+                        "Off by default in this release. What a link costs is now configurable below - edges per",
+                        "device, distance, and whether it may cross dimensions - and a join that would leave the",
+                        "merged network with no channels is refused outright. What is still missing is an energy",
+                        "price: a link crosses no cable yet carries 8 x the network's channel multiplier per face,",
+                        "so four of them off one hub are a dense trunk AE2 would charge cable for. Turning this on",
+                        "lets a player join two devices with no cable between them; links recorded while it was on",
+                        "stay in the world's data and come back when it is switched on again.")
                 .define("wireless_links", WIRELESS_LINKS_DEFAULT);
+        WIRELESS_MAX_LINKS_PER_DEVICE = builder
+                .comment("How many wireless edges one device may carry. Default 4, and it is the only",
+                        "structural limit the feature has: a link costs nothing, so without it one hub could",
+                        "be the switch for every network in the world.")
+                .defineInRange("wireless_max_links_per_device", 4, 1, 32);
+        WIRELESS_MAX_RANGE_BLOCKS = builder
+                .comment("How far apart two devices may be to join, in blocks, measured between the squares.",
+                        "0 = no distance limit (what shipped so far). Applied when a link is made; existing",
+                        "links are never broken by lowering this, because a silent teardown after the fact is",
+                        "worse than a refusal up front.")
+                .defineInRange("wireless_max_range_blocks", 0, 0, 100000);
+        WIRELESS_ALLOW_CROSS_DIMENSION = builder
+                .comment("Whether a link may join devices in different dimensions. Off by default - crossing",
+                        "dimensions is the one thing no cable can do, so it is where a link stops being a free",
+                        "cable and becomes its own machine.")
+                .define("wireless_allow_cross_dimension", false);
         DERIVE_PROCESSOR_RECIPES_FROM_INSCRIBER = builder
                 .comment("Also accept processor recipes derived from AE2's inscriber (press-mode recipes, with",
                         "printed parts unfolded into the material inscribed into them).",

@@ -14787,6 +14787,97 @@ public final class NeoECOPrototypeGameTests {
                 });
     }
 
+    /**
+     * The three price switches, each proven to be read live rather than baked in. Every case is a pair of
+     * assertions on the <em>same</em> bind: refused while the knob says no, allowed the moment the knob is
+     * turned - so a cached value, or a check that silently stopped running, cannot pass. The cross-dimension
+     * case never needs the other dimension loaded, because that gate is pure position arithmetic and is checked
+     * before we go looking for the owning level.
+     */
+    @GameTest(template = "empty", batch = "wireless_config_gates", timeoutTicks = 900,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void theLinkGatesComeFromTheWorldConfigAndAreReadLive(GameTestHelper helper) {
+        var interfaceBlock = ModRegistration.SUPERCONDUCTIVE_INTERFACE_BLOCK.get();
+        helper.setBlock(new BlockPos(0, 1, 0), interfaceBlock);
+        helper.setBlock(new BlockPos(0, 1, 4), interfaceBlock);
+        helper.setBlock(new BlockPos(0, 1, 8), interfaceBlock);
+        helper.setBlock(new BlockPos(2, 1, 0), interfaceBlock);
+        var level = (ServerLevel) helper.getLevel();
+        var a = GlobalPos.of(level.dimension(), helper.absolutePos(new BlockPos(0, 1, 0)));
+        var b = GlobalPos.of(level.dimension(), helper.absolutePos(new BlockPos(0, 1, 4)));
+        var c = GlobalPos.of(level.dimension(), helper.absolutePos(new BlockPos(0, 1, 8)));
+        var d = GlobalPos.of(level.dimension(), helper.absolutePos(new BlockPos(2, 1, 0)));
+        var otherWorld = net.minecraft.resources.ResourceKey.create(
+                net.minecraft.core.registries.Registries.DIMENSION,
+                ResourceLocation.fromNamespaceAndPath("minecraft", "the_nether"));
+        var maxLinks = cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig
+                .WIRELESS_MAX_LINKS_PER_DEVICE;
+        var range = cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig.WIRELESS_MAX_RANGE_BLOCKS;
+        var crossDim = cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig
+                .WIRELESS_ALLOW_CROSS_DIMENSION;
+        var savedLinks = maxLinks.getDefault();
+        var savedRange = range.getDefault();
+        var savedCrossDim = crossDim.getDefault();
+        waitUntil(helper, 12,
+                () -> networkNode(level, a) != null && networkNode(level, d) != null
+                        && separateNetworks(level, a, b) && separateNetworks(level, a, d),
+                () -> "the four devices never became four separate grids: " + nodeSummary(level, a) + " / "
+                        + nodeSummary(level, b) + " / " + nodeSummary(level, c) + " / " + nodeSummary(level, d),
+                () -> {
+                    try {
+                        maxLinks.set(2);
+                        if (!WirelessLinks.bind(level, ModRegistration.WIRELESS_LINKS, a, b).startsWith("linked ")
+                                || !WirelessLinks.bind(level, ModRegistration.WIRELESS_LINKS, a, c)
+                                        .startsWith("linked ")) {
+                            helper.fail("the first two links at one device were refused with the cap at 2");
+                            return;
+                        }
+                        String capped = WirelessLinks.bind(level, ModRegistration.WIRELESS_LINKS, a, d);
+                        if (capped.startsWith("linked ") || !capped.contains("(max 2)")) {
+                            helper.fail("the third link at one device did not hit the configured cap of 2:"
+                                    + " \"" + capped + "\"");
+                            return;
+                        }
+                        // b and c are on one grid now (the two links above merged them), so the distance case
+                        // has to use d, which is still its own network: b<->d is ~4 blocks apart.
+                        range.set(1);
+                        String tooFar = WirelessLinks.bind(level, ModRegistration.WIRELESS_LINKS, b, d);
+                        if (tooFar.startsWith("linked ") || !tooFar.contains("wireless_max_range_blocks is 1")) {
+                            helper.fail("a join 4 blocks apart went through with the range set to 1:"
+                                    + " \"" + tooFar + "\"");
+                            return;
+                        }
+                        range.set(0);
+                        String withinRange = WirelessLinks.bind(level, ModRegistration.WIRELESS_LINKS, b, d);
+                        if (!withinRange.startsWith("linked ")) {
+                            helper.fail("range 0 is meant to mean unlimited, and the same join was still"
+                                    + " refused: " + withinRange);
+                            return;
+                        }
+                        crossDim.set(false);
+                        var otherSide = GlobalPos.of(otherWorld, helper.absolutePos(new BlockPos(0, 1, 0)));
+                        String refused = WirelessLinks.bind(level, ModRegistration.WIRELESS_LINKS, a, otherSide);
+                        if (refused.startsWith("linked ") || !refused.contains("different dimensions")) {
+                            helper.fail("a cross-dimension join went through with the switch off, or the"
+                                    + " refusal did not say why: \"" + refused + "\"");
+                            return;
+                        }
+                        crossDim.set(true);
+                        String allowed = WirelessLinks.bind(level, ModRegistration.WIRELESS_LINKS, a, otherSide);
+                        if (allowed.contains("different dimensions")) {
+                            helper.fail("the switch was turned on and the same join is still refused for being"
+                                    + " cross-dimensional, so the value is cached: \"" + allowed + "\"");
+                            return;
+                        }
+                        helper.succeed();
+                    } finally {
+                        maxLinks.set(savedLinks);
+                        range.set(savedRange);
+                        crossDim.set(savedCrossDim);
+                    }
+                });
+    }
+
     /** The faces a right-click on this block could enter a grid through - the tool's only door. */
     private static java.util.List<String> exposedFaces(net.minecraft.world.level.Level level,
                                                        net.minecraft.core.BlockPos pos) {
@@ -14827,7 +14918,7 @@ public final class NeoECOPrototypeGameTests {
         var hub = new BlockPos(0, 1, 0);
         helper.setBlock(hub, ModRegistration.SUPERCONDUCTIVE_INTERFACE_BLOCK.get());
         var spokes = new java.util.ArrayList<BlockPos>();
-        for (int i = 0; i < WirelessLinks.MAX_LINKS_PER_ENDPOINT + 1; i++) {
+        for (int i = 0; i < cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig.WIRELESS_MAX_LINKS_PER_DEVICE.getDefault() + 1; i++) {
             var pos = new BlockPos(2 + i, 1, 6);
             helper.setBlock(pos, ModRegistration.SIMPLIFY_STORAGE_CASING_BLOCK.get());
             spokes.add(pos);
@@ -14845,20 +14936,20 @@ public final class NeoECOPrototypeGameTests {
                         + " - a block entity answers as a device the moment it is placed, but AE2 only "
                         + "builds its node in onReady, which is what this poll waits for",
                 () -> {
-                    for (int i = 0; i < WirelessLinks.MAX_LINKS_PER_ENDPOINT; i++) {
+                    for (int i = 0; i < cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig.WIRELESS_MAX_LINKS_PER_DEVICE.getDefault(); i++) {
                         var spoke = GlobalPos.of(level.dimension(),
                                 helper.absolutePos(spokes.get(i)));
                         String bound = WirelessLinks.bind(level, ModRegistration.WIRELESS_LINKS, hubPos, spoke);
                         if (!bound.startsWith("linked ")) {
-                            helper.fail("link " + (i + 1) + " of " + WirelessLinks.MAX_LINKS_PER_ENDPOINT
+                            helper.fail("link " + (i + 1) + " of " + cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig.WIRELESS_MAX_LINKS_PER_DEVICE.getDefault()
                                     + " was refused: \"" + bound + "\"");
                             return;
                         }
                     }
                     var extra = GlobalPos.of(level.dimension(),
-                            helper.absolutePos(spokes.get(WirelessLinks.MAX_LINKS_PER_ENDPOINT)));
+                            helper.absolutePos(spokes.get(cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig.WIRELESS_MAX_LINKS_PER_DEVICE.getDefault())));
                     String refused = WirelessLinks.bind(level, ModRegistration.WIRELESS_LINKS, hubPos, extra);
-                    if (!refused.contains("max " + WirelessLinks.MAX_LINKS_PER_ENDPOINT)) {
+                    if (!refused.contains("max " + cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig.WIRELESS_MAX_LINKS_PER_DEVICE.getDefault())) {
                         helper.fail("a link past the cap was accepted: \"" + refused + "\"");
                         return;
                     }
