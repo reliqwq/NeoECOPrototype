@@ -14572,6 +14572,91 @@ public final class NeoECOPrototypeGameTests {
                 });
     }
 
+    /**
+     * The translated layer, pinned from both sides. Six of the card's lines now go out as
+     * {@code Component.translatable(key, args)} so a Chinese player reads Chinese and an English player reads
+     * English, while the log keeps the English sentence for the guards and for me. Two things can rot here and
+     * this checks both: a key can vanish from one language file, and the English text the code builds can drift
+     * away from the {@code en_us} value it is supposed to equal (that equivalence is the only reason the log and
+     * the chat still say the same thing). It also records one measurement in its own log line: on the gameTest
+     * server {@code Component.translatable(key, args).getString()} resolves against {@code en_us} and returns
+     * the English sentence - it does <em>not</em> come back as a bare key, which is what I had assumed when I
+     * designed this layer. So a guard could read either the {@code english} field or the rendered component and
+     * get the same text, and the Chinese only appears on a client whose language is Chinese.
+     */
+    @GameTest(template = "empty", batch = "wireless_reply_keys", timeoutTicks = 400,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void everyTranslatedCardLineHasItsKeyInBothFilesAndMatchesTheEnglishText(
+            GameTestHelper helper) {
+        var names = java.util.List.of("linked", "marked", "dropped", "already_linked", "raised", "already_top");
+        for (String lang : new String[]{"en_us", "zh_cn"}) {
+            String json = readResource("/assets/neoecoprototype/lang/" + lang + ".json", helper);
+            if (json == null) {
+                return;
+            }
+            for (var name : names) {
+                if (!json.contains("\"gui.neoecoprototype.wireless_link." + name + "\":")) {
+                    helper.fail("lang/" + lang + ".json has no gui.neoecoprototype.wireless_link." + name
+                            + " key, so that card line renders as a bare key for these players");
+                    return;
+                }
+            }
+        }
+        var device = new BlockPos(0, 1, 0);
+        helper.setBlock(device, ModRegistration.SUPERCONDUCTIVE_INTERFACE_BLOCK.get());
+        var level = (ServerLevel) helper.getLevel();
+        var at = GlobalPos.of(level.dimension(), helper.absolutePos(device));
+        waitUntil(helper, 12,
+                () -> WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS, at).contains("mode="),
+                () -> "the device never got a network to raise a mode on: "
+                        + WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS, at),
+                () -> {
+                    var reply = WirelessLinks.raiseModeReply(level, at);
+                    var en = readResource("/assets/neoecoprototype/lang/en_us.json", helper);
+                    if (en == null) {
+                        return;
+                    }
+                    var value = langValue(en, "gui.neoecoprototype.wireless_link."
+                            + (reply.english().startsWith("raised this network") ? "raised" : "already_top"));
+                    if (value.isEmpty()) {
+                        helper.fail("could not read the en_us value back to compare it with " + reply.english());
+                        return;
+                    }
+                    String rendered;
+                    try {
+                        rendered = String.format(value, reply.args());
+                    } catch (java.util.IllegalFormatException exc) {
+                        helper.fail("the en_us value and the arguments the code passes do not fit each other ("
+                                + exc.getMessage() + "): value=[" + value + "] args="
+                                + java.util.Arrays.toString(reply.args()));
+                        return;
+                    }
+                    if (!rendered.equals(reply.english())) {
+                        helper.fail("the card's log sentence and its en_us value have drifted apart: log=["
+                                + reply.english() + "] lang=[" + rendered + "]");
+                        return;
+                    }
+                    NeoECOPrototype.LOGGER.info("REPLYKEYS key={} english=[{}] serverGetString=[{}]",
+                            reply.langKey(), reply.english(),
+                            net.minecraft.network.chat.Component.translatable(reply.langKey(), reply.args())
+                                    .getString());
+                    helper.succeed();
+                });
+    }
+
+    /** The value of one top-level "key": "value" line, or "" when the file has no such key. */
+    private static String langValue(String json, String key) {
+        for (var line : json.split("\n")) {
+            if (line.contains("\"" + key + "\":")) {
+                int start = line.indexOf(": \"");
+                int end = line.lastIndexOf('"');
+                return start < 0 || end <= start + 2 ? "" : line.substring(start + 3, end);
+            }
+        }
+        return "";
+    }
+
+
     /** The faces a right-click on this block could enter a grid through - the tool's only door. */
     private static java.util.List<String> exposedFaces(net.minecraft.world.level.Level level,
                                                        net.minecraft.core.BlockPos pos) {

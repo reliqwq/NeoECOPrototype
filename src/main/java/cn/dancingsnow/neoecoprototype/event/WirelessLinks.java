@@ -257,33 +257,62 @@ public final class WirelessLinks {
     }
 
     /**
+     * A reply the card can hand to a player. The English text is never deleted by this: it is what the log
+     * line and the guards read, and it is also what {@code en_us} holds, so drift between the code and the
+     * two languages shows up as a red guard rather than as a sentence nobody recognises.
+     *
+     * @param langKey the key the card sends, or null when this outcome is not translated yet
+     * @param args    what fills that key's {@code %s} holes, in order
+     * @param english the fully rendered sentence, as the log and the guards see it
+     */
+    public record Reply(String langKey, Object[] args, String english) {
+
+        private static final Object[] NO_ARGS = new Object[0];
+
+        /** An outcome whose sentence has no lang key yet - the card prints {@code english} as it always did. */
+        public static Reply untranslated(String english) {
+            return new Reply(null, NO_ARGS, english);
+        }
+
+        public static Reply of(String name, String english, Object... args) {
+            return new Reply("gui.neoecoprototype.wireless_link." + name, args, english);
+        }
+    }
+
+    /**
      * Puts a pair into the record and tries the edge right away, so the player gets the reading in the same
      * click that made the link.
      */
     public static String bind(ServerLevel acting, Supplier<AttachmentType<Data>> type, GlobalPos from, GlobalPos to) {
+        return bindReply(acting, type, from, to).english();
+    }
+
+    /** {@link #bind} as the card needs it: the same work, plus the key each outcome speaks in. */
+    public static Reply bindReply(ServerLevel acting, Supplier<AttachmentType<Data>> type, GlobalPos from,
+                                  GlobalPos to) {
         if (from.equals(to)) {
-            return "both ends are the same block";
+            return Reply.untranslated("both ends are the same block");
         }
         Link link = Link.of(from, to);
         ServerLevel owner = levelOf(acting, link.ownerDimension());
         if (owner == null) {
-            return "the dimension that would own this link is not loaded";
+            return Reply.untranslated("the dimension that would own this link is not loaded");
         }
         Data data = owner.getData(type.get());
         if (data.links.contains(link)) {
-            return "already linked " + describe(link);
+            return Reply.of("already_linked", "already linked " + describe(link), describe(link));
         }
         if (!presenceIsAwake(owner, link.a()) || !presenceIsAwake(owner, link.b())) {
-            return "that is not a network device: " + describe(presence(owner, link.a()) == Presence.AWAKE
-                    ? link.b() : link.a());
+            return Reply.untranslated("that is not a network device: " + describe(presence(owner, link.a())
+                    == Presence.AWAKE ? link.b() : link.a()));
         }
         if (linksAtEverywhere(owner, type, link.a()) >= MAX_LINKS_PER_ENDPOINT) {
-            return describe(link.a()) + " already carries " + linksAtEverywhere(owner, type, link.a())
-                    + " links (max " + MAX_LINKS_PER_ENDPOINT + ")";
+            return Reply.untranslated(describe(link.a()) + " already carries "
+                    + linksAtEverywhere(owner, type, link.a()) + " links (max " + MAX_LINKS_PER_ENDPOINT + ")");
         }
         if (linksAtEverywhere(owner, type, link.b()) >= MAX_LINKS_PER_ENDPOINT) {
-            return describe(link.b()) + " already carries " + linksAtEverywhere(owner, type, link.b())
-                    + " links (max " + MAX_LINKS_PER_ENDPOINT + ")";
+            return Reply.untranslated(describe(link.b()) + " already carries "
+                    + linksAtEverywhere(owner, type, link.b()) + " links (max " + MAX_LINKS_PER_ENDPOINT + ")");
         }
         IGridNode a = node(owner, link.a());
         IGridNode b = node(owner, link.b());
@@ -291,37 +320,38 @@ public final class WirelessLinks {
             // Measured in the client: a block answers as a device the moment it is placed (that is what
             // let the card mark it), while AE2 only builds the node when that block first ticks - so this
             // is the one refusal worth saying how to get past.
-            return "no network node at " + describe(a == null ? link.a() : link.b())
-                    + " yet - the block is there but AE2 has not given it a node, so bind it again in a moment";
+            return Reply.untranslated("no network node at " + describe(a == null ? link.a() : link.b())
+                    + " yet - the block is there but AE2 has not given it a node, so bind it again in a moment");
         }
         if (physicallyWiredTogether(a, b)) {
-            return "those two are already wired together with blocks: a wireless edge there would carry "
-                    + "nothing, and unbinding it would tear out the connection you built";
+            return Reply.untranslated("those two are already wired together with blocks: a wireless edge there"
+                    + " would carry nothing, and unbinding it would tear out the connection you built");
         }
         if (a.getGrid() == b.getGrid()) {
-            return "those two are already on one network of " + gridNodes(a.getGrid())
+            return Reply.untranslated("those two are already on one network of " + gridNodes(a.getGrid())
                     + " nodes, so a wireless edge between them would change nothing - they can already reach"
-                    + " each other through the blocks you laid";
+                    + " each other through the blocks you laid");
         }
         data.links.add(link);
         // No dirty flag to set: LevelAttachmentsSavedData.isDirty() answers true unconditionally, so a
         // level save always re-reads whatever this object currently holds.
         EdgeResult result = ensureEdge(owner, data, link);
         if (result.edge() != null) {
+            var ledger = readings(result.edge(), result.a(), result.b());
             // The join retires one of the two IGrid objects and AE2 empties its machine map, while
             // NetworkStatusMenu stores the grid once in its constructor and never re-resolves it: a tool left
             // open through a join is reading a retired grid, so it looks like the machines vanished. Measured
             // 2026-10-29 (batch wireless_tool_stalegrid) and pinned there.
-            return "linked " + describe(link) + " | " + readings(result.edge(), result.a(), result.b())
+            return Reply.of("linked", "linked " + describe(link) + " | " + ledger
                     + " | open the network tool again if one was already open: it is still reading the grid"
-                    + " from before this join, which AE2 has now emptied";
+                    + " from before this join, which AE2 has now emptied", describe(link), ledger);
         }
         if (result.missingNode() != null) {
-            return "recorded but no network node at " + describe(result.missingNode())
+            return Reply.untranslated("recorded but no network node at " + describe(result.missingNode())
                     + " - a block counts as a device the moment it is placed, while AE2 only builds its"
-                    + " node when that block first ticks, so binding it again in a moment should work";
+                    + " node when that block first ticks, so binding it again in a moment should work");
         }
-        return "recorded " + describe(link) + " but no edge was made (see log)";
+        return Reply.untranslated("recorded " + describe(link) + " but no edge was made (see log)");
     }
 
     /**
@@ -365,18 +395,24 @@ public final class WirelessLinks {
      * raise a channel budget, it deletes the concept.
      */
     public static String raiseMode(ServerLevel acting, GlobalPos at) {
+        return raiseModeReply(acting, at).english();
+    }
+
+    /** {@link #raiseMode} as the card needs it: the same ladder, plus the key each answer speaks in. */
+    public static Reply raiseModeReply(ServerLevel acting, GlobalPos at) {
         ServerLevel owner = levelOf(acting, at.dimension());
         if (owner == null) {
-            return "that dimension is not loaded";
+            return Reply.untranslated("that dimension is not loaded");
         }
         var node = node(owner, at);
         if (node == null || node.getGrid() == null) {
-            return describe(at) + " is not on a network yet, so there is no channel mode to raise";
+            return Reply.untranslated(describe(at)
+                    + " is not on a network yet, so there is no channel mode to raise");
         }
         var pathing = node.getGrid().getService(appeng.api.networking.pathing.IPathingService.class);
         if (!(pathing instanceof appeng.me.service.PathingService service)) {
-            return "AE2 no longer hands a pathing service this can set (" + pathing
-                    + "), so the card cannot raise a mode";
+            return Reply.untranslated("AE2 no longer hands a pathing service this can set (" + pathing
+                    + "), so the card cannot raise a mode");
         }
         var current = service.getChannelMode();
         var next = switch (current) {
@@ -386,16 +422,18 @@ public final class WirelessLinks {
             default -> null;
         };
         if (next == null) {
-            return "already at " + current.name() + ", the highest mode this card offers";
+            return Reply.of("already_top", "already at " + current.name()
+                    + ", the highest mode this card offers", current.name());
         }
         service.setForcedChannelMode(next);
         // Stated as AE2's own arithmetic rather than read off the block that was tapped: a controller's node
         // answers getMaxChannels() == 0 because it carries channels rather than using them, so "this node
         // reads max=0" was a true fact about the wrong object and read like the raise had failed. The ladder
         // guard asserts the same number straight off a device node, so the sentence and the test agree.
-        return "raised this network to " + next.name() + ": a device without dense capacity now takes "
-                + 8 * next.getCableCapacityFactor() + " channels per face (8 x "
-                + next.getCableCapacityFactor() + ")";
+        return Reply.of("raised", "raised this network to " + next.name() + ": a device without dense"
+                        + " capacity now takes " + 8 * next.getCableCapacityFactor() + " channels per face (8 x "
+                        + next.getCableCapacityFactor() + ")",
+                next.name(), 8 * next.getCableCapacityFactor(), next.getCableCapacityFactor());
     }
 
     /** AE2's controller verdict for a position's network, spelled out because the card has to say it back. */
@@ -476,7 +514,7 @@ public final class WirelessLinks {
      * Drops every link at one endpoint. The record may be filed under the other endpoint's dimension, so
      * every awake dimension is asked - cheap here, because this only ever runs on a click.
      */
-    public static String unlink(ServerLevel acting, Supplier<AttachmentType<Data>> type, GlobalPos endpoint) {
+    public static Reply unlinkReply(ServerLevel acting, Supplier<AttachmentType<Data>> type, GlobalPos endpoint) {
         int dropped = 0;
         for (ServerLevel level : acting.getServer().getAllLevels()) {
             if (!level.hasData(type.get())) {
@@ -506,8 +544,14 @@ public final class WirelessLinks {
         }
         NeoECOPrototype.LOGGER.info("wireless link: unbind {} dropped={} link(s)", describe(endpoint), dropped);
         return dropped == 0
-                ? describe(endpoint) + " carries no wireless link"
-                : "dropped " + dropped + " link(s) at " + describe(endpoint);
+                ? Reply.untranslated(describe(endpoint) + " carries no wireless link")
+                : Reply.of("dropped", "dropped " + dropped + " link(s) at " + describe(endpoint),
+                        dropped, describe(endpoint));
+    }
+
+    /** Drops every link at one endpoint and answers in English - what the log and the guards read. */
+    public static String unlink(ServerLevel acting, Supplier<AttachmentType<Data>> type, GlobalPos endpoint) {
+        return unlinkReply(acting, type, endpoint).english();
     }
 
     /**
