@@ -158,6 +158,11 @@ public final class WirelessLinks {
          * Not persisted.
          */
         final Map<Link, Long> urgentUntil = new HashMap<>();
+        /**
+         * Links whose merge still has to be confirmed against AE2's own verdict, and the game time that
+         * confirmation is due. Armed by a successful bind, cleared by {@link #tendVerifies}. Not persisted.
+         */
+        final Map<Link, Long> verifyUntil = new HashMap<>();
 
         public List<Link> links() {
             return List.copyOf(links);
@@ -332,11 +337,19 @@ public final class WirelessLinks {
                     + " nodes, so a wireless edge between them would change nothing - they can already reach"
                     + " each other through the blocks you laid");
         }
+        // The merge guard: joining two networks is not "one more cable", it puts their device counts into
+        // one ad-hoc budget, and that budget is all-or-nothing. Refuse before touching anything when the
+        // joined network would certainly be starved, and confirm the rest against AE2's own verdict below.
+        String starvation = starvationRisk(a, b);
+        if (starvation != null) {
+            return Reply.untranslated(starvation);
+        }
         data.links.add(link);
         // No dirty flag to set: LevelAttachmentsSavedData.isDirty() answers true unconditionally, so a
         // level save always re-reads whatever this object currently holds.
         EdgeResult result = ensureEdge(owner, data, link);
         if (result.edge() != null) {
+            data.verifyUntil.put(link, owner.getGameTime() + MERGE_VERIFY_TICKS);
             // No promise here about the Network Tool: measured in the client on 2026-10-30, reopening the tool
             // after a join still showed nothing, so the retired-grid object (batch wireless_tool_stalegrid) is
             // a real effect of a merge but not the whole of what he sees. The status line carries AE2's own
@@ -716,6 +729,137 @@ public final class WirelessLinks {
         } else if (!data.urgentUntil.isEmpty()) {
             tendWakes(acting, data);
         }
+        if (!data.verifyUntil.isEmpty()) {
+            tendVerifies(acting, data);
+        }
+    }
+
+    /**
+     * How long after a merge to wait before trusting AE2's verdict. The recompute happens in
+     * {@code PathingService#onServerEndTick} and only once {@code repath()} has set the reboot flag, so
+     * reading the state in the tick the edge was made shows the pre-merge answer and would approve anything.
+     */
+    private static final int MERGE_VERIFY_TICKS = 4;
+
+    /**
+     * The second half of the merge guard. {@link #starvationRisk} refuses the merges that must fail; this
+     * confirms the ones it allowed against AE2's own numbers, and undoes any that end up starved - destroy
+     * while the edge can still be proved ours, drop the record, name both numbers in the log. The branch is
+     * meant to be unreachable, because the pre-check compares demand against the <em>smaller</em> ceiling and
+     * so holds whichever grid survives. Reaching it means AE2 counts differently than we do, which is worth a
+     * warning and an undo rather than a network the player finds dead ten minutes later.
+     */
+    private static void tendVerifies(ServerLevel acting, Data data) {
+        long now = acting.getGameTime();
+        for (Iterator<Map.Entry<Link, Long>> it = data.verifyUntil.entrySet().iterator(); it.hasNext(); ) {
+            Map.Entry<Link, Long> due = it.next();
+            if (!data.links.contains(due.getKey())) {
+                it.remove();
+                continue;
+            }
+            if (now < due.getValue()) {
+                continue;
+            }
+            it.remove();
+            var node = node(acting, due.getKey().a());
+            String verdict = starvationVerdict(node == null ? null : node.getGrid());
+            if (verdict == null) {
+                continue;
+            }
+            NeoECOPrototype.LOGGER.warn("wireless link: undoing {} because the joined network cannot carry"
+                    + " itself: {} - the pre-check said it would fit, so AE2 counts differently than we do",
+                    describe(due.getKey()), verdict);
+            undoLink(acting, data, due.getKey());
+        }
+    }
+
+    /** Destroys one edge we can still prove is ours and forgets its record; never destroys an unprovable one. */
+    private static void undoLink(ServerLevel acting, Data data, Link link) {
+        var held = data.edges.get(link);
+        if (held != null && isStillBetween(acting, held, link)) {
+            held.destroy();
+        }
+        data.drop(link);
+    }
+
+    /**
+     * AE2's own verdict on a grid, or null while it carries itself. An ad-hoc error means the whole network
+     * got zero channels; a conflicted controller group means the same thing for a different reason.
+     */
+    @Nullable
+    private static String starvationVerdict(@Nullable appeng.api.networking.IGrid grid) {
+        if (grid == null) {
+            return null;
+        }
+        if ("CONTROLLER_CONFLICT".equals(controllerStateOf(grid))) {
+            return "AE2 reads the controllers on the joined network as CONTROLLER_CONFLICT, which leaves it"
+                    + " with no channels at all";
+        }
+        if (grid.getPathingService() instanceof appeng.me.service.PathingService service
+                && service.getAdHocNetworkError() != null) {
+            return "AE2 set adHocError=" + service.getAdHocNetworkError().name() + " on the joined network";
+        }
+        return null;
+    }
+
+    /**
+     * The pre-check. Only two controllerless networks can starve each other - once a controller is in play the
+     * ad-hoc budget does not apply - so anything with a controller on either side passes here and is left to
+     * {@link #starvationVerdict}. The ceiling used is the <em>smaller</em> of the two: which of the two grid
+     * objects survives the merge is AE2's choice, and we do not bet somebody's whole network on it.
+     */
+    @Nullable
+    private static String starvationRisk(IGridNode a, IGridNode b) {
+        var gridA = a.getGrid();
+        var gridB = b.getGrid();
+        if (gridA == null || gridB == null
+                || !"NO_CONTROLLER".equals(controllerStateOf(gridA))
+                || !"NO_CONTROLLER".equals(controllerStateOf(gridB))) {
+            return null;
+        }
+        int demand = adHocDemand(gridA) + adHocDemand(gridB);
+        int ceilingA = adHocCeiling(gridA);
+        int ceilingB = adHocCeiling(gridB);
+        int fits = Math.min(ceilingA, ceilingB);
+        if (demand <= fits) {
+            return null;
+        }
+        return "these two networks together need " + demand + " channel(s) and the smaller of their two"
+                + " ad-hoc ceilings is " + fits + " (this side " + ceilingA + ", that side " + ceilingB
+                + "), and neither has an AE2 controller: the joined network would get zero channels and every"
+                + " device on it would read offline, so this link is refused - put an AE2 controller into one"
+                + " of them, or move some devices off one side first";
+    }
+
+    /**
+     * What AE2's ad-hoc branch would charge for this grid, counted the way it counts: one per node that
+     * requires a channel, with a multiblock's members folded into the single slot the multiblock itself takes
+     * (measured in {@code PathingService#calculateAdHocChannels}). That set is private, so this walks
+     * {@code IGrid#getNodes()} through public API rather than pretending to know it.
+     */
+    private static int adHocDemand(appeng.api.networking.IGrid grid) {
+        var counted = new java.util.HashSet<IGridNode>();
+        int need = 0;
+        for (IGridNode node : grid.getNodes()) {
+            if (!node.hasFlag(appeng.api.networking.GridFlags.REQUIRE_CHANNEL) || !counted.add(node)) {
+                continue;
+            }
+            if (node.hasFlag(appeng.api.networking.GridFlags.MULTIBLOCK)
+                    && node.getService(appeng.api.networking.IGridMultiblock.class)
+                    instanceof appeng.api.networking.IGridMultiblock multiblock) {
+                for (var members = multiblock.getMultiblockNodes(); members.hasNext(); ) {
+                    counted.add(members.next());
+                }
+            }
+            need++;
+        }
+        return need;
+    }
+
+    /** The ad-hoc ceiling of that grid right now - the same number {@code adHocWords} prints. */
+    private static int adHocCeiling(appeng.api.networking.IGrid grid) {
+        var pathing = grid.getPathingService();
+        return pathing == null ? 0 : pathing.getChannelMode().getAdHocNetworkChannels();
     }
 
     /**

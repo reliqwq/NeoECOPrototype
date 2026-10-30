@@ -14665,6 +14665,128 @@ public final class NeoECOPrototypeGameTests {
     }
 
 
+    /**
+     * The merge guard, both sides. Two controllerless networks of five devices each need ten channels
+     * together and the ad-hoc ceiling is eight, so the join has to be refused <em>before</em> anything moves -
+     * AE2's ad-hoc branch is all-or-nothing, which means an allowed merge would not starve the ninth device, it
+     * would take all ten down. Then two devices are removed from one side and the same join must go through,
+     * because eight against eight fits: that pairing is the control, the only thing between the refusal and the
+     * success is the number AE2 would have charged.
+     */
+    @GameTest(template = "empty", batch = "wireless_merge_guard", timeoutTicks = 900,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void aMergeThatWouldStarveBothNetworksIsRefusedBeforeAnythingMoves(GameTestHelper helper) {
+        var interfaceBlock = ModRegistration.SUPERCONDUCTIVE_INTERFACE_BLOCK.get();
+        // Two columns one block apart with an air gap between them: each column is one grid of five, and the
+        // whole fixture stays two blocks wide so a neighbouring test's footprint cannot land on it.
+        for (int z = 0; z < 5; z++) {
+            helper.setBlock(new BlockPos(0, 1, z), interfaceBlock);
+            helper.setBlock(new BlockPos(2, 1, z), interfaceBlock);
+        }
+        var level = (ServerLevel) helper.getLevel();
+        var sideA = GlobalPos.of(level.dimension(), helper.absolutePos(new BlockPos(0, 1, 0)));
+        var sideB = GlobalPos.of(level.dimension(), helper.absolutePos(new BlockPos(2, 1, 0)));
+        waitUntil(helper, 12,
+                () -> separateNetworks(level, sideA, sideB)
+                        && WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS, sideA)
+                                .contains("this network holds 5 nodes")
+                        && WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS, sideB)
+                                .contains("this network holds 5 nodes"),
+                () -> "the two columns never became two grids of five controllerless devices: "
+                        + WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS, sideA) + " / "
+                        + WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS, sideB),
+                () -> {
+                    String refused = WirelessLinks.bind(level, ModRegistration.WIRELESS_LINKS, sideA, sideB);
+                    if (refused.startsWith("linked ")) {
+                        helper.fail("ten devices needing channels were allowed into an eight-channel ad-hoc"
+                                + " network: \"" + refused + "\" - AE2 would have given the joined network zero"
+                                + " channels and taken all ten offline");
+                        return;
+                    }
+                    if (!refused.contains("together need 10 channel(s)") || !refused.contains("is 8")) {
+                        helper.fail("the refusal did not name the two numbers the player has to judge it by:"
+                                + " \"" + refused + "\"");
+                        return;
+                    }
+                    if (!WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS, sideA)
+                            .contains("wirelessLinks=0")) {
+                        helper.fail("the refused join still left a record behind: "
+                                + WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS, sideA));
+                        return;
+                    }
+                    helper.setBlock(new BlockPos(0, 1, 3), net.minecraft.world.level.block.Blocks.AIR);
+                    helper.setBlock(new BlockPos(0, 1, 4), net.minecraft.world.level.block.Blocks.AIR);
+                    waitUntil(helper, 12,
+                            () -> WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS, sideA)
+                                    .contains("this network holds 3 nodes"),
+                            () -> "side A never shrank to three devices: "
+                                    + WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS, sideA),
+                            () -> {
+                                String allowed = WirelessLinks.bind(level, ModRegistration.WIRELESS_LINKS,
+                                        sideA, sideB);
+                                if (!allowed.startsWith("linked ")) {
+                                    helper.fail("eight devices against an eight-channel ceiling was refused:"
+                                            + " \"" + allowed + "\" - the guard is not reading AE2's number,"
+                                            + " it is refusing merges");
+                                    return;
+                                }
+                                helper.succeed();
+                            });
+                });
+    }
+
+    /**
+     * The cross-check on the arithmetic: a merge the pre-check allowed must survive the verifier, which reads
+     * AE2's own verdict a few ticks later. If this reddens, our count of channel-needing devices and AE2's
+     * {@code calculateAdHocChannels} disagree, and the guard has to be rewritten against the real rule rather
+     * than this one.
+     */
+    @GameTest(template = "empty", batch = "wireless_merge_survives", timeoutTicks = 900,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void aMergeTheGuardAllowedSurvivesAe2sOwnVerdict(GameTestHelper helper) {
+        var interfaceBlock = ModRegistration.SUPERCONDUCTIVE_INTERFACE_BLOCK.get();
+        for (int z = 0; z < 4; z++) {
+            helper.setBlock(new BlockPos(0, 1, z), interfaceBlock);
+        }
+        helper.setBlock(new BlockPos(2, 1, 0), interfaceBlock);
+        helper.setBlock(new BlockPos(2, 1, 1), interfaceBlock);
+        var level = (ServerLevel) helper.getLevel();
+        var sideA = GlobalPos.of(level.dimension(), helper.absolutePos(new BlockPos(0, 1, 0)));
+        var sideB = GlobalPos.of(level.dimension(), helper.absolutePos(new BlockPos(2, 1, 0)));
+        waitUntil(helper, 12,
+                () -> separateNetworks(level, sideA, sideB)
+                        && WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS, sideA)
+                                .contains("this network holds 4 nodes")
+                        && WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS, sideB)
+                                .contains("this network holds 2 nodes"),
+                () -> "the two columns never became grids of four and two: "
+                        + WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS, sideA) + " / "
+                        + WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS, sideB),
+                () -> {
+                    String allowed = WirelessLinks.bind(level, ModRegistration.WIRELESS_LINKS, sideA, sideB);
+                    if (!allowed.startsWith("linked ")) {
+                        helper.fail("six devices against an eight-channel ceiling was refused: \"" + allowed
+                                + "\"");
+                        return;
+                    }
+                    waitUntil(helper, 12,
+                            () -> WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS, sideA)
+                                    .contains("live=1"),
+                            () -> "the merge the guard allowed was undone by the verifier, so AE2 charged the"
+                                    + " joined network more than the " + 6 + " devices we counted: "
+                                    + WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS, sideA),
+                            () -> {
+                                String after = WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS, sideA);
+                                if (after.contains("adHocError=")) {
+                                    helper.fail("the joined network still reports an ad-hoc error and the link"
+                                            + " survived anyway, so the undo path is not running: " + after);
+                                    return;
+                                }
+                                helper.succeed();
+                            });
+                });
+    }
+
     /** The faces a right-click on this block could enter a grid through - the tool's only door. */
     private static java.util.List<String> exposedFaces(net.minecraft.world.level.Level level,
                                                        net.minecraft.core.BlockPos pos) {
