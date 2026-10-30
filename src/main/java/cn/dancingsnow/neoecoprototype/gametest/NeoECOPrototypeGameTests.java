@@ -14516,6 +14516,62 @@ public final class NeoECOPrototypeGameTests {
                 });
     }
 
+    /**
+     * The Network Tool's door, asked for the two shapes the earlier exposure guard did not cover: a device with
+     * <em>no</em> neighbour at all, and one whose only connection is a wireless edge. {@code findNode} asks
+     * {@code IInWorldGridNodeHost.getGridNode(side)} for each of the six sides and leaves the grid null if every
+     * answer is null, which would close the screen rather than empty it - so "our machine cannot be entered"
+     * was a live hypothesis for the empty tool report. Refuted by measurement on 2026-10-30: {@code alone}
+     * answers all six faces and {@code wirelessOnly} still answers all six after the join. The reason is in
+     * AE2's own code - {@code InWorldGridNode.exposedOnSides} starts as {@code EnumSet.noneOf} and
+     * {@code findInWorldConnections} only <em>iterates</em> it, so the set is filled by
+     * {@code setExposedOnSides}, which our machines' host answers with all six regardless of what touches them.
+     */
+    @GameTest(template = "empty", batch = "machine_exposure_alone", timeoutTicks = 600,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void aDeviceWithNoCableAndOneWithOnlyAWirelessEdgeBothAnswerEveryFace(GameTestHelper helper) {
+        helper.setBlock(new BlockPos(0, 1, 0), ModRegistration.SUPERCONDUCTIVE_INTERFACE_BLOCK.get());
+        helper.setBlock(new BlockPos(0, 1, 4), ModRegistration.SUPERCONDUCTIVE_INTERFACE_BLOCK.get());
+        var level = (ServerLevel) helper.getLevel();
+        var a = GlobalPos.of(level.dimension(), helper.absolutePos(new BlockPos(0, 1, 0)));
+        var b = GlobalPos.of(level.dimension(), helper.absolutePos(new BlockPos(0, 1, 4)));
+        var aPos = helper.absolutePos(new BlockPos(0, 1, 0));
+        var bPos = helper.absolutePos(new BlockPos(0, 1, 4));
+        var allSix = new java.util.ArrayList<String>();
+        for (var side : net.minecraft.core.Direction.values()) {
+            allSix.add(side.name());
+        }
+        waitUntil(helper, 12,
+                () -> networkNode(level, a) != null && networkNode(level, b) != null
+                        && separateNetworks(level, a, b),
+                () -> "the two devices never both got a node on separate grids: " + nodeSummary(level, a)
+                        + " / " + nodeSummary(level, b),
+                () -> {
+                    var aloneA = exposedFaces(level, aPos);
+                    var aloneB = exposedFaces(level, bPos);
+                    if (!aloneA.containsAll(allSix) || !aloneB.containsAll(allSix)) {
+                        helper.fail("a device with nothing touching it answers " + aloneA + " / " + aloneB
+                                + ", so the Network Tool has no face to enter it on and would show nothing at"
+                                + " all - that, not a stale grid, would be the reason for an empty screen");
+                        return;
+                    }
+                    String bound = WirelessLinks.bind(level, ModRegistration.WIRELESS_LINKS, a, b);
+                    if (!bound.startsWith("linked ") || !oneNetwork(level, a, b)) {
+                        helper.fail("the join did not take: \"" + bound + "\"");
+                        return;
+                    }
+                    var wiredA = exposedFaces(level, aPos);
+                    var wiredB = exposedFaces(level, bPos);
+                    if (!wiredA.containsAll(allSix) || !wiredB.containsAll(allSix)) {
+                        helper.fail("a device whose only connection is a wireless edge answers " + wiredA
+                                + " / " + wiredB + " - the join took away the faces the Network Tool enters"
+                                + " through: " + bound);
+                        return;
+                    }
+                    helper.succeed();
+                });
+    }
+
     /** The faces a right-click on this block could enter a grid through - the tool's only door. */
     private static java.util.List<String> exposedFaces(net.minecraft.world.level.Level level,
                                                        net.minecraft.core.BlockPos pos) {
