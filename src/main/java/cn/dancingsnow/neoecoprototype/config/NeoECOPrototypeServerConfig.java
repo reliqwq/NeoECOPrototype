@@ -39,17 +39,19 @@ public final class NeoECOPrototypeServerConfig {
      */
     public static final List<String> CRYOTHEUM_ORE_DIMENSIONS_DEFAULT = List.of();
     /**
-     * The wireless link card ships switched off. It is written, guarded and eye-verified in a client: two
-     * devices join with no cable, channels and power cross the edge, and the rebuild pass re-establishes a link
-     * after its chunk wakes (measured 2026-10-30: four rebuilt lines, two from the wake burst and two from the
-     * 100-tick sweep, plus the warning that says so when the burst window was too short).
+     * The wireless link card ships switched off. It works, and every part of it has now been read in a client:
+     * two devices join with no cable, channels and power cross the edge, the rebuild pass re-establishes a link
+     * after its chunk wakes (four rebuilt lines - two from the wake burst, two from the 100-tick sweep - plus the
+     * warning that says so when the burst window was too short), and AE2's own Network Tool lists the joined
+     * machines afterwards (read 2026-10-30: "3 channels", two groups of three).
      *
-     * <p>What keeps it off is one unsolved reading: in the client, AE2's Network Tool still lists nothing for a
-     * joined network <em>after being reopened</em>, even though the server hands it a table that names both
-     * sides (the card prints that table as {@code toolTable=} for exactly this comparison). Shipping a link the
-     * player cannot inspect with the tool AE2 points them at is not ready. The channel-allowance question that
-     * used to be the reason is gone - AE2 keeps no network-wide budget to price against, so the card charges
-     * nothing and the only limit left is four links per device.
+     * <p>What keeps it off is balance, not behaviour: a link crosses zero cable yet carries {@code 8 x the
+     * network's channel multiplier} per face, costs no distance, and may cross dimensions, so four of them off
+     * one hub are a free dense trunk - the one shape AE2 itself charges cable for. That is a product decision
+     * still owed (distance gate, idle draw like ExtendedAE's, or accepting it), and the default stays off until
+     * it is made. The channel-allowance question that used to be cited here is gone: AE2 keeps no network-wide
+     * budget to price against, so the card charges nothing and the only limit in the code is four links per
+     * device.
      */
     public static final boolean WIRELESS_LINKS_DEFAULT = false;
     public static final ModConfigSpec.BooleanValue WIRELESS_LINKS;
@@ -113,11 +115,12 @@ public final class NeoECOPrototypeServerConfig {
                 .define("structure_card_consumes_items", STRUCTURE_CARD_CONSUMES_ITEMS_DEFAULT);
         WIRELESS_LINKS = builder
                 .comment("Wireless ME links: the link card, the level's rebuild pass and its chunk wake.",
-                        "Off by default in this release - the join itself works and is guarded, but AE2's own",
-                        "Network Tool lists nothing for a joined network in our client tests even after it is",
-                        "reopened, so a player cannot inspect what they built. Turning it on lets a player join",
-                        "two devices with no cable between them; links recorded while it was on stay in the",
-                        "world's data and come back when it is switched on again.")
+                        "Off by default in this release - the join works and AE2's own Network Tool lists what",
+                        "it built, but a link is not yet priced: it crosses no cable, no distance and may cross",
+                        "dimensions while carrying 8 x the network's channel multiplier per face, so four of them",
+                        "off one hub are a free dense trunk. Turning it on lets a player join two devices with no",
+                        "cable between them; links recorded while it was on stay in the world's data and come",
+                        "back when it is switched on again.")
                 .define("wireless_links", WIRELESS_LINKS_DEFAULT);
         DERIVE_PROCESSOR_RECIPES_FROM_INSCRIBER = builder
                 .comment("Also accept processor recipes derived from AE2's inscriber (press-mode recipes, with",
