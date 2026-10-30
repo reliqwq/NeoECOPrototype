@@ -13646,18 +13646,22 @@ public final class NeoECOPrototypeGameTests {
 
 
     /**
-     * The card prices nothing, and this is the guard that says so: two networks with no controller anywhere
-     * bind on the first tap. It is not a hypothetical - the feature refused exactly this until 2026-10-29,
-     * with a line telling the player to go tap a controller; in the client that advice sent him to a
-     * controller on a third network, so the refused pair still read {@code channels=0/0} with
-     * {@code controller=NO_CONTROLLER} on both ends after four purchases. What a link consumes is whatever
-     * AE2 gives the two machines at its ends, and the card reports that instead of rationing it, which is
-     * why the same reading also asserts {@code wirelessLinks=1 live=1} alongside NO_CONTROLLER: a working
-     * link on a controllerless network is the normal case now, not a leaked one.
+     * The card asks no permission and holds no allowance, and this is the guard that says so: two networks
+     * with no controller anywhere bind on the first tap. It is not a hypothetical - the feature refused
+     * exactly this until 2026-10-29, with a line telling the player to go tap a controller; in the client
+     * that advice sent him to a controller on a third network, so the refused pair still read
+     * {@code channels=0/0} with {@code controller=NO_CONTROLLER} on both ends after four purchases. What a
+     * link consumes is whatever AE2 gives the two machines at its ends, and the card reports that instead of
+     * rationing it, which is why the same reading also asserts {@code wirelessLinks=1 live=1} alongside
+     * NO_CONTROLLER: a working link on a controllerless network is the normal case now, not a leaked one.
+     * <p>A link does now cost AE ({@code wireless_ae_per_link_per_tick}, 0.5 AE/t, pinned by the
+     * {@code wireless_price} batch), but a cost is a drain on the network's store and never a refusal, so
+     * this guard stays true with the price on - which is the difference between it and the allowance system
+     * it replaced.
      */
-    @GameTest(template = "empty", batch = "wireless_link_free", timeoutTicks = 400,
+    @GameTest(template = "empty", batch = "wireless_link_no_allowance", timeoutTicks = 400,
             templateNamespace = NeoECOPrototype.MOD_ID)
-    public static void aWirelessLinkCostsNothingAndNeedsNoController(GameTestHelper helper) {
+    public static void aWirelessLinkNeedsNoControllerAndNoAllowance(GameTestHelper helper) {
         var hub = new BlockPos(0, 1, 0);
         var far = new BlockPos(0, 1, 8);
         helper.setBlock(hub, ModRegistration.SUPERCONDUCTIVE_INTERFACE_BLOCK.get());
@@ -13901,7 +13905,7 @@ public final class NeoECOPrototypeGameTests {
      * now names the size AE2 itself counts, so this asserts the exact number for a known fixture: one device
      * joined by a wireless edge to a pair of adjacent machines is a network of three nodes.
      */
-    @GameTest(template = "empty", batch = "wireless_link_free", timeoutTicks = 400,
+    @GameTest(template = "empty", batch = "wireless_link_no_allowance", timeoutTicks = 400,
             templateNamespace = NeoECOPrototype.MOD_ID)
     public static void anAlreadyMergedNetworkIsRefusedByNameAndSize(GameTestHelper helper) {
         var island = new BlockPos(0, 1, 0);
@@ -14833,7 +14837,8 @@ public final class NeoECOPrototypeGameTests {
                             return;
                         }
                         String capped = WirelessLinks.bind(level, ModRegistration.WIRELESS_LINKS, a, d);
-                        if (capped.startsWith("linked ") || !capped.contains("(max 2)")) {
+                        if (capped.startsWith("linked ") || !capped.contains("(max 2,")
+                                || !capped.contains("wireless_max_links_per_device")) {
                             helper.fail("the third link at one device did not hit the configured cap of 2:"
                                     + " \"" + capped + "\"");
                             return;
@@ -14878,6 +14883,196 @@ public final class NeoECOPrototypeGameTests {
                 });
     }
 
+    /**
+     * The energy price, read off AE2's own number rather than off ours. A real AE2 energy cell holds a count
+     * we can see ({@code IAEPowerStorage.getAECurrentPower()}), so the claim "a link costs AE" is testable as
+     * "that count goes down by rate x interval per live link when the pass runs" - which is the only version
+     * of this that a player pays. The creative cell cannot be the meter: its {@code extractAEPower} is
+     * {@code dload_1; dreturn}, so it hands back whatever it is asked for and never moves.
+     * <p>Three readings on the same links, and the config value is the only thing that differs between the
+     * first two: billed at 0.5, billed at 0 (nothing asked, nothing taken), then billed again with a second
+     * link on the same hub - so the charge scales with the number of live links rather than happening once
+     * per network. The card's own reading is checked against the same numbers.
+     */
+    @GameTest(template = "empty", batch = "wireless_price", timeoutTicks = 900,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void aLiveLinkCostsTheNetworkItSitsOn(GameTestHelper helper) {
+        clearEveryWirelessLink((ServerLevel) helper.getLevel());
+        var energyCell = net.minecraft.core.registries.BuiltInRegistries.BLOCK.get(
+                ResourceLocation.fromNamespaceAndPath("ae2", "energy_cell"));
+        var interfaceBlock = ModRegistration.SUPERCONDUCTIVE_INTERFACE_BLOCK.get();
+        var cellPos = new BlockPos(0, 1, 0);
+        helper.setBlock(cellPos, energyCell);
+        helper.setBlock(new BlockPos(1, 1, 0), interfaceBlock);
+        helper.setBlock(new BlockPos(1, 1, 6), interfaceBlock);
+        helper.setBlock(new BlockPos(1, 1, 12), interfaceBlock);
+        var level = (ServerLevel) helper.getLevel();
+        var cellAt = helper.absolutePos(cellPos);
+        var near = GlobalPos.of(level.dimension(), helper.absolutePos(new BlockPos(1, 1, 0)));
+        var far = GlobalPos.of(level.dimension(), helper.absolutePos(new BlockPos(1, 1, 6)));
+        var third = GlobalPos.of(level.dimension(), helper.absolutePos(new BlockPos(1, 1, 12)));
+        var rate = cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig
+                .WIRELESS_AE_PER_LINK_PER_TICK;
+        var savedRate = rate.get();
+        waitUntil(helper, 15,
+                () -> networkNode(level, near) != null && separateNetworks(level, near, far)
+                        && separateNetworks(level, near, third) && cellStored(level, cellAt) >= 0.0D,
+                () -> "the fixture never became an energy cell on one network with two devices on their own:"
+                        + " " + nodeSummary(level, near) + " / " + nodeSummary(level, far) + " / "
+                        + nodeSummary(level, third) + " stored=" + cellStored(level, cellAt)
+                        + " cellBlock=" + level.getBlockState(cellAt).getBlock()
+                        + " cellBe=" + level.getBlockEntity(cellAt),
+                () -> {
+                    try {
+                        cellFill(level, cellAt);
+                        double capacity = cellStored(level, cellAt);
+                        if (capacity <= 0.0D) {
+                            helper.fail("the energy cell took no charge, so there is nothing to meter with");
+                            return;
+                        }
+                        clearEveryWirelessLink(level);
+                        rate.set(0.5D);
+                        String firstLink = WirelessLinks.bind(level, ModRegistration.WIRELESS_LINKS, near, far);
+                        if (!firstLink.startsWith("linked ")) {
+                            helper.fail("the first link was refused: \"" + firstLink + "\"");
+                            return;
+                        }
+                        double expected = 0.5D * WirelessLinks.sweepIntervalTicks();
+                        double before = cellStored(level, cellAt);
+                        var one = WirelessLinks.billNow(level, ModRegistration.WIRELESS_LINKS);
+                        double after = cellStored(level, cellAt);
+                        if (one.billed() != 1 || one.unpaid() != 0 || Math.abs(one.charged() - expected) > 1.0E-6) {
+                            helper.fail("one live link billed " + one + ", expected " + expected
+                                    + " AE taken and nothing unpaid");
+                            return;
+                        }
+                        if (Math.abs((before - after) - expected) > 1.0E-6) {
+                            helper.fail("AE2's own cell meter moved by " + (before - after) + " AE and the"
+                                    + " pass claims it took " + one.charged() + ", expected " + expected
+                                    + " - so the money never actually left the network");
+                            return;
+                        }
+                        rate.set(0.0D);
+                        double beforeFree = cellStored(level, cellAt);
+                        var free = WirelessLinks.billNow(level, ModRegistration.WIRELESS_LINKS);
+                        if (free.billed() != 0 || free.charged() != 0.0D
+                                || Math.abs(beforeFree - cellStored(level, cellAt)) > 1.0E-9) {
+                            helper.fail("rate 0 still billed " + free + " and moved the meter to "
+                                    + cellStored(level, cellAt) + " from " + beforeFree);
+                            return;
+                        }
+                        rate.set(0.5D);
+                        String secondLink = WirelessLinks.bind(level, ModRegistration.WIRELESS_LINKS, near, third);
+                        if (!secondLink.startsWith("linked ")) {
+                            helper.fail("the second link was refused: \"" + secondLink + "\"");
+                            return;
+                        }
+                        double beforeTwo = cellStored(level, cellAt);
+                        var two = WirelessLinks.billNow(level, ModRegistration.WIRELESS_LINKS);
+                        if (two.billed() != 2 || Math.abs(two.charged() - 2.0D * expected) > 1.0E-6
+                                || Math.abs((beforeTwo - cellStored(level, cellAt)) - 2.0D * expected) > 1.0E-6) {
+                            helper.fail("two live links billed " + two + " and left the cell at "
+                                    + cellStored(level, cellAt) + " of " + beforeTwo + ", expected "
+                                    + (2.0D * expected) + " AE gone");
+                            return;
+                        }
+                        String reading = WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS, near);
+                        if (!reading.contains("aePerLink=0.5") || !reading.contains("billed=2")
+                                || !reading.contains("unpaid=0")) {
+                            helper.fail("the card's reading does not carry the price in force and what the"
+                                    + " last pass actually took: " + reading);
+                            return;
+                        }
+                        helper.succeed();
+                    } finally {
+                        rate.set(savedRate);
+                    }
+                });
+    }
+
+    /**
+     * The other half of a price: someone has to be unable to pay it. A grid with nothing to bill must report
+     * the link as unpaid rather than as a clean sweep - that verdict is what the log line and the card's
+     * {@code unpaid=} field turn on, and without it "links cost AE" would be a claim about a drain nobody
+     * checks.
+     * <p>The fixture therefore uses AE2's own interface, not ours, for a reason measured on 2026-10-30: our
+     * superconductive interface implements {@code IPassiveEnergyGenerator} ({@code GENERATION_RATE = 4000}),
+     * so a network built only out of ours can pay any bill this feature writes, and a first version of this
+     * guard failed on exactly that - a "network with no power" took the full 50 AE and reported nothing
+     * unpaid. Same reason the other test's cell could read empty while the pass still collected: the devices
+     * themselves are generating.
+     */
+    @GameTest(template = "empty", batch = "wireless_price", timeoutTicks = 900,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void aLinkOnANetworkWithNothingToPayIsReportedUnpaid(GameTestHelper helper) {
+        var plainInterface = appeng.core.definitions.AEBlocks.INTERFACE.block();
+        helper.setBlock(new BlockPos(0, 1, 0), plainInterface);
+        helper.setBlock(new BlockPos(0, 1, 6), plainInterface);
+        var level = (ServerLevel) helper.getLevel();
+        var a = GlobalPos.of(level.dimension(), helper.absolutePos(new BlockPos(0, 1, 0)));
+        var b = GlobalPos.of(level.dimension(), helper.absolutePos(new BlockPos(0, 1, 6)));
+        var rate = cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig
+                .WIRELESS_AE_PER_LINK_PER_TICK;
+        var savedRate = rate.get();
+        waitUntil(helper, 15,
+                () -> networkNode(level, a) != null && separateNetworks(level, a, b),
+                () -> "the two bare devices never became two networks: " + nodeSummary(level, a) + " / "
+                        + nodeSummary(level, b),
+                () -> {
+                    try {
+                        clearEveryWirelessLink(level);
+                        rate.set(0.5D);
+                        String bound = WirelessLinks.bind(level, ModRegistration.WIRELESS_LINKS, a, b);
+                        if (!bound.startsWith("linked ")) {
+                            helper.fail("the link was refused: \"" + bound + "\"");
+                            return;
+                        }
+                        var bill = WirelessLinks.billNow(level, ModRegistration.WIRELESS_LINKS);
+                        if (bill.billed() != 1 || bill.unpaid() != 1 || bill.charged() != 0.0D) {
+                            helper.fail("a network with no power storage billed " + bill
+                                    + ", expected one link asked for and nothing taken");
+                            return;
+                        }
+                        String reading = WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS, a);
+                        if (!reading.contains("unpaid=1")) {
+                            helper.fail("the card's reading hides the unpaid link: " + reading);
+                            return;
+                        }
+                        helper.succeed();
+                    } finally {
+                        rate.set(savedRate);
+                    }
+                });
+    }
+
+    /**
+     * Drops every wireless record the server still holds. A batch shares one overworld and the attachment
+     * lives on the level, so the table can still be carrying links another test made - and the bill walks
+     * the whole table, so counting it without clearing would measure somebody else's links.
+     */
+    private static void clearEveryWirelessLink(ServerLevel level) {
+        for (ServerLevel each : level.getServer().getAllLevels()) {
+            if (!each.hasData(ModRegistration.WIRELESS_LINKS.get())) {
+                continue;
+            }
+            for (var link : each.getData(ModRegistration.WIRELESS_LINKS.get()).links()) {
+                WirelessLinks.unlink(each, ModRegistration.WIRELESS_LINKS, link.a());
+            }
+        }
+    }
+
+    /** What AE2's own cell says it is holding, or -1 when that square is not a power storage. */
+    private static double cellStored(net.minecraft.world.level.Level level, BlockPos at) {
+        return level.getBlockEntity(at) instanceof appeng.api.networking.energy.IAEPowerStorage storage
+                ? storage.getAECurrentPower() : -1.0D;
+    }
+
+    private static void cellFill(net.minecraft.world.level.Level level, BlockPos at) {
+        if (level.getBlockEntity(at) instanceof appeng.api.networking.energy.IAEPowerStorage storage) {
+            storage.injectAEPower(storage.getAEMaxPower(), appeng.api.config.Actionable.MODULATE);
+        }
+    }
+
     /** The faces a right-click on this block could enter a grid through - the tool's only door. */
     private static java.util.List<String> exposedFaces(net.minecraft.world.level.Level level,
                                                        net.minecraft.core.BlockPos pos) {
@@ -14901,16 +15096,16 @@ public final class NeoECOPrototypeGameTests {
         return cn.dancingsnow.neoecoprototype.items.WirelessLinkCardItem.balanceReport(level, card).getString();
     }
 
-
     /**
-     * The one number in this feature that is ours to set rather than AE2's: how many wireless edges a
-     * single device may carry. It has to be enforced where the record is written, because a link costs
-     * nothing in blocks and a player can therefore make as many as they can click.
+     * How many wireless edges a single device may carry - one of the numbers the config owns, and the only
+     * structural one. It has to be enforced where the record is written, because a link costs no blocks and a
+     * player can therefore make as many as they can click.
      *
-     * <p>It is also the only limit left on a hub, because the feature stopped pricing links: an earlier
-     * channel allowance would have run out first and made this cap unreachable, and it is gone for good -
-     * AE2 keeps no network-wide channel pool to price against (see WirelessLinks' class notes), so what a
-     * device occupies is whatever AE2 assigns it and the structure rule is ours to enforce.
+     * <p>An earlier channel allowance would have run out first and made this cap unreachable, and it is gone
+     * for good - AE2 keeps no network-wide channel pool to price against (see WirelessLinks' class notes), so
+     * what a device occupies is whatever AE2 assigns it. The energy price
+     * ({@code wireless_ae_per_link_per_tick}, pinned by {@code aLiveLinkCostsTheNetworkItSitsOn}) is a drain
+     * rather than a gate, so it never refuses a bind and this cap stays the structural limit.
      */
     @GameTest(template = "empty", batch = "wireless_link_card", timeoutTicks = 400,
             templateNamespace = NeoECOPrototype.MOD_ID)

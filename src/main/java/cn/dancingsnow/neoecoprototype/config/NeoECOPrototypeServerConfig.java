@@ -46,18 +46,21 @@ public final class NeoECOPrototypeServerConfig {
      * machines afterwards (read 2026-10-30: "3 channels", two groups of three).
      *
      * <p>What keeps it off is balance, not behaviour: a link crosses zero cable yet carries {@code 8 x the
-     * network's channel multiplier} per face, costs no distance, and may cross dimensions, so four of them off
-     * one hub are a free dense trunk - the one shape AE2 itself charges cable for. That is a product decision
-     * still owed (distance gate, idle draw like ExtendedAE's, or accepting it), and the default stays off until
-     * it is made. The channel-allowance question that used to be cited here is gone: AE2 keeps no network-wide
-     * budget to price against, so the card charges nothing and the only limit in the code is four links per
-     * device.
+     * network's channel multiplier} per face, so four of them off one hub are a dense trunk AE2 itself charges
+     * cable for. The three gates below are the answer we have so far - edges per device, distance, dimensions -
+     * and they are tunable rather than fixed, which is why a pack can turn this on and set its own price.
+     * <p>Measured against the 19.2.17 jar, AE2 already bills a controllerless network for what a join creates:
+     * {@code PathingService} sets the grid's channel drain to {@code channelsByBlocks / 128.0} AE per tick, and
+     * on that branch {@code channelsByBlocks = grid.size() x calculateAdHocChannels()}, both of which a merge
+     * raises. What AE2 does <em>not</em> charge for is a link that carries capacity but uses no channels, which
+     * is the ordinary case on a controller network: with nothing routed over the edge, {@code channelsInUse} is
+     * 0 and the edge is free. {@code wireless_ae_per_link_per_tick} is the price for the link itself.
      */
     public static final boolean WIRELESS_LINKS_DEFAULT = false;
     public static final ModConfigSpec.BooleanValue WIRELESS_LINKS;
     /**
-     * How many wireless edges one device may carry. This is the only structural brake the feature has, so it
-     * is the knob to turn if a hub of links is too cheap for a pack. Read live on every bind, never cached.
+     * How many wireless edges one device may carry - the brake on how dense one hub may get, which is the
+     * shape a pack is most likely to want to bound. Read live on every bind, never cached.
      */
     public static final ModConfigSpec.IntValue WIRELESS_MAX_LINKS_PER_DEVICE;
     /**
@@ -72,6 +75,20 @@ public final class NeoECOPrototypeServerConfig {
      * different machine. Links already recorded across dimensions stay until a player unbinds them.
      */
     public static final ModConfigSpec.BooleanValue WIRELESS_ALLOW_CROSS_DIMENSION;
+    /**
+     * The energy price of one live link, in AE per tick, billed to the network the link's own end sits on.
+     * 0 switches the charge off without switching the feature off.
+     * <p>The default is set from two numbers read off the jars, not invented: our smallest L1 component idles
+     * at 2.0 AE/t ({@code SimplifyPowerProfile}, {@code 16.0 x 1/8}), and AE2's own rate for channels is
+     * 1/128 AE/t per channel per block. 0.5 AE/t per link makes a full hub of four links cost exactly one L1
+     * component - visible to a power budget, not a wall.
+     * <p>Read live, once per sweep, and the sweep asks {@code IEnergyService.extractAEPower} rather than
+     * registering an idle draw: {@code IGridNode} has no setter for idle power (only the impl class
+     * {@code appeng.me.GridNode} does), so billing the network is the one route that also works for endpoints
+     * owned by other mods. A network that cannot pay keeps its links and says so once in the log - AE2 takes
+     * the whole grid offline when its power runs out, so the bill binds without our help.
+     */
+    public static final ModConfigSpec.DoubleValue WIRELESS_AE_PER_LINK_PER_TICK;
     /** How much of the vanilla powder-snow chill one broken cryotheum ore is worth. */
     public static final ModConfigSpec.IntValue CRYOTHEUM_ORE_FREEZE_TICKS;
     /** Whether the floating End comet generates at all; it is the family's only remaining world entry. */
@@ -132,18 +149,17 @@ public final class NeoECOPrototypeServerConfig {
                 .define("structure_card_consumes_items", STRUCTURE_CARD_CONSUMES_ITEMS_DEFAULT);
         WIRELESS_LINKS = builder
                 .comment("Wireless ME links: the link card, the level's rebuild pass and its chunk wake.",
-                        "Off by default in this release. What a link costs is now configurable below - edges per",
-                        "device, distance, and whether it may cross dimensions - and a join that would leave the",
-                        "merged network with no channels is refused outright. What is still missing is an energy",
-                        "price: a link crosses no cable yet carries 8 x the network's channel multiplier per face,",
-                        "so four of them off one hub are a dense trunk AE2 would charge cable for. Turning this on",
-                        "lets a player join two devices with no cable between them; links recorded while it was on",
+                        "Off by default in this release. Everything a link costs is configured below - an energy",
+                        "price per link, edges per device, distance, and whether it may cross dimensions - and a",
+                        "join that would leave the merged network with no channels at all is refused outright.",
+                        "Turn this on and set the four numbers to your pack, or leave them: the defaults price a",
+                        "full hub of four links at what one L1 machine idles at. Links recorded while it was on",
                         "stay in the world's data and come back when it is switched on again.")
                 .define("wireless_links", WIRELESS_LINKS_DEFAULT);
         WIRELESS_MAX_LINKS_PER_DEVICE = builder
-                .comment("How many wireless edges one device may carry. Default 4, and it is the only",
-                        "structural limit the feature has: a link costs nothing, so without it one hub could",
-                        "be the switch for every network in the world.")
+                .comment("How many wireless edges one device may carry. Default 4. This is the structural",
+                        "limit: a wireless edge costs no blocks, so without it one machine could be clicked",
+                        "into the switch for every network in the world.")
                 .defineInRange("wireless_max_links_per_device", 4, 1, 32);
         WIRELESS_MAX_RANGE_BLOCKS = builder
                 .comment("How far apart two devices may be to join, in blocks, measured between the squares.",
@@ -156,6 +172,16 @@ public final class NeoECOPrototypeServerConfig {
                         "dimensions is the one thing no cable can do, so it is where a link stops being a free",
                         "cable and becomes its own machine.")
                 .define("wireless_allow_cross_dimension", false);
+        WIRELESS_AE_PER_LINK_PER_TICK = builder
+                .comment("The energy price of one live link, in AE per tick, taken from the network the link's",
+                        "own end stands on. 0 = links draw nothing. Default 0.5: a full hub of four links then",
+                        "costs 2 AE/t, which is what one of our L1 components idles at. AE2 bills a",
+                        "controllerless network for a join by itself (its channel drain is grid size x channels",
+                        "used, divided by 128), so this is the price for the link rather than a second charge",
+                        "for traffic. A network too short of power keeps its links and the log says so once:",
+                        "AE2 drops the whole grid offline when the store runs dry, so the price binds without",
+                        "us tearing anything down.")
+                .defineInRange("wireless_ae_per_link_per_tick", 0.5D, 0.0D, 1024.0D);
         DERIVE_PROCESSOR_RECIPES_FROM_INSCRIBER = builder
                 .comment("Also accept processor recipes derived from AE2's inscriber (press-mode recipes, with",
                         "printed parts unfolded into the material inscribed into them).",

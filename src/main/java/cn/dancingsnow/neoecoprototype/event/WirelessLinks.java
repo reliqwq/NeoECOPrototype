@@ -67,15 +67,12 @@ import javax.annotation.Nullable;
  * (three refusals in one client session, each {@code channels=0/0} with {@code controller=NO_CONTROLLER} on
  * both ends). What a link consumes is whatever AE2 decides to give the machines at its two ends, and the card
  * now reports that rather than rationing it: {@link #status} prints AE2's own mode, controller verdict and
- * per-face ledger. The one rule still ours to set is structural and stays:
- * the config's {@code wireless_max_links_per_device} edges per device, because a wireless edge costs no blocks and a player
- * could otherwise click one machine into a hundred-port hub.</p>
+ * per-face ledger. What is still ours to set is the shape of the link itself, and it lives in the server
+ * config: the {@code wireless_max_links_per_device} edges a device may carry (a wireless edge costs no
+ * blocks, so without it a player could click one machine into a hundred-port hub), its distance, whether it
+ * crosses dimensions, and the AE/t it draws - {@link #billNow} is that last one.</p>
  */
 public final class WirelessLinks {
-
-    /** The product rule from the sketch: a device answers for at most this many wireless edges. */
-    /** The shipped default for {@code wireless_max_links_per_device}; the config is what binds read. */
-    public static final int DEFAULT_MAX_LINKS_PER_ENDPOINT = 4;
 
     /**
      * The timed pass is only a fallback - the moments a link actually has to be re-established are the
@@ -164,6 +161,12 @@ public final class WirelessLinks {
          * confirmation is due. Armed by a successful bind, cleared by {@link #tendVerifies}. Not persisted.
          */
         final Map<Link, Long> verifyUntil = new HashMap<>();
+        /**
+         * What the last timed pass charged for the links this dimension owns, so the card can print a number
+         * that was actually taken rather than a rate. Not persisted: after a reload it is zero until the
+         * first sweep, which is what "last bill" means.
+         */
+        Bill lastBill = Bill.NONE;
 
         public List<Link> links() {
             return List.copyOf(links);
@@ -299,7 +302,6 @@ public final class WirelessLinks {
         if (from.equals(to)) {
             return Reply.untranslated("both ends are the same block");
         }
-        var config = cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig.class;
         int maxLinks = cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig
                 .WIRELESS_MAX_LINKS_PER_DEVICE.get();
         boolean sameWorld = from.dimension().equals(to.dimension());
@@ -338,11 +340,13 @@ public final class WirelessLinks {
         }
         if (linksAtEverywhere(owner, type, link.a()) >= maxLinks) {
             return Reply.untranslated(describe(link.a()) + " already carries "
-                    + linksAtEverywhere(owner, type, link.a()) + " links (max " + maxLinks + ")");
+                    + linksAtEverywhere(owner, type, link.a()) + " links (max " + maxLinks
+                    + ", from wireless_max_links_per_device in this world's config)");
         }
         if (linksAtEverywhere(owner, type, link.b()) >= maxLinks) {
             return Reply.untranslated(describe(link.b()) + " already carries "
-                    + linksAtEverywhere(owner, type, link.b()) + " links (max " + maxLinks + ")");
+                    + linksAtEverywhere(owner, type, link.b()) + " links (max " + maxLinks
+                    + ", from wireless_max_links_per_device in this world's config)");
         }
         IGridNode a = node(owner, link.a());
         IGridNode b = node(owner, link.b());
@@ -619,6 +623,7 @@ public final class WirelessLinks {
         return describe(endpoint) + " block=" + blockId(acting, endpoint)
                 + " wirelessLinks=" + linksAtEverywhere(acting, type, endpoint)
                 + " live=" + liveLinksAt(acting, type, endpoint)
+                + " " + billWords(acting, type)
                 + (node == null ? " (no network node there)" : " " + channelMode(node) + " controller="
                 + controllerStateOf(node.getGrid()) + powerWords(node.getGrid())
                 + adHocWords(node.getGrid()) + " " + faceLedger(node) + " " + toolTable(node.getGrid()));
@@ -680,7 +685,7 @@ public final class WirelessLinks {
         return "mode=" + (mode == null ? "unknown" : mode.name());
     }
 
-    
+
     private static int liveLinksAt(ServerLevel acting, Supplier<AttachmentType<Data>> type, GlobalPos endpoint) {
         int live = 0;
         for (ServerLevel level : acting.getServer().getAllLevels()) {
@@ -739,6 +744,11 @@ public final class WirelessLinks {
         return gameTime % SWEEP_TICKS == 0;
     }
 
+    /** What one timed pass is worth in ticks - public because a bill has to be checkable against it. */
+    public static int sweepIntervalTicks() {
+        return SWEEP_TICKS;
+    }
+
     /**
      * The only thing that can put a lost edge back: these endpoints belong to other mods' block entities,
      * and we have no hook inside them. Not a scan - it walks the links this dimension already signed up
@@ -751,12 +761,108 @@ public final class WirelessLinks {
         Data data = acting.getData(type.get());
         if (sweepDue(acting.getGameTime())) {
             rebuildNow(acting, type);
+            billNow(acting, type);
         } else if (!data.urgentUntil.isEmpty()) {
             tendWakes(acting, data);
         }
         if (!data.verifyUntil.isEmpty()) {
             tendVerifies(acting, data);
         }
+    }
+
+    /**
+     * What one pass over this dimension's live links took out of the networks that own them.
+     *
+     * @param charged AE actually extracted
+     * @param billed  how many live links were charged for
+     * @param unpaid  how many of those could not be paid for in full
+     */
+    public record Bill(double charged, int billed, int unpaid) {
+        static final Bill NONE = new Bill(0.0D, 0, 0);
+    }
+
+    /**
+     * The energy price of a link, billed once per timed pass. This is the whole reason the feature can be
+     * turned on: a wireless edge crosses no cable, so on AE2's own books a hub of them costs nothing, and
+     * the config's {@code wireless_ae_per_link_per_tick} is what makes it cost something.
+     * <p>The network that owns the link's first end pays - after a merge there is exactly one grid across
+     * both ends, so it does not matter which end is picked and there is no second bill to avoid.
+     * <p>Charged through {@code IEnergyService.extractAEPower} rather than by registering an idle draw,
+     * because there is no public way to set one: {@code IGridNode} exposes only the getter, and the setter
+     * lives on the impl class {@code appeng.me.GridNode}, which a foreign mod's node need not be. Public
+     * because a test (and the card's own reading) has to be able to ask for one pass right now.
+     */
+    public static Bill billNow(ServerLevel acting, Supplier<AttachmentType<Data>> type) {
+        if (!acting.hasData(type.get())) {
+            return Bill.NONE;
+        }
+        Data data = acting.getData(type.get());
+        Bill previous = data.lastBill;
+        data.lastBill = bill(acting, data);
+        if (data.lastBill.unpaid() > 0 && previous.unpaid() == 0) {
+            NeoECOPrototype.LOGGER.warn("wireless link: {} of {} live links in {} could not be paid for -"
+                    + " the network is short of the {} AE/t per link that wireless_ae_per_link_per_tick asks"
+                    + " for, and AE2 takes a grid offline when its store runs dry",
+                    data.lastBill.unpaid(), data.lastBill.billed(), acting.dimension().location(),
+                    cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig
+                            .WIRELESS_AE_PER_LINK_PER_TICK.get());
+        }
+        return data.lastBill;
+    }
+
+    private static Bill bill(ServerLevel acting, Data data) {
+        double rate = cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig
+                .WIRELESS_AE_PER_LINK_PER_TICK.get();
+        if (rate <= 0.0D || data.links.isEmpty()) {
+            return Bill.NONE;
+        }
+        double asked = rate * SWEEP_TICKS;
+        double charged = 0.0D;
+        int billed = 0;
+        int unpaid = 0;
+        for (Link link : data.links) {
+            if (!isStillBetween(acting, data.edges.get(link), link)) {
+                continue;
+            }
+            billed++;
+            var node = node(acting, link.a());
+            var grid = node == null ? null : node.getGrid();
+            var energy = grid == null
+                    ? null : grid.getService(appeng.api.networking.energy.IEnergyService.class);
+            if (energy == null) {
+                unpaid++;
+                continue;
+            }
+            // PowerMultiplier.CONFIG is not a lever: both of its constants are constructed with multiplier
+            // 1.0 and nothing in AE2 19.2.17 assigns the field, so asking for ONE says the same thing.
+            double got = energy.extractAEPower(asked, appeng.api.config.Actionable.MODULATE,
+                    appeng.api.config.PowerMultiplier.ONE);
+            charged += got;
+            if (got + 1.0E-9 < asked) {
+                unpaid++;
+            }
+        }
+        return new Bill(charged, billed, unpaid);
+    }
+
+    /** The price in force and what the last pass actually collected, summed over every dimension. */
+    private static String billWords(ServerLevel acting, Supplier<AttachmentType<Data>> type) {
+        double rate = cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig
+                .WIRELESS_AE_PER_LINK_PER_TICK.get();
+        double charged = 0.0D;
+        int billed = 0;
+        int unpaid = 0;
+        for (ServerLevel level : acting.getServer().getAllLevels()) {
+            if (!level.hasData(type.get())) {
+                continue;
+            }
+            Bill bill = level.getData(type.get()).lastBill;
+            charged += bill.charged();
+            billed += bill.billed();
+            unpaid += bill.unpaid();
+        }
+        return "aePerLink=" + rate + " AE/t lastBill=" + Math.round(charged * 1000.0D) / 1000.0D
+                + "AE billed=" + billed + " unpaid=" + unpaid;
     }
 
     /**
