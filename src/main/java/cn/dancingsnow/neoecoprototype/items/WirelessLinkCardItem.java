@@ -73,8 +73,9 @@ public class WirelessLinkCardItem extends Item {
             // on a controller would carry nothing - and while we were trying to bind to one, the raise
             // gesture below could never be reached at all, which is exactly what it looked like in the
             // client on 2026-10-29 (34 taps, zero "raised to" lines, because the card held a mark).
-            // Every tap moves AE2's channel mode one step up, and that is all this block does: the card
-            // prices nothing, so there is no purchase to report before the raise.
+            // Every tap moves AE2's channel mode one step up, and that is all this block does: the raise buys
+            // nothing, so there is no purchase to report - what a link costs is the AE it draws every tick,
+            // billed by WirelessLinks#billNow and not by this tap.
             var moved = WirelessLinks.raiseModeReply(serverLevel, clicked);
             String verdict = WirelessLinks.controllerState(serverLevel, clicked);
             report = "CONTROLLER_ONLINE".equals(verdict) || "NO_CONTROLLER".equals(verdict)
@@ -88,8 +89,12 @@ public class WirelessLinkCardItem extends Item {
                         "no network device at " + WirelessLinks.describe(clicked));
             } else {
                 writeEndpoint(card, clicked);
-                String reading = WirelessLinks.status(serverLevel, ModRegistration.WIRELESS_LINKS, clicked);
-                report = WirelessLinks.Reply.of("marked", "marked " + reading, reading);
+                // The log keeps the full instrument (block id, per-face ledger, ad-hoc arithmetic, AE2's own
+                // machine table); the player gets the sentence, in their language, built from the same reads.
+                report = WirelessLinks.Reply.of("marked", "marked "
+                        + WirelessLinks.status(serverLevel, ModRegistration.WIRELESS_LINKS, clicked),
+                        WirelessLinks.readingText(WirelessLinks.reading(serverLevel,
+                                ModRegistration.WIRELESS_LINKS, clicked)));
             }
         } else if (WirelessLinks.endpointIsGone(serverLevel, held)) {
             // The square this card marked no longer holds a device, so the mark is void and this tap is
@@ -113,8 +118,9 @@ public class WirelessLinkCardItem extends Item {
         } else {
             report = WirelessLinks.bindReply(serverLevel, ModRegistration.WIRELESS_LINKS, held, clicked);
             // The mark deliberately survives a successful join: one tap on the hub and then one tap per
-            // device is how a player wires a hub to several spokes. The only brake left on that is the
-            // structural one - four links per device - and the reply line reads off AE2's own numbers.
+            // device is how a player wires a hub to several spokes. What brakes that are all in the world's
+            // config - links per device, distance, dimensions, and the AE each live link draws per tick -
+            // and the reply line reads off AE2's own numbers.
         }
         NeoECOPrototype.LOGGER.info("wireless link card: {}", report.english());
         // The key goes out unrendered and the client writes it in the player's own language; the English
@@ -152,7 +158,8 @@ public class WirelessLinkCardItem extends Item {
         var held = readEndpoint(card);
         return held == null
                 ? Component.translatable("item.neoecoprototype.wireless_link_card.balance_none")
-                : Component.literal(WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS, held));
+                : WirelessLinks.readingText(
+                        WirelessLinks.reading(level, ModRegistration.WIRELESS_LINKS, held));
     }
 
     @Override

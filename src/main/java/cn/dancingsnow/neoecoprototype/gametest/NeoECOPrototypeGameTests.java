@@ -6433,9 +6433,9 @@ public final class NeoECOPrototypeGameTests {
         var card = new ItemStack(ModRegistration.WIRELESS_LINK_CARD.get());
         var empty = cn.dancingsnow.neoecoprototype.items.WirelessLinkCardItem.balanceReport(level, card)
                 .getString();
-        if (empty.contains("wirelessLinks=") || empty.contains("edges=[")) {
-            helper.fail("an empty card printed readings anyway, so the numbers would come from a network"
-                    + " the card is not standing on: " + empty);
+        if (empty.matches(".*\\d.*")) {
+            helper.fail("an empty card printed a number, so it would be quoting a network the card is not"
+                    + " standing on: " + empty);
             return;
         }
         var flag = cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig.WIRELESS_LINKS;
@@ -6446,10 +6446,14 @@ public final class NeoECOPrototypeGameTests {
                     () -> {
                         String read = cn.dancingsnow.neoecoprototype.items.WirelessLinkCardItem
                                 .balanceReport(level, card).getString();
-                        return read.contains("edges=[") && read.contains("controller=");
+                        // The contract since the display was rewritten: the player's line is the sentence -
+                        // it names the square, carries the counts, and holds no debug label and no leftover
+                        // placeholder. The instrument (edges=[, controller=, toolTable=) stays in the log.
+                        return read.matches(".*\\d+.*\\d+.*") && !read.contains("%")
+                                && !read.contains("edges=[") && !read.contains("toolTable=");
                     },
-                    () -> "marking " + device + " never produced AE2's own readings (face ledger and"
-                            + " controller verdict); the card now reads: "
+                    () -> "marking " + device + " never produced the player's reading sentence (two numbers,"
+                            + " no placeholder, no instrument labels); the card now reads: "
                             + cn.dancingsnow.neoecoprototype.items.WirelessLinkCardItem
                             .balanceReport(level, card).getString(),
                     helper::succeed);
@@ -14601,7 +14605,9 @@ public final class NeoECOPrototypeGameTests {
             templateNamespace = NeoECOPrototype.MOD_ID)
     public static void everyTranslatedCardLineHasItsKeyInBothFilesAndMatchesTheEnglishText(
             GameTestHelper helper) {
-        var names = java.util.List.of("linked", "marked", "dropped", "already_linked", "raised", "already_top");
+        var names = java.util.List.of("linked", "marked", "dropped", "already_linked", "raised", "already_top",
+                "reading", "state.online", "state.none", "state.offline", "state.conflict", "power.on",
+                "power.off");
         for (String lang : new String[]{"en_us", "zh_cn"}) {
             String json = readResource("/assets/neoecoprototype/lang/" + lang + ".json", helper);
             if (json == null) {
@@ -14611,6 +14617,36 @@ public final class NeoECOPrototypeGameTests {
                 if (!json.contains("\"gui.neoecoprototype.wireless_link." + name + "\":")) {
                     helper.fail("lang/" + lang + ".json has no gui.neoecoprototype.wireless_link." + name
                             + " key, so that card line renders as a bare key for these players");
+                    return;
+                }
+            }
+            // The reading sentence takes seven arguments by position; a language file that drops or renumbers
+            // one would still render, just with the wrong facts in the wrong places.
+            var readingValue = langValue(json, "gui.neoecoprototype.wireless_link.reading");
+            for (int slot = 1; slot <= 7; slot++) {
+                if (!readingValue.contains("%" + slot + "$s")) {
+                    helper.fail("lang/" + lang + ".json's reading sentence has no %" + slot + "$s, so slot "
+                            + slot + " of the card's reading is never shown: [" + readingValue + "]");
+                    return;
+                }
+            }
+        }
+        // AE2 owns the verdict enum, so the set we translate is only correct while it still covers it.
+        for (var verdict : appeng.api.networking.pathing.ControllerState.values()) {
+            var key = WirelessLinks.CONTROLLER_STATE_KEYS.get(verdict.name());
+            if (key == null) {
+                helper.fail("AE2 has a controller verdict the card does not translate (" + verdict.name()
+                        + "), so it would print that bare name into the player's sentence");
+                return;
+            }
+            for (String lang : new String[]{"en_us", "zh_cn"}) {
+                String json = readResource("/assets/neoecoprototype/lang/" + lang + ".json", helper);
+                if (json == null) {
+                    return;
+                }
+                if (!json.contains("\"gui.neoecoprototype.wireless_link." + key + "\":")) {
+                    helper.fail("verdict " + verdict.name() + " maps to " + key + ", which lang/" + lang
+                            + ".json does not carry");
                     return;
                 }
             }
@@ -14647,6 +14683,31 @@ public final class NeoECOPrototypeGameTests {
                     if (!rendered.equals(reply.english())) {
                         helper.fail("the card's log sentence and its en_us value have drifted apart: log=["
                                 + reply.english() + "] lang=[" + rendered + "]");
+                        return;
+                    }
+                    // The player's sentence and the log's instrument must be the same reads, not two stories
+                    // about one device: this is what stops a nicer sentence from inventing anything.
+                    var reading = WirelessLinks.reading(level, ModRegistration.WIRELESS_LINKS, at);
+                    String instrument = WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS, at);
+                    String sentence = WirelessLinks.readingText(reading).getString();
+                    if (!instrument.contains("wirelessLinks=" + reading.links())
+                            || !instrument.contains("live=" + reading.live())
+                            || !instrument.contains("mode=" + reading.mode())) {
+                        helper.fail("the card's sentence and its instrument no longer come from the same"
+                                + " reads: reading=" + reading + " instrument=[" + instrument + "]");
+                        return;
+                    }
+                    if (!sentence.contains(Integer.toString(reading.links()))
+                            || !sentence.contains(Integer.toString(reading.live()))
+                            || !sentence.contains(reading.mode()) || sentence.contains("%")) {
+                        helper.fail("the rendered sentence lost a number, kept a bare placeholder, or left the"
+                                + " channel mode out: sentence=[" + sentence + "] reading=" + reading);
+                        return;
+                    }
+                    if ("NO_CONTROLLER".equals(reading.controllerVerdict()) && !instrument.contains(
+                            "(this network holds " + reading.devices() + " nodes)")) {
+                        helper.fail("the sentence claims a device count the instrument does not show: reading="
+                                + reading + " instrument=[" + instrument + "]");
                         return;
                     }
                     NeoECOPrototype.LOGGER.info("REPLYKEYS key={} english=[{}] serverGetString=[{}]",
@@ -15072,6 +15133,64 @@ public final class NeoECOPrototypeGameTests {
         if (level.getBlockEntity(at) instanceof appeng.api.networking.energy.IAEPowerStorage storage) {
             storage.injectAEPower(storage.getAEMaxPower(), appeng.api.config.Actionable.MODULATE);
         }
+    }
+
+    /**
+     * The card is craftable, in the processor assembler, out of the four things he named - and this guard
+     * pins the set, because a recipe that merely <em>loads</em> (covered by
+     * {@code everyShippedRecipeFileReachesTheRecipeManager}) can still be built from the wrong doll or the
+     * wrong interface and nobody would notice from a chat line.
+     */
+    @GameTest(template = "empty", batch = "wireless_card_recipe", timeoutTicks = 200,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void theCardIsCraftedFromTheDollAndTheThreeInterfaces(GameTestHelper helper) {
+        var manager = helper.getLevel().getRecipeManager();
+        var found = manager.byKey(cn.dancingsnow.neoecoprototype.NeoECOPrototype
+                .id("processor_assembler/wireless_link_card"));
+        if (found.isEmpty()) {
+            helper.fail("no recipe is registered under neoecoprototype:processor_assembler/wireless_link_card,"
+                    + " so the card has no way to be crafted at all");
+            return;
+        }
+        var recipe = found.get().value();
+        if (!(recipe instanceof cn.dancingsnow.neoecoprototype.recipe.ProcessorAssemblerRecipe made)) {
+            helper.fail("the card's recipe is a " + recipe.getClass().getSimpleName()
+                    + ", not the assembler's own recipe type, so the assembler will never offer it");
+            return;
+        }
+        var expected = new java.util.TreeMap<String, Integer>(java.util.Map.of(
+                "neoecoprototype:fumo_doll_reliqwq", 1,
+                "neoecoprototype:simplify_powered_me_interface", 1,
+                "neoecoprototype:simplify_computation_interface", 1,
+                "neoecoprototype:simplify_crafting_interface", 1));
+        var actual = new java.util.TreeMap<String, Integer>();
+        for (var ingredient : made.ingredients()) {
+            var item = net.minecraft.core.registries.BuiltInRegistries.ITEM.stream()
+                    .filter(candidate -> java.util.Arrays.stream(ingredient.getItems())
+                            .anyMatch(stack -> stack.is(candidate)))
+                    .findFirst();
+            if (item.isEmpty()) {
+                helper.fail("an ingredient of the card's recipe matches no item in this registry, so the"
+                        + " recipe can never be satisfied: " + ingredient);
+                return;
+            }
+            actual.merge(net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(item.get()).toString(),
+                    1, Integer::sum);
+        }
+        var result = made.result();
+        if (!result.is(ModRegistration.WIRELESS_LINK_CARD.get()) || result.getCount() != 1) {
+            helper.fail("the card's recipe outputs " + result + ", expected exactly one wireless link card");
+            return;
+        }
+        if (!expected.equals(actual)) {
+            helper.fail("the card's ingredients are " + actual + ", expected " + expected
+                    + " (his doll plus the three interfaces)");
+            return;
+        }
+        NeoECOPrototype.LOGGER.info("CARDRECIPE inputs={} output={}x{}", actual,
+                net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(result.getItem()),
+                result.getCount());
+        helper.succeed();
     }
 
     /** The faces a right-click on this block could enter a grid through - the tool's only door. */

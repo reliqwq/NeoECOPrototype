@@ -8,6 +8,7 @@ import cn.dancingsnow.neoecoprototype.NeoECOPrototype;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.GlobalPos;
 import net.minecraft.core.HolderLookup;
+import net.minecraft.network.chat.Component;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.StringTag;
@@ -384,8 +385,8 @@ public final class WirelessLinks {
             // a real effect of a merge but not the whole of what he sees. The status line carries AE2's own
             // machine table below, which is what lets a player compare the tool against the source.
             return Reply.of("linked", "linked " + describe(link) + " | "
-                    + readings(result.edge(), result.a(), result.b()), describe(link),
-                    readings(result.edge(), result.a(), result.b()));
+                            + readings(result.edge(), result.a(), result.b()), describe(link),
+                    readingText(reading(acting, type, link.a())));
         }
         if (result.missingNode() != null) {
             return Reply.untranslated("recorded but no network node at " + describe(result.missingNode())
@@ -615,8 +616,10 @@ public final class WirelessLinks {
      * recorded there, how many of them are backed by an edge right now, and what AE2 itself says about the
      * network - its channel mode, its verdict on the controller group, and the channels every connected face
      * is worth against what it is using. The two link counts differ whenever an endpoint is asleep, and
-     * saying both is the only way the card can admit that. Everything after them is read out of AE2, because
-     * there is nothing of ours to report: this feature prices nothing.
+     * saying both is the only way the card can admit that.
+     * <p>This string is the instrument: it is what the log gets and what the guards read. The player's line
+     * is {@link #reading}, which carries the same facts through the lang files so they arrive in the
+     * language the game is played in.
      */
     public static String status(ServerLevel acting, Supplier<AttachmentType<Data>> type, GlobalPos endpoint) {
         var node = node(acting, endpoint);
@@ -627,6 +630,58 @@ public final class WirelessLinks {
                 + (node == null ? " (no network node there)" : " " + channelMode(node) + " controller="
                 + controllerStateOf(node.getGrid()) + powerWords(node.getGrid())
                 + adHocWords(node.getGrid()) + " " + faceLedger(node) + " " + toolTable(node.getGrid()));
+    }
+
+    /**
+     * The facts a player is shown when the card reads a device, as values rather than as a debug line. Every
+     * field is either our own record ({@code links}, {@code live}) or AE2's own verdict
+     * ({@code mode}, {@code controllerVerdict}, {@code powered}, {@code devices}) - there is no number in
+     * here this feature computes, which is the whole reason the sentence can be trusted over the instrument.
+     */
+    public record Reading(String endpoint, int links, int live, String mode, String controllerVerdict,
+                          boolean powered, int devices) {
+    }
+
+    /** {@link #status} for human eyes, from the same reads in the same tick. */
+    public static Reading reading(ServerLevel acting, Supplier<AttachmentType<Data>> type, GlobalPos endpoint) {
+        var node = node(acting, endpoint);
+        var grid = node == null ? null : node.getGrid();
+        var pathing = grid == null ? null
+                : grid.getService(appeng.api.networking.pathing.IPathingService.class);
+        var energy = grid == null ? null
+                : grid.getService(appeng.api.networking.energy.IEnergyService.class);
+        return new Reading(describe(endpoint), linksAtEverywhere(acting, type, endpoint),
+                liveLinksAt(acting, type, endpoint),
+                pathing == null ? "unknown" : pathing.getChannelMode().name(),
+                grid == null ? "no network node there" : controllerStateOf(grid),
+                energy != null && energy.isNetworkPowered(),
+                grid == null ? 0 : gridNodes(grid));
+    }
+
+    /**
+     * AE2's controller verdicts and the lang key each one is printed under. Public because a guard walks it
+     * against {@code ControllerState.values()}: if upstream renames or adds one, the sentence must not start
+     * printing a bare enum name at the player.
+     */
+    public static final Map<String, String> CONTROLLER_STATE_KEYS = Map.of(
+            "CONTROLLER_ONLINE", "state.online",
+            "NO_CONTROLLER", "state.none",
+            "CONTROLLER_OFFLINE", "state.offline",
+            "CONTROLLER_CONFLICT", "state.conflict");
+
+    /** The sentence the player gets, in their own language; {@link #status} stays the log's instrument. */
+    public static Component readingText(Reading reading) {
+        var stateKey = CONTROLLER_STATE_KEYS.get(reading.controllerVerdict());
+        // An unrecognised verdict prints as itself: dressing up a value we did not know existed is how the
+        // last invented sentence got into a player's chat.
+        Object state = stateKey == null ? Component.literal(reading.controllerVerdict()) : stateText(stateKey);
+        return Component.translatable("gui.neoecoprototype.wireless_link.reading",
+                reading.endpoint(), reading.links(), reading.live(), reading.mode(), state,
+                stateText(reading.powered() ? "power.on" : "power.off"), reading.devices());
+    }
+
+    private static Component stateText(String name) {
+        return Component.translatable("gui.neoecoprototype.wireless_link." + name);
     }
 
     /**
