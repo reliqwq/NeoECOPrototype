@@ -1,0 +1,20 @@
+{
+  "parent": "block/block",
+  "textures": {
+    "particle": "neoecoprototype:block/reactor/frame",
+    "all": "neoecoprototype:block/reactor/frame"
+  },
+  "elements": [
+    {
+      "from": [5, 5, 8],
+      "to": [11, 11, 16],
+      "faces": {
+        "east": {"texture": "#all"},
+        "south": {"texture": "#all", "cullface": "south"},
+        "west": {"texture": "#all"},
+        "up": {"texture": "#all"},
+        "down": {"texture": "#all"}
+      }
+    }
+  ]
+}

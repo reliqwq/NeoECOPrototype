@@ -80,6 +80,10 @@ import cn.dancingsnow.neoecoprototype.blockentity.trinity.SimplifyTrinityControl
 import cn.dancingsnow.neoecoprototype.blockentity.trinity.SimplifyTrinityStorageModuleBlockEntity;
 import cn.dancingsnow.neoecoprototype.blockentity.trinity.SimplifyTrinityComputationModuleBlockEntity;
 import cn.dancingsnow.neoecoprototype.blockentity.trinity.SimplifyTrinityCraftingModuleBlockEntity;
+import cn.dancingsnow.neoecoprototype.block.reactor.SimplifyReactorControllerBlock;
+import cn.dancingsnow.neoecoprototype.block.reactor.SimplifyReactorFrameBlock;
+import cn.dancingsnow.neoecoprototype.block.reactor.SimplifyReactorGlassBlock;
+import cn.dancingsnow.neoecoprototype.blockentity.reactor.SimplifyReactorControllerBlockEntity;
 import cn.dancingsnow.neoecoprototype.blockentity.storage.SimplifyDriveBlockEntity;
 import cn.dancingsnow.neoecoprototype.blockentity.storage.SimplifyEnergyCellBlockEntity;
 import cn.dancingsnow.neoecoprototype.blockentity.storage.SimplifyStorageCasingBlockEntity;
@@ -121,6 +125,7 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.ItemAttributeModifiers;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.levelgen.feature.Feature;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockBehaviour;
@@ -286,6 +291,18 @@ public class ModRegistration {
     private static final BlockBehaviour.Properties GREEN_CASING_PROPS =
             BlockBehaviour.Properties.of().mapColor(MapColor.METAL).strength(2.0F).noOcclusion();
      private static final BlockBehaviour.Properties AE2_MACHINE_PROPS = BlockBehaviour.Properties.of().mapColor(MapColor.METAL).strength(2.0F).noOcclusion();
+
+    // The reactor's two shell materials. The frame is drawn as a post plus per-side beams, so it must
+    // not occlude; the glass is what a player looks through into the chamber.
+    private static final BlockBehaviour.Properties REACTOR_FRAME_PROPS =
+            BlockBehaviour.Properties.of().mapColor(MapColor.METAL).strength(4.0F, 6.0F).noOcclusion();
+    private static final BlockBehaviour.Properties REACTOR_GLASS_PROPS =
+            BlockBehaviour.Properties.of().mapColor(MapColor.NONE).strength(0.6F).sound(SoundType.GLASS)
+                    .noOcclusion();
+    // A fresh instance on purpose: Properties.lightLevel mutates the object it is called on, and
+    // MACHINE_PROPS is shared by every other machine block.
+    private static final BlockBehaviour.Properties REACTOR_CORE_PROPS =
+            BlockBehaviour.Properties.of().mapColor(MapColor.METAL).strength(2.0F).lightLevel(state -> 15);
 
     // ============================ Blocks ============================
 
@@ -619,6 +636,20 @@ public class ModRegistration {
             BLOCKS.register("simplify_trinity_crafting_module",
                     () -> new SimplifyTrinityCraftingModuleBlock(MACHINE_PROPS));
 
+    // ============================ Superconductive reactor ============================
+
+    /** The single block with a block entity: the 7x7x7 shell is validated against it, not registered to it. */
+    public static final Supplier<SimplifyReactorControllerBlock> REACTOR_CONTROLLER_BLOCK =
+            BLOCKS.register("reactor_controller", () -> new SimplifyReactorControllerBlock(MACHINE_PROPS));
+    public static final Supplier<SimplifyReactorFrameBlock> REACTOR_FRAME_BLOCK =
+            BLOCKS.register("reactor_frame", () -> new SimplifyReactorFrameBlock(REACTOR_FRAME_PROPS));
+    public static final Supplier<SimplifyReactorGlassBlock> REACTOR_GLASS_BLOCK =
+            BLOCKS.register("reactor_glass", () -> new SimplifyReactorGlassBlock(REACTOR_GLASS_PROPS));
+    public static final Supplier<Block> REACTOR_COIL_BLOCK =
+            BLOCKS.register("reactor_coil", () -> new Block(MACHINE_PROPS));
+    public static final Supplier<Block> REACTOR_CORE_BLOCK =
+            BLOCKS.register("reactor_core", () -> new Block(REACTOR_CORE_PROPS));
+
     // ============================ Block items ============================
 
     public static final Supplier<BlockItem> SIMPLIFY_TRINITY_CONTROLLER_ITEM =
@@ -641,6 +672,22 @@ public class ModRegistration {
             ITEMS.register("simplify_storage_controller",
                     () -> new BlockItem(SIMPLIFY_STORAGE_CONTROLLER_BLOCK.get(),
                             coloredName(SIMPLIFY_STORAGE_CONTROLLER_BLOCK, NAME_THEME_GREEN)));
+
+    public static final Supplier<BlockItem> REACTOR_CONTROLLER_ITEM =
+            ITEMS.register("reactor_controller",
+                    () -> new BlockItem(REACTOR_CONTROLLER_BLOCK.get(), new Item.Properties()));
+    public static final Supplier<BlockItem> REACTOR_FRAME_ITEM =
+            ITEMS.register("reactor_frame",
+                    () -> new BlockItem(REACTOR_FRAME_BLOCK.get(), new Item.Properties()));
+    public static final Supplier<BlockItem> REACTOR_GLASS_ITEM =
+            ITEMS.register("reactor_glass",
+                    () -> new BlockItem(REACTOR_GLASS_BLOCK.get(), new Item.Properties()));
+    public static final Supplier<BlockItem> REACTOR_COIL_ITEM =
+            ITEMS.register("reactor_coil",
+                    () -> new BlockItem(REACTOR_COIL_BLOCK.get(), new Item.Properties()));
+    public static final Supplier<BlockItem> REACTOR_CORE_ITEM =
+            ITEMS.register("reactor_core",
+                    () -> new BlockItem(REACTOR_CORE_BLOCK.get(), new Item.Properties()));
 
     public static final Supplier<BlockItem> SIMPLIFY_DRIVE_ITEM =
             ITEMS.register("simplify_drive",
@@ -1326,6 +1373,16 @@ private static Supplier<BlockEntityType<SimplifyStorageVentBlockEntity>> registe
      public static final Supplier<BlockEntityType<SimplifyPatternProviderBlockEntity>> SIMPLIFY_PATTERN_PROVIDER_BE = registerPatternProviderBe();
       public static final Supplier<BlockEntityType<SimplifyPoweredMEInterfaceBlockEntity>> SIMPLIFY_POWERED_ME_INTERFACE_BE = registerPoweredMEInterfaceBe();
        public static final Supplier<BlockEntityType<SimplifySuperconductiveInterfaceBlockEntity>> SUPERCONDUCTIVE_INTERFACE_BE = registerSuperconductiveInterfaceBe();
+    public static final Supplier<BlockEntityType<SimplifyReactorControllerBlockEntity>> REACTOR_CONTROLLER_BE =
+            registerReactorControllerBe();
+
+    private static Supplier<BlockEntityType<SimplifyReactorControllerBlockEntity>> registerReactorControllerBe() {
+        return (Supplier) BLOCK_ENTITIES.register("reactor_controller",
+                () -> BlockEntityType.Builder.of(
+                        (pos, state) -> new SimplifyReactorControllerBlockEntity(
+                                REACTOR_CONTROLLER_BE.get(), pos, state),
+                        REACTOR_CONTROLLER_BLOCK.get()).build(null));
+    }
     public static final Supplier<BlockEntityType<cn.dancingsnow.neoecoprototype.blockentity.dissociation.MeteoriteDissociatorBlockEntity>>
             METEORITE_DISSOCIATOR_BE = registerMeteoriteDissociatorBe();
     public static final Supplier<BlockEntityType<ECOComputationParallelCoreBlockEntity>> ENERGIZED_COMPUTATION_CORE_BE =
@@ -1679,6 +1736,11 @@ private static Supplier<BlockEntityType<SimplifyStorageVentBlockEntity>> registe
                          output.accept(SIMPLIFY_TRINITY_STORAGE_MODULE_ITEM.get());
                          output.accept(SIMPLIFY_TRINITY_COMPUTATION_MODULE_ITEM.get());
                          output.accept(SIMPLIFY_TRINITY_CRAFTING_MODULE_ITEM.get());
+                         output.accept(REACTOR_CONTROLLER_ITEM.get());
+                         output.accept(REACTOR_FRAME_ITEM.get());
+                         output.accept(REACTOR_GLASS_ITEM.get());
+                         output.accept(REACTOR_COIL_ITEM.get());
+                         output.accept(REACTOR_CORE_ITEM.get());
                     })
                     .build());
 
@@ -1771,6 +1833,10 @@ private static Supplier<BlockEntityType<SimplifyStorageVentBlockEntity>> registe
         asEntityBlock(SIMPLIFY_PATTERN_PROVIDER_BLOCK).setBlockEntity(SimplifyPatternProviderBlockEntity.class, SIMPLIFY_PATTERN_PROVIDER_BE.get(), null, null);
          asEntityBlock(SIMPLIFY_POWERED_ME_INTERFACE_BLOCK).setBlockEntity(SimplifyPoweredMEInterfaceBlockEntity.class, SIMPLIFY_POWERED_ME_INTERFACE_BE.get(), null, null);
          asEntityBlock(SUPERCONDUCTIVE_INTERFACE_BLOCK).setBlockEntity(SimplifySuperconductiveInterfaceBlockEntity.class, SUPERCONDUCTIVE_INTERFACE_BE.get(), null, null);
+        asEntityBlock(REACTOR_CONTROLLER_BLOCK).setBlockEntity(
+                SimplifyReactorControllerBlockEntity.class, REACTOR_CONTROLLER_BE.get(), null,
+                (level, pos, state, blockEntity) -> SimplifyReactorControllerBlockEntity.serverTick(
+                        level, pos, state, (SimplifyReactorControllerBlockEntity) blockEntity));
         // The plushie CPU keeps sweeping for creepers on AE2's own block entity, and takes its CPU-list
         // name from the same tick, because the block entity is not ours to give a constructor hook.
         ((AEBaseEntityBlock<CraftingBlockEntity>) FUMO_DOLL_YANG120_CPU_BLOCK.get()).setBlockEntity(
@@ -1841,6 +1907,7 @@ private static Supplier<BlockEntityType<SimplifyStorageVentBlockEntity>> registe
         AEBaseBlockEntity.registerBlockEntityItem(SIMPLIFY_PATTERN_PROVIDER_BE.get(), SIMPLIFY_PATTERN_PROVIDER_ITEM.get().asItem());
          AEBaseBlockEntity.registerBlockEntityItem(SIMPLIFY_POWERED_ME_INTERFACE_BE.get(), SIMPLIFY_POWERED_ME_INTERFACE_ITEM.get().asItem());
          AEBaseBlockEntity.registerBlockEntityItem(SUPERCONDUCTIVE_INTERFACE_BE.get(), SUPERCONDUCTIVE_INTERFACE_ITEM.get().asItem());
+         AEBaseBlockEntity.registerBlockEntityItem(REACTOR_CONTROLLER_BE.get(), REACTOR_CONTROLLER_ITEM.get().asItem());
         AEBaseBlockEntity.registerBlockEntityItem(SIMPLIFY_CRAFTING_SYSTEM_BE.get(),
                 SIMPLIFY_CRAFTING_SYSTEM_ITEM.get().asItem());
         AEBaseBlockEntity.registerBlockEntityItem(SIMPLIFY_CRAFTING_PATTERN_BUS_BE.get(),

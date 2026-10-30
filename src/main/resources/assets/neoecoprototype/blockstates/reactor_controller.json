@@ -1,0 +1,19 @@
+{
+  "variants": {
+    "facing=north": {
+      "model": "neoecoprototype:block/reactor/controller"
+    },
+    "facing=east": {
+      "model": "neoecoprototype:block/reactor/controller",
+      "y": 90
+    },
+    "facing=south": {
+      "model": "neoecoprototype:block/reactor/controller",
+      "y": 180
+    },
+    "facing=west": {
+      "model": "neoecoprototype:block/reactor/controller",
+      "y": 270
+    }
+  }
+}

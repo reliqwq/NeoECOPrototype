@@ -1,0 +1,62 @@
+{
+  "multipart": [
+    {
+      "apply": {
+        "model": "neoecoprototype:block/reactor/frame_post"
+      }
+    },
+    {
+      "when": {
+        "north": "true"
+      },
+      "apply": {
+        "model": "neoecoprototype:block/reactor/frame_beam",
+        "y": 180
+      }
+    },
+    {
+      "when": {
+        "east": "true"
+      },
+      "apply": {
+        "model": "neoecoprototype:block/reactor/frame_beam",
+        "y": 270
+      }
+    },
+    {
+      "when": {
+        "south": "true"
+      },
+      "apply": {
+        "model": "neoecoprototype:block/reactor/frame_beam"
+      }
+    },
+    {
+      "when": {
+        "west": "true"
+      },
+      "apply": {
+        "model": "neoecoprototype:block/reactor/frame_beam",
+        "y": 90
+      }
+    },
+    {
+      "when": {
+        "up": "true"
+      },
+      "apply": {
+        "model": "neoecoprototype:block/reactor/frame_beam",
+        "x": 90
+      }
+    },
+    {
+      "when": {
+        "down": "true"
+      },
+      "apply": {
+        "model": "neoecoprototype:block/reactor/frame_beam",
+        "x": 270
+      }
+    }
+  ]
+}

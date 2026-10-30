@@ -100,6 +100,22 @@ public final class NeoECOPrototypeServerConfig {
      */
     public static final boolean CRYOTHEUM_METEORITE_ENABLED_DEFAULT = false;
 
+    /**
+     * AE per tick each coil of a formed superconductive reactor pays. The cube holds 26 of them, so
+     * the shipped rate is 26 x 400 + 1000 (the core) = 11,400 AE/t, which covers one L9 storage
+     * system's 8,448 idle draw with room to spare.
+     */
+    public static final double REACTOR_COIL_AE_PER_TICK_DEFAULT = 400.0D;
+    public static final ModConfigSpec.DoubleValue REACTOR_COIL_AE_PER_TICK;
+    /** AE per tick the single core pays on top of the coils. */
+    public static final double REACTOR_CORE_AE_PER_TICK_DEFAULT = 1000.0D;
+    public static final ModConfigSpec.DoubleValue REACTOR_CORE_AE_PER_TICK;
+    /**
+     * Multiplier while the block above the cube can see the sky through a thunderstorm. 1 switches
+     * the bonus off, which is the only way to make the weather irrelevant.
+     */
+    public static final ModConfigSpec.DoubleValue REACTOR_STORM_MULTIPLIER;
+
     /** Tick interval of the singularity cell: one batch per this many ticks. */
     public static final ModConfigSpec.LongValue SINGULARITY_CELL_TICKS_PER_BATCH;
     /** Singularities the cell makes per batch, up to {@link #SINGULARITY_CELL_AMOUNT_PER_BATCH_MAX}. */
@@ -237,6 +253,20 @@ public final class NeoECOPrototypeServerConfig {
                         "has no recipe yet, and a half-built discovery is worse than none.")
                 .define("enabled", CRYOTHEUM_METEORITE_ENABLED_DEFAULT);
         builder.pop();
+        builder.push("superconductive_reactor");
+        REACTOR_COIL_AE_PER_TICK = builder
+                .comment("AE per tick each coil of a formed superconductive reactor pays. A complete cube",
+                        "holds 26 coils. Default 400, so the shipped cube pays 26 x 400 + 1000 = 11,400",
+                        "AE/t, against the 8,448 AE/t an L9 storage system idles at.")
+                .defineInRange("coil_ae_per_tick", REACTOR_COIL_AE_PER_TICK_DEFAULT, 0.0D, 100_000.0D);
+        REACTOR_CORE_AE_PER_TICK = builder
+                .comment("AE per tick the single core pays on top of the coils. Default 1000.")
+                .defineInRange("core_ae_per_tick", REACTOR_CORE_AE_PER_TICK_DEFAULT, 0.0D, 100_000.0D);
+        REACTOR_STORM_MULTIPLIER = builder
+                .comment("Multiplier while the block above the cube can see the sky and the level is",
+                        "thundering. 1 turns the weather bonus off. Default 2.")
+                .defineInRange("storm_multiplier", 2.0D, 1.0D, 16.0D);
+        builder.pop();
         builder.push("singularity_cell");
         SINGULARITY_CELL_TICKS_PER_BATCH = builder
                 .comment("How often the singularity cell makes a batch, in ticks. 600 = every 30 seconds.",
@@ -281,6 +311,21 @@ public final class NeoECOPrototypeServerConfig {
     /** The plushie's rate, floored at zero and read on every sweep so a pack edit takes effect at once. */
     public static double fumoChargeAePerTick() {
         return Math.max(0.0D, FUMO_CHARGE_AE_PER_TICK.get());
+    }
+
+    /** The reactor's per-coil rate, floored; read on every {@code getRate()} so a pack edit is live. */
+    public static double reactorCoilAePerTick() {
+        return Math.max(0.0D, REACTOR_COIL_AE_PER_TICK.get());
+    }
+
+    /** The reactor's core rate, floored; read on every {@code getRate()} so a pack edit is live. */
+    public static double reactorCoreAePerTick() {
+        return Math.max(0.0D, REACTOR_CORE_AE_PER_TICK.get());
+    }
+
+    /** The storm multiplier, never below one: weather may only ever add power to a formed reactor. */
+    public static double reactorStormMultiplier() {
+        return Math.max(1.0D, REACTOR_STORM_MULTIPLIER.get());
     }
 
     /** The cell's interval, floored: the config range is the guard, this is the read-side one. */

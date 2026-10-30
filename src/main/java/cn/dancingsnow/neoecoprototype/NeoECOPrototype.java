@@ -218,6 +218,9 @@ public class NeoECOPrototype {
         // entity for this capability, and AE2 only posts it for the block entity types in its own registry,
         // so an unlisted type sits alone in a grid of one node however correctly its faces are exposed.
         registerNodeHost(event, ModRegistration.FUMO_DOLL_CPU_BE.get());
+        // The reactor pays the grid through this node, so leaving the controller out of this list is the
+        // same bug: a cell standing against the cube finds no host and the machine's rate reaches nobody.
+        registerNodeHost(event, ModRegistration.REACTOR_CONTROLLER_BE.get());
         event.registerBlockEntity(Capabilities.EnergyStorage.BLOCK,
                 ModRegistration.METEORITE_DISSOCIATOR_BE.get(),
                 (blockEntity, side) -> blockEntity.getEnergyStorage());
