@@ -797,22 +797,42 @@ public final class WirelessLinks {
             return Bill.NONE;
         }
         Data data = acting.getData(type.get());
+        double rate = cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig
+                .WIRELESS_AE_PER_LINK_PER_TICK.get();
         Bill previous = data.lastBill;
-        data.lastBill = bill(acting, data);
-        if (data.lastBill.unpaid() > 0 && previous.unpaid() == 0) {
-            NeoECOPrototype.LOGGER.warn("wireless link: {} of {} live links in {} could not be paid for -"
-                    + " the network is short of the {} AE/t per link that wireless_ae_per_link_per_tick asks"
-                    + " for, and AE2 takes a grid offline when its store runs dry",
-                    data.lastBill.unpaid(), data.lastBill.billed(), acting.dimension().location(),
-                    cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig
-                            .WIRELESS_AE_PER_LINK_PER_TICK.get());
+        data.lastBill = bill(acting, data, rate);
+        if (billIsWorthAWord(previous, data.lastBill)) {
+            // One line per dimension whenever the number moves, and none while it does not. Without this the
+            // price is only visible in the card's status reading, and that runs on one gesture - so a player
+            // who never thinks to make it has no way to find out that their links are being billed at all.
+            String line = "wireless link: {} link(s) charged in {} at {} AE/t each, {} AE taken over the"
+                    + " last {} ticks, {} could not be paid{}";
+            Object[] args = {data.lastBill.billed(), acting.dimension().location(), rate,
+                    Math.round(data.lastBill.charged() * 1000.0D) / 1000.0D, SWEEP_TICKS,
+                    data.lastBill.unpaid(), data.lastBill.unpaid() > 0
+                            ? " - AE2 takes a grid offline when its store runs dry, so this is the network"
+                              + " losing power rather than a link being torn down" : ""};
+            if (data.lastBill.unpaid() > 0) {
+                NeoECOPrototype.LOGGER.warn(line, args);
+            } else {
+                NeoECOPrototype.LOGGER.info(line, args);
+            }
         }
         return data.lastBill;
     }
 
-    private static Bill bill(ServerLevel acting, Data data) {
-        double rate = cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig
-                .WIRELESS_AE_PER_LINK_PER_TICK.get();
+    /**
+     * Whether a bill deserves a line in the log: the count of billed links moved, the count that could not
+     * pay did, or the amount taken did (a pack moving the rate keeps the counts identical and still has to
+     * show). The pass runs every {@link #SWEEP_TICKS} for every dimension that holds a link, so a bill that
+     * repeats itself says nothing new and must not repeat itself in the log either.
+     */
+    public static boolean billIsWorthAWord(Bill previous, Bill now) {
+        return now.billed() != previous.billed() || now.unpaid() != previous.unpaid()
+                || Double.compare(now.charged(), previous.charged()) != 0;
+    }
+
+    private static Bill bill(ServerLevel acting, Data data, double rate) {
         if (rate <= 0.0D || data.links.isEmpty()) {
             return Bill.NONE;
         }
