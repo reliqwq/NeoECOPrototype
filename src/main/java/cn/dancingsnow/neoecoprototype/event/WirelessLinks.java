@@ -578,7 +578,8 @@ public final class WirelessLinks {
      */
     public static String status(ServerLevel acting, Supplier<AttachmentType<Data>> type, GlobalPos endpoint) {
         var node = node(acting, endpoint);
-        return describe(endpoint) + " wirelessLinks=" + linksAtEverywhere(acting, type, endpoint)
+        return describe(endpoint) + " block=" + blockId(acting, endpoint)
+                + " wirelessLinks=" + linksAtEverywhere(acting, type, endpoint)
                 + " live=" + liveLinksAt(acting, type, endpoint)
                 + (node == null ? " (no network node there)" : " " + channelMode(node) + " controller="
                 + controllerStateOf(node.getGrid()) + powerWords(node.getGrid())
@@ -1051,6 +1052,21 @@ public final class WirelessLinks {
      * for exactly the devices this feature exists to bind. The side lookup is kept only for hosts that are
      * not block entities of AE2's own hierarchy, i.e. cable-mounted parts.
      */
+    /**
+     * Which block actually stands on that square, spelled as its registry id - printed because on 2026-10-30 a
+     * client reading and our own fixture disagreed about which machine a joined network contained, and nothing
+     * on either side could say which block had been clicked. Gated exactly like {@link #node}: the dimension is
+     * resolved first and the chunk has to already be here, so this never loads anything (§6).
+     */
+    private static String blockId(ServerLevel acting, GlobalPos at) {
+        ServerLevel level = levelOf(acting, at.dimension());
+        if (level == null || !chunkIsHere(level, at)) {
+            return "unknown";
+        }
+        return String.valueOf(net.minecraft.core.registries.BuiltInRegistries.BLOCK
+                .getKey(level.getBlockState(at.pos()).getBlock()));
+    }
+
     private static IGridNode node(ServerLevel acting, GlobalPos at) {
         ServerLevel level = levelOf(acting, at.dimension());
         if (level == null || !chunkIsHere(level, at)) {
