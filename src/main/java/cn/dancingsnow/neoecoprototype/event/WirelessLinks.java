@@ -337,14 +337,13 @@ public final class WirelessLinks {
         // level save always re-reads whatever this object currently holds.
         EdgeResult result = ensureEdge(owner, data, link);
         if (result.edge() != null) {
-            var ledger = readings(result.edge(), result.a(), result.b());
-            // The join retires one of the two IGrid objects and AE2 empties its machine map, while
-            // NetworkStatusMenu stores the grid once in its constructor and never re-resolves it: a tool left
-            // open through a join is reading a retired grid, so it looks like the machines vanished. Measured
-            // 2026-10-29 (batch wireless_tool_stalegrid) and pinned there.
-            return Reply.of("linked", "linked " + describe(link) + " | " + ledger
-                    + " | open the network tool again if one was already open: it is still reading the grid"
-                    + " from before this join, which AE2 has now emptied", describe(link), ledger);
+            // No promise here about the Network Tool: measured in the client on 2026-10-30, reopening the tool
+            // after a join still showed nothing, so the retired-grid object (batch wireless_tool_stalegrid) is
+            // a real effect of a merge but not the whole of what he sees. The status line carries AE2's own
+            // machine table below, which is what lets a player compare the tool against the source.
+            return Reply.of("linked", "linked " + describe(link) + " | "
+                    + readings(result.edge(), result.a(), result.b()), describe(link),
+                    readings(result.edge(), result.a(), result.b()));
         }
         if (result.missingNode() != null) {
             return Reply.untranslated("recorded but no network node at " + describe(result.missingNode())
@@ -583,7 +582,27 @@ public final class WirelessLinks {
                 + " live=" + liveLinksAt(acting, type, endpoint)
                 + (node == null ? " (no network node there)" : " " + channelMode(node) + " controller="
                 + controllerStateOf(node.getGrid()) + powerWords(node.getGrid())
-                + adHocWords(node.getGrid()) + " " + faceLedger(node));
+                + adHocWords(node.getGrid()) + " " + faceLedger(node) + " " + toolTable(node.getGrid()));
+    }
+
+    /**
+     * The machine list AE2's Network Tool draws, read off the very object the tool builds its packet from:
+     * {@code NetworkStatus#fromGrid} is what {@code NetworkStatusMenu#broadcastChanges} serialises every 15
+     * ticks, and this prints one entry per group the same way ({@code <item> x<count>}). Added on 2026-10-30
+     * because the card claimed a join was visible in the tool and a client reading said it was not: this line
+     * separates "the tool has nothing to draw" from "the tool has rows and drew none of them", which no amount
+     * of reading AE2's code from here can decide.
+     */
+    private static String toolTable(appeng.api.networking.IGrid grid) {
+        var groups = appeng.menu.me.networktool.NetworkStatus.fromGrid(grid).getGroupedMachines();
+        var table = new StringBuilder("toolTable=").append(groups.size()).append(" groups [");
+        for (var group : groups) {
+            if (table.length() > "toolTable=0 groups [".length()) {
+                table.append(", ");
+            }
+            table.append(group.getDisplay()).append(" x").append(group.getCount());
+        }
+        return table.append(']').toString();
     }
 
     /**

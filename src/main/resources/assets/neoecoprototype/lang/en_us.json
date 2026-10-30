@@ -212,7 +212,7 @@
   "item.neoecoprototype.wireless_link_card.holds": "Marked: %s",
   "item.neoecoprototype.wireless_link_card.disabled": "Wireless ME links are switched off in the config of this world (wireless_links), so using this card does nothing right now.",
   "item.neoecoprototype.wireless_link_card.balance_none": "No device is marked yet, so there is no network to ask: sneak-right-click a device with this card first.",
-  "gui.neoecoprototype.wireless_link.linked": "linked %s | %s | open the network tool again if one was already open: it is still reading the grid from before this join, which AE2 has now emptied",
+  "gui.neoecoprototype.wireless_link.linked": "linked %s | %s",
   "gui.neoecoprototype.wireless_link.marked": "marked %s",
   "gui.neoecoprototype.wireless_link.dropped": "dropped %s link(s) at %s",
   "gui.neoecoprototype.wireless_link.already_linked": "already linked %s",

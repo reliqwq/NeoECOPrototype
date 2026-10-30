@@ -212,7 +212,7 @@
   "item.neoecoprototype.wireless_link_card.holds": "已记录：%s",
   "item.neoecoprototype.wireless_link_card.disabled": "本世界的配置关掉了无线 ME 链接（wireless_links），所以现在这张卡点什么都不会有反应。",
   "item.neoecoprototype.wireless_link_card.balance_none": "卡上还没有记着设备，所以没有可问的网络：先潜行右键一台设备把它记下来。",
-  "gui.neoecoprototype.wireless_link.linked": "已连接 %s | %s | 如果你已经开着网络工具，重开一次：它还在读这次合并之前的那张网格，AE2 已经把它清空了",
+  "gui.neoecoprototype.wireless_link.linked": "已连接 %s | %s",
   "gui.neoecoprototype.wireless_link.marked": "已记下 %s",
   "gui.neoecoprototype.wireless_link.dropped": "已拆掉 %s 条链路：%s",
   "gui.neoecoprototype.wireless_link.already_linked": "这两台已经连过了：%s",

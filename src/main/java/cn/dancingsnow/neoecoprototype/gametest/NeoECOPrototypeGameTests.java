@@ -14344,8 +14344,12 @@ public final class NeoECOPrototypeGameTests {
      * {@code setValidMenu(false)} never fires, so the screen stays open and empty. That is also why AE2 does
      * not hit this in normal play: laying a cable merges the new node's singleton grid into the existing one,
      * so the grid a tool holds always survives; two existing networks meeting over an edge is the case that
-     * retires one. Our compensation is one clause in the link reply telling the player to open the tool again;
-     * this guard reddens if AE2 ever stops retiring the object, which is when that clause should be deleted.
+     * retires one. <p><b>Withdrawn 2026-10-30:</b> the card used to answer this by telling the player to open
+     * the tool again, and a client reading killed that - reopening still showed nothing. So the retired object
+     * is a real effect of a merge (pinned above) but is <em>not</em> the explanation of what he sees, and this
+     * guard now asserts the thing that is actually useful: the card prints AE2's own machine table
+     * ({@code toolTable=}) off the live grid, so an empty screen can be told apart from "rows exist and were
+     * not drawn" without another round of guessing.
      */
     @GameTest(template = "empty", batch = "wireless_tool_stalegrid", timeoutTicks = 600,
             templateNamespace = NeoECOPrototype.MOD_ID)
@@ -14396,9 +14400,13 @@ public final class NeoECOPrototypeGameTests {
                                 + groupedPayloadOn(live) + "]");
                         return;
                     }
-                    if (!bound.contains("open the network tool again")) {
-                        helper.fail("the link reply does not tell the player to reopen the tool, so a screen"
-                                + " left open through the join stays empty with no explanation: \"" + bound + "\"");
+                    String line = WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS, farPos);
+                    if (!line.contains("toolTable=") || !line.contains("superconductive_interface x2")) {
+                        helper.fail("the card does not print AE2's own machine table for the live grid, so a"
+                                + " player facing an empty Network Tool has nothing to compare it against - the"
+                                + " retired object above is real but it is not the whole story, and this line is"
+                                + " the only reading that separates \"the tool has no rows\" from \"the tool has"
+                                + " rows and drew none\": " + line);
                         return;
                     }
                     helper.succeed();
