@@ -1541,7 +1541,11 @@ private static Supplier<BlockEntityType<SimplifyStorageVentBlockEntity>> registe
                         output.accept(SIMPLIFY_ENERGY_CELL_ITEM.get());
                         output.accept(ENERGIZED_ENERGY_CELL_16G_ITEM.get());
                         output.accept(ENERGIZED_ENERGY_CELL_512G_ITEM.get());
-                        output.accept(WIRELESS_LINK_CARD.get());
+                        // The wireless link card is withheld from players this release: no tab entry and no
+                        // recipe, so the only way to hold one is /give. The feature works and is measured in a
+                        // client, but what a link should cost a survival player is still open. Bringing it back
+                        // is this line plus data/neoecoprototype/recipe/processor_assembler/
+                        // wireless_link_card.json - that recipe block is kept in _removed_sources/.
                         output.accept(SIMPLIFY_STORAGE_CASING_ITEM.get());
                          output.accept(SIMPLIFY_GREEN_ALUMINUM_CASING_ITEM.get());
                         // The whole cryotheum family is out of the tab: it generates nowhere by default and

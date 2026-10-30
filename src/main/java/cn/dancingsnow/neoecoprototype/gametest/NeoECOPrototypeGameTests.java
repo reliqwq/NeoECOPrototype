@@ -15136,60 +15136,35 @@ public final class NeoECOPrototypeGameTests {
     }
 
     /**
-     * The card is craftable, in the processor assembler, out of the four things he named - and this guard
-     * pins the set, because a recipe that merely <em>loads</em> (covered by
-     * {@code everyShippedRecipeFileReachesTheRecipeManager}) can still be built from the wrong doll or the
-     * wrong interface and nobody would notice from a chat line.
+     * The card is withheld from players this release - no recipe, no creative tab entry, and the red
+     * "not implemented" line on whatever a /give leaves behind. Both halves are pinned, because the failure
+     * mode of a withheld feature is one-sided: the recipe coming back on its own (a data file re-added and
+     * nobody notices the item is craftable again) is as bad as a shipped item losing its red line because a
+     * list was edited in one place only.
      */
-    @GameTest(template = "empty", batch = "wireless_card_recipe", timeoutTicks = 200,
+    @GameTest(template = "empty", batch = "wireless_card_hidden", timeoutTicks = 200,
             templateNamespace = NeoECOPrototype.MOD_ID)
-    public static void theCardIsCraftedFromTheDollAndTheThreeInterfaces(GameTestHelper helper) {
+    public static void theWithheldCardIsNeitherCraftableNorFinished(GameTestHelper helper) {
         var manager = helper.getLevel().getRecipeManager();
-        var found = manager.byKey(cn.dancingsnow.neoecoprototype.NeoECOPrototype
+        var recipe = manager.byKey(cn.dancingsnow.neoecoprototype.NeoECOPrototype
                 .id("processor_assembler/wireless_link_card"));
-        if (found.isEmpty()) {
-            helper.fail("no recipe is registered under neoecoprototype:processor_assembler/wireless_link_card,"
-                    + " so the card has no way to be crafted at all");
+        if (!recipe.isEmpty()) {
+            helper.fail("a recipe for the wireless link card is registered (" + recipe.get()
+                    + "), so the withheld card is craftable after all");
             return;
         }
-        var recipe = found.get().value();
-        if (!(recipe instanceof cn.dancingsnow.neoecoprototype.recipe.ProcessorAssemblerRecipe made)) {
-            helper.fail("the card's recipe is a " + recipe.getClass().getSimpleName()
-                    + ", not the assembler's own recipe type, so the assembler will never offer it");
+        var card = new ItemStack(ModRegistration.WIRELESS_LINK_CARD.get());
+        if (!cn.dancingsnow.neoecoprototype.tooltip.SimplifyTooltipHandler.isNotImplemented(card)) {
+            helper.fail("the withheld card does not carry the red not-implemented line, so a /give'd one"
+                    + " reads like finished content");
             return;
         }
-        var expected = new java.util.TreeMap<String, Integer>(java.util.Map.of(
-                "neoecoprototype:fumo_doll_reliqwq", 1,
-                "neoecoprototype:simplify_powered_me_interface", 1,
-                "neoecoprototype:simplify_computation_interface", 1,
-                "neoecoprototype:simplify_crafting_interface", 1));
-        var actual = new java.util.TreeMap<String, Integer>();
-        for (var ingredient : made.ingredients()) {
-            var item = net.minecraft.core.registries.BuiltInRegistries.ITEM.stream()
-                    .filter(candidate -> java.util.Arrays.stream(ingredient.getItems())
-                            .anyMatch(stack -> stack.is(candidate)))
-                    .findFirst();
-            if (item.isEmpty()) {
-                helper.fail("an ingredient of the card's recipe matches no item in this registry, so the"
-                        + " recipe can never be satisfied: " + ingredient);
-                return;
-            }
-            actual.merge(net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(item.get()).toString(),
-                    1, Integer::sum);
-        }
-        var result = made.result();
-        if (!result.is(ModRegistration.WIRELESS_LINK_CARD.get()) || result.getCount() != 1) {
-            helper.fail("the card's recipe outputs " + result + ", expected exactly one wireless link card");
+        var shipped = new ItemStack(ModRegistration.SIMPLIFY_STORAGE_CONTROLLER_ITEM.get());
+        if (cn.dancingsnow.neoecoprototype.tooltip.SimplifyTooltipHandler.isNotImplemented(shipped)) {
+            helper.fail("the withheld list caught " + shipped
+                    + ", which players are meant to be able to build");
             return;
         }
-        if (!expected.equals(actual)) {
-            helper.fail("the card's ingredients are " + actual + ", expected " + expected
-                    + " (his doll plus the three interfaces)");
-            return;
-        }
-        NeoECOPrototype.LOGGER.info("CARDRECIPE inputs={} output={}x{}", actual,
-                net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(result.getItem()),
-                result.getCount());
         helper.succeed();
     }
 

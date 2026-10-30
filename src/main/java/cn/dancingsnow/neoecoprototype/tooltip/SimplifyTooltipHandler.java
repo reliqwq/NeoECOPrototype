@@ -62,12 +62,19 @@ public final class SimplifyTooltipHandler {
         }
     }
 
-    /** Trinity controller and its three modules work, but are unreleased; see the JEI gate. */
-    private static boolean isNotImplemented(ItemStack stack) {
+    /**
+     * Trinity controller and its three modules work, but are unreleased; see the JEI gate. The wireless link
+     * card joins them for the same reason this release. Public because a guard asks it on a stack rather than
+     * trusting that the withheld list was edited in every place that matters.
+     */
+    public static boolean isNotImplemented(ItemStack stack) {
         return stack.is(ModRegistration.SIMPLIFY_TRINITY_CONTROLLER_ITEM.get())
                 || stack.is(ModRegistration.SIMPLIFY_TRINITY_STORAGE_MODULE_ITEM.get())
                 || stack.is(ModRegistration.SIMPLIFY_TRINITY_COMPUTATION_MODULE_ITEM.get())
-                || stack.is(ModRegistration.SIMPLIFY_TRINITY_CRAFTING_MODULE_ITEM.get());
+                || stack.is(ModRegistration.SIMPLIFY_TRINITY_CRAFTING_MODULE_ITEM.get())
+                // Withheld with it: no tab entry and no recipe this release, so a /give'd card must not read
+                // like finished content.
+                || stack.is(ModRegistration.WIRELESS_LINK_CARD.get());
     }
 
     /** @return the language key of the extra line, or null when the item has none. */
