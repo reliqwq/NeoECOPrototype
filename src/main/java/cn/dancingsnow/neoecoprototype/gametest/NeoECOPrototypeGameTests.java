@@ -13798,8 +13798,9 @@ public final class NeoECOPrototypeGameTests {
                                     return;
                                 }
                                 // And the card is usable again, not merely re-labelled: this tap is a bind, and
-                                // it is free - neither of these two networks has a controller in it, which is
-                                // exactly the case the deleted allowance used to refuse.
+                                // nothing refuses it - neither of these two networks has a controller in it,
+                                // which is exactly the case the deleted allowance used to refuse. (A bind has
+                                // never been refused for price: the AE a link costs is a drain, not a gate.)
                                 tapWithCard(helper, player, card, far);
                                 waitUntil(helper, 8,
                                         () -> WirelessLinks.status(
