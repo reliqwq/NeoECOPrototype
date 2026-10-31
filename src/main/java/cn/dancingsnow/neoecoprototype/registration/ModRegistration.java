@@ -1736,11 +1736,10 @@ private static Supplier<BlockEntityType<SimplifyStorageVentBlockEntity>> registe
                          output.accept(SIMPLIFY_TRINITY_STORAGE_MODULE_ITEM.get());
                          output.accept(SIMPLIFY_TRINITY_COMPUTATION_MODULE_ITEM.get());
                          output.accept(SIMPLIFY_TRINITY_CRAFTING_MODULE_ITEM.get());
-                         output.accept(REACTOR_CONTROLLER_ITEM.get());
-                         output.accept(REACTOR_FRAME_ITEM.get());
-                         output.accept(REACTOR_GLASS_ITEM.get());
-                         output.accept(REACTOR_COIL_ITEM.get());
-                         output.accept(REACTOR_CORE_ITEM.get());
+                         // The reactor family is registered but withheld for this release: it has no survival
+                         // recipe. Keeping the five items out of the tab is the whole hiding - registrations,
+                         // models, loot tables, the structure definition and the reactor_formation suite all
+                         // stay, so a world that already has one still loads and still runs.
                     })
                     .build());
 

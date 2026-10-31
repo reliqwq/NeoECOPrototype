@@ -64,8 +64,9 @@ public final class SimplifyTooltipHandler {
 
     /**
      * Trinity controller and its three modules work, but are unreleased; see the JEI gate. The wireless link
-     * card joins them for the same reason this release. Public because a guard asks it on a stack rather than
-     * trusting that the withheld list was edited in every place that matters.
+     * card joins them for the same reason this release, and so does the reactor family, which has no recipe
+     * and no tab entry this release. Public because a guard asks it on a stack rather than trusting that the
+     * withheld list was edited in every place that matters.
      */
     public static boolean isNotImplemented(ItemStack stack) {
         return stack.is(ModRegistration.SIMPLIFY_TRINITY_CONTROLLER_ITEM.get())
@@ -74,7 +75,13 @@ public final class SimplifyTooltipHandler {
                 || stack.is(ModRegistration.SIMPLIFY_TRINITY_CRAFTING_MODULE_ITEM.get())
                 // Withheld with it: no tab entry and no recipe this release, so a /give'd card must not read
                 // like finished content.
-                || stack.is(ModRegistration.WIRELESS_LINK_CARD.get());
+                || stack.is(ModRegistration.WIRELESS_LINK_CARD.get())
+                // The reactor's five parts are withheld the same way; a /give'd frame must not read finished.
+                || stack.is(ModRegistration.REACTOR_CONTROLLER_ITEM.get())
+                || stack.is(ModRegistration.REACTOR_FRAME_ITEM.get())
+                || stack.is(ModRegistration.REACTOR_GLASS_ITEM.get())
+                || stack.is(ModRegistration.REACTOR_COIL_ITEM.get())
+                || stack.is(ModRegistration.REACTOR_CORE_ITEM.get());
     }
 
     /** @return the language key of the extra line, or null when the item has none. */
