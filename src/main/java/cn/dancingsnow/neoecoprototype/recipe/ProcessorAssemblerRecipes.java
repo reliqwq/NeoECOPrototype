@@ -86,7 +86,7 @@ public final class ProcessorAssemblerRecipes {
         for (ProcessorAssemblerRecipe recipe : declared) {
             if (matchesPattern(recipe, demands, outputAmount, output)) return recipe;
         }
-        if (NeoECOPrototypeServerConfig.DERIVE_PROCESSOR_RECIPES_FROM_INSCRIBER.get()) {
+        if (NeoECOPrototypeServerConfig.current(NeoECOPrototypeServerConfig.DERIVE_PROCESSOR_RECIPES_FROM_INSCRIBER)) {
             for (ProcessorAssemblerRecipe recipe : derived(level, declared)) {
                 if (matchesPattern(recipe, demands, outputAmount, output)) return recipe;
             }

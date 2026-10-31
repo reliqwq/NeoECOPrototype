@@ -48,7 +48,7 @@ public class WirelessLinkCardItem extends Item {
 
     @Override
     public InteractionResult useOn(UseOnContext context) {
-        if (!cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig.WIRELESS_LINKS.get()) {
+        if (!cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig.current(cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig.WIRELESS_LINKS)) {
             // Switched off for this release: answer PASS rather than consume, so the device under the cursor
             // behaves exactly as it would with any other item in hand and no half-gesture is left recorded.
             return InteractionResult.PASS;
@@ -135,7 +135,7 @@ public class WirelessLinkCardItem extends Item {
     public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
         ItemStack card = player.getItemInHand(hand);
         if (!player.isShiftKeyDown() || !(level instanceof ServerLevel serverLevel)
-                || !cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig.WIRELESS_LINKS.get()) {
+                || !cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig.current(cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig.WIRELESS_LINKS)) {
             // Only the sneak gesture, only on the server, and not one word while the switch is off: the
             // tooltip already says the feature is off, and a reply line here would take back the PASS that
             // the off path promises to the block under the cursor.
@@ -175,7 +175,7 @@ public class WirelessLinkCardItem extends Item {
         // grid still has power looks alive after its link is gone, so "is the link there" has exactly one
         // answer source - the live= count the card prints.
         tooltip.add(Component.translatable("item.neoecoprototype.wireless_link_card.check"));
-        if (!cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig.WIRELESS_LINKS.get()) {
+        if (!cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig.current(cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig.WIRELESS_LINKS)) {
             // The switch answers PASS with no reply line, so a player holding this card and tapping a
             // controller gets the same nothing they would get from a broken item - the tooltip is the only
             // place left where the card can say the feature exists but is off in this world.

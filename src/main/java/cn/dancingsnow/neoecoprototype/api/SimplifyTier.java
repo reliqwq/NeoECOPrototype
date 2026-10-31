@@ -106,21 +106,21 @@ public enum SimplifyTier implements IECOTier {
 
     @Override
     public int getCPUAccelerators() {
-        return isConfigurable() ? NeoECOPrototypeServerConfig.L1_CPU_ACCELERATORS.get() : cpuAccelerators;
+        return isConfigurable() ? NeoECOPrototypeServerConfig.current(NeoECOPrototypeServerConfig.L1_CPU_ACCELERATORS) : cpuAccelerators;
     }
 
     @Override
     public int getCPUThreads() {
-        return isConfigurable() ? NeoECOPrototypeServerConfig.L1_CPU_THREADS.get() : cpuThreads;
+        return isConfigurable() ? NeoECOPrototypeServerConfig.current(NeoECOPrototypeServerConfig.L1_CPU_THREADS) : cpuThreads;
     }
 
     @Override
     public long getCPUTotalBytes() {
         if (this == L1) {
-            return NeoECOPrototypeServerConfig.L1_CPU_TOTAL_BYTES.get();
+            return NeoECOPrototypeServerConfig.current(NeoECOPrototypeServerConfig.L1_CPU_TOTAL_BYTES);
         }
         if (this == L1_REINFORCED) {
-            return NeoECOPrototypeServerConfig.ENERGIZED_CELL_TOTAL_BYTES.get();
+            return NeoECOPrototypeServerConfig.current(NeoECOPrototypeServerConfig.ENERGIZED_CELL_TOTAL_BYTES);
         }
         return cpuTotalBytes;
     }

@@ -26,7 +26,7 @@ public class SimplifyCryotheumOreBlock extends Block {
     @Override
     public BlockState playerWillDestroy(Level level, BlockPos pos, BlockState state, Player player) {
         if (!level.isClientSide && player != null) {
-            int ticks = NeoECOPrototypeServerConfig.CRYOTHEUM_ORE_FREEZE_TICKS.get();
+            int ticks = NeoECOPrototypeServerConfig.current(NeoECOPrototypeServerConfig.CRYOTHEUM_ORE_FREEZE_TICKS);
             if (ticks > 0 && player.getTicksFrozen() <= 0) {
                 player.setTicksFrozen(Math.min(player.getTicksRequiredToFreeze(), ticks));
             }

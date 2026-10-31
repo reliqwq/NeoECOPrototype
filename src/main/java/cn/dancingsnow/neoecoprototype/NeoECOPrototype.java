@@ -92,8 +92,14 @@ public class NeoECOPrototype {
         // every hundred ticks, which is why it can be that leisurely.
         net.neoforged.neoforge.common.NeoForge.EVENT_BUS.addListener(
                 (net.neoforged.neoforge.event.tick.LevelTickEvent.Post event) -> {
+                    // Both callees refuse a client level, so this handler has nothing to ask on one - and a
+                    // client that joined a server without this addon cannot ask anyway (see current()).
+                    if (event.getLevel().isClientSide()) {
+                        return;
+                    }
                     if (!cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig
-                            .WIRELESS_LINKS.get()) {
+                            .current(cn.dancingsnow.neoecoprototype.config
+                                    .NeoECOPrototypeServerConfig.WIRELESS_LINKS)) {
                         return;
                     }
                     cn.dancingsnow.neoecoprototype.event.WirelessLinks.sweep(
@@ -105,12 +111,19 @@ public class NeoECOPrototype {
         // second instead of on the next slow sweep.
         net.neoforged.neoforge.common.NeoForge.EVENT_BUS.addListener(
                 (net.neoforged.neoforge.event.level.ChunkEvent.Load event) -> {
+                    // getLevel() is a @Nullable LevelAccessor on this event, and a client chunk load has no
+                    // business here.
+                    net.minecraft.world.level.LevelAccessor loadedLevel = event.getLevel();
+                    if (loadedLevel == null || loadedLevel.isClientSide()) {
+                        return;
+                    }
                     if (!cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig
-                            .WIRELESS_LINKS.get()) {
+                            .current(cn.dancingsnow.neoecoprototype.config
+                                    .NeoECOPrototypeServerConfig.WIRELESS_LINKS)) {
                         return;
                     }
                     cn.dancingsnow.neoecoprototype.event.WirelessLinks.rebuildAround(
-                            event.getLevel(), ModRegistration.WIRELESS_LINKS,
+                            loadedLevel, ModRegistration.WIRELESS_LINKS,
                             event.getChunk().getPos().x, event.getChunk().getPos().z);
                 });
         // A broken endpoint has to lose its pairing at the moment of the break: a later pass can only ask

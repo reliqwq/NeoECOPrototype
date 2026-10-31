@@ -148,6 +148,22 @@ public final class NeoECOPrototypeServerConfig {
      */
     public static final ModConfigSpec.DoubleValue FUMO_CHARGE_AE_PER_TICK;
 
+    /**
+     * Reads a key the way a client that has no server-side copy of this addon must.
+     *
+     * <p>{@code get()} throws {@code IllegalStateException: Cannot get config value before config is loaded}
+     * while the spec has no loaded handle, and NeoForge only fills that handle when the file is read on the
+     * server side or, for a client, when the server's {@code ConfigSync} configuration task sends its copy
+     * over. Joining a server without this addon sends nothing, so every client-side path that asks a key
+     * here - item use, tooltip, block callbacks, the recipe viewers - would throw for a player who is only
+     * holding an item or walking into a chunk. Answering the shipped default keeps the live-read rule
+     * (AGENTS §7: never cache a config value in a field) intact and states the truth about a config nobody
+     * handed us: we do not have it.</p>
+     */
+    public static <T> T current(ModConfigSpec.ConfigValue<T> value) {
+        return SPEC.isLoaded() ? value.get() : value.getDefault();
+    }
+
     static {
         ModConfigSpec.Builder builder = new ModConfigSpec.Builder();
         builder.push("l1_storage");

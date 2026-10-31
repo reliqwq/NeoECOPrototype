@@ -62,7 +62,7 @@ public final class NeoECOPrototypeJeiPlugin implements IModPlugin {
         List<ProcessorAssemblerRecipe> recipes = new java.util.ArrayList<>(level.getRecipeManager()
                 .getAllRecipesFor(ModRegistration.PROCESSOR_ASSEMBLER_RECIPE_TYPE.get())
                 .stream().map(RecipeHolder::value).toList());
-        if (NeoECOPrototypeServerConfig.DERIVE_PROCESSOR_RECIPES_FROM_INSCRIBER.get()) {
+        if (NeoECOPrototypeServerConfig.current(NeoECOPrototypeServerConfig.DERIVE_PROCESSOR_RECIPES_FROM_INSCRIBER)) {
             recipes.addAll(ProcessorAssemblerRecipes.derived(level, recipes));
         }
         registration.addRecipes(ProcessorAssemblerCategory.TYPE,

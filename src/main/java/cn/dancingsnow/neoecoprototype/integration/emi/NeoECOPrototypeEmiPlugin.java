@@ -85,7 +85,7 @@ public final class NeoECOPrototypeEmiPlugin implements EmiPlugin {
             registry.addRecipe(new ProcessorAssemblerEmiRecipe(PROCESSOR_ASSEMBLER, holder.id(),
                     holder.value(), holder));
         }
-        if (!NeoECOPrototypeServerConfig.DERIVE_PROCESSOR_RECIPES_FROM_INSCRIBER.get()) {
+        if (!NeoECOPrototypeServerConfig.current(NeoECOPrototypeServerConfig.DERIVE_PROCESSOR_RECIPES_FROM_INSCRIBER)) {
             return;
         }
         for (var derived : ProcessorAssemblerRecipes.derived(level, jsonRecipes)) {

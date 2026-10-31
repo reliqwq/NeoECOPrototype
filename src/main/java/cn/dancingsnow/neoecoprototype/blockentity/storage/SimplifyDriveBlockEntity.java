@@ -287,7 +287,7 @@ public class SimplifyDriveBlockEntity extends NEBlockEntity<SimplifyStorageClust
         if (isOmniCellsItem(itemId)) {
             return true;
         }
-        return NeoECOPrototypeServerConfig.L1_ADDITIONAL_STORAGE_CELLS.get().contains(itemId);
+        return NeoECOPrototypeServerConfig.current(NeoECOPrototypeServerConfig.L1_ADDITIONAL_STORAGE_CELLS).contains(itemId);
     }
 
     /** OmniCells is optional; use only its stable item namespace and never load its classes here. */
