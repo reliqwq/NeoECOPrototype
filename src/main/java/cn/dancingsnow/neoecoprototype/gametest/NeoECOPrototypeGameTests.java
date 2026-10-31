@@ -867,11 +867,14 @@ public final class NeoECOPrototypeGameTests {
     }
 
     /**
-     * The Trinity blocks must be obtainable in survival. A malformed recipe JSON simply fails to
-     * load, so asserting the recipes exist is a real gate on the data files.
+     * Trinity is withheld from players this release: its four recipes are out of the jar, its items are
+     * out of the tab, and every part carries the red "not implemented" line. Asserting the absence
+     * rather than deleting the check keeps the withholding honest - a recipe file re-added without
+     * flipping the markers goes red here first. Registrations and loot tables stay, because a world
+     * that already contains one of these blocks still has to load and run.
      */
-    @GameTest(template = "trinity_room", templateNamespace = NeoECOPrototype.MOD_ID)
-    public static void trinityBlocksAreCraftable(GameTestHelper helper) {
+    @GameTest(template = "empty", templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void trinityBlocksStayUncraftableWhileWithheld(GameTestHelper helper) {
         var recipeManager = helper.getLevel().getRecipeManager();
         for (String path : List.of(
                 "simplify_trinity_controller",
@@ -879,12 +882,21 @@ public final class NeoECOPrototypeGameTests {
                 "simplify_trinity_computation_module",
                 "simplify_trinity_crafting_module")) {
             ResourceLocation id = ResourceLocation.fromNamespaceAndPath(NeoECOPrototype.MOD_ID, path);
-            var holder = recipeManager.byKey(id);
-            helper.assertTrue(holder.isPresent(), "missing crafting recipe: " + id);
-            var result = holder.orElseThrow().value()
-                    .getResultItem(helper.getLevel().registryAccess());
-            helper.assertTrue(result.getItem() == BuiltInRegistries.ITEM.get(id),
-                    "recipe " + id + " produces " + result + " instead of the Trinity block");
+            if (recipeManager.byKey(id).isPresent()) {
+                helper.fail("Trinity is withheld but " + id + " is still a registered recipe");
+                return;
+            }
+        }
+        for (var item : List.of(
+                ModRegistration.SIMPLIFY_TRINITY_CONTROLLER_ITEM.get(),
+                ModRegistration.SIMPLIFY_TRINITY_STORAGE_MODULE_ITEM.get(),
+                ModRegistration.SIMPLIFY_TRINITY_COMPUTATION_MODULE_ITEM.get(),
+                ModRegistration.SIMPLIFY_TRINITY_CRAFTING_MODULE_ITEM.get())) {
+            if (!cn.dancingsnow.neoecoprototype.tooltip.SimplifyTooltipHandler.isNotImplemented(
+                    new ItemStack(item))) {
+                helper.fail("the withheld Trinity part " + item + " lost its red not-implemented line");
+                return;
+            }
         }
         helper.succeed();
     }

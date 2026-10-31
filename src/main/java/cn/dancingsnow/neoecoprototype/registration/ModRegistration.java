@@ -1732,10 +1732,10 @@ private static Supplier<BlockEntityType<SimplifyStorageVentBlockEntity>> registe
                          output.accept(SIMPLIFY_CRAFTING_CASING_ITEM.get());
                          output.accept(SIMPLIFY_FLUID_INPUT_HATCH_ITEM.get());
                          output.accept(SIMPLIFY_FLUID_OUTPUT_HATCH_ITEM.get());
-                         output.accept(SIMPLIFY_TRINITY_CONTROLLER_ITEM.get());
-                         output.accept(SIMPLIFY_TRINITY_STORAGE_MODULE_ITEM.get());
-                         output.accept(SIMPLIFY_TRINITY_COMPUTATION_MODULE_ITEM.get());
-                         output.accept(SIMPLIFY_TRINITY_CRAFTING_MODULE_ITEM.get());
+                         // The Trinity family is registered but withheld for this release: its four recipes are
+                         // out of the jar and it stays out of JEI. Keeping the four items out of the tab is the
+                         // player-facing half - registrations, models, loot tables, the structure definition and
+                         // the trinity_room suite all stay, so a world that already has one still loads and runs.
                          // The reactor family is registered but withheld for this release: it has no survival
                          // recipe. Keeping the five items out of the tab is the whole hiding - registrations,
                          // models, loot tables, the structure definition and the reactor_formation suite all
