@@ -180,7 +180,40 @@ dependencies {
 // still where our endless-cell credential sits, and the infinite sand cell is now registered (3 hits for
 // eco_infinite_sand_cell, 0 in 21.2.11) - which is what the milk easter egg's item_exists condition waits
 // on, so on this baseline that recipe loads.
-    implementation files("neoecobeta/neoecoae-21.2.12.jar")
+// ABI target: eco 21.2.13 (moved 2026-10-31; the previous line of sight was 21.2.12, moved 2026-10-28).
+// Jar md5 62e8edb7218c, 4713 -> 4773 entries: +62 / -2 / 92 changed, classes 1695 -> 1711. Both removals are
+// anonymous lambdas in integration packages we never name (NEAppRepItems$1, NEMegaRadioactiveItems$1), and the
+// class-level scan over the 122 neoecoae types our bytecode references reports 0 missing in this jar. Member
+// level: tools/audit_eco_abi.py prints the same 95-line list for the 21.2.12 control and for 21.2.13 - the
+// reading is the equality, not the length. Mixin targets re-checked with javap: ClientUIBridge.call and
+// FixedBlockEntityRenderers.render(AddSectionGeometryEvent$SectionRenderingContext, BlockPos) keep their
+// descriptors, and the interface call our @Redirect guards still sits inside that render at offset 59.
+// This round is about the multiblock preview: MultiBlockInfoWrapper grows the stat-row drawing (new
+// package-private MultiBlockPreviewInfo + Row, tooltips, a scrolling material offset, a MiniButton style) and
+// drops EMI_VERTICAL_RESERVE; the three public constructors our JEI plugin and eco's EMI recipe call are
+// unchanged. The rows themselves are picked by instanceof over eco's own concrete classes and the helper is
+// package-private, so no addon can add a row - but the page still computes real numbers wherever the required
+// items are eco block types. Our computation cores extend ECOComputationParallelCore / ThreadingCore and our
+// crafting cores extend ECOCraftingParallelCore / ECOCraftingWorker, so those two L1 pages get
+// parallel/memory/threads and speed/batch/workers from SimplifyTier; the storage page does not, because our
+// controller is our own NEBlock and our drives are not ECODriveBlock, so it walks the fallback branch and
+// lists blocks/materials only.
+// The rest of our surface needed no code change, checked class by class over the referenced-and-changed
+// intersection (9 types): StorageHostUI is byte-identical, its $Config keeps the 20-arg form we build
+// (delegating to the new 22-arg with migrationProgress 0 and an empty Component) and $CellEntry is
+// identical; ECOStorageCell's only semantic change is an opt-in branch in saveChanges() - when the
+// ISaveProvider implements the new DeferredCellPersistence and can defer, the write moves to the
+// tick-end flush, otherwise it calls flushBatchedChanges() exactly as before, and our drive implements
+// the old interface only. ECOStorageLifecycleEvents gains that flushDeferred() call, a no-op for us.
+// ECOCraftingThread.calculateProgressPerTick is now public static with the same formula (10 + 10*max(0,x)
+// clamped to 10..100). NEConfig adds only the two infinite-migration values, NEBlocks only two entries
+// (cryogenic casing, smart cooling module) and NEMultiBlocks nothing at all. On the infinite side
+// StorageListingDelta is new and only eco's own ECOInfiniteStorage adopts it; our endless cells still sit
+// on ExactAmountSource, and ECOInfiniteStorageMember (the drive renderer's check) is byte-identical.
+// New and not adopted: the large workstation's smart cooling module (block, BE, SmartCoolingModuleUI, KubeJS
+// LargeIntegratedWorkingStationSchema, 11 compat models), JEI MultiblockRecipesGuiMixin (the 19.70
+// local-variable-slot VerifyError fix), and the infinite-storage migration machinery under storage/infinite.
+    implementation files("neoecobeta/neoecoae-21.2.13.jar")
     // MegaCells 4.11.0 is the supported optional integration version.
     implementation files("libs/megacells-4.11.0.jar")
     // Dev-runtime only: keep them off the compile classpath but on the runtime classpath.

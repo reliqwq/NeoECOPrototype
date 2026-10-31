@@ -83,7 +83,11 @@ side = "BOTH"
 [[dependencies.neoecoprototype]]
 modId = "neoecoae"
 mandatory = true
-versionRange = "[21.2.12,)"
+versionRange = "[21.2.13,)"
+# 21.2.13 takes no symbol away from us - the member audit over the types we reference is identical to the
+# 21.2.12 control, and the accessor below still exists - so this floor is the baseline rule rather than a
+# break: the compile baseline moved, and the runtime floor stays equal to it. What the round buys is the
+# rewritten multiblock preview (see build.gradle).
 # Forced again, and by the same kind of surprise: 21.2.12 moved eco's impl/storage/** tree to storage/**,
 # and our bytecode names two of those classes directly - one in the return descriptor of the
 # createCellInventory override, one as a static call in the drive renderer. A moved class is a
