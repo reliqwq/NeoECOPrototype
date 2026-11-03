@@ -225,7 +225,7 @@ StartupEvents.registry('item', event => {
 - `.fluidType('namespace:fluid')`：同上，只有无限档真的绑。
 - `.chemicalType('namespace:chemical')`：绑定一种 Mekanism 化学品，有限档也真的绑；需要 Mekanism 和 Applied Mekanistics，缺了脚本会收到这一句而不是找不到类。
 - `.type('item'/'fluid'/'chemical')`：设置矩阵声明类型；绑定方法会自动设置对应类型。传家族名（`pigmee`/`universal`/`quantum`/`small_bulk`/`infinite`/`other`）只换材质，不换容量 —— 容量一律用 `.size(...)`。
-- `.size('infinite'/'1k'/'4k'/'16k'/'64k'/'1m'/'4m')`：设置容量。
+- `.size('infinite'/'1k'/'4k'/'16k'/'64k'/'1m'/'4m')`：设置容量，档位名就是它字面的 2 的幂 —— `1k` = 1024、`4k` = 4096、`16k` = 16384、`64k` = 65536、`1m` = 1048576、`4m` = 4194304 字节。**注意这跟我们自己成品的那几只小仓不是一回事**：成品物品/流体/化学的 1K/16K/64K 比名字多 25%（1280 / 20480 / 81920）。要在脚本里做出和成品一样大小的仓，别用档位，直接写 `.bytes(1280)`；`.size(...)` 与 `.bytes(...)` 同时出现时以 `.bytes(...)` 为准。
 - `.bytes(n)`：改用自定义字节数，**它会顶掉先前的或之后的 `size(...)` 档位**（两种顺序都一样）；`size('infinite')` 与 `.bytes(...)` 同时出现会明确报错。
 - `.totalTypes(n)`：改类型数，默认 256（物品/流体）或 25（化学品）。
 - `.grows(perBatch, ticksPerBatch)`：把它变成**自产矩阵**，见下一节。

@@ -523,6 +523,11 @@ public final class NeoECOPrototypeGameTests {
         var items = net.neoforged.neoforge.registries.DeferredRegister.create(
                 net.minecraft.core.registries.Registries.ITEM, NeoECOPrototype.MOD_ID);
         var id = NeoECOPrototype.id("gametest_matrix_registration_guard");
+        // The script-facing presets are the plain powers of two a pack asks for by name - K4 here is 4096,
+        // NOT the 5120 our own surcharged rung arithmetic would give. Written as a literal rather than read
+        // off MatrixSize.K4.bytes() on purpose: the guard in StorageMatrixDefinition rejects any bytes that
+        // disagree with the size name ("Matrix bytes do not match declared size: K4"), so this is where the
+        // suite pins what those names mean. Quietly surcharging the presets turns this red - which is the point.
         var definition = cn.dancingsnow.neoecoprototype.api.StorageMatrixDefinition.finite(
                 id, cn.dancingsnow.neoecoprototype.api.StorageMatrixDefinition.MatrixType.ITEM,
                 cn.dancingsnow.neoecoprototype.api.StorageMatrixDefinition.MatrixSize.K4,

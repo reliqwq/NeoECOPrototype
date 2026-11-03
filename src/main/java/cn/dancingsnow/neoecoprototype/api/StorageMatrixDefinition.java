@@ -24,6 +24,14 @@ public record StorageMatrixDefinition(
     }
 
     public enum MatrixSize {
+        /**
+         * Plain powers of two, exactly what the name says. These are the presets a pack asks for by name, so
+         * they are deliberately NOT the shipped cells' byte counts: our item, fluid and chemical small rungs
+         * carry a 25% surcharge over their names (1K = 1280 bytes - see
+         * {@code SimplifyStorageCellItem.BYTES_1K}), while {@code 1k} here is 1024. A pack that wants to match
+         * a crafted cell asks for {@code .bytes(1280)} instead of a preset, and the guard below then checks
+         * the pair it was given. The rung names stay honest either way.
+         */
         K1(1L << 10),
         K4(1L << 12),
         K16(1L << 14),

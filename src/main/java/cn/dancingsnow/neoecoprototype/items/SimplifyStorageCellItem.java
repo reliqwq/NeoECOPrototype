@@ -27,12 +27,19 @@ import java.util.function.Supplier;
  */
 public class SimplifyStorageCellItem extends ECOStorageCellItem {
 
-    /** 1 KiB */
-    public static final long BYTES_1K = 1L << 10;
-    /** 16 KiB */
-    public static final long BYTES_16K = 1L << 14;
-    /** 64 KiB */
-    public static final long BYTES_64K = 1L << 16;
+    /**
+     * The three small rungs carry a 25% surcharge over the power-of-two name: AE2's own 1K cell holds 1024
+     * bytes and ours holds 1280, so a pair side by side in one drive stores different amounts under the same
+     * "1K" label. The ids, models, lang and recipes still say 1k / 16k / 64k on purpose - those strings are
+     * the save keys, and renaming one would strand every cell already placed in a world for a label nobody
+     * reads off the ground.
+     */
+    /** 1 KiB + 25% = 1280 bytes. */
+    public static final long BYTES_1K = (1L << 10) * 5 / 4;
+    /** 16 KiB + 25% = 20480 bytes. */
+    public static final long BYTES_16K = (1L << 14) * 5 / 4;
+    /** 64 KiB + 25% = 81920 bytes. */
+    public static final long BYTES_64K = (1L << 16) * 5 / 4;
     /** 1 MiB */
     public static final long BYTES_1M = 1L << 20;
     /** 4 MiB */
