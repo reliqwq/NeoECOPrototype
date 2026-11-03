@@ -180,6 +180,27 @@ dependencies {
 // still where our endless-cell credential sits, and the infinite sand cell is now registered (3 hits for
 // eco_infinite_sand_cell, 0 in 21.2.11) - which is what the milk easter egg's item_exists condition waits
 // on, so on this baseline that recipe loads.
+// ABI target: eco 21.2.15-beta (moved 2026-11-03; the previous line of sight was 21.2.13, moved 2026-10-31).
+// Modrinth file 39imG2uW, 6866354 B, sha1 d6abfdddd101de2f1e2eb0b787e2ad004ec55626 - read back from the API's
+// own hashes, not from the file name. Entries 4779 -> 4820 over 21.2.14, classes 1717 -> 1757 (+44 / -4). The
+// four removed classes are all eco's own nested types we never name (planner solve $Retention,
+// ComputationProcessingTooltips $Layout and $TooltipElement, MultiblockBuilderUI $SegmentedBooleanControl), and
+// the class-level scan over the 122 neoecoae types our 297 classes name reports 0 absent.
+// This is the sync issue #16 forced: a player on 21.2.15-beta right-clicking our L1 storage controller got
+// NoSuchMethodError on StorageHostActionUI$Config.<init>, because that record gained an eleventh-to-twelfth
+// component - Supplier<MultiBlockDefinition> definition - and 21.2.15-beta's create(Config) reads definition()
+// two instructions after previewPlan() (offsets 41 -> 45) for the multiblock preview. Nothing was deleted;
+// a record's canonical constructor IS its signature, so 13 components becoming 14 deletes the 13-argument
+// descriptor our class file carries literally at SimplifyStorageHostBlockEntity offset 112.
+// Member-level: tools/audit_eco_abi.py prints the SAME 157-line list for 21.2.14 and for 21.2.15-beta - it
+// cannot see this break, and its own docstring says why ("<init> can never match"). The reading that does
+// catch it is the constructor-level one: our bytecode names 54 eco types and 55 constructor descriptors, and
+// against 21.2.13 the count of undeclared is 0, against 21.2.14 it is 0, against 21.2.15-beta it is exactly 1
+// - that Config. The same probe in maven-artifact says why the floor below is spelled with the -beta:
+// DefaultArtifactVersion("21.2.15-beta").compareTo("21.2.15") = -4, so "[21.2.15,)" would reject the very jar
+// we now compile against, while "[21.2.15-beta,)" rejects 21.2.14 and admits a future 21.2.15 release.
+// Our side is one argument: getBuildDefinition() already answers a MultiBlockDefinition (SimplifyStorage-
+// Definition.L1), so the panel hands eco the object it has always had.
 // ABI target: eco 21.2.13 (moved 2026-10-31; the previous line of sight was 21.2.12, moved 2026-10-28).
 // Jar md5 62e8edb7218c, 4713 -> 4773 entries: +62 / -2 / 92 changed, classes 1695 -> 1711. Both removals are
 // anonymous lambdas in integration packages we never name (NEAppRepItems$1, NEMegaRadioactiveItems$1), and the
@@ -213,7 +234,7 @@ dependencies {
 // New and not adopted: the large workstation's smart cooling module (block, BE, SmartCoolingModuleUI, KubeJS
 // LargeIntegratedWorkingStationSchema, 11 compat models), JEI MultiblockRecipesGuiMixin (the 19.70
 // local-variable-slot VerifyError fix), and the infinite-storage migration machinery under storage/infinite.
-    implementation files("neoecobeta/neoecoae-21.2.13.jar")
+    implementation files("neoecobeta/neoecoae-21.2.15-beta.jar")
     // MegaCells 4.11.0 is the supported optional integration version.
     implementation files("libs/megacells-4.11.0.jar")
     // Dev-runtime only: keep them off the compile classpath but on the runtime classpath.

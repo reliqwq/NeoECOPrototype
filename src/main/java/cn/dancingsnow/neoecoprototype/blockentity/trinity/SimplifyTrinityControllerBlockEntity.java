@@ -362,6 +362,11 @@ public class SimplifyTrinityControllerBlockEntity
                 this::isFormed,
                 () -> buildInProgress,
                 buildController::createLocalPreviewPlan,
+                // eco 21.2.15-beta asks the action bar for the host's own shape (its create(Config) reads
+                // definition() right after previewPlan()). The second call site of that record - this one -
+                // had to grow with it, and the trinity's answer is the definition its build and preview path
+                // already use.
+                this::getBuildDefinition,
                 () -> 0,
                 priority -> {
                 },

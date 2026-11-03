@@ -230,6 +230,11 @@ public class SimplifyStorageHostBlockEntity
                 this::isFormed,
                 () -> buildInProgress,
                 buildController::createLocalPreviewPlan,
+                // eco 21.2.15-beta asks the action bar for the host's own shape, not just for a plan: its
+                // create(Config) reads definition() two instructions after previewPlan() (offsets 41 -> 45).
+                // This is the same object getMinBuildLength / getMaxBuildLength already read, so the panel
+                // and the build button cannot disagree about how wide this host is allowed to grow.
+                this::getBuildDefinition,
                 () -> storagePriority,
                 priority -> {
                     if (canPlayerInteract(holder.player)) {
