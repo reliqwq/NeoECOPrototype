@@ -759,11 +759,33 @@ public final class NeoECOPrototypeGameTests {
                     + " x" + result.getCount());
             return;
         }
+        // The book category is pinned against vanilla's own stew rather than left unasserted, because "food"
+        // is not a CraftingBookCategory value at all (the enum is BUILDING / REDSTONE / EQUIPMENT / MISC) and
+        // the recipe codec reads it with orElse(MISC) - so a wrong string hides behind the default in our own
+        // loader while KubeJS noticed it and logged "Unknown element name:food" for our file twice per reload.
+        var category = ((net.minecraft.world.item.crafting.CraftingRecipe) recipe).category();
+        var stew = helper.getLevel().getRecipeManager()
+                .byKey(ResourceLocation.parse("minecraft:mushroom_stew"));
+        if (stew.isEmpty()) {
+            helper.fail("vanilla's mushroom_stew is not in the recipe manager, so the category comparison has"
+                    + " no reference on this pack");
+            return;
+        }
+        var stewCategory =
+                ((net.minecraft.world.item.crafting.CraftingRecipe) stew.get().value()).category();
+        if (category != net.minecraft.world.item.crafting.CraftingBookCategory.MISC
+                || stewCategory != net.minecraft.world.item.crafting.CraftingBookCategory.MISC) {
+            helper.fail("the ice cream's crafting-book category is " + category + " while vanilla's own stew"
+                    + " recipe reports " + stewCategory + " - every crafting-table food vanilla ships is MISC,"
+                    + " and a name the enum does not have would still load, defaulted to MISC by the codec");
+            return;
+        }
         NeoECOPrototype.LOGGER.info("ICECREAM nutrition={} saturation={} convertsTo={} animation={}"
-                        + " (chicken={} honey={}) ingredients={} chickenReference={}/{}",
+                        + " (chicken={} honey={}) category={} ingredients={} chickenReference={}/{}",
                 food.nutrition(), food.saturation(),
                 converts.get().getDescriptionId(), animation, chickenAnimation, honeyAnimation,
-                describeIngredients(ingredients), chicken.nutrition(), chicken.saturation());
+                category, describeIngredients(ingredients),
+                chicken.nutrition(), chicken.saturation());
         helper.succeed();
     }
 
