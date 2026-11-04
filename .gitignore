@@ -123,3 +123,6 @@ __pycache__/
 # 在用的开发约定与别人家的指南全文（工作文件，不进仓库也不进 jar）
 /AGENTS.md
 /参考模组指南/
+
+# ImageGen scratch output (the failed 16x16 pixel-art probe)
+/vibe_images/
