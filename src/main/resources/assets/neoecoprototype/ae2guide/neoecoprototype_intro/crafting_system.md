@@ -28,9 +28,12 @@ The **L1 Crafting System** is the L1 version of eco's <ItemLink id="neoecoae:cra
 
 | Aspect | Value |
 |--------|-------|
-| Parallelism | **16** |
-| Overclocked | **32** |
-| Against the computation side | counted separately: this machine supplies 16 / 32, the computation system supplies threads and its own accelerators |
+| Parallelism, per parallel core | **16** |
+| With the overclock switch on | **48** per core - eco adds the tier's overclock bonus to the base rather than swapping it (16 + 32), so never read the second number as "32 instead of 16" |
+| A full machine | at the default maximum length the frame holds **11 workers and 22 parallel cores**, so its thread pool is 352 with the switch off and 1056 with it on |
+| Crafts per tick | throughput is the batch divided by the ticks it takes. Switched on, one batch is 11 × 64 = **704** crafts, which runs at **352 per tick** (2 ticks) with no coolant, **176 per tick** on water (4 ticks), and back to 352 on sodium or cryotheum (2 ticks). With the switch off every tier takes 10 ticks per batch. |
+| Compared with eco's tiers | eco's L4 host gives **24** per parallel core, L6 gives 72 and L9 gives 256 - an L1 host is the modest one, and it is modest mostly because the shape accepts fewer cores |
+| Against the computation side | counted separately: this machine supplies 16 / 48 per core, the computation system supplies threads and their accelerators |
 
 ## Parts
 
@@ -73,4 +76,4 @@ Lengthening the structure means adding workers, parallel cores, pattern buses an
 
 ## Overclocking and cooling
 
-The overclock and active-cooling switches, and what coolant tier they demand, are eco's own rules - see eco's crafting system page. This tier's two numbers are **16** (overclock off) and **32** (on). The coolant level has one extra reader on our side: the crafting host's **machine mind** uses it to decide how much idle power to save, so a fuller tank changes the standby figure, not whether overclocking is allowed.
+The overclock and active-cooling switches, and what coolant tier they demand, are eco's own rules - see eco's crafting system page. This tier's numbers are **16** per parallel core with the switch off and **48** with it on, because eco sums the tier's parallelism and its overclock bonus (16 + 32) instead of trading one for the other. One thing worth knowing before you blame a build: the switch lives on the network, not on one machine - the leader host's setting is copied to every host sharing it, and eco refuses to flip it while a job is running. How long a batch takes is eco's arithmetic too, not a number we set: it reads the slack between the machine's thread pool and its batch depth, in 5% steps, and active cooling caps that result by the coolant's own tier - water is the reason a switched-on L1 host settles at 4 ticks per batch instead of 2. The coolant level has one extra reader on our side: the crafting host's **machine mind** uses it to decide how much idle power to save, so a fuller tank changes the standby figure, not whether overclocking is allowed.

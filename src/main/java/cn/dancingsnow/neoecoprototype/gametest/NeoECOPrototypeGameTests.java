@@ -9353,6 +9353,162 @@ public final class NeoECOPrototypeGameTests {
     }
 
     /**
+     * The L1 crafting tier's two parallel numbers are the machine's whole balance, and before this test
+     * nothing in the suite read them at all: the panel tests ask this tier only for its label and its index,
+     * and the panel itself is client-side. So the pair is pinned as literals, together with the arithmetic the
+     * guide page quotes players.
+     *
+     * <p>Why the sum and not the second number: eco's {@code getCoreThreadCountLong} adds
+     * {@code overclockedCrafterParallel} on top of {@code crafterParallel} while the network's switch is on
+     * (measured: {@code max(a,0)} then {@code saturatingAdd(max(b,0))}), so 16 + 32 = 48 per core. The
+     * comparison that keeps this honest is eco's own ladder, read off its {@code ECOTier} constants the same
+     * way: L4 is 24 + 32, L6 is 72 + 96, L9 is 256 + 384 - our tier is the smallest per core, and an L1
+     * host's real limit is how few cores its shape accepts, not this number being generous.</p>
+     *
+     * <p>The machine-size half of this claim used to be wrong, and instructively so: it read "eleven parallel
+     * cores run 176 per tick". Eleven is the <em>worker</em> count at the default maximum length, and the shape
+     * puts a core row above and below every worker, so it is 22 cores - 352 at rest, 1056 switched. And the 176
+     * a player measures in world is a third quantity again: crafts per tick, which is the batch (11 x 64 = 704)
+     * divided by however many ticks eco gives that batch, and eco's tick count is its overflow rung capped by
+     * the coolant's own tier. All three are measured by the {@code crafting_batch_ticks} probe; the literals
+     * below are what the guide promises, derived here from our own constants plus those two counts.</p>
+     */
+    @GameTest(template = "empty", batch = "crafting_parallel_numbers", timeoutTicks = 100,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void craftingTierParallelPairIsWhatTheGuideQuotes(GameTestHelper helper) {
+        var tier = cn.dancingsnow.neoecoprototype.api.SimplifyCraftingTier.L1;
+        if (tier.getCrafterParallel() != 16) {
+            helper.fail("L1 crafting parallelism is " + tier.getCrafterParallel()
+                    + " per parallel core, expected 16 - eco's own L4 gives 24, so this tier is not the"
+                    + " generous one and a quiet raise here would be a balance change, not a typo");
+            return;
+        }
+        if (tier.getOverclockedCrafterParallel() != 32) {
+            helper.fail("L1 crafting overclock bonus is " + tier.getOverclockedCrafterParallel()
+                    + ", expected 32 - eco adds it to the base, so moving it moves the overflow ratio");
+            return;
+        }
+        int perCore = tier.getCrafterParallel() + tier.getOverclockedCrafterParallel();
+        if (perCore != 48) {
+            helper.fail("a switched-on parallel core is " + perCore + ", expected 16 + 32 = 48 - the guide"
+                    + " page quotes 48 and eco adds the bonus instead of swapping it");
+            return;
+        }
+        int workers = 11;
+        int cores = 2 * workers;
+        int poolAtRest = cores * tier.getCrafterParallel();
+        int poolSwitched = cores * perCore;
+        if (poolAtRest != 352 || poolSwitched != 1056) {
+            helper.fail("the default maximum-length host (" + workers + " workers, " + cores + " cores) now"
+                    + " pools " + poolAtRest + " at rest and " + poolSwitched + " switched, while the guide"
+                    + " page promises 352 and 1056");
+            return;
+        }
+        int batchSwitched = workers * 32 * (2 << tier.getTier());
+        if (batchSwitched != 704) {
+            helper.fail("one switched-on batch is " + batchSwitched + " crafts, expected 11 x 64 = 704 - the"
+                    + " per-worker queue is 32 x (2 << tier) and this tier's index is " + tier.getTier()
+                    + ", so raising that index doubles the batch as well as everything else");
+            return;
+        }
+        int onWater = batchSwitched / 4;
+        int uncooled = batchSwitched / 2;
+        if (onWater != 176 || uncooled != 352) {
+            helper.fail("a batch of " + batchSwitched + " now reads " + onWater + " per tick on water and "
+                    + uncooled + " uncooled, while the guide promises 176 and 352 - if these moved, eco's"
+                    + " overflow rung or its coolant table moved, so re-run the crafting_batch_ticks probe");
+            return;
+        }
+        helper.succeed();
+    }
+
+    @GameTest(template = "l1_room", batch = "crafting_batch_ticks", timeoutTicks = 600,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void readCraftingBatchTicksBothSwitchStates(GameTestHelper helper) {
+        var controllerPos = new BlockPos(6, 3, 6);
+        buildL1Room(helper, controllerPos,
+                ModRegistration.SIMPLIFY_CRAFTING_SYSTEM_BLOCK.get(),
+                ModRegistration.SIMPLIFY_CRAFTING_INTERFACE_BLOCK.get(),
+                ModRegistration.SIMPLIFY_CRAFTING_INTERFACE_BLOCK.get(),
+                host -> {
+                    if (!(helper.getLevel().getBlockEntity(helper.absolutePos(controllerPos))
+                            instanceof cn.dancingsnow.neoecoae.blocks.entity.crafting
+                            .ECOCraftingSystemBlockEntity controller)) {
+                        helper.fail("no L1 crafting host BE at " + controllerPos);
+                        return;
+                    }
+                    NeoECOPrototype.LOGGER.info("crafting batch at rest {}", describeCraftingBatch(controller));
+                    controller.applyNetworkOverclocked(true);
+                    NeoECOPrototype.LOGGER.info("crafting batch switched {}", describeCraftingBatch(controller));
+                    controller.applyNetworkActiveCooling(true);
+                    NeoECOPrototype.LOGGER.info("crafting batch switched+cooling {}",
+                            describeCraftingBatch(controller));
+                    var absolute = helper.absolutePos(controllerPos);
+                    var def = controller.getBuildDefinition();
+                    var big = cn.dancingsnow.neoecoae.multiblock.placement.MultiBlockPlacementService
+                            .preview(helper.getLevel(), absolute,
+                                    helper.getLevel().getBlockState(absolute), def,
+                                    def.getExpandMax(), host.isMirrorBuild());
+                    int workers = 0;
+                    int cores = 0;
+                    var workerBlock = ModRegistration.SIMPLIFY_CRAFTING_WORKER_BLOCK.get();
+                    var coreBlock = ModRegistration.SIMPLIFY_CRAFTING_PARALLEL_CORE_BLOCK.get();
+                    for (var planned : big.getAllBlocks()) {
+                        if (planned.targetState().is(workerBlock)) {
+                            workers++;
+                        } else if (planned.targetState().is(coreBlock)) {
+                            cores++;
+                        }
+                    }
+                    var tier = cn.dancingsnow.neoecoprototype.api.SimplifyCraftingTier.L1;
+                    NeoECOPrototype.LOGGER.info(
+                            "crafting batch at max length: expand {}..{} workers={} cores={} threadsAtRest={} "
+                                    + "threadsSwitched={} baseFxPerWorker={} ratioSwitched={} ocSwitched={} "
+                                    + "ticksSwitched={}",
+                            def.getExpandMin(), def.getExpandMax(), workers, cores,
+                            cores * tier.getCrafterParallel(),
+                            cores * (tier.getCrafterParallel() + tier.getOverclockedCrafterParallel()),
+                            32 * tier.getOverclockedCrafterQueueMultiply(),
+                            (double) (cores * (tier.getCrafterParallel()
+                                    + tier.getOverclockedCrafterParallel())
+                                    - workers * 32L * tier.getOverclockedCrafterQueueMultiply())
+                                    / (double) (cores * (tier.getCrafterParallel()
+                                    + tier.getOverclockedCrafterParallel())),
+                            Math.clamp((long) Math.round((1.0 - (double) (workers
+                                    * 32L * tier.getOverclockedCrafterQueueMultiply())
+                                    / (double) (cores * (tier.getCrafterParallel()
+                                    + tier.getOverclockedCrafterParallel()))) / 0.05), 0, 9),
+                            Math.ceilDiv(100, Math.clamp(10 + 10 * Math.clamp((long) Math.round((1.0
+                                    - (double) (workers * 32L * tier.getOverclockedCrafterQueueMultiply())
+                                    / (double) (cores * (tier.getCrafterParallel()
+                                    + tier.getOverclockedCrafterParallel()))) / 0.05), 0, 9), 10, 100)));
+                    controller.applyNetworkActiveCooling(false);
+                    controller.applyNetworkOverclocked(false);
+                });
+    }
+
+    private static String describeCraftingBatch(
+            cn.dancingsnow.neoecoae.blocks.entity.crafting.ECOCraftingSystemBlockEntity controller) {
+        var s = controller.getCapabilitySnapshot();
+        int execution = s.executionOverclock();
+        int progress = Math.clamp(10 + 10 * Math.max(0, execution), 10, 100);
+        return "workers=" + controller.getWorkerCount()
+                + " threadCount=" + controller.getThreadCount()
+                + " fx=" + s.physicalFxCount() + "/" + s.activeFxCount()
+                + " switchHosts=" + s.normalSwitchHosts() + "+" + s.highEnergySwitchHosts()
+                + " netMult=" + s.networkMultiplier() + " exchange=" + s.exchangeNetwork()
+                + " batchPerFx=" + s.batchPerFx() + " totalBatch=" + s.totalBatchCapacity()
+                + " ftParallel=" + s.ftParallelCapacity()
+                + " theoretical=" + s.theoreticalOverclock() + " effective=" + s.effectiveOverclock()
+                + " execution=" + execution + " progressPerTick=" + progress
+                + " ticksPerBatch=" + Math.ceilDiv(100, progress)
+                + " virtualEligible=" + s.virtualEligible() + " virtualMode=" + s.virtualMode()
+                + " coolant=" + s.coolantState() + " energyUsage=" + s.energyUsage()
+                + " hostOverclocked=" + controller.isOverclocked()
+                + " hostActiveCooling=" + controller.isActiveCooling();
+    }
+
+    /**
      * eco spells a tier with its own number, and our tier index is 0 - so if the override in
      * {@link SimplifyTier} goes away, the host panel starts calling every L1 cell "L0", a tier that exists
      * nowhere in the ecosystem. The panel now does read the hook - but only through the tier the host hands
