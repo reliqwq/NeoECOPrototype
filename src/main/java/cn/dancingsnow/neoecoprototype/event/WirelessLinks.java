@@ -276,12 +276,12 @@ public final class WirelessLinks {
      * that speaks English to a player who does not read it, and on 2026-11-04 that was the whole content of
      * every refusal the two cards made - the guarded test now scans the three card sources and fails on one.
      *
-     * <p>Where the args are plain values (a coordinate, a count, a mode name) the {@code en_us} value renders
-     * byte-for-byte the same sentence as {@code english}, and the guard checks that on the replies it can
-     * trigger. Where the log sentence embeds the whole {@link #status} instrument the player's arg is
-     * something shorter instead - the device's coordinate for {@code marked}, {@link #channelsText} for
-     * {@code marked_gone_remarked} - because a player should not read a debug line; those two are deliberately
-     * outside the equality check.
+     * <p>Where the args are values a player can read as-is (a coordinate, a count, a mode name, a device
+     * label) the {@code en_us} value, rendered through {@link #asComponent()}, rebuilds the {@code english}
+     * sentence exactly, and the guard checks that on the replies it can trigger. Where the log sentence embeds
+     * the whole {@link #status} instrument the player's arg is something shorter instead - the device's label
+     * for {@code marked}, {@link #channelsText} for {@code marked_gone_remarked} - because a player should not
+     * read a debug line; those two are deliberately outside the equality check.
      *
      * @param args what fills that key's {@code %s} holes, in order
      */
@@ -347,23 +347,25 @@ public final class WirelessLinks {
         }
         Data data = owner.getData(type.get());
         if (data.links.contains(link)) {
-            return Reply.of("already_linked", "already linked " + describe(link), describe(link));
+            return Reply.of("already_linked", "already linked " + describeLabelled(acting, link),
+                    endLabel(acting, link, true), endLabel(acting, link, false));
         }
         if (!presenceIsAwake(owner, link.a()) || !presenceIsAwake(owner, link.b())) {
             GlobalPos dead = presence(owner, link.a()) == Presence.AWAKE ? link.b() : link.a();
-            return Reply.of("not_a_device", "that is not a network device: " + describe(dead), describe(dead));
+            return Reply.of("not_a_device",
+                    "that is not a network device: " + labelText(acting, dead), label(acting, dead));
         }
         int onA = linksAtEverywhere(owner, type, link.a());
         if (onA >= maxLinks) {
-            return Reply.of("at_limit", describe(link.a()) + " already carries " + onA + " links (max "
-                    + maxLinks + ", from wireless_max_links_per_device in this world's config)",
-                    describe(link.a()), onA, maxLinks);
+            return Reply.of("at_limit", labelText(acting, link.a()) + " already carries " + onA
+                    + " links (max " + maxLinks + ", from wireless_max_links_per_device in this world's config)",
+                    label(acting, link.a()), onA, maxLinks);
         }
         int onB = linksAtEverywhere(owner, type, link.b());
         if (onB >= maxLinks) {
-            return Reply.of("at_limit", describe(link.b()) + " already carries " + onB + " links (max "
-                    + maxLinks + ", from wireless_max_links_per_device in this world's config)",
-                    describe(link.b()), onB, maxLinks);
+            return Reply.of("at_limit", labelText(acting, link.b()) + " already carries " + onB
+                    + " links (max " + maxLinks + ", from wireless_max_links_per_device in this world's config)",
+                    label(acting, link.b()), onB, maxLinks);
         }
         IGridNode a = node(owner, link.a());
         IGridNode b = node(owner, link.b());
@@ -372,9 +374,9 @@ public final class WirelessLinks {
             // let the card mark it), while AE2 only builds the node when that block first ticks - so this
             // is the one refusal worth saying how to get past.
             GlobalPos missing = a == null ? link.a() : link.b();
-            return Reply.of("no_node_yet", "no network node at " + describe(missing)
+            return Reply.of("no_node_yet", "no network node at " + labelText(acting, missing)
                     + " yet - the block is there but AE2 has not given it a node, so bind it again in a moment",
-                    describe(missing));
+                    label(acting, missing));
         }
         if (physicallyWiredTogether(a, b)) {
             return Reply.of("wired_already", "those two are already wired together with blocks: a wireless"
@@ -411,19 +413,21 @@ public final class WirelessLinks {
             // after a join still showed nothing, so the retired-grid object (batch wireless_tool_stalegrid) is
             // a real effect of a merge but not the whole of what he sees. The status line carries AE2's own
             // machine table below, which is what lets a player compare the tool against the source.
-            return Reply.of("linked", "linked " + describe(link) + " | "
-                            + readings(result.edge(), result.a(), result.b()), describe(link),
+            return Reply.of("linked", "linked " + describeLabelled(acting, link) + " | "
+                            + readings(result.edge(), result.a(), result.b()),
+                    endLabel(acting, link, true), endLabel(acting, link, false),
                     channelsText(acting, link.a()));
         }
         if (result.missingNode() != null) {
             GlobalPos missing = result.missingNode();
-            return Reply.of("recorded_no_node", "recorded but no network node at " + describe(missing)
+            return Reply.of("recorded_no_node", "recorded but no network node at " + labelText(acting, missing)
                     + " - a block counts as a device the moment it is placed, while AE2 only builds its"
                     + " node when that block first ticks, so binding it again in a moment should work",
-                    describe(missing));
+                    label(acting, missing));
         }
-        return Reply.of("recorded_no_edge", "recorded " + describe(link) + " but no edge was made (see log)",
-                describe(link));
+        return Reply.of("recorded_no_edge",
+                "recorded " + describeLabelled(acting, link) + " but no edge was made (see log)",
+                endLabel(acting, link, true), endLabel(acting, link, false));
     }
 
     /**
@@ -478,8 +482,8 @@ public final class WirelessLinks {
         }
         var node = node(owner, at);
         if (node == null || node.getGrid() == null) {
-            return Reply.of("not_on_network", describe(at)
-                    + " is not on a network yet, so there is no channel mode to raise", describe(at));
+            return Reply.of("not_on_network", labelText(acting, at)
+                    + " is not on a network yet, so there is no channel mode to raise", label(acting, at));
         }
         var pathing = node.getGrid().getService(appeng.api.networking.pathing.IPathingService.class);
         if (!(pathing instanceof appeng.me.service.PathingService service)) {
@@ -616,10 +620,10 @@ public final class WirelessLinks {
         }
         NeoECOPrototype.LOGGER.info("wireless link: unbind {} dropped={} link(s)", describe(endpoint), dropped);
         return dropped == 0
-                ? Reply.of("carries_none", describe(endpoint) + " carries no wireless link",
-                        describe(endpoint))
-                : Reply.of("dropped", "dropped " + dropped + " link(s) at " + describe(endpoint),
-                        dropped, describe(endpoint));
+                ? Reply.of("carries_none", labelText(acting, endpoint) + " carries no wireless link",
+                        label(acting, endpoint))
+                : Reply.of("dropped", "dropped " + dropped + " link(s) at " + labelText(acting, endpoint),
+                        dropped, label(acting, endpoint));
     }
 
     /** Drops every link at one endpoint and answers in English - what the log and the guards read. */
@@ -1487,6 +1491,58 @@ public final class WirelessLinks {
 
     public static String describe(Link link) {
         return describe(link.a()) + " <-> " + describe(link.b());
+    }
+
+    /**
+     * The label a player reads for one square: that block's own name, then the coordinate under it. A
+     * Component on purpose - {@code Block#getName()} is translatable, and a name resolved on the server is
+     * English whoever is reading it, so the resolution has to be left to the client.
+     *
+     * <p>Two cases fall back to the bare {@link #describe} rather than naming anything: a square whose chunk
+     * the given level cannot see, and a square holding air. The first is honesty about not having looked; the
+     * second matters because {@link #noteBlockBroken} reports what it cleared <em>after</em> the player took
+     * the machine away, and "Air@-32, -60, 10" would be a true statement with nothing useful in it - the
+     * coordinate is the shorter way of saying the same thing.
+     */
+    public static Component label(Level looking, GlobalPos at) {
+        if (!looking.dimension().equals(at.dimension()) || !looking.isLoaded(at.pos())) {
+            return Component.literal(describe(at));
+        }
+        var state = looking.getBlockState(at.pos());
+        if (state.isAir()) {
+            return Component.literal(describe(at));
+        }
+        return state.getBlock().getName().copy()
+                .append(Component.literal(coordinateSuffix(looking, at)));
+    }
+
+    /**
+     * {@link #label} as the string the log and the guards read. The level asked is the one the square is in,
+     * so a cross-dimension pair still gets named here even though a client could not have read it; on a
+     * dedicated server the resolved name is English, which is what makes the log sentence and the {@code en_us}
+     * value one story rather than two.
+     */
+    public static String labelText(ServerLevel acting, GlobalPos at) {
+        var owner = levelOf(acting, at.dimension());
+        return label(owner == null ? acting : owner, at).getString();
+    }
+
+    /** One end of a link, named - the pair form the card sends as two separate arguments. */
+    public static Component endLabel(ServerLevel acting, Link link, boolean first) {
+        var at = first ? link.a() : link.b();
+        var owner = levelOf(acting, at.dimension());
+        return label(owner == null ? acting : owner, at);
+    }
+
+    /** The pair as the log reads it: both ends named with {@link #labelText}, joined by the same arrow. */
+    public static String describeLabelled(ServerLevel acting, Link link) {
+        return labelText(acting, link.a()) + " <-> " + labelText(acting, link.b());
+    }
+
+    private static String coordinateSuffix(Level looking, GlobalPos at) {
+        return looking.dimension().equals(at.dimension())
+                ? "@" + at.pos().toShortString()
+                : "@" + at.dimension().location() + "@" + at.pos().toShortString();
     }
 
     /**

@@ -69,9 +69,10 @@ public class WirelessLinkCardItem extends Item {
             // gesture that looked like re-marking was the one that dismantled everything on that device. The
             // card now refuses, keeps its mark, and names the other card.
             report = WirelessLinks.Reply.of("teardown_moved",
-                    "this card still holds " + WirelessLinks.describe(clicked) + "; taking links off is the"
-                            + " unlink card's job now - sneak-right-click the device with that one",
-                    WirelessLinks.describe(clicked));
+                    "this card still holds " + WirelessLinks.labelText(serverLevel, clicked)
+                            + "; taking links off is the unlink card's job now - sneak-right-click the device"
+                            + " with that one",
+                    WirelessLinks.label(serverLevel, clicked));
         } else if (WirelessLinks.isController(serverLevel, clicked)) {
             // A controller is the network's knob, never one end of a link: its own node answers
             // getMaxChannels() == 0 (measured in the client as a(max=0,used=0)), so a wireless edge ending
@@ -93,15 +94,15 @@ public class WirelessLinkCardItem extends Item {
         } else if (held == null) {
             if (!WirelessLinks.isDevice(serverLevel, clicked)) {
                 report = WirelessLinks.Reply.of("no_device_at",
-                        "no network device at " + WirelessLinks.describe(clicked),
-                        WirelessLinks.describe(clicked));
+                        "no network device at " + WirelessLinks.labelText(serverLevel, clicked),
+                        WirelessLinks.label(serverLevel, clicked));
             } else {
                 writeEndpoint(card, clicked);
                 // The log keeps the full instrument (block id, per-face ledger, ad-hoc arithmetic, AE2's own
-                // machine table); the player gets which device the card now holds.
+                // machine table); the player gets which device the card now holds, named.
                 report = WirelessLinks.Reply.of("marked", "marked "
                         + WirelessLinks.status(serverLevel, ModRegistration.WIRELESS_LINKS, clicked),
-                        WirelessLinks.describe(clicked));
+                        WirelessLinks.label(serverLevel, clicked));
             }
         } else if (WirelessLinks.endpointIsGone(serverLevel, held)) {
             // The square this card marked no longer holds a device, so the mark is void and this tap is
@@ -112,17 +113,17 @@ public class WirelessLinkCardItem extends Item {
             // Only a confirmed-empty square does this; an asleep one keeps its mark (see endpointIsGone).
             if (!WirelessLinks.isDevice(serverLevel, clicked)) {
                 report = WirelessLinks.Reply.of("marked_gone_no_device",
-                        "the device this card marked at " + WirelessLinks.describe(held) + " is gone, and"
-                                + " there is no network device at " + WirelessLinks.describe(clicked)
-                                + " to mark instead",
-                        WirelessLinks.describe(held), WirelessLinks.describe(clicked));
+                        "the device this card marked at " + WirelessLinks.labelText(serverLevel, held)
+                                + " is gone, and there is no network device at "
+                                + WirelessLinks.labelText(serverLevel, clicked) + " to mark instead",
+                        WirelessLinks.label(serverLevel, held), WirelessLinks.label(serverLevel, clicked));
             } else {
                 writeEndpoint(card, clicked);
                 report = WirelessLinks.Reply.of("marked_gone_remarked",
-                        "the device this card marked at " + WirelessLinks.describe(held)
+                        "the device this card marked at " + WirelessLinks.labelText(serverLevel, held)
                                 + " is gone, so it marks this one instead - "
                                 + WirelessLinks.status(serverLevel, ModRegistration.WIRELESS_LINKS, clicked),
-                        WirelessLinks.describe(held),
+                        WirelessLinks.label(serverLevel, held),
                         WirelessLinks.channelsText(serverLevel, clicked));
             }
         } else {
@@ -165,7 +166,8 @@ public class WirelessLinkCardItem extends Item {
         NeoECOPrototype.LOGGER.info("wireless link card: dropped its mark, it held {}",
                 WirelessLinks.describe(held));
         player.displayClientMessage(Component.translatable(
-                "item.neoecoprototype.wireless_link_card.unmarked", WirelessLinks.describe(held)), true);
+                "item.neoecoprototype.wireless_link_card.unmarked",
+                WirelessLinks.label(serverLevel, held)), true);
         return InteractionResultHolder.consume(card);
     }
 
@@ -195,7 +197,7 @@ public class WirelessLinkCardItem extends Item {
         tooltip.add(held == null
                 ? Component.translatable("item.neoecoprototype.wireless_link_card.tooltip")
                 : Component.translatable("item.neoecoprototype.wireless_link_card.holds",
-                        WirelessLinks.describe(held)));
+                        heldLabel(context.level(), held)));
         // Named because the honest reading is the opposite of what a player reaches for: a device whose own
         // grid still has power looks alive after its link is gone, so "is the link there" has exactly one
         // answer source - the live= count the card prints.
@@ -243,5 +245,17 @@ public class WirelessLinkCardItem extends Item {
     /** A copy, always: the component itself stays immutable and {@code CustomData#copyTag} says so. */
     private static CompoundTag customData(ItemStack card) {
         return card.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
+    }
+
+    /**
+     * The tooltip's label for the marked square. A tooltip is built on the client, so the name resolves in the
+     * player's language; when there is no client level to ask (a tooltip built off the item's own context, or a
+     * mark in a dimension nobody has opened) it prints the plain dimension-and-coordinate form rather than
+     * guessing at a name.
+     */
+    private static Object heldLabel(@Nullable Level looking, GlobalPos held) {
+        return looking == null
+                ? Component.literal(WirelessLinks.describe(held))
+                : WirelessLinks.label(looking, held);
     }
 }

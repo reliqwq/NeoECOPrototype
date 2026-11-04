@@ -15288,18 +15288,39 @@ public final class NeoECOPrototypeGameTests {
                                     + " back to compare it with " + probe.english());
                             return;
                         }
-                        String rendered;
-                        try {
-                            rendered = String.format(value, probe.args());
-                        } catch (java.util.IllegalFormatException exc) {
-                            helper.fail(probe.langKey() + "'s en_us value and the arguments the code passes do"
-                                    + " not fit each other (" + exc.getMessage() + "): value=[" + value
-                                    + "] args=" + java.util.Arrays.toString(probe.args()));
+                        // Rendered, not String.format'd: the arguments are Components now (a device is named,
+                        // not just located), and a Component argument only becomes text on the way out. This is
+                        // the same path a player's chat line takes, so the comparison is between the two things
+                        // that actually exist rather than a simulation of one.
+                        String rendered = probe.asComponent().getString();
+                        if (!rendered.equals(probe.english())) {
+                            helper.fail("the card's log sentence and its rendered lang line have drifted apart"
+                                    + " for " + probe.langKey() + ": log=[" + probe.english() + "] rendered=["
+                                    + rendered + "] value=[" + value + "]");
                             return;
                         }
-                        if (!rendered.equals(probe.english())) {
-                            helper.fail("the card's log sentence and its en_us value have drifted apart for "
-                                    + probe.langKey() + ": log=[" + probe.english() + "] lang=[" + rendered + "]");
+                        // A labelled line keeps its coordinate, and on a square that really holds a block it has
+                        // to carry a name. Both sides of the comparison above come out of the same function, so
+                        // an unresolved translation would match itself and stay green without these two - and
+                        // the bare-coordinate fallback is exactly what a dedicated server would hand a player.
+                        boolean labelled = probe.langKey().endsWith("not_a_device")
+                                || probe.langKey().endsWith("carries_none");
+                        if (labelled && !rendered.contains(at.pos().toShortString())
+                                && !rendered.contains(nowhere.pos().toShortString())) {
+                            helper.fail("the labelled line dropped the coordinate it is built to keep: ["
+                                    + rendered + "]");
+                            return;
+                        }
+                        if (labelled && rendered.contains("block.")) {
+                            helper.fail("a block name came out as its translation key instead of a name: ["
+                                    + rendered + "] - the server cannot resolve it, so no player can either");
+                            return;
+                        }
+                        if (probe.langKey().endsWith("carries_none")
+                                && rendered.contains(at.dimension().location().toString())) {
+                            helper.fail("the card fell back to bare coordinates on a loaded block it can name:"
+                                    + " [" + rendered + "] expected the block's name in front of "
+                                    + at.pos().toShortString());
                             return;
                         }
                     }

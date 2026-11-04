@@ -45,21 +45,20 @@ public class WirelessUnlinkCardItem extends Item {
         if (WirelessLinks.isController(serverLevel, clicked)) {
             // A controller never carries an edge, so this tap has nothing to take off it. Saying so beats
             // the alternative: a silent PASS that reads as a broken card.
-            report = WirelessLinks.Reply.of("controller_no_edge", describe(clicked)
-                    + " is a controller, and a controller never carries a wireless edge - use the link card"
-                    + " on it to raise that network's channel step", describe(clicked));
+            report = WirelessLinks.Reply.of("controller_no_edge",
+                    WirelessLinks.labelText(serverLevel, clicked)
+                            + " is a controller, and a controller never carries a wireless edge - use the link"
+                            + " card on it to raise that network's channel step",
+                    WirelessLinks.label(serverLevel, clicked));
         } else if (!WirelessLinks.isDevice(serverLevel, clicked)) {
             report = WirelessLinks.Reply.of("not_a_device",
-                    "that is not a network device: " + describe(clicked), describe(clicked));
+                    "that is not a network device: " + WirelessLinks.labelText(serverLevel, clicked),
+                    WirelessLinks.label(serverLevel, clicked));
         } else {
             report = WirelessLinks.unlinkReply(serverLevel, ModRegistration.WIRELESS_LINKS, clicked);
         }
         NeoECOPrototype.LOGGER.info("wireless unlink card: {}", report.english());
         player.sendSystemMessage(report.asComponent());
         return InteractionResult.CONSUME;
-    }
-
-    private static String describe(GlobalPos at) {
-        return WirelessLinks.describe(at);
     }
 }
