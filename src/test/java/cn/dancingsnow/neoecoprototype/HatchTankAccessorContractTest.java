@@ -92,11 +92,18 @@ final class HatchTankAccessorContractTest {
     @Test
     void eachHatchSiteCallsTheAccessorThatServesIt() throws Exception {
         // Which class must call it on which block entity, written out rather than inferred: our main class
-        // posts both faces, the output hatch block builds one UI. A control that replaced the input face's
-        // read with `new FluidTank(16000)` compiled, answered non-null, and desynced every pipe from the
-        // machine - so "some hatch, somewhere" would have been too loose to be worth running.
-        var expected = Map.of(OUR_MAIN, Set.of(INPUT_HATCH_BE, OUTPUT_HATCH_BE),
-                OUR_OUTPUT_BLOCK, Set.of(OUTPUT_HATCH_BE));
+        // posts both faces. A control that replaced the input face's read with `new FluidTank(16000)` compiled,
+        // answered non-null, and desynced every pipe from the machine - so "some hatch, somewhere" would have
+        // been too loose to be worth running.
+        //
+        // This map had a second site until 2026-11-04: the output hatch block's own `createUI` override, which
+        // was one of the three reads moved onto the accessor on 10-29. That override was then deleted, because
+        // eco 21.2.11+ builds the identical UI inside `ECOFluidOutputHatchBlockEntity.createUI(holder)` and a
+        // copy of it here only added a place to drift - so the accessor call now lives in eco's jar, not ours,
+        // and this rule has exactly one site left to check. The player-visible half (both panels still open,
+        // and open on the machine's own tank) is guarded by the gameTest batch `fluid_hatch_ui` and
+        // `fluid_hatch_faces`, not by this map.
+        var expected = Map.of(OUR_MAIN, Set.of(INPUT_HATCH_BE, OUTPUT_HATCH_BE));
         for (var site : expected.entrySet()) {
             var owners = new ArrayList<String>();
             for (var method : read(site.getKey()).methods) {
