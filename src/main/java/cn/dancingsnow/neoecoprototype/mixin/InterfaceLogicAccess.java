@@ -10,7 +10,9 @@ import org.spongepowered.asm.mixin.gen.Invoker;
 /* Version lock: AE2 19.2.17. Re-checked against that jar on 2026-10-06: InterfaceLogic still holds
  * `private final ConfigInventory config` and `... storage` (both need @Mutable), and still declares
  * onConfigChanged(), onConfigRowChanged(), onStorageChanged() and isAllowedInStorageSlot(int, AEKey).
- * remap = false because the target is a mod, not Minecraft: these members are looked up by these names. */
+ * remap = false because the target is a mod, not Minecraft: these members are looked up by these names.
+ * Only onConfigRowChanged/onStorageChanged are called by us, so the onConfigChanged invoker that used to
+ * sit here was deleted on 2026-11-04 rather than kept as a spare - five members, five users. */
 @Mixin(value = InterfaceLogic.class, remap = false)
 public interface InterfaceLogicAccess {
     @Mutable
@@ -20,9 +22,6 @@ public interface InterfaceLogicAccess {
     @Mutable
     @Accessor("storage")
     void neoecoprototype$setStorage(ConfigInventory storage);
-
-    @Invoker("onConfigChanged")
-    void neoecoprototype$onConfigChanged();
 
     @Invoker("onConfigRowChanged")
     void neoecoprototype$onConfigRowChanged();
