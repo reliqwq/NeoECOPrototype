@@ -91,6 +91,7 @@ import cn.dancingsnow.neoecoprototype.blockentity.storage.SimplifyStorageHostBlo
 import cn.dancingsnow.neoecoprototype.blockentity.storage.SimplifyStorageInterfaceBlockEntity;
 import cn.dancingsnow.neoecoprototype.blockentity.storage.SimplifyStorageVentBlockEntity;
 import cn.dancingsnow.neoecoprototype.blockentity.computation.SimplifyComputationDriveBlockEntity;
+import cn.dancingsnow.neoecoprototype.items.DrinkableFoodItem;
 import cn.dancingsnow.neoecoprototype.items.PigmeeStorageMatrixHousingItem;
 import cn.dancingsnow.neoecoprototype.items.SimplifyComputationCellItem;
 import cn.dancingsnow.neoecoprototype.items.SimplifyConcreteStorageCellItem;
@@ -463,16 +464,17 @@ public class ModRegistration {
             () -> new Item(new Item.Properties()));
     /**
      * The mod's first food: a glass jar of cryotheum ice cream, thrown together shapelessly from a glass
-     * bottle, sugar, eco's cryotheum powder and a snowball. Eating it hands the bottle back
-     * ({@code usingConvertsTo}), so the container is not a slow leak in a player's stock, and it sits at
-     * cooked chicken's rung on purpose - the guard compares it against vanilla's own number rather than
-     * against this line. The icon is PR #17's {@code sundae_glass.png} - he picked it from the five
-     * candidates, knowing it is the one whose outline is slate (74,95,110) rather than eco's deep-sea blue
-     * (12,63,104) and whose cream highlights are new to the family; swapping
-     * the flavour means replacing that file and the model's {@code layer0}, nothing else.
+     * bottle, sugar, eco's cryotheum powder and a snowball. It is {@link DrinkableFoodItem drunk, not
+     * eaten}, and drinking it hands the bottle back ({@code usingConvertsTo}), so the container is not a
+     * slow leak in a player's stock. It sits at cooked chicken's rung on purpose - the guard compares it
+     * against vanilla's own number rather than against this line. The icon is PR #17's
+     * {@code sundae_glass.png}: he picked it from the five candidates knowing it is the one whose outline
+     * is slate (74,95,110) rather than eco's deep-sea blue (12,63,104) and whose cream highlights are new
+     * to the family. Swapping the flavour means replacing that file and the model's {@code layer0},
+     * nothing else.
      */
     public static final Supplier<Item> CRYOTHEUM_ICE_CREAM = ITEMS.register("cryotheum_ice_cream",
-            () -> new Item(new Item.Properties().food(
+            () -> new DrinkableFoodItem(new Item.Properties().food(
                     new net.minecraft.world.food.FoodProperties.Builder()
                             .nutrition(6)
                             .saturationModifier(0.6F)

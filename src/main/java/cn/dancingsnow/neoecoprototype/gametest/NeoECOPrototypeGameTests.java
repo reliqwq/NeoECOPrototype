@@ -656,9 +656,11 @@ public final class NeoECOPrototypeGameTests {
      * against the constants in {@code ModRegistration}, because an assertion that reads the same literals it
      * is auditing cannot notice them moving, and "same rung as cooked chicken" is the claim the file makes.
      *
-     * <p>Also pinned: eating it hands the glass bottle back. That is the half a player would otherwise call a
-     * bug - a container that vanishes on use is a slow leak in a stock, and nobody reads
-     * {@code usingConvertsTo} in a data file.
+     * <p>Also pinned: drinking it hands the glass bottle back, and it is drunk rather than eaten. The first is
+     * the half a player would otherwise call a bug - a container that vanishes on use is a slow leak in a
+     * stock, and nobody reads {@code usingConvertsTo} in a data file. The second is arm animation and sound,
+     * both of which follow {@code ItemStack#getUseAnimation()}, whose default for a FOOD item is EAT - so it
+     * is compared against the honey bottle's DRINK and the chicken's EAT rather than against our own override.
      */
     @GameTest(template = "empty", batch = "ice_cream_food", timeoutTicks = 200,
             templateNamespace = NeoECOPrototype.MOD_ID)
@@ -689,6 +691,21 @@ public final class NeoECOPrototypeGameTests {
             helper.fail("eating the ice cream does not hand the glass bottle back (usingConvertsTo="
                     + converts.map(ItemStack::getItem).map(Object::toString).orElse("<none>")
                     + "), so the container is consumed with the food");
+            return;
+        }
+        // Drunk, not eaten - and asserted against two vanilla references rather than against our own class,
+        // because Item#getUseAnimation answers EAT for anything with a FOOD component unless the item class
+        // overrides it, and LivingEntity picks the drink sound off that same value. If chicken ever stops
+        // being EAT or the honey bottle stops being DRINK, this comparison has lost its meaning and says so.
+        var animation = stack.getUseAnimation();
+        var chickenAnimation = new ItemStack(net.minecraft.world.item.Items.COOKED_CHICKEN).getUseAnimation();
+        var honeyAnimation = new ItemStack(net.minecraft.world.item.Items.HONEY_BOTTLE).getUseAnimation();
+        if (animation != net.minecraft.world.item.UseAnim.DRINK
+                || chickenAnimation != net.minecraft.world.item.UseAnim.EAT
+                || honeyAnimation != net.minecraft.world.item.UseAnim.DRINK) {
+            helper.fail("the ice cream is not drunk the way a honey bottle is: iceCream=" + animation
+                    + " chicken=" + chickenAnimation + " honeyBottle=" + honeyAnimation
+                    + " - expected DRINK / EAT / DRINK");
             return;
         }
 
@@ -742,11 +759,11 @@ public final class NeoECOPrototypeGameTests {
                     + " x" + result.getCount());
             return;
         }
-        NeoECOPrototype.LOGGER.info("ICECREAM nutrition={} saturation={} convertsTo={} ingredients={}"
-                        + " chickenReference={}/{}",
+        NeoECOPrototype.LOGGER.info("ICECREAM nutrition={} saturation={} convertsTo={} animation={}"
+                        + " (chicken={} honey={}) ingredients={} chickenReference={}/{}",
                 food.nutrition(), food.saturation(),
-                converts.get().getDescriptionId(), describeIngredients(ingredients),
-                chicken.nutrition(), chicken.saturation());
+                converts.get().getDescriptionId(), animation, chickenAnimation, honeyAnimation,
+                describeIngredients(ingredients), chicken.nutrition(), chicken.saturation());
         helper.succeed();
     }
 
