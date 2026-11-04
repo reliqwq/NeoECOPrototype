@@ -1,0 +1,14 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "food",
+  "ingredients": [
+    { "item": "minecraft:glass_bottle" },
+    { "item": "minecraft:sugar" },
+    { "item": "neoecoae:cryotheum" },
+    { "item": "minecraft:snowball" }
+  ],
+  "result": {
+    "count": 1,
+    "id": "neoecoprototype:cryotheum_ice_cream"
+  }
+}

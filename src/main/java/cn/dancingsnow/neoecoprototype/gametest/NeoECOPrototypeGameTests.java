@@ -648,6 +648,124 @@ public final class NeoECOPrototypeGameTests {
     }
 
     /**
+     * The mod's first food, both halves. The recipe side asserts the four ingredients he named - glass bottle,
+     * sugar, eco's cryotheum powder, snowball - as a set, one-to-one, because {@code recipe_files_all_load}
+     * only proves a file reached the manager: a typo that still names a real item (a second snowball, or
+     * {@code minecraft:ice} for {@code neoecoae:cryotheum}) loads green and silently changes what the item
+     * costs. The food side asserts the two numbers against <em>vanilla's own cooked chicken</em> rather than
+     * against the constants in {@code ModRegistration}, because an assertion that reads the same literals it
+     * is auditing cannot notice them moving, and "same rung as cooked chicken" is the claim the file makes.
+     *
+     * <p>Also pinned: eating it hands the glass bottle back. That is the half a player would otherwise call a
+     * bug - a container that vanishes on use is a slow leak in a stock, and nobody reads
+     * {@code usingConvertsTo} in a data file.
+     */
+    @GameTest(template = "empty", batch = "ice_cream_food", timeoutTicks = 200,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void iceCreamCostsFourThingsAndHandsTheBottleBack(GameTestHelper helper) {
+        var stack = new ItemStack(ModRegistration.CRYOTHEUM_ICE_CREAM.get());
+        var food = stack.get(net.minecraft.core.component.DataComponents.FOOD);
+        if (food == null) {
+            helper.fail("the ice cream carries no FOOD component, so it is not edible at all - the recipe"
+                    + " would hand out an item nobody can eat");
+            return;
+        }
+        var chicken = new ItemStack(net.minecraft.world.item.Items.COOKED_CHICKEN)
+                .get(net.minecraft.core.component.DataComponents.FOOD);
+        if (chicken == null) {
+            helper.fail("vanilla's cooked chicken carries no FOOD component on this MC version, so the"
+                    + " comparison this guard is built on has no reference");
+            return;
+        }
+        if (food.nutrition() != chicken.nutrition() || food.saturation() != chicken.saturation()) {
+            helper.fail("the ice cream is no longer on cooked chicken's rung: ice cream(nutrition="
+                    + food.nutrition() + ", saturation=" + food.saturation() + ") chicken(nutrition="
+                    + chicken.nutrition() + ", saturation=" + chicken.saturation() + ")");
+            return;
+        }
+        var converts = food.usingConvertsTo();
+        if (converts.isEmpty()
+                || converts.get().getItem() != net.minecraft.world.item.Items.GLASS_BOTTLE) {
+            helper.fail("eating the ice cream does not hand the glass bottle back (usingConvertsTo="
+                    + converts.map(ItemStack::getItem).map(Object::toString).orElse("<none>")
+                    + "), so the container is consumed with the food");
+            return;
+        }
+
+        var held = helper.getLevel().getRecipeManager()
+                .byKey(cn.dancingsnow.neoecoprototype.NeoECOPrototype.id("cryotheum_ice_cream"));
+        if (held.isEmpty()) {
+            helper.fail("no recipe reached the manager under neoecoprototype:cryotheum_ice_cream");
+            return;
+        }
+        var recipe = held.get().value();
+        if (!(recipe instanceof net.minecraft.world.item.crafting.ShapelessRecipe)) {
+            helper.fail("the ice cream is not a shapeless recipe any more, it is "
+                    + recipe.getClass().getName() + " - he asked for 无序合成");
+            return;
+        }
+        var wanted = new java.util.ArrayList<>(java.util.List.of(
+                net.minecraft.world.item.Items.GLASS_BOTTLE,
+                net.minecraft.world.item.Items.SUGAR,
+                net.minecraft.core.registries.BuiltInRegistries.ITEM.get(
+                        ResourceLocation.parse("neoecoae:cryotheum")),
+                net.minecraft.world.item.Items.SNOWBALL));
+        var ingredients = recipe.getIngredients();
+        if (ingredients.size() != wanted.size()) {
+            helper.fail("the recipe takes " + ingredients.size() + " ingredients, not the four named: "
+                    + describeIngredients(ingredients));
+            return;
+        }
+        for (var ingredient : ingredients) {
+            var options = ingredient.getItems();
+            if (options.length != 1) {
+                helper.fail("one ingredient of the ice cream recipe accepts " + options.length
+                        + " alternatives (" + java.util.Arrays.toString(options)
+                        + "); the four are meant to be exact items, not tags");
+                return;
+            }
+            if (!wanted.remove(options[0].getItem())) {
+                helper.fail("the recipe contains " + options[0].getDescriptionId()
+                        + ", which is not one of the four named items (bottle, sugar, neoecoae:cryotheum,"
+                        + " snowball)");
+                return;
+            }
+        }
+        if (!wanted.isEmpty()) {
+            helper.fail("the recipe is missing " + wanted.stream().map(java.util.Objects::toString).toList()
+                    + " - remaining after matching every ingredient it does have");
+            return;
+        }
+        var result = recipe.getResultItem(helper.getLevel().registryAccess());
+        if (result.getItem() != ModRegistration.CRYOTHEUM_ICE_CREAM.get() || result.getCount() != 1) {
+            helper.fail("the recipe does not output exactly one ice cream: " + result.getDescriptionId()
+                    + " x" + result.getCount());
+            return;
+        }
+        NeoECOPrototype.LOGGER.info("ICECREAM nutrition={} saturation={} convertsTo={} ingredients={}"
+                        + " chickenReference={}/{}",
+                food.nutrition(), food.saturation(),
+                converts.get().getDescriptionId(), describeIngredients(ingredients),
+                chicken.nutrition(), chicken.saturation());
+        helper.succeed();
+    }
+
+    private static String describeIngredients(
+            java.util.List<net.minecraft.world.item.crafting.Ingredient> ingredients) {
+        var text = new StringBuilder();
+        for (var ingredient : ingredients) {
+            if (text.length() > 0) {
+                text.append(", ");
+            }
+            text.append(java.util.Arrays.stream(ingredient.getItems())
+                    .map(ItemStack::getDescriptionId)
+                    .reduce((a, b) -> a + "|" + b)
+                    .orElse("<empty>"));
+        }
+        return text.toString();
+    }
+
+    /**
      * The matrix registration factory is advertised to script authors in docs/kubejs.md, and until now it
      * had zero callers and zero runs. What is reachable from a gameTest is the pair of guards in front of
      * the registration step, so that is what this pins - including the guard that used to compare the

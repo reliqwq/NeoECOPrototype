@@ -461,6 +461,21 @@ public class ModRegistration {
     /** The crushing product of {@link #GRETTE_CRYSTAL}, published as {@code #c:dusts/grette}. */
     public static final Supplier<Item> GRETTE_CRYSTAL_DUST = ITEMS.register("grette_crystal_dust",
             () -> new Item(new Item.Properties()));
+    /**
+     * The mod's first food: a glass jar of cryotheum ice cream, thrown together shapelessly from a glass
+     * bottle, sugar, eco's cryotheum powder and a snowball. Eating it hands the bottle back
+     * ({@code usingConvertsTo}), so the container is not a slow leak in a player's stock, and it sits at
+     * cooked chicken's rung on purpose - the guard compares it against vanilla's own number rather than
+     * against this line. The icon is PR #17's {@code softserve_tall_jar.png}, one of five candidates: swapping
+     * the flavour means replacing that file and the model's {@code layer0}, nothing else.
+     */
+    public static final Supplier<Item> CRYOTHEUM_ICE_CREAM = ITEMS.register("cryotheum_ice_cream",
+            () -> new Item(new Item.Properties().food(
+                    new net.minecraft.world.food.FoodProperties.Builder()
+                            .nutrition(6)
+                            .saturationModifier(0.6F)
+                            .usingConvertsTo(net.minecraft.world.item.Items.GLASS_BOTTLE)
+                            .build())));
     public static final Supplier<BlockItem> SMALL_GRETTE_BUD_ITEM = ITEMS.register("small_grette_bud",
             () -> new BlockItem(SMALL_GRETTE_BUD.get(), new Item.Properties()));
     public static final Supplier<BlockItem> MEDIUM_GRETTE_BUD_ITEM = ITEMS.register("medium_grette_bud",
@@ -1760,6 +1775,7 @@ private static Supplier<BlockEntityType<SimplifyStorageVentBlockEntity>> registe
                          // recipe. Keeping the five items out of the tab is the whole hiding - registrations,
                          // models, loot tables, the structure definition and the reactor_formation suite all
                          // stay, so a world that already has one still loads and still runs.
+                        output.accept(CRYOTHEUM_ICE_CREAM.get());
                     })
                     .build());
 
