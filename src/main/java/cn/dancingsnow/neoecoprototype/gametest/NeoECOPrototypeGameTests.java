@@ -238,6 +238,141 @@ public final class NeoECOPrototypeGameTests {
     }
 
     /**
+     * The surcharged small rungs have to be full at the byte count their item claims, not at the power of
+     * two their name still says.
+     *
+     * <p>Nothing else in this suite covered the shipped cells' capacity: the only test that touches these
+     * numbers reads them off the same constants it would be checking, so a rung could quietly stop paying
+     * for its extra quarter and stay green. Capacity is never written into the stack either - eco's
+     * {@code ECOStorageCell} holds a {@code final IBasicECOCellItem} and asks it each time - so the one
+     * reading worth having is the boundary the engine enforces. The literals are what pin the ladder: put
+     * {@code BYTES_1K} back to 1024 and the item row goes red, put the chemical {@code BYTES_64K} back to
+     * 65536 and its row does - both control groups were run here, one red each, naming the right rung.</p>
+     *
+     * <p>What the boundary also proves, for anyone reading this as documentation: the extra quarter is real
+     * storage, not a number the type limit eats. That was probed rather than assumed - walking the item
+     * registry and filling each key in turn shows the second key (the first is air, which AE2 refuses
+     * outright) taking the cell to a full 1280 used bytes, and the third refused. The one subtlety the
+     * accepted amount records: a key gets every byte except the {@code bytesPerType} its own opening costs
+     * (1276 of 1280 at the 1K rung, 10208 items), because eco's private {@code canHoldNewItem} charges that
+     * reservation when a type appears and never gives it back. So {@code bytesPerType} prices opening a type;
+     * it does not cap one that is already open. Everything here runs on the MODULATE path and reads the
+     * accounting back, because a SIMULATE pre-check of the same whole-budget ask reported less than it on
+     * today's fixture - the accepted amount and the used-bytes pair are what the engine promises, and those
+     * are what this pins.</p>
+     */
+    @GameTest(template = "empty", batch = "cell_capacity", timeoutTicks = 100,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void smallRungsFillToTheirSurchargedBytes(GameTestHelper helper) {
+        var items = appeng.api.stacks.AEKeyType.items();
+        var fluids = appeng.api.stacks.AEKeyType.fluids();
+
+        // The three surcharged item rungs, then one rung left alone: a blanket multiplier over the whole
+        // ladder has to fail here rather than look like a win.
+        Object[][] itemRungs = {
+                {"item 1k", ModRegistration.SIMPLIFY_ITEM_CELL_1K.get(), 1280L},
+                {"item 16k", ModRegistration.SIMPLIFY_ITEM_CELL_16K.get(), 20480L},
+                {"item 64k", ModRegistration.SIMPLIFY_ITEM_CELL_64K.get(), 81920L},
+                {"item 1m", ModRegistration.SIMPLIFY_ITEM_CELL_1M.get(), 1048576L},
+        };
+        for (Object[] rung : itemRungs) {
+            fillToBoundary(helper, (net.minecraft.world.item.Item) rung[1], items,
+                    appeng.api.stacks.AEItemKey.of(net.minecraft.world.item.Items.COBBLESTONE),
+                    appeng.api.stacks.AEItemKey.of(net.minecraft.world.item.Items.DIRT),
+                    (Long) rung[2], (String) rung[0]);
+        }
+
+        // The fluid side shares the same three constants, so it gets its own rung - and its own
+        // amount-per-byte, which is why the expected quantity is never written here.
+        fillToBoundary(helper, ModRegistration.SIMPLIFY_FLUID_CELL_1K.get(), fluids,
+                appeng.api.stacks.AEFluidKey.of(net.minecraft.world.level.material.Fluids.WATER),
+                appeng.api.stacks.AEFluidKey.of(net.minecraft.world.level.material.Fluids.LAVA),
+                1280L, "fluid 1k");
+
+        // The chemical family carries the same three surcharged rungs. Its keys come from Mekanism and
+        // Applied Mekanistics, so this whole block sits behind both checks and reaches those classes only
+        // through a probe class - see MekanismCellCapacityTestProbe, which exists for the same reason
+        // AppFluxTestProbe does: an unresolved optional class would stop the test server from starting.
+        if (net.neoforged.fml.ModList.get().isLoaded("mekanism")
+                && net.neoforged.fml.ModList.get().isLoaded("appmek")) {
+            var sulfur = MekanismCellCapacityTestProbe.chemicalKey("sulfur_dioxide");
+            var hydrogen = MekanismCellCapacityTestProbe.chemicalKey("hydrogen");
+            if (sulfur == null || hydrogen == null) {
+                helper.fail("Mekanism and appmek are loaded, yet sulfur_dioxide / hydrogen resolved to "
+                        + sulfur + " / " + hydrogen + " - the chemical rows below would prove nothing");
+                return;
+            }
+            Object[][] chemicalRungs = {
+                    {"chemical 1k", ModRegistration.OPTIONAL_CHEMICAL_CELL_1K, 1280L},
+                    {"chemical 16k", ModRegistration.OPTIONAL_CHEMICAL_CELL_16K, 20480L},
+                    {"chemical 64k", ModRegistration.OPTIONAL_CHEMICAL_CELL_64K, 81920L},
+            };
+            for (Object[] rung : chemicalRungs) {
+                var supplier = (java.util.function.Supplier<? extends net.minecraft.world.item.Item>) rung[1];
+                fillToBoundary(helper, supplier.get(), sulfur.getType(), sulfur, hydrogen,
+                        (Long) rung[2], (String) rung[0]);
+            }
+        } else {
+            NeoECOPrototype.LOGGER.info("cell_capacity: the three chemical rungs were not read,"
+                    + " Mekanism or Applied Mekanistics is absent from this run");
+        }
+        helper.succeed();
+    }
+
+    /** Fill one cell to its claimed byte budget with a single key, then ask for more than it can hold. */
+    private static void fillToBoundary(GameTestHelper helper, net.minecraft.world.item.Item cellItem,
+                                       appeng.api.stacks.AEKeyType type, appeng.api.stacks.AEKey first,
+                                       appeng.api.stacks.AEKey second, long expectedBytes, String label) {
+        var cell = cn.dancingsnow.neoecoae.api.storage.ECOStorageCells.getCellInventory(
+                new ItemStack(cellItem), (appeng.api.storage.cells.ISaveProvider) null);
+        if (cell == null) {
+            helper.fail(label + " produced no storage inventory, so nothing could be asked about its bytes");
+            return;
+        }
+        if (cell.getTotalBytes() != expectedBytes) {
+            helper.fail(label + " reports " + cell.getTotalBytes() + " total bytes, expected "
+                    + expectedBytes);
+            return;
+        }
+        // eco's IECOStorageCell reports total and used bytes only; "free" is ours to subtract, and it is the
+        // same pair the drive's status light reads.
+        if (cell.getTotalBytes() - cell.getUsedBytes() != expectedBytes) {
+            helper.fail(label + " starts a fresh stack owing "
+                    + (cell.getTotalBytes() - cell.getUsedBytes()) + " free bytes, expected the whole "
+                    + expectedBytes);
+            return;
+        }
+
+        // One key is allowed to take the whole cell except the bytes its own opening costs: measured on the
+        // 1K rung, 1280 bytes with a 4-byte per-type price means 1276 bytes = 10208 items accepted and the
+        // accounting reads a full 1280 used. Ask for the naive product and the engine answers 32 short - the
+        // missing 32 is that reservation, not a lost byte, which is why the product is written out here
+        // rather than left implicit.
+        int reserve = ((cn.dancingsnow.neoecoae.api.storage.IBasicECOCellItem) cellItem).getBytesPerType();
+        long ask = expectedBytes * (long) type.getAmountPerByte();
+        long expectedTaken = (expectedBytes - reserve) * (long) type.getAmountPerByte();
+        long taken = cell.insert(first, ask, appeng.api.config.Actionable.MODULATE, null);
+        if (taken != expectedTaken) {
+            helper.fail(label + " gave one key " + taken + ", expected " + expectedTaken
+                    + " (= " + expectedBytes + " bytes minus a " + reserve
+                    + "-byte opening, at " + type.getAmountPerByte() + " per byte); asked " + ask);
+            return;
+        }
+        if (cell.getUsedBytes() != expectedBytes || cell.getTotalBytes() - cell.getUsedBytes() != 0L) {
+            helper.fail(label + " reports used=" + cell.getUsedBytes() + " of total=" + cell.getTotalBytes()
+                    + " after one key was poured in, expected the whole budget spent");
+            return;
+        }
+        // Full is full for the type already inside it, and for the next new type: a second key would have to
+        // pay eco's per-type opening cost out of nothing, so both asks must come back empty.
+        if (cell.insert(first, type.getAmountPerByte(), appeng.api.config.Actionable.MODULATE, null) != 0L
+                || cell.insert(second, ask, appeng.api.config.Actionable.MODULATE, null) != 0L) {
+            helper.fail(label + " still accepts an insert once its " + expectedBytes
+                    + " bytes are spent - either more of the key it holds, or a brand new opening");
+        }
+    }
+
+    /**
      * Contents written by the old MEGA long-bulk backend move into the component the standard engine reads.
      *
      * <p>The two backends never shared a place to keep items: the old one wrote a unit map under
