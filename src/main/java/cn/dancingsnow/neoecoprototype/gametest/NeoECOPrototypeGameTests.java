@@ -9515,6 +9515,122 @@ public final class NeoECOPrototypeGameTests {
         helper.succeed();
     }
 
+    /**
+     * AE2's growth accelerator reaches budding rock through data and nothing else: its tick tests
+     * {@code state.is(AETags.GROWTH_ACCELERATABLE)} and then calls {@code randomTick} on whatever answers,
+     * and that tag gets budding rock from {@code #c:budding_blocks} - which AE2 fills with its own four
+     * conditions and eco with its own four, and which we did not publish at all until 2026-11-04. A missing
+     * tag file compiles clean, boots clean and shows the player a machine doing nothing beside a rock, so
+     * this is the only layer where that gap is visible.
+     *
+     * <p>The tag ids are spelled as strings on purpose. The field is {@code GROWTH_ACCELERATABLE} but the
+     * constant pool holds {@code ae2:growth_acceleratable}; naming the string is what breaks if upstream
+     * ever renames it, which is the regression worth catching.
+     */
+    @GameTest(template = "empty", batch = "grette_tags", timeoutTicks = 100,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void gretteFamilyIsPublishedToTheCrossForgeTags(GameTestHelper helper) {
+        var accelerator = blockTag("ae2:growth_acceleratable");
+        var budding = blockTag("c:budding_blocks");
+        var buds = blockTag("c:buds");
+        var clusters = blockTag("c:clusters");
+        var wrong = new java.util.ArrayList<String>();
+
+        // control first: if AE2's own rock does not answer, the tag is not loaded in this runtime at all,
+        // and every assertion below would pass while checking nothing
+        var ae2Rock = blockState("ae2:flawless_budding_quartz");
+        if (ae2Rock == null) {
+            helper.fail("ae2:flawless_budding_quartz is not registered, so this test has no control");
+            return;
+        }
+        if (!ae2Rock.is(accelerator)) {
+            helper.fail("AE2's own budding quartz is not in #ae2:growth_acceleratable in this runtime;"
+                    + " the tag is empty or renamed, so a pass here would mean nothing");
+            return;
+        }
+
+        for (var name : new String[]{"flawless_budding_grette", "flawed_budding_grette",
+                "chipped_budding_grette", "damaged_budding_grette"}) {
+            var state = blockState(NeoECOPrototype.MOD_ID + ":" + name);
+            if (state == null) {
+                wrong.add(name + " is not registered");
+                continue;
+            }
+            if (!state.is(accelerator)) {
+                wrong.add(name + " is not in #ae2:growth_acceleratable, so the accelerator skips it");
+            }
+            if (!state.is(budding)) {
+                wrong.add(name + " is not in #c:budding_blocks");
+            }
+        }
+        for (var name : new String[]{"small_grette_bud", "medium_grette_bud", "large_grette_bud"}) {
+            var state = blockState(NeoECOPrototype.MOD_ID + ":" + name);
+            if (state == null || !state.is(buds)) {
+                wrong.add(name + " is not in #c:buds");
+            }
+        }
+        var clusterState = blockState(NeoECOPrototype.MOD_ID + ":grette_cluster");
+        if (clusterState == null || !clusterState.is(clusters)) {
+            wrong.add("grette_cluster is not in #c:clusters");
+        }
+
+        // the negative half: a solid block of the same colour must not be accelerable, or the tag would
+        // be answering true for everything and the positive assertions above would prove nothing
+        var solid = blockState(NeoECOPrototype.MOD_ID + ":grette_crystal_block");
+        if (solid != null && solid.is(accelerator)) {
+            wrong.add("grette_crystal_block is growth-accelerable; only budding rock grows");
+        }
+
+        var gretteDust = itemTag("c:dusts/grette");
+        var gretteGem = itemTag("c:gems/grette");
+        var dust = item(NeoECOPrototype.MOD_ID + ":grette_crystal_dust");
+        var skyDust = item(NeoECOPrototype.MOD_ID + ":sky_stone_dust");
+        var crystal = item(NeoECOPrototype.MOD_ID + ":grette_crystal");
+        if (dust == null || skyDust == null || crystal == null) {
+            wrong.add("one of grette_crystal_dust / sky_stone_dust / grette_crystal is not registered");
+        } else {
+            if (!new net.minecraft.world.item.ItemStack(dust).is(gretteDust)) {
+                wrong.add("grette_crystal_dust is not in #c:dusts/grette");
+            }
+            if (new net.minecraft.world.item.ItemStack(skyDust).is(gretteDust)) {
+                wrong.add("sky_stone_dust is inside #c:dusts/grette; meteorite powder is not grette powder,"
+                        + " and a pack author naming that tag would start eating it");
+            }
+            if (!new net.minecraft.world.item.ItemStack(crystal).is(gretteGem)) {
+                wrong.add("grette_crystal is not in #c:gems/grette, so nothing can crush it into dust");
+            }
+        }
+
+        if (!wrong.isEmpty()) {
+            helper.fail(wrong.toString());
+            return;
+        }
+        helper.succeed();
+    }
+
+    private static net.minecraft.tags.TagKey<net.minecraft.world.level.block.Block> blockTag(String id) {
+        return net.minecraft.tags.TagKey.create(net.minecraft.core.registries.Registries.BLOCK,
+                net.minecraft.resources.ResourceLocation.parse(id));
+    }
+
+    private static net.minecraft.tags.TagKey<net.minecraft.world.item.Item> itemTag(String id) {
+        return net.minecraft.tags.TagKey.create(net.minecraft.core.registries.Registries.ITEM,
+                net.minecraft.resources.ResourceLocation.parse(id));
+    }
+
+    /** The block's default state, or null when the id is not registered - never a silent air. */
+    private static net.minecraft.world.level.block.state.BlockState blockState(String id) {
+        var block = net.minecraft.core.registries.BuiltInRegistries.BLOCK
+                .get(net.minecraft.resources.ResourceLocation.parse(id));
+        return block == net.minecraft.world.level.block.Blocks.AIR ? null : block.defaultBlockState();
+    }
+
+    private static net.minecraft.world.item.Item item(String id) {
+        var found = net.minecraft.core.registries.BuiltInRegistries.ITEM
+                .getHolder(net.minecraft.resources.ResourceLocation.parse(id)).orElse(null);
+        return found == null ? null : found.value();
+    }
+
     /** The block ids one of our own mining tags lists, spelled the way the file spells them. */
     private static java.util.List<String> tagBlockIds(String path, GameTestHelper helper) {
         String json = readResource(path, helper);

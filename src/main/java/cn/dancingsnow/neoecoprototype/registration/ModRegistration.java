@@ -457,6 +457,9 @@ public class ModRegistration {
 
     public static final Supplier<Item> GRETTE_CRYSTAL = ITEMS.register("grette_crystal",
             () -> new Item(new Item.Properties()));
+    /** The crushing product of {@link #GRETTE_CRYSTAL}, published as {@code #c:dusts/grette}. */
+    public static final Supplier<Item> GRETTE_CRYSTAL_DUST = ITEMS.register("grette_crystal_dust",
+            () -> new Item(new Item.Properties()));
     public static final Supplier<BlockItem> SMALL_GRETTE_BUD_ITEM = ITEMS.register("small_grette_bud",
             () -> new BlockItem(SMALL_GRETTE_BUD.get(), new Item.Properties()));
     public static final Supplier<BlockItem> MEDIUM_GRETTE_BUD_ITEM = ITEMS.register("medium_grette_bud",
