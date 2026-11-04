@@ -9353,6 +9353,83 @@ public final class NeoECOPrototypeGameTests {
     }
 
     /**
+     * The assembler's grid is display-only - this machine is driven by a pattern provider - but its slots were
+     * built with AE2's {@code FakeSlot}, which refuses placement and pickup and still <em>writes</em>: that
+     * class's {@code set} only asks {@code canSetFilterTo} (the inventory's own {@code isItemValid}) and then
+     * calls {@code AppEngSlot.set}, whose body is {@code inventory.setItemDirect}. So JEI's "fill this ghost
+     * slot" put real stacks into the crafting grid, the stacks were saved with the block entity, and breaking
+     * the assembler dropped them back out - the report this guard was written for.
+     *
+     * <p>{@code DisplayOnlyGridSlot} refuses both write entry points ({@code set} and {@code setFilterTo}, the
+     * second being the packet AE2 sends from the client). The test reads the menu's own slots rather than
+     * constructing a slot of its own choosing, so reverting the menu to {@code FakeSlot} is red here instead
+     * of silently unguarded; and it checks the read half too, because nine slots that mirror nothing would
+     * also pass a writes-refused assertion.
+     */
+    @GameTest(template = "empty", batch = "assembler_ghost_write", timeoutTicks = 100,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void assemblerGridSlotsRefuseEveryWritePath(GameTestHelper helper) {
+        var pos = new BlockPos(1, 2, 1);
+        helper.setBlock(pos, ModRegistration.SIMPLIFY_STONECUTTING_ASSEMBLER_BLOCK.get());
+        if (!(helper.getBlockEntity(pos) instanceof cn.dancingsnow.neoecoprototype.blockentity.crafting
+                .SimplifyStonecuttingAssemblerBlockEntity host)) {
+            helper.fail("no L1 assembler block entity at " + pos);
+            return;
+        }
+        var player = helper.makeMockPlayer(net.minecraft.world.level.GameType.SURVIVAL);
+        var menu = new cn.dancingsnow.neoecoprototype.menu.ProcessorAssemblerMenu(
+                0, player.getInventory(), host);
+        var grid = host.getSubInventory(
+                appeng.blockentity.crafting.MolecularAssemblerBlockEntity.INV_MAIN);
+        var gridSlots = menu.getSlots(appeng.menu.SlotSemantics.MACHINE_CRAFTING_GRID);
+        var wrong = new java.util.ArrayList<String>();
+        if (gridSlots.size() != 9) {
+            helper.fail("the assembler menu exposes " + gridSlots.size()
+                    + " slots under MACHINE_CRAFTING_GRID, expected the 9 grid slots");
+            return;
+        }
+        for (int slot = 0; slot < 9; slot++) {
+            if (!(gridSlots.get(slot) instanceof cn.dancingsnow.neoecoprototype.menu.DisplayOnlyGridSlot)) {
+                wrong.add("grid slot " + slot + " is " + gridSlots.get(slot).getClass().getSimpleName());
+            }
+        }
+        if (!wrong.isEmpty()) {
+            helper.fail("the assembler menu no longer builds display-only grid slots: " + wrong
+                    + " - AE2's FakeSlot writes straight through into the crafting grid");
+            return;
+        }
+        var marked = new ItemStack(net.minecraft.world.item.Items.COPPER_INGOT);
+        // Hand placement stays refused on purpose: this machine only ever eats pattern-driven materials, so a
+        // stack a player pushed in by hand would just sit in the grid until the block came back apart. AE2's
+        // own assembler is a real crafting grid; this one is a readout.
+        if (gridSlots.get(0).mayPlace(marked.copy())) {
+            helper.fail("the assembler's grid slot 0 now accepts a hand placement - the grid is display-only"
+                    + " by decision, so nothing should consume a stack the player pushed in");
+            return;
+        }
+        if (gridSlots.get(0).mayPickup(player)) {
+            helper.fail("the assembler's grid slot 0 now lets the cursor take from it, which is the other half"
+                    + " of treating this grid as a machine-owned pattern workspace");
+            return;
+        }
+        gridSlots.get(0).set(marked.copy());
+        ((appeng.menu.slot.FakeSlot) gridSlots.get(2)).setFilterTo(marked.copy());
+        if (!grid.getStackInSlot(0).isEmpty() || !grid.getStackInSlot(2).isEmpty()) {
+            helper.fail("a ghost write reached the crafting grid: slot 0 holds " + grid.getStackInSlot(0)
+                    + ", slot 2 holds " + grid.getStackInSlot(2) + " - whatever is in this grid saves with"
+                    + " the block entity and drops when the assembler is broken");
+            return;
+        }
+        grid.setItemDirect(4, marked.copy());
+        if (!gridSlots.get(4).getItem().is(marked.getItem())) {
+            helper.fail("the grid slot stopped mirroring the inventory: it shows " + gridSlots.get(4).getItem()
+                    + " while the grid holds " + grid.getStackInSlot(4));
+            return;
+        }
+        helper.succeed();
+    }
+
+    /**
      * The L1 crafting tier's two parallel numbers are the machine's whole balance, and before this test
      * nothing in the suite read them at all: the panel tests ask this tier only for its label and its index,
      * and the panel itself is client-side. So the pair is pinned as literals, together with the arithmetic the
