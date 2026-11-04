@@ -15842,12 +15842,26 @@ public final class NeoECOPrototypeGameTests {
      * what a device occupies is whatever AE2 assigns it. The energy price
      * ({@code wireless_ae_per_link_per_tick}, pinned by {@code aLiveLinkCostsTheNetworkItSitsOn}) is a drain
      * rather than a gate, so it never refuses a bind and this cap stays the structural limit.
+     *
+     * <p>Everything here is read off {@code getDefault()}, so raising the shipped number raises the fixture
+     * with it: the loop binds exactly the cap, then the one past it has to be refused by name. The shipped 8
+     * is the same figure AE2 gives a non-dense face at {@code ChannelMode.DEFAULT} (19.2.17, javap'd:
+     * DEFAULT 8 / X2 16 / X3 24 / X4 32), which is why this batch is the place that notices if those two ever
+     * stop agreeing - a cap below the face budget refuses links AE2 could still carry, and a cap far above it
+     * lets a player click together a hub whose devices simply never get channels.
      */
     @GameTest(template = "empty", batch = "wireless_link_card", timeoutTicks = 400,
             templateNamespace = NeoECOPrototype.MOD_ID)
-    public static void wirelessLinkCardRefusesAFifthLinkAtOneDevice(GameTestHelper helper) {
+    public static void wirelessLinkCardRefusesALinkPastTheCap(GameTestHelper helper) {
         var hub = new BlockPos(0, 1, 0);
         helper.setBlock(hub, ModRegistration.SUPERCONDUCTIVE_INTERFACE_BLOCK.get());
+        // The hub's own network gets an AE2 controller, and that is the one variable this fixture owns. On a
+        // controllerless network AE2's ad-hoc ceiling - 8 channel-consuming nodes, the hub counted among them -
+        // refuses the 8th join with the merge-guard sentence before the cap is ever reached; measured on
+        // 2026-11-04, when this guard failed at exactly "link 8 of 8 was refused". With a controller the ad-hoc
+        // branch does not apply, so the thing that stops link 9 is the cap and nothing else, which is what this
+        // test claims to prove.
+        helper.setBlock(new BlockPos(0, 1, 1), appeng.core.definitions.AEBlocks.CONTROLLER.block());
         var spokes = new java.util.ArrayList<BlockPos>();
         for (int i = 0; i < cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig.WIRELESS_MAX_LINKS_PER_DEVICE.getDefault() + 1; i++) {
             var pos = new BlockPos(2 + i, 1, 6);

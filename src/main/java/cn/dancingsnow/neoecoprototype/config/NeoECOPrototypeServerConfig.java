@@ -185,14 +185,20 @@ public final class NeoECOPrototypeServerConfig {
                         "price per link, edges per device, distance, and whether it may cross dimensions - and a",
                         "join that would leave the merged network with no channels at all is refused outright.",
                         "Turn this on and set the four numbers to your pack, or leave them: the defaults price a",
-                        "full hub of four links at what one L1 machine idles at. Links recorded while it was on",
-                        "stay in the world's data and come back when it is switched on again.")
+                        "full hub of eight links at 4 AE/t, what two of our L1 components idle at. Links recorded",
+                        "while it was on stay in the world's data and come back when it is switched on again.")
                 .define("wireless_links", WIRELESS_LINKS_DEFAULT);
         WIRELESS_MAX_LINKS_PER_DEVICE = builder
-                .comment("How many wireless edges one device may carry. Default 4. This is the structural",
+                .comment("How many wireless edges one device may carry. Default 8. This is the structural",
                         "limit: a wireless edge costs no blocks, so without it one machine could be clicked",
-                        "into the switch for every network in the world.")
-                .defineInRange("wireless_max_links_per_device", 4, 1, 32);
+                        "into the switch for every network in the world. 8 is not an arbitrary middle of the",
+                        "range - AE2 gives a device with no dense capacity 8 channels per face at the lowest",
+                        "channel mode (measured on 19.2.17: ChannelMode DEFAULT 8 / X2 16 / X3 24 / X4 32), and",
+                        "each device behind a link occupies one of them, so a hub at this cap exactly fills the",
+                        "cheapest face it can stand on. On a network with no controller AE2's own ceiling is 8",
+                        "channel-consuming nodes with the hub counted among them, so a controllerless hub",
+                        "reaches 7 links before that guard - not this number - refuses the 8th.")
+                .defineInRange("wireless_max_links_per_device", 8, 1, 32);
         WIRELESS_MAX_RANGE_BLOCKS = builder
                 .comment("How far apart two devices may be to join, in blocks, measured between the squares.",
                         "0 = no distance limit (what shipped so far). Applied when a link is made; existing",
@@ -206,8 +212,9 @@ public final class NeoECOPrototypeServerConfig {
                 .define("wireless_allow_cross_dimension", false);
         WIRELESS_AE_PER_LINK_PER_TICK = builder
                 .comment("The energy price of one live link, in AE per tick, taken from the network the link's",
-                        "own end stands on. 0 = links draw nothing. Default 0.5: a full hub of four links then",
-                        "costs 2 AE/t, which is what one of our L1 components idles at. AE2 bills a",
+                        "own end stands on. 0 = links draw nothing. Default 0.5: a full hub of eight links then",
+                        "costs 4 AE/t, which is what two of our L1 components idle at (an L1 casing reads 2.0).",
+                        "AE2 bills a",
                         "controllerless network for a join by itself (its channel drain is grid size x channels",
                         "used, divided by 128), so this is the price for the link rather than a second charge",
                         "for traffic. A network too short of power keeps its links and the log says so once:",
