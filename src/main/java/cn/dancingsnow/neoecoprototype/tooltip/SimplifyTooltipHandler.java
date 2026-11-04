@@ -76,6 +76,8 @@ public final class SimplifyTooltipHandler {
                 // Withheld with it: no tab entry and no recipe this release, so a /give'd card must not read
                 // like finished content.
                 || stack.is(ModRegistration.WIRELESS_LINK_CARD.get())
+                // The card that takes links off is the same feature and withheld the same way.
+                || stack.is(ModRegistration.WIRELESS_UNLINK_CARD.get())
                 // The reactor's five parts are withheld the same way; a /give'd frame must not read finished.
                 || stack.is(ModRegistration.REACTOR_CONTROLLER_ITEM.get())
                 || stack.is(ModRegistration.REACTOR_FRAME_ITEM.get())

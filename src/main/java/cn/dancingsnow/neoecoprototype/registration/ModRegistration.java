@@ -102,6 +102,7 @@ import cn.dancingsnow.neoecoprototype.items.SimplifySmallBulkFluidStorageCellIte
 import cn.dancingsnow.neoecoprototype.items.SimplifySmallBulkStorageCellItem;
 import cn.dancingsnow.neoecoprototype.event.WirelessLinks;
 import cn.dancingsnow.neoecoprototype.items.WirelessLinkCardItem;
+import cn.dancingsnow.neoecoprototype.items.WirelessUnlinkCardItem;
 import net.minecraft.core.component.DataComponentType;
 import net.minecraft.core.registries.Registries;
 import cn.dancingsnow.neoecoprototype.recipe.ProcessorAssemblerRecipe;
@@ -724,6 +725,14 @@ public class ModRegistration {
     public static final Supplier<WirelessLinkCardItem> WIRELESS_LINK_CARD =
             ITEMS.register("wireless_link_card",
                     () -> new WirelessLinkCardItem(new Item.Properties().stacksTo(1)));
+
+    /**
+     * The other half of the pair: this one only takes links off, and it holds no mark, so the tap that
+     * dismantles a hub is a card the player has to pick up on purpose.
+     */
+    public static final Supplier<WirelessUnlinkCardItem> WIRELESS_UNLINK_CARD =
+            ITEMS.register("wireless_unlink_card",
+                    () -> new WirelessUnlinkCardItem(new Item.Properties().stacksTo(1)));
 
     public static final Supplier<BlockItem> SIMPLIFY_STORAGE_CASING_ITEM =
             ITEMS.register("simplify_storage_casing",

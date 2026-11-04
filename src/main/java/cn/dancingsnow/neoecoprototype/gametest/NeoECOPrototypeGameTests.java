@@ -6477,8 +6477,10 @@ public final class NeoECOPrototypeGameTests {
     /**
      * One tap on the hub, then one tap per device: the mark survives a join, so wiring a hub to several
      * spokes costs one re-mark instead of one per spoke. The brake is not the gesture count but the channel
-     * allowance each join spends, which is why this asserts both halves - the surviving mark, and the escape
-     * hatch that only exists because of it (clicking the held device drops every link on it).
+     * allowance each join spends, which is why this asserts both halves - the surviving mark, and the split
+     * that came with it: the link card refuses to take anything off, and the unlink card clears the device
+     * it is clicked on. Before 2026-11-04 those were the same tap, which meant the gesture that looked like
+     * re-marking was the gesture that dismantled a hub.
      */
     @GameTest(template = "empty", batch = "wireless_link_card", timeoutTicks = 400,
             templateNamespace = NeoECOPrototype.MOD_ID)
@@ -6540,12 +6542,23 @@ public final class NeoECOPrototypeGameTests {
                                     + " marked it instead of joining it: " + afterOne + " -> " + afterTwo);
                             return;
                         }
+                        // Half two is the split itself: the link card must no longer dismantle anything. The
+                        // tap on the device it still holds now refuses, and the hub keeps both links.
                         tapWithCard(helper, player, card, hub);
+                        String refused = WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS, hubPos);
+                        if (linksOf(refused) != linksOf(afterTwo)) {
+                            helper.fail("the link card still takes links off - the tap on the device it holds"
+                                    + " must refuse now: " + afterTwo + " -> " + refused);
+                            return;
+                        }
+                        // and the other card does that job in one tap, on whatever it was pointed at.
+                        var unlinkCard = new ItemStack(ModRegistration.WIRELESS_UNLINK_CARD.get());
+                        tapWithCard(helper, player, unlinkCard, hub);
                         String cleared = WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS, hubPos);
                         if (linksOf(cleared) > start || linksOf(WirelessLinks.status(level,
                                 ModRegistration.WIRELESS_LINKS, onePos)) >= spokeAfterBind) {
-                            helper.fail("clicking the device the card still holds was expected to drop every"
-                                    + " link on it: hub " + afterTwo + " -> " + cleared + ", spoke was "
+                            helper.fail("the unlink card was expected to drop every link on the hub it was"
+                                    + " clicked on: hub " + refused + " -> " + cleared + ", spoke was "
                                     + spokeAfterBind + " and is now "
                                     + linksOf(WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS, onePos)));
                             return;

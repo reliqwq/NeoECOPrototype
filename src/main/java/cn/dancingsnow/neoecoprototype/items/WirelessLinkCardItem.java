@@ -64,9 +64,14 @@ public class WirelessLinkCardItem extends Item {
         GlobalPos held = readEndpoint(card);
         WirelessLinks.Reply report;
         if (held != null && held.equals(clicked)) {
-            // Clicking the marked block again is the way out of a link the player can see.
-            report = WirelessLinks.unlinkReply(serverLevel, ModRegistration.WIRELESS_LINKS, clicked);
-            clearEndpoint(card);
+            // Taking links off moved onto its own card on 2026-11-04. This tap used to be the only way out of
+            // a link, and it was also the tap a player reached for when they meant to re-mark - so the one
+            // gesture that looked like re-marking was the one that dismantled everything on that device. The
+            // card now refuses, keeps its mark, and names the other card.
+            report = WirelessLinks.Reply.of("teardown_moved",
+                    "this card still holds " + WirelessLinks.describe(clicked) + "; taking links off is the"
+                            + " unlink card's job now - sneak-right-click the device with that one",
+                    WirelessLinks.describe(clicked));
         } else if (WirelessLinks.isController(serverLevel, clicked)) {
             // A controller is the network's knob, never one end of a link: its own node answers
             // getMaxChannels() == 0 (measured in the client as a(max=0,used=0)), so a wireless edge ending
@@ -134,14 +139,30 @@ public class WirelessLinkCardItem extends Item {
     @Override
     public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
         ItemStack card = player.getItemInHand(hand);
-        if (!player.isShiftKeyDown() || !(level instanceof ServerLevel serverLevel)
-                || !cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig.current(cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig.WIRELESS_LINKS)) {
-            // Only the sneak gesture, only on the server, and not one word while the switch is off: the
-            // tooltip already says the feature is off, and a reply line here would take back the PASS that
-            // the off path promises to the block under the cursor.
+        if (!(level instanceof ServerLevel serverLevel)
+                || !cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig.current(
+                cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig.WIRELESS_LINKS)) {
+            // Only on the server, and not one word while the switch is off: the tooltip already says the
+            // feature is off, and a reply line here would take back the PASS that the off path promises to
+            // the block under the cursor.
             return InteractionResultHolder.pass(card);
         }
-        player.displayClientMessage(balanceReport(serverLevel, card), true);
+        if (player.isShiftKeyDown()) {
+            player.displayClientMessage(balanceReport(serverLevel, card), true);
+            return InteractionResultHolder.consume(card);
+        }
+        // Plain right-click in mid-air drops the mark and nothing else. This release used to be bundled into
+        // "click the marked device again", which also deleted its links - now that the unlink card owns that,
+        // a card that can be marked has to be able to be un-marked, or a hub in hand is a hub for good.
+        var held = readEndpoint(card);
+        if (held == null) {
+            return InteractionResultHolder.pass(card);
+        }
+        clearEndpoint(card);
+        NeoECOPrototype.LOGGER.info("wireless link card: dropped its mark, it held {}",
+                WirelessLinks.describe(held));
+        player.displayClientMessage(Component.translatable(
+                "item.neoecoprototype.wireless_link_card.unmarked", WirelessLinks.describe(held)), true);
         return InteractionResultHolder.consume(card);
     }
 
