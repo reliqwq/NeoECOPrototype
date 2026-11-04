@@ -267,25 +267,37 @@ public final class WirelessLinks {
     }
 
     /**
-     * A reply the card can hand to a player. The English text is never deleted by this: it is what the log
-     * line and the guards read, and it is also what {@code en_us} holds, so drift between the code and the
-     * two languages shows up as a red guard rather than as a sentence nobody recognises.
+     * A reply the card can hand to a player.
      *
-     * @param langKey the key the card sends, or null when this outcome is not translated yet
-     * @param args    what fills that key's {@code %s} holes, in order
-     * @param english the fully rendered sentence, as the log and the guards see it
+     * <p>Two renderings of one outcome. {@code english} is the fully written sentence and it never loses
+     * information: it is what the log gets and what the guards read, so a reading taken from a session log
+     * and a reading taken from a test failure are the same string. {@code langKey} + {@code args} is what the
+     * player gets, which is the only reason a Chinese client reads Chinese. A reply with no key is a reply
+     * that speaks English to a player who does not read it, and on 2026-11-04 that was the whole content of
+     * every refusal the two cards made - the guarded test now scans the three card sources and fails on one.
+     *
+     * <p>Where the args are plain values (a coordinate, a count, a mode name) the {@code en_us} value renders
+     * byte-for-byte the same sentence as {@code english}, and the guard checks that on the replies it can
+     * trigger. Where the log sentence embeds the whole {@link #status} instrument the player's arg is
+     * something shorter instead - the device's coordinate for {@code marked}, {@link #channelsText} for
+     * {@code marked_gone_remarked} - because a player should not read a debug line; those two are deliberately
+     * outside the equality check.
+     *
+     * @param args what fills that key's {@code %s} holes, in order
      */
     public record Reply(String langKey, Object[] args, String english) {
 
-        private static final Object[] NO_ARGS = new Object[0];
-
-        /** An outcome whose sentence has no lang key yet - the card prints {@code english} as it always did. */
-        public static Reply untranslated(String english) {
-            return new Reply(null, NO_ARGS, english);
-        }
-
+        /**
+         * A player-facing outcome. {@code name} is the last part of
+         * {@code gui.neoecoprototype.wireless_link.<name>}, which both lang files must carry.
+         */
         public static Reply of(String name, String english, Object... args) {
             return new Reply("gui.neoecoprototype.wireless_link." + name, args, english);
+        }
+
+        /** The component the card sends: the key unrendered, so the client writes it in its own language. */
+        public Component asComponent() {
+            return Component.translatable(langKey, args);
         }
     }
 
@@ -301,17 +313,18 @@ public final class WirelessLinks {
     public static Reply bindReply(ServerLevel acting, Supplier<AttachmentType<Data>> type, GlobalPos from,
                                   GlobalPos to) {
         if (from.equals(to)) {
-            return Reply.untranslated("both ends are the same block");
+            return Reply.of("same_block", "both ends are the same block");
         }
         int maxLinks = cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig
                 .WIRELESS_MAX_LINKS_PER_DEVICE.get();
         boolean sameWorld = from.dimension().equals(to.dimension());
         if (!sameWorld && !cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig
                 .WIRELESS_ALLOW_CROSS_DIMENSION.get()) {
-            return Reply.untranslated("these two are in different dimensions (" + from.dimension().location()
-                    + " and " + to.dimension().location() + "), and wireless_allow_cross_dimension is off in"
-                    + " this world's config - no cable can do this either, so the switch keeps it a deliberate"
-                    + " choice rather than a default");
+            return Reply.of("cross_dim_off", "these two are in different dimensions ("
+                    + from.dimension().location() + " and " + to.dimension().location()
+                    + "), and wireless_allow_cross_dimension is off in this world's config - no cable can do"
+                    + " this either, so the switch keeps it a deliberate choice rather than a default",
+                    from.dimension().location().toString(), to.dimension().location().toString());
         }
         int rangeBlocks = cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig
                 .WIRELESS_MAX_RANGE_BLOCKS.get();
@@ -321,33 +334,36 @@ public final class WirelessLinks {
             long dz = from.pos().getZ() - to.pos().getZ();
             long apart = Math.round(Math.sqrt((double) (dx * dx + dy * dy + dz * dz)));
             if (apart > rangeBlocks) {
-                return Reply.untranslated("these two are " + apart + " blocks apart and"
-                        + " wireless_max_range_blocks is " + rangeBlocks + " in this world's config - move one"
-                        + " closer, or raise the number if you meant a link to reach that far");
+                return Reply.of("out_of_range", "these two are " + apart + " blocks apart and"
+                                + " wireless_max_range_blocks is " + rangeBlocks + " in this world's config -"
+                                + " move one closer, or raise the number if you meant a link to reach that far",
+                        apart, rangeBlocks);
             }
         }
         Link link = Link.of(from, to);
         ServerLevel owner = levelOf(acting, link.ownerDimension());
         if (owner == null) {
-            return Reply.untranslated("the dimension that would own this link is not loaded");
+            return Reply.of("owner_dim_unloaded", "the dimension that would own this link is not loaded");
         }
         Data data = owner.getData(type.get());
         if (data.links.contains(link)) {
             return Reply.of("already_linked", "already linked " + describe(link), describe(link));
         }
         if (!presenceIsAwake(owner, link.a()) || !presenceIsAwake(owner, link.b())) {
-            return Reply.untranslated("that is not a network device: " + describe(presence(owner, link.a())
-                    == Presence.AWAKE ? link.b() : link.a()));
+            GlobalPos dead = presence(owner, link.a()) == Presence.AWAKE ? link.b() : link.a();
+            return Reply.of("not_a_device", "that is not a network device: " + describe(dead), describe(dead));
         }
-        if (linksAtEverywhere(owner, type, link.a()) >= maxLinks) {
-            return Reply.untranslated(describe(link.a()) + " already carries "
-                    + linksAtEverywhere(owner, type, link.a()) + " links (max " + maxLinks
-                    + ", from wireless_max_links_per_device in this world's config)");
+        int onA = linksAtEverywhere(owner, type, link.a());
+        if (onA >= maxLinks) {
+            return Reply.of("at_limit", describe(link.a()) + " already carries " + onA + " links (max "
+                    + maxLinks + ", from wireless_max_links_per_device in this world's config)",
+                    describe(link.a()), onA, maxLinks);
         }
-        if (linksAtEverywhere(owner, type, link.b()) >= maxLinks) {
-            return Reply.untranslated(describe(link.b()) + " already carries "
-                    + linksAtEverywhere(owner, type, link.b()) + " links (max " + maxLinks
-                    + ", from wireless_max_links_per_device in this world's config)");
+        int onB = linksAtEverywhere(owner, type, link.b());
+        if (onB >= maxLinks) {
+            return Reply.of("at_limit", describe(link.b()) + " already carries " + onB + " links (max "
+                    + maxLinks + ", from wireless_max_links_per_device in this world's config)",
+                    describe(link.b()), onB, maxLinks);
         }
         IGridNode a = node(owner, link.a());
         IGridNode b = node(owner, link.b());
@@ -355,24 +371,35 @@ public final class WirelessLinks {
             // Measured in the client: a block answers as a device the moment it is placed (that is what
             // let the card mark it), while AE2 only builds the node when that block first ticks - so this
             // is the one refusal worth saying how to get past.
-            return Reply.untranslated("no network node at " + describe(a == null ? link.a() : link.b())
-                    + " yet - the block is there but AE2 has not given it a node, so bind it again in a moment");
+            GlobalPos missing = a == null ? link.a() : link.b();
+            return Reply.of("no_node_yet", "no network node at " + describe(missing)
+                    + " yet - the block is there but AE2 has not given it a node, so bind it again in a moment",
+                    describe(missing));
         }
         if (physicallyWiredTogether(a, b)) {
-            return Reply.untranslated("those two are already wired together with blocks: a wireless edge there"
-                    + " would carry nothing, and unbinding it would tear out the connection you built");
+            return Reply.of("wired_already", "those two are already wired together with blocks: a wireless"
+                    + " edge there would carry nothing, and unbinding it would tear out the connection you"
+                    + " built");
         }
         if (a.getGrid() == b.getGrid()) {
-            return Reply.untranslated("those two are already on one network of " + gridNodes(a.getGrid())
-                    + " nodes, so a wireless edge between them would change nothing - they can already reach"
-                    + " each other through the blocks you laid");
+            int nodes = gridNodes(a.getGrid());
+            return Reply.of("one_network", "those two are already on one network of " + nodes
+                            + " nodes, so a wireless edge between them would change nothing - they can already"
+                            + " reach each other through the blocks you laid",
+                    nodes);
         }
         // The merge guard: joining two networks is not "one more cable", it puts their device counts into
         // one ad-hoc budget, and that budget is all-or-nothing. Refuse before touching anything when the
         // joined network would certainly be starved, and confirm the rest against AE2's own verdict below.
-        String starvation = starvationRisk(a, b);
-        if (starvation != null) {
-            return Reply.untranslated(starvation);
+        Starvation risk = starvationRisk(a, b);
+        if (risk != null) {
+            return Reply.of("starvation", "these two networks together need " + risk.demand()
+                    + " channel(s) and the smaller of their two ad-hoc ceilings is " + risk.fits()
+                    + " (this side " + risk.ceilingA() + ", that side " + risk.ceilingB()
+                    + "), and neither has an AE2 controller: the joined network would get zero channels and"
+                    + " every device on it would read offline, so this link is refused - put an AE2 controller"
+                    + " into one of them, or move some devices off one side first",
+                    risk.demand(), risk.fits(), risk.ceilingA(), risk.ceilingB());
         }
         data.links.add(link);
         // No dirty flag to set: LevelAttachmentsSavedData.isDirty() answers true unconditionally, so a
@@ -386,14 +413,17 @@ public final class WirelessLinks {
             // machine table below, which is what lets a player compare the tool against the source.
             return Reply.of("linked", "linked " + describe(link) + " | "
                             + readings(result.edge(), result.a(), result.b()), describe(link),
-                    readingText(reading(acting, type, link.a())));
+                    channelsText(acting, link.a()));
         }
         if (result.missingNode() != null) {
-            return Reply.untranslated("recorded but no network node at " + describe(result.missingNode())
+            GlobalPos missing = result.missingNode();
+            return Reply.of("recorded_no_node", "recorded but no network node at " + describe(missing)
                     + " - a block counts as a device the moment it is placed, while AE2 only builds its"
-                    + " node when that block first ticks, so binding it again in a moment should work");
+                    + " node when that block first ticks, so binding it again in a moment should work",
+                    describe(missing));
         }
-        return Reply.untranslated("recorded " + describe(link) + " but no edge was made (see log)");
+        return Reply.of("recorded_no_edge", "recorded " + describe(link) + " but no edge was made (see log)",
+                describe(link));
     }
 
     /**
@@ -444,17 +474,17 @@ public final class WirelessLinks {
     public static Reply raiseModeReply(ServerLevel acting, GlobalPos at) {
         ServerLevel owner = levelOf(acting, at.dimension());
         if (owner == null) {
-            return Reply.untranslated("that dimension is not loaded");
+            return Reply.of("dim_unloaded", "that dimension is not loaded");
         }
         var node = node(owner, at);
         if (node == null || node.getGrid() == null) {
-            return Reply.untranslated(describe(at)
-                    + " is not on a network yet, so there is no channel mode to raise");
+            return Reply.of("not_on_network", describe(at)
+                    + " is not on a network yet, so there is no channel mode to raise", describe(at));
         }
         var pathing = node.getGrid().getService(appeng.api.networking.pathing.IPathingService.class);
         if (!(pathing instanceof appeng.me.service.PathingService service)) {
-            return Reply.untranslated("AE2 no longer hands a pathing service this can set (" + pathing
-                    + "), so the card cannot raise a mode");
+            return Reply.of("no_pathing_service", "AE2 no longer hands a pathing service this can set ("
+                    + pathing + "), so the card cannot raise a mode", String.valueOf(pathing));
         }
         var current = service.getChannelMode();
         var next = switch (current) {
@@ -586,7 +616,8 @@ public final class WirelessLinks {
         }
         NeoECOPrototype.LOGGER.info("wireless link: unbind {} dropped={} link(s)", describe(endpoint), dropped);
         return dropped == 0
-                ? Reply.untranslated(describe(endpoint) + " carries no wireless link")
+                ? Reply.of("carries_none", describe(endpoint) + " carries no wireless link",
+                        describe(endpoint))
                 : Reply.of("dropped", "dropped " + dropped + " link(s) at " + describe(endpoint),
                         dropped, describe(endpoint));
     }
@@ -617,9 +648,9 @@ public final class WirelessLinks {
      * network - its channel mode, its verdict on the controller group, and the channels every connected face
      * is worth against what it is using. The two link counts differ whenever an endpoint is asleep, and
      * saying both is the only way the card can admit that.
-     * <p>This string is the instrument: it is what the log gets and what the guards read. The player's line
-     * is {@link #reading}, which carries the same facts through the lang files so they arrive in the
-     * language the game is played in.
+     * <p>This string is the instrument: it is what the log gets and what the guards read. The player's line is
+     * {@link #channelsText}, which prints only the two channel numbers and goes through the lang files so it
+     * arrives in the language the game is played in.
      */
     public static String status(ServerLevel acting, Supplier<AttachmentType<Data>> type, GlobalPos endpoint) {
         var node = node(acting, endpoint);
@@ -633,55 +664,34 @@ public final class WirelessLinks {
     }
 
     /**
-     * The facts a player is shown when the card reads a device, as values rather than as a debug line. Every
-     * field is either our own record ({@code links}, {@code live}) or AE2's own verdict
-     * ({@code mode}, {@code controllerVerdict}, {@code powered}, {@code devices}) - there is no number in
-     * here this feature computes, which is the whole reason the sentence can be trusted over the instrument.
+     * The one line a player gets about a device: the channel budget AE2 gives it and what is allocated right
+     * now, as {@code 拥有 : 已分配}. Both numbers are AE2's own - {@code IGridNode.getMaxChannels()} and
+     * {@code getUsedChannels()} are on the public interface, and the maximum already carries the network's
+     * multiplier (measured on 19.2.17: a node without {@code DENSE_CAPACITY} answers {@code 8 x factor}, a
+     * dense one {@code 32 x factor}, {@code ChannelMode.INFINITE} short-circuits both to
+     * {@code Integer.MAX_VALUE}). That pair is the whole answer to "how many devices will this link actually
+     * carry", which is why it replaced the seven-field sentence this card used to print on 2026-11-04: the
+     * verdict, the power state and the device count were either not this device's business or already visible
+     * in AE2's own panels, and a player asked for the two numbers and nothing else.
+     *
+     * <p>{@link #status} keeps printing all of it, because that string is the instrument the guards and the
+     * session log read; this method is the player's view of the same tick.
      */
-    public record Reading(String endpoint, int links, int live, String mode, String controllerVerdict,
-                          boolean powered, int devices) {
+    public static Component channelsText(ServerLevel acting, GlobalPos at) {
+        var node = node(acting, at);
+        if (node == null) {
+            return Component.translatable("gui.neoecoprototype.wireless_link.channels_none", describe(at));
+        }
+        return Component.translatable("gui.neoecoprototype.wireless_link.channels",
+                node.getMaxChannels(), node.getUsedChannels());
     }
 
-    /** {@link #status} for human eyes, from the same reads in the same tick. */
-    public static Reading reading(ServerLevel acting, Supplier<AttachmentType<Data>> type, GlobalPos endpoint) {
-        var node = node(acting, endpoint);
-        var grid = node == null ? null : node.getGrid();
-        var pathing = grid == null ? null
-                : grid.getService(appeng.api.networking.pathing.IPathingService.class);
-        var energy = grid == null ? null
-                : grid.getService(appeng.api.networking.energy.IEnergyService.class);
-        return new Reading(describe(endpoint), linksAtEverywhere(acting, type, endpoint),
-                liveLinksAt(acting, type, endpoint),
-                pathing == null ? "unknown" : pathing.getChannelMode().name(),
-                grid == null ? "no network node there" : controllerStateOf(grid),
-                energy != null && energy.isNetworkPowered(),
-                grid == null ? 0 : gridNodes(grid));
-    }
-
-    /**
-     * AE2's controller verdicts and the lang key each one is printed under. Public because a guard walks it
-     * against {@code ControllerState.values()}: if upstream renames or adds one, the sentence must not start
-     * printing a bare enum name at the player.
-     */
-    public static final Map<String, String> CONTROLLER_STATE_KEYS = Map.of(
-            "CONTROLLER_ONLINE", "state.online",
-            "NO_CONTROLLER", "state.none",
-            "CONTROLLER_OFFLINE", "state.offline",
-            "CONTROLLER_CONFLICT", "state.conflict");
-
-    /** The sentence the player gets, in their own language; {@link #status} stays the log's instrument. */
-    public static Component readingText(Reading reading) {
-        var stateKey = CONTROLLER_STATE_KEYS.get(reading.controllerVerdict());
-        // An unrecognised verdict prints as itself: dressing up a value we did not know existed is how the
-        // last invented sentence got into a player's chat.
-        Object state = stateKey == null ? Component.literal(reading.controllerVerdict()) : stateText(stateKey);
-        return Component.translatable("gui.neoecoprototype.wireless_link.reading",
-                reading.endpoint(), reading.links(), reading.live(), reading.mode(), state,
-                stateText(reading.powered() ? "power.on" : "power.off"), reading.devices());
-    }
-
-    private static Component stateText(String name) {
-        return Component.translatable("gui.neoecoprototype.wireless_link." + name);
+    /** The same two numbers as a plain pair, for a guard or a log line that has no component to send. */
+    public static String channelsReading(ServerLevel acting, GlobalPos at) {
+        var node = node(acting, at);
+        return node == null
+                ? describe(at) + " has no network node"
+                : describe(at) + " channels " + node.getMaxChannels() + " allocated " + node.getUsedChannels();
     }
 
     /**
@@ -1015,7 +1025,7 @@ public final class WirelessLinks {
      * objects survives the merge is AE2's choice, and we do not bet somebody's whole network on it.
      */
     @Nullable
-    private static String starvationRisk(IGridNode a, IGridNode b) {
+    private static Starvation starvationRisk(IGridNode a, IGridNode b) {
         var gridA = a.getGrid();
         var gridB = b.getGrid();
         if (gridA == null || gridB == null
@@ -1030,11 +1040,11 @@ public final class WirelessLinks {
         if (demand <= fits) {
             return null;
         }
-        return "these two networks together need " + demand + " channel(s) and the smaller of their two"
-                + " ad-hoc ceilings is " + fits + " (this side " + ceilingA + ", that side " + ceilingB
-                + "), and neither has an AE2 controller: the joined network would get zero channels and every"
-                + " device on it would read offline, so this link is refused - put an AE2 controller into one"
-                + " of them, or move some devices off one side first";
+        return new Starvation(demand, fits, ceilingA, ceilingB);
+    }
+
+    /** The four numbers the merge guard names when it refuses: demand, the binding ceiling, and the two sides. */
+    private record Starvation(int demand, int fits, int ceilingA, int ceilingB) {
     }
 
     /**

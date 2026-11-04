@@ -85,21 +85,23 @@ public class WirelessLinkCardItem extends Item {
             String verdict = WirelessLinks.controllerState(serverLevel, clicked);
             report = "CONTROLLER_ONLINE".equals(verdict) || "NO_CONTROLLER".equals(verdict)
                     ? moved
-                    : WirelessLinks.Reply.untranslated(moved.english() + " | AE2 reads this controller group"
-                            + " as " + verdict + ", which means the network is getting no channels at all"
-                            + " until the shape is fixed");
+                    : WirelessLinks.Reply.of("controller_verdict",
+                            moved.english() + " | AE2 reads this controller group as " + verdict
+                                    + ", which means the network is getting no channels at all"
+                                    + " until the shape is fixed",
+                            moved.asComponent(), verdict);
         } else if (held == null) {
             if (!WirelessLinks.isDevice(serverLevel, clicked)) {
-                report = WirelessLinks.Reply.untranslated(
-                        "no network device at " + WirelessLinks.describe(clicked));
+                report = WirelessLinks.Reply.of("no_device_at",
+                        "no network device at " + WirelessLinks.describe(clicked),
+                        WirelessLinks.describe(clicked));
             } else {
                 writeEndpoint(card, clicked);
                 // The log keeps the full instrument (block id, per-face ledger, ad-hoc arithmetic, AE2's own
-                // machine table); the player gets the sentence, in their language, built from the same reads.
+                // machine table); the player gets which device the card now holds.
                 report = WirelessLinks.Reply.of("marked", "marked "
                         + WirelessLinks.status(serverLevel, ModRegistration.WIRELESS_LINKS, clicked),
-                        WirelessLinks.readingText(WirelessLinks.reading(serverLevel,
-                                ModRegistration.WIRELESS_LINKS, clicked)));
+                        WirelessLinks.describe(clicked));
             }
         } else if (WirelessLinks.endpointIsGone(serverLevel, held)) {
             // The square this card marked no longer holds a device, so the mark is void and this tap is
@@ -109,16 +111,19 @@ public class WirelessLinkCardItem extends Item {
             // while the card holds nothing, and useOn never fires on the air where the device used to be.
             // Only a confirmed-empty square does this; an asleep one keeps its mark (see endpointIsGone).
             if (!WirelessLinks.isDevice(serverLevel, clicked)) {
-                report = WirelessLinks.Reply.untranslated("the device this card marked at "
-                        + WirelessLinks.describe(held) + " is gone, and"
-                        + " there is no network device at " + WirelessLinks.describe(clicked)
-                        + " to mark instead");
+                report = WirelessLinks.Reply.of("marked_gone_no_device",
+                        "the device this card marked at " + WirelessLinks.describe(held) + " is gone, and"
+                                + " there is no network device at " + WirelessLinks.describe(clicked)
+                                + " to mark instead",
+                        WirelessLinks.describe(held), WirelessLinks.describe(clicked));
             } else {
                 writeEndpoint(card, clicked);
-                report = WirelessLinks.Reply.untranslated("the device this card marked at "
-                        + WirelessLinks.describe(held)
-                        + " is gone, so it marks this one instead - "
-                        + WirelessLinks.status(serverLevel, ModRegistration.WIRELESS_LINKS, clicked));
+                report = WirelessLinks.Reply.of("marked_gone_remarked",
+                        "the device this card marked at " + WirelessLinks.describe(held)
+                                + " is gone, so it marks this one instead - "
+                                + WirelessLinks.status(serverLevel, ModRegistration.WIRELESS_LINKS, clicked),
+                        WirelessLinks.describe(held),
+                        WirelessLinks.channelsText(serverLevel, clicked));
             }
         } else {
             report = WirelessLinks.bindReply(serverLevel, ModRegistration.WIRELESS_LINKS, held, clicked);
@@ -128,11 +133,9 @@ public class WirelessLinkCardItem extends Item {
             // and the reply line reads off AE2's own numbers.
         }
         NeoECOPrototype.LOGGER.info("wireless link card: {}", report.english());
-        // The key goes out unrendered and the client writes it in the player's own language; the English
+        // The key goes out unrendered, so the client writes the line in the player's own language; the English
         // sentence stays in the log because that is what the guards and the diagnostics read.
-        player.sendSystemMessage(report.langKey() == null
-                ? Component.literal("wireless link: " + report.english())
-                : Component.translatable(report.langKey(), report.args()));
+        player.sendSystemMessage(report.asComponent());
         return InteractionResult.CONSUME;
     }
 
@@ -167,7 +170,9 @@ public class WirelessLinkCardItem extends Item {
     }
 
     /**
-     * What a sneak-right-click in mid-air prints: the ledger of the network the card is standing on.
+     * What a sneak-right-click in mid-air prints: the two channel numbers of the network the card is standing
+     * on - what AE2 hands that device and what is already allocated. Nothing else, because on 2026-11-04 the
+     * player holding it asked for exactly that pair and called the rest noise.
      *
      * <p>A card holding nothing gets no number, and that is the honest half. AE2 derives channel capacity
      * from one network-wide {@code ChannelMode} and offers no setter anywhere in its jar (measured on
@@ -179,8 +184,7 @@ public class WirelessLinkCardItem extends Item {
         var held = readEndpoint(card);
         return held == null
                 ? Component.translatable("item.neoecoprototype.wireless_link_card.balance_none")
-                : WirelessLinks.readingText(
-                        WirelessLinks.reading(level, ModRegistration.WIRELESS_LINKS, held));
+                : WirelessLinks.channelsText(level, held);
     }
 
     @Override

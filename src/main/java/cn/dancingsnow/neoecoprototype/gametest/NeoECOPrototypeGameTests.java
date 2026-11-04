@@ -15205,24 +15205,30 @@ public final class NeoECOPrototypeGameTests {
     }
 
     /**
-     * The translated layer, pinned from both sides. Six of the card's lines now go out as
-     * {@code Component.translatable(key, args)} so a Chinese player reads Chinese and an English player reads
-     * English, while the log keeps the English sentence for the guards and for me. Two things can rot here and
-     * this checks both: a key can vanish from one language file, and the English text the code builds can drift
-     * away from the {@code en_us} value it is supposed to equal (that equivalence is the only reason the log and
-     * the chat still say the same thing). It also records one measurement in its own log line: on the gameTest
-     * server {@code Component.translatable(key, args).getString()} resolves against {@code en_us} and returns
-     * the English sentence - it does <em>not</em> come back as a bare key, which is what I had assumed when I
-     * designed this layer. So a guard could read either the {@code english} field or the rendered component and
-     * get the same text, and the Chinese only appears on a client whose language is Chinese.
+     * The translated layer, pinned from both sides. Every line the two cards hand a player now goes out as
+     * {@code Component.translatable(key, args)} - all 28 of them, keyed on 2026-11-04 after a Chinese player
+     * read his first English refusal and named it ("有中文有英文") - while the log keeps the English sentence
+     * for the guards. Three things can rot here and this checks all three: a key can vanish from one language
+     * file; the English text the code builds can drift away from the {@code en_us} value it is supposed to
+     * equal (that equivalence is the only reason the log and the chat still say the same thing); and AE2 can
+     * add a controller verdict the sentence does not translate. It also records one measurement in its own log
+     * line: on the gameTest server {@code Component.translatable(key, args).getString()} resolves against
+     * {@code en_us} and returns the English sentence - it does <em>not</em> come back as a bare key, which is
+     * what I had assumed when I designed this layer. So a guard could read either the {@code english} field or
+     * the rendered component and get the same text, and the Chinese only appears on a client whose language is
+     * Chinese.
      */
     @GameTest(template = "empty", batch = "wireless_reply_keys", timeoutTicks = 400,
             templateNamespace = NeoECOPrototype.MOD_ID)
     public static void everyTranslatedCardLineHasItsKeyInBothFilesAndMatchesTheEnglishText(
             GameTestHelper helper) {
         var names = java.util.List.of("linked", "marked", "dropped", "already_linked", "raised", "already_top",
-                "reading", "state.online", "state.none", "state.offline", "state.conflict", "power.on",
-                "power.off");
+                "channels", "channels_none", "same_block", "owner_dim_unloaded", "cross_dim_off",
+                "out_of_range",
+                "not_a_device", "no_device_at", "at_limit", "no_node_yet", "wired_already", "one_network",
+                "starvation", "recorded_no_node", "recorded_no_edge", "marked_gone_no_device",
+                "marked_gone_remarked", "controller_no_edge", "controller_verdict", "carries_none",
+                "dim_unloaded", "not_on_network", "no_pathing_service", "teardown_moved");
         for (String lang : new String[]{"en_us", "zh_cn"}) {
             String json = readResource("/assets/neoecoprototype/lang/" + lang + ".json", helper);
             if (json == null) {
@@ -15235,37 +15241,22 @@ public final class NeoECOPrototypeGameTests {
                     return;
                 }
             }
-            // The reading sentence takes seven arguments by position; a language file that drops or renumbers
-            // one would still render, just with the wrong facts in the wrong places.
-            var readingValue = langValue(json, "gui.neoecoprototype.wireless_link.reading");
-            for (int slot = 1; slot <= 7; slot++) {
-                if (!readingValue.contains("%" + slot + "$s")) {
-                    helper.fail("lang/" + lang + ".json's reading sentence has no %" + slot + "$s, so slot "
-                            + slot + " of the card's reading is never shown: [" + readingValue + "]");
+            // The channel line is the two numbers the player asked for, filled by position; a language file
+            // that drops or renumbers one shows a count in the wrong place, and nothing else on the line would
+            // look wrong enough to notice.
+            var channelsValue = langValue(json, "gui.neoecoprototype.wireless_link.channels");
+            for (int slot = 1; slot <= 2; slot++) {
+                if (!channelsValue.contains("%" + slot + "$s")) {
+                    helper.fail("lang/" + lang + ".json's channels line has no %" + slot + "$s, so slot "
+                            + slot + " of the pair is never shown: [" + channelsValue + "]");
                     return;
                 }
             }
         }
-        // AE2 owns the verdict enum, so the set we translate is only correct while it still covers it.
-        for (var verdict : appeng.api.networking.pathing.ControllerState.values()) {
-            var key = WirelessLinks.CONTROLLER_STATE_KEYS.get(verdict.name());
-            if (key == null) {
-                helper.fail("AE2 has a controller verdict the card does not translate (" + verdict.name()
-                        + "), so it would print that bare name into the player's sentence");
-                return;
-            }
-            for (String lang : new String[]{"en_us", "zh_cn"}) {
-                String json = readResource("/assets/neoecoprototype/lang/" + lang + ".json", helper);
-                if (json == null) {
-                    return;
-                }
-                if (!json.contains("\"gui.neoecoprototype.wireless_link." + key + "\":")) {
-                    helper.fail("verdict " + verdict.name() + " maps to " + key + ", which lang/" + lang
-                            + ".json does not carry");
-                    return;
-                }
-            }
-        }
+        // The seven-field sentence this line replaced printed AE2's controller verdict and power words, and a
+        // block here walked ControllerState.values() to prove every verdict had a key. The player's line no
+        // longer carries a verdict, so that check went with it; controllerState() still answers for the log
+        // instrument and for routing a controller tap, and those have their own guards.
         var device = new BlockPos(0, 1, 0);
         helper.setBlock(device, ModRegistration.SUPERCONDUCTIVE_INTERFACE_BLOCK.get());
         var level = (ServerLevel) helper.getLevel();
@@ -15280,49 +15271,67 @@ public final class NeoECOPrototypeGameTests {
                     if (en == null) {
                         return;
                     }
-                    var value = langValue(en, "gui.neoecoprototype.wireless_link."
-                            + (reply.english().startsWith("raised this network") ? "raised" : "already_top"));
-                    if (value.isEmpty()) {
-                        helper.fail("could not read the en_us value back to compare it with " + reply.english());
-                        return;
+                    // Four outcomes get compared to their en_us value: the ladder answer this tap really made,
+                    // and the three refusals a player hits by tapping the wrong thing - the same block twice,
+                    // a square with no device in it, and a device that carries nothing. Each one has to rebuild
+                    // the log sentence out of en_us plus its own args; that equivalence is the only reason the
+                    // log and the chat are still one story rather than two.
+                    var nowhere = GlobalPos.of(level.dimension(), helper.absolutePos(new BlockPos(4, 6, 4)));
+                    var compared = java.util.List.of(reply,
+                            WirelessLinks.bindReply(level, ModRegistration.WIRELESS_LINKS, at, at),
+                            WirelessLinks.bindReply(level, ModRegistration.WIRELESS_LINKS, at, nowhere),
+                            WirelessLinks.unlinkReply(level, ModRegistration.WIRELESS_LINKS, at));
+                    for (var probe : compared) {
+                        var value = langValue(en, probe.langKey());
+                        if (value.isEmpty()) {
+                            helper.fail("could not read the en_us value of " + probe.langKey()
+                                    + " back to compare it with " + probe.english());
+                            return;
+                        }
+                        String rendered;
+                        try {
+                            rendered = String.format(value, probe.args());
+                        } catch (java.util.IllegalFormatException exc) {
+                            helper.fail(probe.langKey() + "'s en_us value and the arguments the code passes do"
+                                    + " not fit each other (" + exc.getMessage() + "): value=[" + value
+                                    + "] args=" + java.util.Arrays.toString(probe.args()));
+                            return;
+                        }
+                        if (!rendered.equals(probe.english())) {
+                            helper.fail("the card's log sentence and its en_us value have drifted apart for "
+                                    + probe.langKey() + ": log=[" + probe.english() + "] lang=[" + rendered + "]");
+                            return;
+                        }
                     }
-                    String rendered;
-                    try {
-                        rendered = String.format(value, reply.args());
-                    } catch (java.util.IllegalFormatException exc) {
-                        helper.fail("the en_us value and the arguments the code passes do not fit each other ("
-                                + exc.getMessage() + "): value=[" + value + "] args="
-                                + java.util.Arrays.toString(reply.args()));
-                        return;
-                    }
-                    if (!rendered.equals(reply.english())) {
-                        helper.fail("the card's log sentence and its en_us value have drifted apart: log=["
-                                + reply.english() + "] lang=[" + rendered + "]");
-                        return;
-                    }
-                    // The player's sentence and the log's instrument must be the same reads, not two stories
-                    // about one device: this is what stops a nicer sentence from inventing anything.
-                    var reading = WirelessLinks.reading(level, ModRegistration.WIRELESS_LINKS, at);
+                    NeoECOPrototype.LOGGER.info("REPLYKEYS compared {} replies, first={}", compared.size(),
+                            compared.get(0).langKey());
+                    // The player's pair and AE2's own numbers have to be the same read, not two stories about
+                    // one device: that is what stops a nicer sentence from inventing anything. The node is
+                    // looked up here through AE2's public helper instead of through WirelessLinks, so a mistake
+                    // inside our own wrapper cannot hide behind itself.
+                    String sentence = WirelessLinks.channelsText(level, at).getString();
                     String instrument = WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS, at);
-                    String sentence = WirelessLinks.readingText(reading).getString();
-                    if (!instrument.contains("wirelessLinks=" + reading.links())
-                            || !instrument.contains("live=" + reading.live())
-                            || !instrument.contains("mode=" + reading.mode())) {
-                        helper.fail("the card's sentence and its instrument no longer come from the same"
-                                + " reads: reading=" + reading + " instrument=[" + instrument + "]");
+                    var host = appeng.api.networking.GridHelper.getNodeHost(level, at.pos());
+                    appeng.api.networking.IGridNode node = null;
+                    if (host != null) {
+                        for (var side : net.minecraft.core.Direction.values()) {
+                            node = host.getGridNode(side);
+                            if (node != null) {
+                                break;
+                            }
+                        }
+                    }
+                    if (node == null) {
+                        helper.fail("AE2's own helper finds no node at " + at.pos() + " while the card printed ["
+                                + sentence + "]: instrument=[" + instrument + "]");
                         return;
                     }
-                    if (!sentence.contains(Integer.toString(reading.links()))
-                            || !sentence.contains(Integer.toString(reading.live()))
-                            || !sentence.contains(reading.mode()) || sentence.contains("%")) {
-                        helper.fail("the rendered sentence lost a number, kept a bare placeholder, or left the"
-                                + " channel mode out: sentence=[" + sentence + "] reading=" + reading);
-                        return;
-                    }
-                    if ("NO_CONTROLLER".equals(reading.controllerVerdict()) && !instrument.contains(
-                            "(this network holds " + reading.devices() + " nodes)")) {
-                        helper.fail("the sentence claims a device count the instrument does not show: reading="
-                                + reading + " instrument=[" + instrument + "]");
+                    if (!sentence.contains(Integer.toString(node.getMaxChannels()))
+                            || !sentence.contains(Integer.toString(node.getUsedChannels()))
+                            || sentence.contains("%")) {
+                        helper.fail("the card's channel pair is not AE2's own numbers for that device:"
+                                + " sentence=[" + sentence + "] node(max=" + node.getMaxChannels()
+                                + ", used=" + node.getUsedChannels() + ") instrument=[" + instrument + "]");
                         return;
                     }
                     NeoECOPrototype.LOGGER.info("REPLYKEYS key={} english=[{}] serverGetString=[{}]",
@@ -15798,12 +15807,29 @@ public final class NeoECOPrototypeGameTests {
     }
 
     /** Does the card's own balance line name that cell? Reading the mark through the player's gesture. */
+    /**
+     * Which device the card says it is holding. On 2026-11-04 the player's channel line became just the pair
+     * of numbers (拥有 : 已分配), so the line that still names the held device is the tooltip's 已记录 one -
+     * and that is the line a player reads before they click, so it is the one this assertion follows.
+     */
     private static boolean cardNames(GameTestHelper helper, ServerLevel level, ItemStack card, BlockPos cell) {
-        return cardWords(level, card).contains(helper.absolutePos(cell).toShortString());
+        return cardTooltip(level, card).contains(helper.absolutePos(cell).toShortString());
     }
 
+    /** Both of the card's player-facing lines: the tooltip (which device) and the actionbar (what it is worth). */
     private static String cardWords(ServerLevel level, ItemStack card) {
-        return cn.dancingsnow.neoecoprototype.items.WirelessLinkCardItem.balanceReport(level, card).getString();
+        return cardTooltip(level, card) + " || "
+                + cn.dancingsnow.neoecoprototype.items.WirelessLinkCardItem.balanceReport(level, card).getString();
+    }
+
+    private static String cardTooltip(ServerLevel level, ItemStack card) {
+        var text = new StringBuilder();
+        for (var line : card.getTooltipLines(
+                net.minecraft.world.item.Item.TooltipContext.of(level), null,
+                net.minecraft.world.item.TooltipFlag.Default.NORMAL)) {
+            text.append(line.getString()).append('\n');
+        }
+        return text.toString();
     }
 
     /**

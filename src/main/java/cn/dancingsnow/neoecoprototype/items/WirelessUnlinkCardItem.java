@@ -4,7 +4,6 @@ import cn.dancingsnow.neoecoprototype.NeoECOPrototype;
 import cn.dancingsnow.neoecoprototype.event.WirelessLinks;
 import cn.dancingsnow.neoecoprototype.registration.ModRegistration;
 import net.minecraft.core.GlobalPos;
-import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
@@ -46,18 +45,17 @@ public class WirelessUnlinkCardItem extends Item {
         if (WirelessLinks.isController(serverLevel, clicked)) {
             // A controller never carries an edge, so this tap has nothing to take off it. Saying so beats
             // the alternative: a silent PASS that reads as a broken card.
-            report = WirelessLinks.Reply.untranslated(describe(clicked)
+            report = WirelessLinks.Reply.of("controller_no_edge", describe(clicked)
                     + " is a controller, and a controller never carries a wireless edge - use the link card"
-                    + " on it to raise that network's channel step");
+                    + " on it to raise that network's channel step", describe(clicked));
         } else if (!WirelessLinks.isDevice(serverLevel, clicked)) {
-            report = WirelessLinks.Reply.untranslated("that is not a network device: " + describe(clicked));
+            report = WirelessLinks.Reply.of("not_a_device",
+                    "that is not a network device: " + describe(clicked), describe(clicked));
         } else {
             report = WirelessLinks.unlinkReply(serverLevel, ModRegistration.WIRELESS_LINKS, clicked);
         }
         NeoECOPrototype.LOGGER.info("wireless unlink card: {}", report.english());
-        player.sendSystemMessage(report.langKey() == null
-                ? Component.literal("wireless unlink: " + report.english())
-                : Component.translatable(report.langKey(), report.args()));
+        player.sendSystemMessage(report.asComponent());
         return InteractionResult.CONSUME;
     }
 
