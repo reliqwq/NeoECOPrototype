@@ -47,6 +47,7 @@ bin/
 /run/
 /run-gametest/
 /run-server/
+/logs/
 /.eco-inspect/
 /.idea/
 /assets/
