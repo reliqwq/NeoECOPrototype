@@ -41,7 +41,7 @@ public class GretteBuddingBlock extends Block {
 
     public GretteBuddingBlock(@Nullable java.util.function.Supplier<Block> nextCondition, GretteGrowth growth) {
         super(BlockBehaviour.Properties.of().mapColor(MapColor.DIAMOND).strength(1.5F).sound(net.minecraft.world.level.block.SoundType.AMETHYST)
-                .randomTicks().noOcclusion());
+                .randomTicks().noOcclusion().requiresCorrectToolForDrops());
         this.nextCondition = nextCondition;
         this.growth = growth;
     }

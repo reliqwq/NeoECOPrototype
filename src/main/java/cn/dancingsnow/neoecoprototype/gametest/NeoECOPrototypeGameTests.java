@@ -9430,6 +9430,105 @@ public final class NeoECOPrototypeGameTests {
     }
 
     /**
+     * eco tables every multiblock member in {@code #minecraft:needs_stone_tool} and calls
+     * {@code requiresCorrectToolForDrops} on seven of its property templates. We had neither: our machine
+     * properties asked for no tool at all, and only the three cryotheum ores appeared in any mining tag - so
+     * an L1 host could be harvested with a wooden pickaxe, and broke at fist speed besides. Both halves are
+     * load-bearing in 1.21.1: the drop gate is data-driven (vanilla's own tag provider defines
+     * {@code INCORRECT_FOR_WOODEN_TOOL} as the three NEEDS_* tags), but a block only reaches that gate if its
+     * properties require a tool in the first place.
+     *
+     * <p>The boundaries below were chosen rather than derived, so they are asserted too: the dolls and the
+     * dissolution fluid stay out of every mining tag, and the growing buds, the reactor glass, the meteorite
+     * core and the three AE2-family blocks are pickaxe-mineable with no level of their own - vanilla amethyst
+     * and glass behaviour for the first group, and for the second a limit we cannot cross: their Properties
+     * come from AE2's no-arg constructors, so {@code requiresCorrectToolForDrops} is not ours to set. The
+     * aluminium casing is iron, because eco tables its alloy casings there and not with the machines.</p>
+     */
+    @GameTest(template = "empty", batch = "mining_levels", timeoutTicks = 100,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void multiblockMembersAreStonePickaxeGated(GameTestHelper helper) {
+        var stone = tagBlockIds("/data/minecraft/tags/block/needs_stone_tool.json", helper);
+        var pick = tagBlockIds("/data/minecraft/tags/block/mineable/pickaxe.json", helper);
+        var iron = tagBlockIds("/data/minecraft/tags/block/needs_iron_tool.json", helper);
+        if (stone == null || pick == null || iron == null) return;
+        if (stone.isEmpty() || pick.isEmpty()) {
+            helper.fail("our mining tags hold nothing (stone=" + stone.size() + ", pickaxe=" + pick.size()
+                    + "), so this guard checked nothing");
+            return;
+        }
+        var outsidePickaxe = new java.util.ArrayList<String>();
+        for (var id : stone) {
+            if (!pick.contains(id)) outsidePickaxe.add(id);
+        }
+        if (!outsidePickaxe.isEmpty()) {
+            helper.fail("needs_stone_tool entries missing from mineable/pickaxe: " + outsidePickaxe
+                    + " - eco keeps stone as a subset of pickaxe, and without the pickaxe entry the block is"
+                    + " not a pickaxe block at all");
+            return;
+        }
+        var wrong = new java.util.ArrayList<String>();
+        for (var id : stone) {
+            var state = net.minecraft.core.registries.BuiltInRegistries.BLOCK
+                    .get(net.minecraft.resources.ResourceLocation.parse(id)).defaultBlockState();
+            if (!state.requiresCorrectToolForDrops()) {
+                wrong.add(id + " requires no tool");
+            } else if (!state.is(net.minecraft.tags.BlockTags.NEEDS_STONE_TOOL)) {
+                wrong.add(id + " is not gated at runtime");
+            }
+        }
+        if (!wrong.isEmpty()) {
+            helper.fail("stone-rung blocks that do not behave like it: " + wrong);
+            return;
+        }
+        var leaked = new java.util.ArrayList<String>();
+        for (var name : new String[]{"fumo_doll_kouooki", "fumo_doll_reliqwq", "fumo_doll_tedxenon",
+                "fumo_doll_yang120", "fumo_doll_yang120_cpu", "fumo_doll_yang120_giant",
+                "dissolution_solution"}) {
+            String id = NeoECOPrototype.MOD_ID + ":" + name;
+            if (stone.contains(id) || pick.contains(id) || iron.contains(id)) leaked.add(id);
+        }
+        if (!leaked.isEmpty()) {
+            helper.fail("blocks that belong to no mining tag turned up in one: " + leaked
+                    + " - the dolls are soft goods and the dissolution solution is a fluid");
+            return;
+        }
+        for (var name : new String[]{"large_grette_bud", "medium_grette_bud", "small_grette_bud",
+                "grette_cluster", "reactor_glass", "meteorite_core",
+                // AE2-family blocks whose Properties come from InterfaceBlock()/PatternProviderBlock()'s
+                // no-arg constructor: requiresCorrectToolForDrops is not ours to set without forking AE2's
+                // props or injecting into it, so they stay pickaxe-only.
+                "simplify_pattern_provider", "simplify_powered_me_interface", "superconductive_interface"}) {
+            String id = NeoECOPrototype.MOD_ID + ":" + name;
+            if (!pick.contains(id) || stone.contains(id) || iron.contains(id)) {
+                helper.fail(id + " should be pickaxe-mineable with no tool level of its own, but pickaxe="
+                        + pick.contains(id) + " stone=" + stone.contains(id) + " iron=" + iron.contains(id));
+                return;
+            }
+        }
+        String casing = NeoECOPrototype.MOD_ID + ":simplify_green_aluminum_casing";
+        if (!iron.contains(casing) || stone.contains(casing)) {
+            helper.fail("the aluminium casing belongs in the iron rung with eco's own alloy casings"
+                    + " (iron=" + iron.contains(casing) + ", stone=" + stone.contains(casing) + ")");
+            return;
+        }
+        helper.succeed();
+    }
+
+    /** The block ids one of our own mining tags lists, spelled the way the file spells them. */
+    private static java.util.List<String> tagBlockIds(String path, GameTestHelper helper) {
+        String json = readResource(path, helper);
+        if (json == null) return null;
+        var values = com.google.gson.JsonParser.parseString(json).getAsJsonObject().getAsJsonArray("values");
+        var ids = new java.util.ArrayList<String>();
+        for (var entry : values) {
+            ids.add(entry.isJsonObject()
+                    ? entry.getAsJsonObject().get("id").getAsString() : entry.getAsString());
+        }
+        return ids;
+    }
+
+    /**
      * The L1 crafting tier's two parallel numbers are the machine's whole balance, and before this test
      * nothing in the suite read them at all: the panel tests ask this tier only for its label and its index,
      * and the panel itself is client-side. So the pair is pinned as literals, together with the arithmetic the

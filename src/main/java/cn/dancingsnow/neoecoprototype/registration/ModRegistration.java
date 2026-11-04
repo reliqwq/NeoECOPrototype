@@ -278,31 +278,39 @@ public class ModRegistration {
     private static final double ENERGIZED_CELL_CAPACITY_256G = 256_000_000_000.0;
 
     private static final BlockBehaviour.Properties MACHINE_PROPS =
-            BlockBehaviour.Properties.of().mapColor(MapColor.METAL).strength(2.0F);
+            BlockBehaviour.Properties.of().mapColor(MapColor.METAL).strength(2.0F)
+                    .requiresCorrectToolForDrops();
     private static final BlockBehaviour.Properties COMPUTATION_PROPS =
-            BlockBehaviour.Properties.of().mapColor(MapColor.METAL).strength(2.0F).noOcclusion();
+            BlockBehaviour.Properties.of().mapColor(MapColor.METAL).strength(2.0F).noOcclusion()
+                    .requiresCorrectToolForDrops();
     // Keep noOcclusion(): measured on the L1 room, dropping it stops 10 faces being drawn (the duplicated
     // plane between stacked drives among them) but flips the drive to lightBlock=15, so the machine
     // interior goes black in the Overworld. eco's own drive reads the same false/1 pair we do.
     private static final BlockBehaviour.Properties DRIVE_PROPS =
-            BlockBehaviour.Properties.of().mapColor(MapColor.METAL).strength(2.0F).noOcclusion();
+            BlockBehaviour.Properties.of().mapColor(MapColor.METAL).strength(2.0F).noOcclusion()
+                    .requiresCorrectToolForDrops();
     private static final BlockBehaviour.Properties CASING_PROPS =
-            BlockBehaviour.Properties.of().mapColor(MapColor.METAL).strength(2.0F).noOcclusion();
+            BlockBehaviour.Properties.of().mapColor(MapColor.METAL).strength(2.0F).noOcclusion()
+                    .requiresCorrectToolForDrops();
     private static final BlockBehaviour.Properties GREEN_CASING_PROPS =
-            BlockBehaviour.Properties.of().mapColor(MapColor.METAL).strength(2.0F).noOcclusion();
-     private static final BlockBehaviour.Properties AE2_MACHINE_PROPS = BlockBehaviour.Properties.of().mapColor(MapColor.METAL).strength(2.0F).noOcclusion();
+            BlockBehaviour.Properties.of().mapColor(MapColor.METAL).strength(2.0F).noOcclusion()
+                    .requiresCorrectToolForDrops();
+     private static final BlockBehaviour.Properties AE2_MACHINE_PROPS = BlockBehaviour.Properties.of().mapColor(MapColor.METAL).strength(2.0F).noOcclusion()
+            .requiresCorrectToolForDrops();
 
     // The reactor's two shell materials. The frame is drawn as a post plus per-side beams, so it must
     // not occlude; the glass is what a player looks through into the chamber.
     private static final BlockBehaviour.Properties REACTOR_FRAME_PROPS =
-            BlockBehaviour.Properties.of().mapColor(MapColor.METAL).strength(4.0F, 6.0F).noOcclusion();
+            BlockBehaviour.Properties.of().mapColor(MapColor.METAL).strength(4.0F, 6.0F).noOcclusion()
+                    .requiresCorrectToolForDrops();
     private static final BlockBehaviour.Properties REACTOR_GLASS_PROPS =
             BlockBehaviour.Properties.of().mapColor(MapColor.NONE).strength(0.6F).sound(SoundType.GLASS)
                     .noOcclusion();
     // A fresh instance on purpose: Properties.lightLevel mutates the object it is called on, and
     // MACHINE_PROPS is shared by every other machine block.
     private static final BlockBehaviour.Properties REACTOR_CORE_PROPS =
-            BlockBehaviour.Properties.of().mapColor(MapColor.METAL).strength(2.0F).lightLevel(state -> 15);
+            BlockBehaviour.Properties.of().mapColor(MapColor.METAL).strength(2.0F)
+                    .requiresCorrectToolForDrops().lightLevel(state -> 15);
 
     // ============================ Blocks ============================
 
@@ -423,7 +431,7 @@ public class ModRegistration {
             BLOCKS.register("grette_crystal_block", () -> new Block(BlockBehaviour.Properties.of()
                     .mapColor(MapColor.DIAMOND).strength(1.5F).noOcclusion()
                     .sound(net.minecraft.world.level.block.SoundType.AMETHYST)
-                    .lightLevel(state -> 4)));
+                    .requiresCorrectToolForDrops().lightLevel(state -> 4)));
 
     // Declared worst-first: each condition names the one it decays into, and Java reads a static
     // initializer that mentions a later field as a forward reference even inside a lambda.

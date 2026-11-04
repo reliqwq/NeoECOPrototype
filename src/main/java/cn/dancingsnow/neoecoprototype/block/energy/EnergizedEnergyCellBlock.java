@@ -14,7 +14,9 @@ public class EnergizedEnergyCellBlock extends AEBaseEntityBlock<EnergizedEnergyC
     private final double capacity;
 
     public EnergizedEnergyCellBlock(double capacity) {
-        super(AEBaseBlock.metalProps());
+        // a fresh Properties per call (AEBaseBlock.defaultProps starts from Properties.of()), so chaining here
+        // touches our block only - metalProps() itself is AE2's and stays as it is.
+        super(AEBaseBlock.metalProps().requiresCorrectToolForDrops());
         this.capacity = capacity;
     }
 
