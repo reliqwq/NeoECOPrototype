@@ -1,6 +1,6 @@
 {
   "parent": "minecraft:item/generated",
   "textures": {
-    "layer0": "neoecoprototype:item/cryotheum_ice_cream/softserve_tall_jar"
+    "layer0": "neoecoprototype:item/cryotheum_ice_cream/sundae_glass"
   }
 }

@@ -466,7 +466,9 @@ public class ModRegistration {
      * bottle, sugar, eco's cryotheum powder and a snowball. Eating it hands the bottle back
      * ({@code usingConvertsTo}), so the container is not a slow leak in a player's stock, and it sits at
      * cooked chicken's rung on purpose - the guard compares it against vanilla's own number rather than
-     * against this line. The icon is PR #17's {@code softserve_tall_jar.png}, one of five candidates: swapping
+     * against this line. The icon is PR #17's {@code sundae_glass.png} - he picked it from the five
+     * candidates, knowing it is the one whose outline is slate (74,95,110) rather than eco's deep-sea blue
+     * (12,63,104) and whose cream highlights are new to the family; swapping
      * the flavour means replacing that file and the model's {@code layer0}, nothing else.
      */
     public static final Supplier<Item> CRYOTHEUM_ICE_CREAM = ITEMS.register("cryotheum_ice_cream",
