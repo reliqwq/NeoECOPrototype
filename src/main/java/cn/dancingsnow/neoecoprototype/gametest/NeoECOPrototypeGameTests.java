@@ -780,11 +780,24 @@ public final class NeoECOPrototypeGameTests {
                     + " and a name the enum does not have would still load, defaulted to MISC by the codec");
             return;
         }
+        // Stacks to 64 because he set that on 2026-11-04. The two vanilla bottled foods are read in the same
+        // tick so our number sits against measured neighbours rather than against a default nobody chose:
+        // if honey bottle or potion stops reporting 16 / 1, the comparison has lost its meaning and says so.
+        var ourStack = stack.getMaxStackSize();
+        var honeyStack = new ItemStack(net.minecraft.world.item.Items.HONEY_BOTTLE).getMaxStackSize();
+        var potionStack = new ItemStack(net.minecraft.world.item.Items.POTION).getMaxStackSize();
+        if (ourStack != 64 || honeyStack != 16 || potionStack != 1) {
+            helper.fail("the ice cream stacks to " + ourStack + " (expected 64), with vanilla's honey bottle at "
+                    + honeyStack + " (expected 16) and its potion at " + potionStack
+                    + " (expected 1) - one of the three references moved");
+            return;
+        }
         NeoECOPrototype.LOGGER.info("ICECREAM nutrition={} saturation={} convertsTo={} animation={}"
-                        + " (chicken={} honey={}) category={} ingredients={} chickenReference={}/{}",
+                        + " (chicken={} honey={}) category={} stacks={} (honeyBottle={} potion={})"
+                        + " ingredients={} chickenReference={}/{}",
                 food.nutrition(), food.saturation(),
                 converts.get().getDescriptionId(), animation, chickenAnimation, honeyAnimation,
-                category, describeIngredients(ingredients),
+                category, ourStack, honeyStack, potionStack, describeIngredients(ingredients),
                 chicken.nutrition(), chicken.saturation());
         helper.succeed();
     }

@@ -472,9 +472,14 @@ public class ModRegistration {
      * is slate (74,95,110) rather than eco's deep-sea blue (12,63,104) and whose cream highlights are new
      * to the family. Swapping the flavour means replacing that file and the model's {@code layer0},
      * nothing else.
+     *
+     * <p>It stacks to 64 - the number he set on 2026-11-04, written out rather than left to the
+     * {@code Item.Properties} default so that a future reader sees a decision instead of an inheritance.
+     * Vanilla's bottled foods are 16 (honey bottle) and 1 (potion); the guard prints both next to ours so the
+     * deviation stays measured rather than assumed.
      */
     public static final Supplier<Item> CRYOTHEUM_ICE_CREAM = ITEMS.register("cryotheum_ice_cream",
-            () -> new DrinkableFoodItem(new Item.Properties().food(
+            () -> new DrinkableFoodItem(new Item.Properties().stacksTo(64).food(
                     new net.minecraft.world.food.FoodProperties.Builder()
                             .nutrition(6)
                             .saturationModifier(0.6F)
