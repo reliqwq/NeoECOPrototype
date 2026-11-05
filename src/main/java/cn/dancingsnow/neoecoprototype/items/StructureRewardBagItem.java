@@ -1,0 +1,197 @@
+package cn.dancingsnow.neoecoprototype.items;
+
+import cn.dancingsnow.neoecoprototype.registration.ModRegistration;
+import net.minecraft.core.HolderLookup;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.Tag;
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResultHolder;
+import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.TooltipFlag;
+import net.minecraft.world.item.component.CustomData;
+import net.minecraft.world.level.Level;
+import org.jetbrains.annotations.Nullable;
+
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * The last resting place for everything a structure card owes the player.
+ *
+ * <p>Why it exists: a swap takes out the blocks it moved - roughly ninety for a machine at its ceiling - and
+ * a refused click prints a work order plus an encoded processing pattern. None of that may land on the floor:
+ * an item entity there despawns in five minutes, and a machine that just changed tier would otherwise litter
+ * its own footprint with ninety loose blocks. The card therefore gathers what a click owes into one bag and
+ * hands that over instead.</p>
+ *
+ * <p>What is in a bag is a plain saved {@link ItemStack} per entry, in {@link DataComponents#CUSTOM_DATA} -
+ * id, count and components. The first version of this item stored id and count only, which was fine for
+ * refund blocks and quietly fatal for the one thing a bag now also carries: a work-order pattern, whose whole
+ * content is its components. An entry this game cannot resolve (a pack change) is kept in the bag rather than
+ * quietly eaten, which is the same rule the card follows everywhere else: something the player owns may move
+ * places, but it never just vanishes.</p>
+ */
+public class StructureRewardBagItem extends Item {
+
+    /** The list inside {@code CUSTOM_DATA}; each element is one saved item stack. */
+    private static final String TAG_BLOCKS = "neoecoprototype:blocks";
+
+    public StructureRewardBagItem(Properties properties) {
+        super(properties);
+    }
+
+    /**
+     * A bag holding these stacks. The caller is expected to have merged them already - one entry per item,
+     * each within the item's own stack limit - because that is the whole point of the container.
+     */
+    public static ItemStack withContents(@Nullable HolderLookup.Provider registries, List<ItemStack> stacks) {
+        ItemStack bag = new ItemStack(ModRegistration.STRUCTURE_REWARD_BAG.get());
+        ListTag list = new ListTag();
+        for (ItemStack stack : stacks) {
+            if (stack.isEmpty() || registries == null) {
+                continue;
+            }
+            if (stack.save(registries) instanceof CompoundTag saved) {
+                list.add(saved);
+            }
+        }
+        CompoundTag tag = new CompoundTag();
+        tag.put(TAG_BLOCKS, list);
+        CustomData.set(DataComponents.CUSTOM_DATA, bag, tag);
+        return bag;
+    }
+
+    /** What the bag holds right now; entries this game cannot name are skipped here. */
+    public static List<ItemStack> contentsOf(ItemStack bag, @Nullable HolderLookup.Provider registries) {
+        List<ItemStack> contents = new ArrayList<>();
+        if (registries == null) {
+            return contents;
+        }
+        for (CompoundTag entry : entries(bag)) {
+            ItemStack stack = read(entry, registries);
+            if (!stack.isEmpty()) {
+                contents.add(stack);
+            }
+        }
+        return contents;
+    }
+
+    /** Entries the bag holds that this game cannot name - they stay in the bag and are counted here. */
+    public static int unresolvableOf(ItemStack bag, @Nullable HolderLookup.Provider registries) {
+        int unresolvable = 0;
+        for (CompoundTag entry : entries(bag)) {
+            if (registries == null || read(entry, registries).isEmpty()) {
+                unresolvable++;
+            }
+        }
+        return unresolvable;
+    }
+
+    /** How many entries the bag holds, counted whether or not this game can name them. */
+    public static int kindsOf(ItemStack bag) {
+        return entries(bag).size();
+    }
+
+    private static ItemStack read(CompoundTag entry, HolderLookup.Provider registries) {
+        return ItemStack.parseOptional(registries, entry);
+    }
+
+    private static List<CompoundTag> entries(ItemStack bag) {
+        List<CompoundTag> entries = new ArrayList<>();
+        CustomData data = bag.get(DataComponents.CUSTOM_DATA);
+        if (data == null) {
+            return entries;
+        }
+        CompoundTag tag = data.copyTag();
+        if (!tag.contains(TAG_BLOCKS, Tag.TAG_LIST)) {
+            return entries;
+        }
+        for (Tag element : tag.getList(TAG_BLOCKS, Tag.TAG_COMPOUND)) {
+            if (element instanceof CompoundTag entry) {
+                entries.add(entry);
+            }
+        }
+        return entries;
+    }
+
+    /**
+     * Right-click: everything the bag holds goes into the player's inventory, whatever cannot fit falls out
+     * as an ordinary item drop at their feet, and the bag itself turns into one empty migration drive - the
+     * tile it is drawn from. Nothing is left holding a residue, and nothing has to be hunted for twice.
+     *
+     * <p>The one case that refuses is a bag holding an entry this game cannot name, which only happens after
+     * a pack change. Emptying it would drop what cannot be rebuilt and destroying it would delete things
+     * nobody was told about, so the bag stays and the tooltip says how many entries are the problem.</p>
+     */
+    @Override
+    public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
+        ItemStack bag = player.getItemInHand(hand);
+        List<ItemStack> contents = contentsOf(bag, level.registryAccess());
+        int unresolvable = unresolvableOf(bag, level.registryAccess());
+        if (unresolvable > 0) {
+            if (!level.isClientSide) {
+                player.displayClientMessage(Component.translatable(
+                        "card.neoecoprototype.reward_bag.unresolvable_refusal", unresolvable), true);
+            }
+            return InteractionResultHolder.fail(bag);
+        }
+        if (contents.isEmpty()) {
+            if (!level.isClientSide) {
+                player.displayClientMessage(
+                        Component.translatable("card.neoecoprototype.reward_bag.empty"), true);
+            }
+            return InteractionResultHolder.fail(bag);
+        }
+        if (!level.isClientSide) {
+            for (ItemStack stack : contents) {
+                if (player.getInventory().add(stack.copy())) {
+                    continue;
+                }
+                var drop = new ItemEntity(level, player.getX(), player.getEyeY(), player.getZ(),
+                        stack.copy());
+                // Ten ticks, so a stack that just fell out cannot go straight back into the hand that
+                // threw it while the bag is still being held.
+                drop.setPickUpDelay(10);
+                level.addFreshEntity(drop);
+            }
+            // The empty drive is what a spent disk leaves in your hand, and this tile is that tile
+            // darkened - so the refund container closes the same loop: it turns back into the shell.
+            ItemStack shell = new ItemStack(ModRegistration.MIGRATION_DRIVE_EMPTY.get());
+            player.setItemInHand(hand, shell);
+            return InteractionResultHolder.sidedSuccess(shell, level.isClientSide);
+        }
+        return InteractionResultHolder.pass(bag);
+    }
+
+    @Override
+    public void appendHoverText(ItemStack bag, Item.TooltipContext context, List<Component> lines,
+                                TooltipFlag flag) {
+        HolderLookup.Provider registries = context == null ? null : context.registries();
+        List<ItemStack> contents = contentsOf(bag, registries);
+        if (contents.isEmpty() && unresolvableOf(bag, registries) == 0) {
+            lines.add(Component.translatable("card.neoecoprototype.reward_bag.empty_contents"));
+            return;
+        }
+        int shown = 0;
+        for (ItemStack stack : contents) {
+            if (shown == 4) {
+                lines.add(Component.translatable("card.neoecoprototype.reward_bag.more",
+                        contents.size() - shown));
+                break;
+            }
+            lines.add(Component.translatable("card.neoecoprototype.reward_bag.line",
+                    stack.getHoverName(), stack.getCount()));
+            shown++;
+        }
+        int unresolvable = unresolvableOf(bag, registries);
+        if (unresolvable > 0) {
+            lines.add(Component.translatable("card.neoecoprototype.reward_bag.unresolvable", unresolvable));
+        }
+    }
+}

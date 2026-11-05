@@ -98,6 +98,7 @@ import cn.dancingsnow.neoecoprototype.items.SimplifyConcreteStorageCellItem;
 import cn.dancingsnow.neoecoprototype.items.SimplifySingularityCellItem;
 import cn.dancingsnow.neoecoprototype.items.SimplifyMigrationDriveItem;
 import cn.dancingsnow.neoecoprototype.items.SimplifyStructureExpansionCardItem;
+import cn.dancingsnow.neoecoprototype.items.StructureRewardBagItem;
 import cn.dancingsnow.neoecoprototype.items.SimplifyStorageCellItem;
 import cn.dancingsnow.neoecoprototype.items.SimplifySmallBulkFluidStorageCellItem;
 import cn.dancingsnow.neoecoprototype.items.SimplifySmallBulkStorageCellItem;
@@ -892,6 +893,15 @@ public class ModRegistration {
     public static final Supplier<SimplifyStructureExpansionCardItem> SIMPLIFY_STRUCTURE_EXPANSION_CARD =
             ITEMS.register("simplify_structure_expansion_card",
                     () -> new SimplifyStructureExpansionCardItem(new Item.Properties().stacksTo(1)));
+
+    /**
+     * What a structure card hands over when the blocks it took out of a machine no longer fit in the
+     * player's bag: one item instead of ninety loose blocks at the machine's own cells. Right-click it to
+     * pour the contents back; it stays if even that does not fit.
+     */
+    public static final Supplier<StructureRewardBagItem> STRUCTURE_REWARD_BAG =
+            ITEMS.register("structure_reward_bag",
+                    () -> new StructureRewardBagItem(new Item.Properties().stacksTo(1)));
 
     /** The card hands this out instead of a note when an L1 storage room cannot be paid for. */
     public static final Supplier<Item> SIMPLIFY_WORK_ORDER_GROW_L1_STORAGE =
@@ -1741,6 +1751,10 @@ private static Supplier<BlockEntityType<SimplifyStorageVentBlockEntity>> registe
                           output.accept(SIMPLIFY_CONCRETE_STORAGE_CELL.get());
                           output.accept(SIMPLIFY_SINGULARITY_CELL.get());
                         output.accept(SIMPLIFY_STRUCTURE_EXPANSION_CARD.get());
+                        // In the tab so the pour path can be held in hand without first overflowing a bag:
+                        // in game the card only ever produces one when the refund genuinely had nowhere to
+                        // go, and it never carries a recipe.
+                        output.accept(STRUCTURE_REWARD_BAG.get());
                         // The whole ladder, next to the card it replaces: the four usable disks and the spent
                         // shell, so a tester can hold both ends of a rung at once. None of the five has a
                         // recipe, so this is a creative-mode route, not a survival one.
