@@ -11132,6 +11132,91 @@ public final class NeoECOPrototypeGameTests {
     }
 
     /**
+     * The family's second member grows meteorite dust, on its own two config entries, while the first one
+     * keeps growing singularities.
+     *
+     * <p>Two facts used to be class-wide and are per-instance now - what a cell pays out, and which config
+     * pair it reads its speed from. Both are asserted here because a leftover static would let the second
+     * cell hand out singularities, or make it slow down whenever somebody edited the singularity cell's
+     * entries, while every data file still looked correct.</p>
+     *
+     * <p>The panel row is checked for both types: neither belongs to a medium row, because each reports an
+     * unbounded byte total and a world-clock stock.</p>
+     */
+    @GameTest(template = "empty", batch = "sky_stone_dust_cell", timeoutTicks = 200,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void skyStoneDustCellGrowsDustOnItsOwnConfigPair(GameTestHelper helper) {
+        var dustCell = ModRegistration.SIMPLIFY_SKY_STONE_DUST_CELL.get();
+        var singularityCell = ModRegistration.SIMPLIFY_SINGULARITY_CELL.get();
+        NeoECOPrototype.LOGGER.info("self-grow pair: dust grows {} at {}/{} ticks, singularity grows {} at {}/{}",
+                dustCell.content(), dustCell.perBatch(), dustCell.ticksPerBatch(),
+                singularityCell.content(), singularityCell.perBatch(), singularityCell.ticksPerBatch());
+        if (!dustCell.content().equals(cn.dancingsnow.neoecoprototype.items
+                .SimplifySingularityCellItem.skyStoneDust())) {
+            helper.fail("the meteorite-dust cell pays out " + dustCell.content()
+                    + " instead of sky stone dust - what a cell grows is still read class-wide");
+            return;
+        }
+        if (!singularityCell.content().equals(cn.dancingsnow.neoecoprototype.items
+                .SimplifySingularityCellItem.singularity())) {
+            helper.fail("the singularity cell stopped growing singularities: it now pays "
+                    + singularityCell.content());
+            return;
+        }
+        if (dustCell.growth().pays(singularityCell.content())
+                || singularityCell.growth().pays(dustCell.content())) {
+            helper.fail("the two cells pay each other's content, so a drive would route the wrong stock here");
+            return;
+        }
+        // The two config pairs are separate entries on purpose: tuning one cell must not move the other.
+        var dustAmount = cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig
+                .SKY_STONE_DUST_CELL_AMOUNT_PER_BATCH;
+        var dustTicks = cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig
+                .SKY_STONE_DUST_CELL_TICKS_PER_BATCH;
+        var singAmount = cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig
+                .SINGULARITY_CELL_AMOUNT_PER_BATCH;
+        var singTicks = cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig
+                .SINGULARITY_CELL_TICKS_PER_BATCH;
+        long restoredDustAmount = dustAmount.get();
+        long restoredDustTicks = dustTicks.get();
+        try {
+            dustAmount.set(1000L);
+            dustTicks.set(60L);
+            if (dustCell.perBatch() != 1000L || dustCell.ticksPerBatch() != 60L) {
+                helper.fail("the meteorite-dust cell ignored its own config pair: it still reports "
+                        + dustCell.perBatch() + " per " + dustCell.ticksPerBatch());
+                return;
+            }
+            if (singularityCell.perBatch() != singAmount.get()
+                    || singularityCell.ticksPerBatch() != singTicks.get()) {
+                helper.fail("moving the meteorite-dust entries also moved the singularity cell's speed to "
+                        + singularityCell.perBatch() + " per " + singularityCell.ticksPerBatch()
+                        + " - the two pairs are not independent");
+                return;
+            }
+        } finally {
+            dustAmount.set(restoredDustAmount);
+            dustTicks.set(restoredDustTicks);
+        }
+        var itemKeys = java.util.Set.<appeng.api.stacks.AEKeyType>of(appeng.api.stacks.AEKeyType.items());
+        if (SimplifyStorageHostBlockEntity.panelRowOf(dustCell.getCellType(), itemKeys)
+                != SimplifyStorageHostBlockEntity.ROW_NONE
+                || SimplifyStorageHostBlockEntity.panelRowOf(singularityCell.getCellType(), itemKeys)
+                != SimplifyStorageHostBlockEntity.ROW_NONE) {
+            helper.fail("a self-growing cell landed in a medium row: dust -> "
+                    + SimplifyStorageHostBlockEntity.panelRowOf(dustCell.getCellType(), itemKeys)
+                    + ", singularity -> "
+                    + SimplifyStorageHostBlockEntity.panelRowOf(singularityCell.getCellType(), itemKeys));
+            return;
+        }
+        if (dustCell.getCellType().equals(singularityCell.getCellType())) {
+            helper.fail("both cells report the same eco cell type, so the panel and Jade cannot tell them apart");
+            return;
+        }
+        helper.succeed();
+    }
+
+    /**
      * The singularity cell is one formula and no accumulator, so the formula is asserted at the boundaries a
      * player or a pack can reach: before the first batch, exactly on it, the refill after a draw, that a
      * huge bank is not truncated by any ceiling, and that the arithmetic survives the world clock running
