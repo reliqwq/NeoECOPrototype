@@ -47,7 +47,8 @@ import java.util.List;
  * node once the cluster is formed.
  */
 public class SimplifyDriveBlockEntity extends NEBlockEntity<SimplifyStorageCluster, SimplifyDriveBlockEntity>
-        implements ISyncPersistRPCBlockEntity, ISaveProvider, IStorageProvider, ICellHost {
+        implements ISyncPersistRPCBlockEntity, ISaveProvider, IStorageProvider, ICellHost,
+        cn.dancingsnow.neoecoae.api.storage.IECOConfigurableCellDrive {
 
     private final FieldManagedStorage syncStorage = new FieldManagedStorage(this);
 
@@ -57,11 +58,13 @@ public class SimplifyDriveBlockEntity extends NEBlockEntity<SimplifyStorageClust
     private ItemStack cellStack = ItemStack.EMPTY;
     /**
      * eco's storage panel refuses to react to a click on a row whose entry carries no interaction id -
-     * {@code StorageCellGrid$CellSlot.onMouseDown} returns before it sends the extraction RPC. The id only
-     * has to be the same value the row was built with, which is this object's lifetime, so it is not
-     * persisted.
+     * {@code StorageCellGrid$CellSlot.onMouseDown} returns before it sends the extraction RPC. The same id is
+     * what eco's shared priority API ({@code ECOStorageCellPriorities#resolve}) matches a click against, and
+     * its javadoc asks for it to change whenever the cell is replaced or the installation is reloaded - so a
+     * request aimed at the cell that used to be here cannot reach the one that is. It is not persisted:
+     * loading the drive mints a fresh one, which is also what makes a stale client window lose.
      */
-    private final java.util.UUID panelInteractionId = java.util.UUID.randomUUID();
+    private java.util.UUID panelInteractionId = java.util.UUID.randomUUID();
     @Nullable
     private ItemStack cachedCellStack;
     @Nullable
@@ -122,6 +125,61 @@ public class SimplifyDriveBlockEntity extends NEBlockEntity<SimplifyStorageClust
         return panelInteractionId;
     }
 
+    // ==== eco's shared per-cell priority API (their answer to our issue #154) ======================
+    //
+    // This drive hosts exactly one cell, so the "installation" the interface talks about is this object and
+    // not a slot index - the same shape eco's own ECODriveBlockEntity has.
+
+    @Override
+    public BlockPos getBlockPos() {
+        return worldPosition.immutable();
+    }
+
+    @Override
+    public java.util.UUID getCellInteractionId() {
+        return panelInteractionId;
+    }
+
+    /**
+     * Nothing here locks a cell in place. eco's own lock is its infinite-storage migration, which an L1 host
+     * never runs (our panel answers the three infinite flags as false), so the one state that must refuse is
+     * the server going down - removing a cell then would drop what it holds.
+     */
+    @Override
+    public boolean canExtractCell() {
+        return !isServerStopping();
+    }
+
+    @Override
+    public int getConfiguredCellPriority() {
+        return cellStack.isEmpty() ? 0 : cn.dancingsnow.neoecoae.storage.ECOStorageCellSettings.priority(cellStack);
+    }
+
+    /**
+     * Writes the offset onto the cell itself, which is where eco keeps it: a cell moved to another drive or
+     * left in a chest carries its own priority, and nothing here has to be keyed by position or dimension
+     * (§6). The bulk branch is eco's own, copied because our drive accepts foreign cells - an eco bulk cell
+     * stores the figure in the cell object, not on the stack.
+     */
+    @Override
+    public void setConfiguredCellPriority(int priority) {
+        if (cellStack.isEmpty()
+                || !cn.dancingsnow.neoecoae.storage.ECOStorageCellSettings.canConfigure(cellStack)) {
+            return;
+        }
+        if (getCellInventory() instanceof cn.dancingsnow.neoecoae.storage.bulk.ECOBulkStorageCell bulk) {
+            bulk.setConfiguredStoragePriority(priority);
+        } else {
+            cn.dancingsnow.neoecoae.storage.ECOStorageCellSettings.setPriority(cellStack, priority);
+        }
+        // This is the one place cellStack is mutated in place rather than replaced, which is exactly the
+        // case getCellInventory()'s comment asks a writer to handle: drop the cache, then remount.
+        invalidateCellInventoryCache();
+        notifyClusterStorageChanged();
+        setChanged();
+        markForUpdate();
+    }
+
     /** @return true when the cell was inserted. */
     public boolean insertCell(ItemStack stack) {
         if (!cellStack.isEmpty() || !isItemValid(stack)) {
@@ -129,6 +187,7 @@ public class SimplifyDriveBlockEntity extends NEBlockEntity<SimplifyStorageClust
         }
         invalidateCellInventoryCache();
         this.cellStack = stack.copyWithCount(1);
+        panelInteractionId = java.util.UUID.randomUUID();
         updateCellState();
         syncCellBlockState();
         updateIdlePower();
@@ -146,6 +205,7 @@ public class SimplifyDriveBlockEntity extends NEBlockEntity<SimplifyStorageClust
         ECOStorageCells.releaseCellInventory(cellStack, this);
         ItemStack removed = cellStack;
         this.cellStack = ItemStack.EMPTY;
+        panelInteractionId = java.util.UUID.randomUUID();
         invalidateCellInventoryCache();
         updateCellState();
         syncCellBlockState();
@@ -259,7 +319,10 @@ public class SimplifyDriveBlockEntity extends NEBlockEntity<SimplifyStorageClust
         SimplifyStorageHostBlockEntity controller = cluster == null ? null : cluster.getController();
         IECOStorageCell cell = getCellInventory();
         if (controller != null && cell != null && isAcceptedByL1Host()) {
-            storageMounts.mount(cell, controller.getStoragePriority());
+            // The host's number is the baseline and the cell carries its own offset; eco's helper adds them
+            // with integer saturation, which is also where the "marked bulk sits one above" rule lives.
+            storageMounts.mount(cell, cn.dancingsnow.neoecoae.gui.storage.StoragePriority.mountPriority(
+                    controller.getStoragePriority(), getConfiguredCellPriority()));
             setMounted(true);
             updateCellState();
             return;
@@ -400,6 +463,7 @@ public class SimplifyDriveBlockEntity extends NEBlockEntity<SimplifyStorageClust
     public void loadTag(CompoundTag data, HolderLookup.Provider registries) {
         super.loadTag(data, registries);
         invalidateCellInventoryCache();
+        panelInteractionId = java.util.UUID.randomUUID();
         if (data.contains("cell")) {
             CompoundTag cellTag = data.getCompound("cell");
             cellStack = cellTag.isEmpty()

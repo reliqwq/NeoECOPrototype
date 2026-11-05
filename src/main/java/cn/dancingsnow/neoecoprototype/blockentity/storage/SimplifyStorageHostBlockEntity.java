@@ -92,6 +92,16 @@ public class SimplifyStorageHostBlockEntity
     private boolean buildInProgress;
 
     private final MultiBlockBuildController buildController = new MultiBlockBuildController(this);
+    /**
+     * eco's per-cell priority bookkeeping, one instance per host as its javadoc asks. It never looks a
+     * position up in the world: it walks {@link #getConfigurableCellDrives()} and matches the click against
+     * each drive's own position and installation id, so a request aimed at a cell that has since been
+     * replaced resolves to nothing.
+     */
+    private final cn.dancingsnow.neoecoae.api.storage.ECOStorageCellPriorities cellPriorities =
+            new cn.dancingsnow.neoecoae.api.storage.ECOStorageCellPriorities(
+                    this::getConfigurableCellDrives,
+                    player -> level != null && player.level() == level && isFormed() && canPlayerInteract(player));
     private boolean mirrored;
     private boolean communicationInterface;
 
@@ -216,7 +226,15 @@ public class SimplifyStorageHostBlockEntity
     }
 
     public ModularUI createUI(BlockUIMenuType.BlockUIHolder holder) {
-        UIElement root = StorageHostUI.create(createStoragePanelConfig(holder.player))
+        // eco's shared per-cell priority window (their answer to our issue #154). The window carries its own
+        // menu-scoped RPC events, so this host needs no @RPCMethod of its own: the handlers live on the
+        // window and reach the drives through the ECOStorageCellPriorities instance below. Starting from
+        // CellActions.NONE is deliberate - the other four actions are eco's bulk-marking, compression
+        // display, migration preview and cell workbench, none of which an L1 host runs.
+        var cellPriorityWindow =
+                new cn.dancingsnow.neoecoae.gui.storage.StorageCellPriorityUI(holder.player, cellPriorities);
+        UIElement root = StorageHostUI.create(createStoragePanelConfig(holder.player)
+                        .withCellActions(cellPriorityWindow.withActions(StorageHostUI.CellActions.NONE)))
                 .addClass("panel_bg");
 
         StorageHostActionUI.Elements actionUI = StorageHostActionUI.create(new StorageHostActionUI.Config(
@@ -243,8 +261,20 @@ public class SimplifyStorageHostBlockEntity
                 },
                 delta -> changeStoragePriority(holder.player, delta)));
         actionUI.addTo(root);
+        root.addChild(cellPriorityWindow.window());
         return new ModularUI(UI.of(root,
                 java.util.List.of(StylesheetManager.INSTANCE.getStylesheetSafe(NEStyleSheets.ECO))), holder.player);
+    }
+
+    /**
+     * The cluster's drives, handed to eco's per-cell priority API as installations. Our drive implements
+     * {@code IECOConfigurableCellDrive} itself, so nothing here has to inherit an eco block entity - which is
+     * the point of their #154 and the reason our own request for it was filed.
+     */
+    public java.util.List<? extends cn.dancingsnow.neoecoae.api.storage.IECOConfigurableCellDrive>
+    getConfigurableCellDrives() {
+        SimplifyStorageCluster cluster = getCluster();
+        return cluster == null ? java.util.List.of() : cluster.getDrives();
     }
 
 
