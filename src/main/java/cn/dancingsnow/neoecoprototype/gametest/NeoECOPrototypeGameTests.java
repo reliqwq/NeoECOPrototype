@@ -14057,13 +14057,13 @@ public final class NeoECOPrototypeGameTests {
      * The dessert as a fluid, a bucket and a block - the four promises he named, each checked where it is
      * actually kept rather than where it is declared.
      *
-     * <p><b>It pours a block, not a puddle.</b> The bucket is vanilla's own {@code SolidBucketItem} (the
-     * class behind the powder-snow bucket, which has no class of its own in 1.21.1), so what lands in the
-     * world is {@code CryotheumIceCreamSnowBlock} and the cell holds no fluid state at all - that is the
-     * whole difference from {@code BucketItem}, and the fluid state check is what says so. The pick-up
-     * goes back through {@code BucketPickup}, which is also the reason that class exists: vanilla's
-     * powder-sown answer hard-codes {@code Items.POWDER_SNOW_BUCKET}, so without our override a plain
-     * bucket could empty itself here but nothing could ever take the dessert back out.</p>
+     * <p><b>It pours a block, not a puddle.</b> The bucket is our own {@code CryotheumIceCreamBucketItem}: a
+     * {@code BucketItem}, so it really carries the fluid, with the emptying paths overridden so what lands
+     * in the world is {@code CryotheumIceCreamSnowBlock} and the cell holds no fluid state at all - that last
+     * check is what says the placement is a cell and not a puddle. The pick-up goes back through
+     * {@code BucketPickup}, which is also the reason that class exists: vanilla's powder-snow answer
+     * hard-codes {@code Items.POWDER_SNOW_BUCKET}, so without our override a plain bucket could empty
+     * itself here but nothing could ever take the dessert back out.</p>
      *
      * <p><b>It cools at rung 8.</b> A coolant's rung is not a field in our code - it is a
      * {@code neoecoae:cooling} data recipe's {@code max_overclock} - so the number is read off the loaded
@@ -14190,6 +14190,131 @@ public final class NeoECOPrototypeGameTests {
             return;
         }
         helper.succeed();
+    }
+
+    /**
+     * Every fluid type we register has to be spoken, because a coolant page asks the type for its own
+     * description id - not the block's key - and the dessert's block line was already there while the type
+     * line was not. That is how he saw it: the coolant page named the coolant with the raw key.
+     *
+     * <p>The walk is over the registry rather than over the lang file on purpose. The file can be complete
+     * and still not cover a fluid that was registered under another name, which is the shape this hole had;
+     * and if the server could not read any lang at all, the control line below says so instead of pointing
+     * at the fluid we are asking about.</p>
+     */
+    @GameTest(template = "empty", batch = "ice_cream_fluid", timeoutTicks = 200,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void everyFluidTypeWeRegisterHasASpokenName(GameTestHelper helper) {
+        var ours = new java.util.ArrayList<net.neoforged.neoforge.fluids.FluidType>();
+        for (var entry : net.neoforged.neoforge.registries.NeoForgeRegistries.FLUID_TYPES.entrySet()) {
+            var id = entry.getKey().location();
+            if (NeoECOPrototype.MOD_ID.equals(id.getNamespace())) {
+                ours.add(entry.getValue());
+            }
+        }
+        if (ours.isEmpty()) {
+            helper.fail("no FluidType is registered under " + NeoECOPrototype.MOD_ID
+                    + ", so this guard walked nothing and proves nothing");
+            return;
+        }
+        // The bath's own type has been spoken since it shipped: a page that shows it in Chinese while
+        // showing the dessert as a key is the difference this guard is drawn around.
+        var bath = ModRegistration.DISSOLUTION_SOLUTION_TYPE.get();
+        if (Component.translatable(bath.getDescriptionId()).getString().equals(bath.getDescriptionId())) {
+            helper.fail("even " + bath.getDescriptionId() + " comes back untranslated, so this server is not"
+                    + " reading our lang file at all - the reading below is not evidence about a fluid");
+            return;
+        }
+        var silent = new java.util.ArrayList<String>();
+        for (var type : ours) {
+            var key = type.getDescriptionId();
+            if (Component.translatable(key).getString().equals(key)) {
+                silent.add(key);
+            }
+        }
+        NeoECOPrototype.LOGGER.info("fluid names: {} of the {} fluid types we register are spoken, silent = {}",
+                ours.size() - silent.size(), ours.size(), silent);
+        if (!silent.isEmpty()) {
+            helper.fail("these fluid types have no translation, so every screen that asks the type - the"
+                    + " coolant page among them - prints the key: " + silent);
+        }
+        helper.succeed();
+    }
+
+    /**
+     * Every bucket item we register has to carry the fluid it stands for.
+     *
+     * <p>This is the pin for a defect that shipped one round: NeoForge hangs the item fluid handler on
+     * {@code getClass() == BucketItem.class} exactly - it walks {@code BuiltInRegistries.ITEM} and skips
+     * anything else (CapabilityHooks.registerFallbackVanillaProviders, 21.1.251) - and the bucket our
+     * fluid's properties named was a {@code SolidBucketItem}, which is a {@code BlockItem}. So the item a
+     * 1000 mB draw handed out reported no fluid at all and the fluid was simply gone. Measured red on the
+     * tree before {@code CryotheumIceCreamBucketItem} replaced it, and red again after that class landed
+     * without the capability registration, which is what says the class is only half of it.</p>
+     *
+     * <p>The walk covers the family rather than the one item that broke, and two known-good cases ride
+     * along: our own dissolution bath's plain {@code new BucketItem(...)} is inside the walk (it is covered
+     * by NeoForge's exact-class loop, so a red that names only ours is a diagnosis and not a coincidence),
+     * and eco's rung-9 coolant is measured with the same ruler in the same call - because a red here while
+     * that control is also red would say nothing about our buckets, only that the ruler is blind.</p>
+     */
+    @GameTest(template = "empty", batch = "ice_cream_fluid", timeoutTicks = 200,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void everyBucketItemWeRegisterCarriesItsFluid(GameTestHelper helper) {
+        var silent = new java.util.ArrayList<String>();
+        int walked = 0;
+        for (var entry : BuiltInRegistries.ITEM.entrySet()) {
+            var id = entry.getKey().location();
+            if (!NeoECOPrototype.MOD_ID.equals(id.getNamespace())
+                    || !(entry.getValue() instanceof net.minecraft.world.item.BucketItem)) {
+                continue;
+            }
+            walked++;
+            int carried = millilitresIn(new ItemStack(entry.getValue()));
+            NeoECOPrototype.LOGGER.info("bucket carry: {} is {} and carries {} mB", id,
+                    entry.getValue().getClass().getSimpleName(), carried);
+            if (carried <= 0) {
+                silent.add(id + " (" + (carried < 0 ? "no fluid handler at all" : carried + " mB") + ")");
+            }
+        }
+        if (walked == 0) {
+            helper.fail("no BucketItem is registered under " + NeoECOPrototype.MOD_ID
+                    + ", so this guard walked nothing and proves nothing");
+            return;
+        }
+        var solution = BuiltInRegistries.FLUID.getOptional(ResourceLocation.fromNamespaceAndPath(
+                "neoecoae", "cryotheum_solution"));
+        if (solution.isEmpty()) {
+            helper.fail("eco's cryotheum solution is not in the fluid registry, so the control that shows"
+                    + " this ruler can see a working bucket cannot be measured");
+            return;
+        }
+        var control = net.neoforged.neoforge.fluids.FluidUtil.getFilledBucket(
+                new net.neoforged.neoforge.fluids.FluidStack(solution.get(), 1000));
+        int controlCarried = millilitresIn(control);
+        NeoECOPrototype.LOGGER.info("bucket carry: eco's own {} carries {} mB ({} of our {} buckets silent)",
+                itemName(control), controlCarried, silent.size(), walked);
+        if (controlCarried != 1000) {
+            helper.fail("the ruler is blind: eco's own coolant draws " + itemName(control) + " carrying "
+                    + controlCarried + " mB, so a red on our buckets would not be evidence about our buckets");
+            return;
+        }
+        if (!silent.isEmpty()) {
+            helper.fail("these buckets of ours stand for a fluid and carry none of it: " + silent
+                    + " - a 1000 mB draw leaves the tank and lands in an item that reports nothing, while"
+                    + " eco's bucket on the same ruler carries 1000 mB");
+        }
+        helper.succeed();
+    }
+
+    /** -1 when the item has no fluid handler whatsoever, else what its first tank reports. */
+    private static int millilitresIn(ItemStack stack) {
+        var handler = net.neoforged.neoforge.fluids.FluidUtil.getFluidHandler(stack);
+        if (handler.isEmpty()) {
+            return -1;
+        }
+        var held = handler.get().getFluidInTank(0);
+        return held.isEmpty() ? 0 : held.getAmount();
     }
 
     /** A recipe by its data file name, so the counts below are read off the game and never quoted. */

@@ -221,6 +221,7 @@
   "item.neoecoprototype.grette_crystal_dust": "格里特水晶粉",
   "item.neoecoprototype.cryotheum_ice_cream": "极寒凛冰冰淇淋",
 "block.neoecoprototype.cryotheum_ice_cream": "极寒凛冰冰淇淋",
+  "fluid_type.neoecoprototype.cryotheum_ice_cream": "极寒凛冰冰淇淋",
 "block.neoecoprototype.cryotheum_ice_cream_block": "极寒凛冰冰淇淋块",
 "item.neoecoprototype.cryotheum_ice_cream_bucket": "极寒凛冰冰淇淋桶",
   "item.neoecoprototype.cryotheum_ice_cream.desc": "喝完给 4 分钟抗火（必定给，不是概率）。",
