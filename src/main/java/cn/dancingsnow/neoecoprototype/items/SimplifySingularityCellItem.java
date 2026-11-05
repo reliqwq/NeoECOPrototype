@@ -49,6 +49,11 @@ public final class SimplifySingularityCellItem extends Item implements IBasicECO
         return SingularityKey.SINGULARITY;
     }
 
+    /** The one thing the meteorite-dust member of the family ever holds. */
+    public static AEItemKey skyStoneDust() {
+        return SkyStoneDustKey.SKY_STONE_DUST;
+    }
+
     /**
      * Resolved on first use instead of in this class's initialiser. Our own item registration is what
      * loads this class, and AE2 binds its registry objects during its own RegisterEvent, so reading one
@@ -56,6 +61,12 @@ public final class SimplifySingularityCellItem extends Item implements IBasicECO
      */
     private static final class SingularityKey {
         private static final AEItemKey SINGULARITY = AEItemKey.of(AEItems.SINGULARITY);
+    }
+
+    /** Same rule for our own item: the holder class only loads once somebody asks what it grows. */
+    private static final class SkyStoneDustKey {
+        private static final AEItemKey SKY_STONE_DUST = AEItemKey.of(
+                cn.dancingsnow.neoecoprototype.registration.ModRegistration.SKY_STONE_DUST.get());
     }
 
     /** One type, one row. */
@@ -74,6 +85,42 @@ public final class SimplifySingularityCellItem extends Item implements IBasicECO
      */
     public static final ECOCellType CELL_TYPE = new ECOCellType(
             Component.translatable("eco_cell_type.neoecoprototype.singularity"), TYPES, false);
+
+    /** The meteorite-dust member's own row, for the same reason as above. */
+    public static final ECOCellType SKY_STONE_DUST_CELL_TYPE = new ECOCellType(
+            Component.translatable("eco_cell_type.neoecoprototype.sky_stone_dust"), TYPES, false);
+
+    /**
+     * What a registered member of the family grows and which two config numbers it runs on.
+     *
+     * <p>Suppliers rather than values, because the config has to be read fresh every time (a cached
+     * {@code static final int} would freeze the first value the server ever saw), and data carried by the
+     * members rather than a {@code switch} over them, which is how this repository writes a family.</p>
+     */
+    public record SelfGrow(java.util.function.Supplier<AEKey> content,
+                           java.util.function.LongSupplier ticksPerBatch,
+                           java.util.function.LongSupplier amountPerBatch,
+                           ECOCellType cellType) {
+    }
+
+    /** The cell that shipped first: AE2's singularity, on the {@code singularity_cell} config pair. */
+    public static final SelfGrow SINGULARITY = new SelfGrow(
+            SimplifySingularityCellItem::singularity,
+            NeoECOPrototypeServerConfig::singularityCellTicksPerBatch,
+            NeoECOPrototypeServerConfig::singularityCellAmountPerBatch,
+            CELL_TYPE);
+
+    /** 陨石粉, on its own {@code sky_stone_dust_cell} pair - same defaults, separately tunable. */
+    public static final SelfGrow SKY_STONE_DUST = new SelfGrow(
+            SimplifySingularityCellItem::skyStoneDust,
+            NeoECOPrototypeServerConfig::skyStoneDustCellTicksPerBatch,
+            NeoECOPrototypeServerConfig::skyStoneDustCellAmountPerBatch,
+            SKY_STONE_DUST_CELL_TYPE);
+
+    /** Whether a panel row lookup is looking at any member of this family. */
+    public static boolean isSelfGrowType(ECOCellType cellType) {
+        return CELL_TYPE.equals(cellType) || SKY_STONE_DUST_CELL_TYPE.equals(cellType);
+    }
 
     /**
      * All of the cell's state. {@code startGameTime} is the world tick it began counting from; {@code drawn}
@@ -153,11 +200,18 @@ public final class SimplifySingularityCellItem extends Item implements IBasicECO
 
     @Nullable
     private final Growth growth;
+    private final SelfGrow profile;
 
     /** The registered cell: it grows AE2's singularity and takes its speed from the server config. */
     public SimplifySingularityCellItem(Item.Properties properties) {
+        this(properties, SINGULARITY);
+    }
+
+    /** A registered member that grows something else, on its own two config numbers. */
+    public SimplifySingularityCellItem(Item.Properties properties, SelfGrow profile) {
         super(properties);
         this.growth = null;
+        this.profile = profile;
     }
 
     /**
@@ -170,15 +224,20 @@ public final class SimplifySingularityCellItem extends Item implements IBasicECO
                                        long perBatch, long ticksPerBatch) {
         super(properties);
         this.growth = new Growth(content, perBatch, ticksPerBatch);
+        this.profile = SINGULARITY;
     }
 
-    /** Its own figures if a pack wrote them, otherwise the registered cell's: the config's. */
+    /** Its own figures if a pack wrote them, otherwise its member's - read from the config now. */
     public Growth growth() {
         return growth != null
                 ? growth
-                : new Growth(SimplifySingularityCellItem::singularity,
-                        NeoECOPrototypeServerConfig.singularityCellAmountPerBatch(),
-                        NeoECOPrototypeServerConfig.singularityCellTicksPerBatch());
+                : new Growth(profile.content(), profile.amountPerBatch().getAsLong(),
+                        profile.ticksPerBatch().getAsLong());
+    }
+
+    /** The panel row this cell's family owns; a pack's member shares the registered one's row. */
+    public ECOCellType cellType() {
+        return profile.cellType();
     }
 
     /** What this cell hands out, and the only thing it will ever hold. */
@@ -307,7 +366,7 @@ public final class SimplifySingularityCellItem extends Item implements IBasicECO
 
     @Override
     public ECOCellType getCellType() {
-        return CELL_TYPE;
+        return cellType();
     }
 
     // Nothing to partition and nothing to fuzz-match: it holds the one type it grew itself. AE2's default

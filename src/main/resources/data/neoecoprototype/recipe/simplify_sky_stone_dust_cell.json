@@ -1,0 +1,14 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    { "item": "neoecoprototype:simplify_concrete_storage_matrix_housing" },
+    { "item": "neoecoae:eco_cell_component_64m" },
+    { "item": "neoecoprototype:simplify_green_crystal_matrix" },
+    { "item": "neoecoprototype:sky_stone_dust" }
+  ],
+  "result": {
+    "count": 1,
+    "id": "neoecoprototype:simplify_sky_stone_dust_cell"
+  }
+}

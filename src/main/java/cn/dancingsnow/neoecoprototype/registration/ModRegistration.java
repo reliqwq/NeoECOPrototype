@@ -999,6 +999,16 @@ public class ModRegistration {
             ITEMS.register("simplify_singularity_cell",
                     () -> new SimplifySingularityCellItem(new Item.Properties().stacksTo(1)));
 
+    /**
+     * The family's second member: it grows 陨石粉 (our {@code sky_stone_dust}) instead, on its own two
+     * config entries. Same engine, same housing, same one tile - the special cells are one family, so the
+     * icon is not what tells them apart; the drive names each by its own content.
+     */
+    public static final Supplier<SimplifySingularityCellItem> SIMPLIFY_SKY_STONE_DUST_CELL =
+            ITEMS.register("simplify_sky_stone_dust_cell",
+                    () -> new SimplifySingularityCellItem(new Item.Properties().stacksTo(1),
+                            SimplifySingularityCellItem.SKY_STONE_DUST));
+
     /** eco's own builder refuses to touch a formed machine, so this card is the only way to grow one. */
     public static final Supplier<SimplifyStructureExpansionCardItem> SIMPLIFY_STRUCTURE_EXPANSION_CARD =
             ITEMS.register("simplify_structure_expansion_card",
@@ -1860,6 +1870,7 @@ private static Supplier<BlockEntityType<SimplifyStorageVentBlockEntity>> registe
                           output.accept(SIMPLIFY_CONCRETE_STORAGE_MATRIX_HOUSING.get());
                           output.accept(SIMPLIFY_CONCRETE_STORAGE_CELL.get());
                           output.accept(SIMPLIFY_SINGULARITY_CELL.get());
+                          output.accept(SIMPLIFY_SKY_STONE_DUST_CELL.get());
                         output.accept(SIMPLIFY_STRUCTURE_EXPANSION_CARD.get());
                         // In the tab so the pour path can be held in hand without first overflowing a bag:
                         // in game the card only ever produces one when the refund genuinely had nowhere to

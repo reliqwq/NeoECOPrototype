@@ -181,7 +181,7 @@ public final class SingularityCellHandler implements IECOCellHandler {
 
         @Override
         public ECOCellType getCellType() {
-            return SimplifySingularityCellItem.CELL_TYPE;
+            return cellItem().cellType();
         }
 
         @Override

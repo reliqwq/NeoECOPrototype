@@ -449,7 +449,7 @@ public class SimplifyStorageHostBlockEntity
      *                 all - a foreign cell then has nothing to read but its cell type
      */
     public static int panelRowOf(ECOCellType cellType, java.util.Set<AEKeyType> keyTypes) {
-        if (SimplifySingularityCellItem.CELL_TYPE.equals(cellType)) {
+        if (SimplifySingularityCellItem.isSelfGrowType(cellType)) {
             // No row for it, and not because nobody thought of one: it reports an unbounded byte total and
             // its stock is a world-clock figure, so whichever row it landed in would read as that medium's
             // own number. The mounted cell is named on the drive and in Jade instead.

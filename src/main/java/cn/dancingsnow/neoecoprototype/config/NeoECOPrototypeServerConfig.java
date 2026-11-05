@@ -120,6 +120,9 @@ public final class NeoECOPrototypeServerConfig {
     public static final ModConfigSpec.LongValue SINGULARITY_CELL_TICKS_PER_BATCH;
     /** Singularities the cell makes per batch, up to {@link #SINGULARITY_CELL_AMOUNT_PER_BATCH_MAX}. */
     public static final ModConfigSpec.LongValue SINGULARITY_CELL_AMOUNT_PER_BATCH;
+    /** The same two figures for the meteorite-dust member, separately tunable. */
+    public static final ModConfigSpec.LongValue SKY_STONE_DUST_CELL_TICKS_PER_BATCH;
+    public static final ModConfigSpec.LongValue SKY_STONE_DUST_CELL_AMOUNT_PER_BATCH;
     /**
      * The ceiling on a single batch: the top of a long, so a pack may set any batch size it can write down
      * and the cell still cannot produce a number the arithmetic cannot hold. {@code bankOf} saturates at
@@ -308,6 +311,19 @@ public final class NeoECOPrototypeServerConfig {
                         "Default: 120.")
                 .defineInRange("amount_per_batch", 120L, 1L, SINGULARITY_CELL_AMOUNT_PER_BATCH_MAX);
         builder.pop();
+        builder.push("sky_stone_dust_cell");
+        SKY_STONE_DUST_CELL_TICKS_PER_BATCH = builder
+                .comment("How often the meteorite-dust cell makes a batch, in ticks.",
+                        "Its defaults are the singularity cell's (600 ticks and 120 per batch), and they are",
+                        "separate entries on purpose: the two cells grow things four tiers apart in cost, so",
+                        "tuning one should not move the other.",
+                        "Clamped to at least " + SINGULARITY_CELL_TICKS_PER_BATCH_MIN + " ticks.")
+                .defineInRange("ticks_per_batch", 600L, SINGULARITY_CELL_TICKS_PER_BATCH_MIN, 1L << 24);
+        SKY_STONE_DUST_CELL_AMOUNT_PER_BATCH = builder
+                .comment("Meteorite dust one batch is worth. Same arithmetic and the same ceiling as the",
+                        "singularity cell: the bank jumps by this number once per interval, it does not drip.")
+                .defineInRange("amount_per_batch", 120L, 1L, SINGULARITY_CELL_AMOUNT_PER_BATCH_MAX);
+        builder.pop();
         builder.push("machine_mind");
         MIND_IDLE_POWER_SAVING = builder
                 .comment("How much of a formed crafting host's idle power draw its mind may save, as a",
@@ -360,6 +376,17 @@ public final class NeoECOPrototypeServerConfig {
     public static long singularityCellAmountPerBatch() {
         return Math.min(SINGULARITY_CELL_AMOUNT_PER_BATCH_MAX,
                 Math.max(1L, SINGULARITY_CELL_AMOUNT_PER_BATCH.get()));
+    }
+
+    /** The meteorite-dust member's interval, on the same floor as the singularity's. */
+    public static long skyStoneDustCellTicksPerBatch() {
+        return Math.max(SINGULARITY_CELL_TICKS_PER_BATCH_MIN, SKY_STONE_DUST_CELL_TICKS_PER_BATCH.get());
+    }
+
+    /** The meteorite-dust member's batch size, on the same ceiling as the singularity's. */
+    public static long skyStoneDustCellAmountPerBatch() {
+        return Math.min(SINGULARITY_CELL_AMOUNT_PER_BATCH_MAX,
+                Math.max(1L, SKY_STONE_DUST_CELL_AMOUNT_PER_BATCH.get()));
     }
 
     /** Shared by the assembler and its JEI page so both agree on what is refused. */

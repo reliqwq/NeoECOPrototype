@@ -148,6 +148,9 @@ public final class NeoECOPrototypeClient {
         ECOCellModels.register(ModRegistration.SIMPLIFY_CONCRETE_STORAGE_CELL.get(), cellModel("l1_concrete"));
         // Its own copy of the special-cell housing, so repainting one does not move the other.
         ECOCellModels.register(ModRegistration.SIMPLIFY_SINGULARITY_CELL.get(), cellModel("l1_singularity"));
+        // The second member of the same family wears the same tile: what tells them apart is what the drive
+        // says they hold, not the icon.
+        ECOCellModels.register(ModRegistration.SIMPLIFY_SKY_STONE_DUST_CELL.get(), cellModel("l1_singularity"));
         if (ModRegistration.OPTIONAL_UNIVERSAL_CELL_1K != null) {
             ECOCellModels.register(ModRegistration.OPTIONAL_UNIVERSAL_CELL_1K.get(),
                     cellModel("l0_universal"));
