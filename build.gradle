@@ -234,7 +234,15 @@ dependencies {
 // New and not adopted: the large workstation's smart cooling module (block, BE, SmartCoolingModuleUI, KubeJS
 // LargeIntegratedWorkingStationSchema, 11 compat models), JEI MultiblockRecipesGuiMixin (the 19.70
 // local-variable-slot VerifyError fix), and the infinite-storage migration machinery under storage/infinite.
-    implementation files("neoecobeta/neoecoae-21.2.15-beta.jar")
+// 21.2.15 stable (tag = 0b756492) adds the two answers to our own issues and we use neither yet:
+// #155 replaces FluidInputHatchUI's hardcoded "block.neoecoae.input_hatch" title key with the placed block's
+// own descriptionId, which is what puts our input hatch's panel title back on our key without us touching
+// code; #154 opens api/storage/IECOConfigurableCellDrive plus ECOStorageCellPriorities and
+// StorageCellPriorityUI so an addon drive can offer per-cell priorities without inheriting eco's block
+// entity, and it adds Config.withCellActions with a 19-parameter compatibility constructor.
+// The floor stays [21.2.15-beta,) on purpose: the stable jar is not installable yet (the GitHub release has
+// zero assets and Modrinth still lists 21.2.15-beta), so this jar is the CI artifact of the tagged commit.
+    implementation files("neoecobeta/neoecoae-21.2.15.jar")
     // MegaCells 4.11.0 is the supported optional integration version.
     implementation files("libs/megacells-4.11.0.jar")
     // Dev-runtime only: keep them off the compile classpath but on the runtime classpath.
