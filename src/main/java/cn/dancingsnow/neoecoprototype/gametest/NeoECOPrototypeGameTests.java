@@ -14452,6 +14452,136 @@ public final class NeoECOPrototypeGameTests {
         helper.succeed();
     }
 
+    /**
+     * The workstation runs our fluid batch for real, and refuses it when the bill is short.
+     *
+     * <p>The guard above proves the recipe loaded and matches; it never starts a batch. This one places
+     * eco's own machine next to a creative cell, pushes the bill through the machine's inventory and the
+     * water through the same fluid capability a pipe would use, and waits for the product to show up in the
+     * handler the machine exposes - which is eco's {@code outputTank} reached from outside, so the reading is
+     * "a pipe could take it", not "a field we poked". A batch is 100 processing ticks, hence the window.</p>
+     *
+     * <p>The second station is the control and it is deliberately negative: one cryotheum short, same
+     * everything else, and it must still hold no dessert fluid when the first one already does. If both
+     * produced, the machine would be running on a bill it should refuse.</p>
+     */
+    @GameTest(template = "empty", batch = "ice_cream_fluid", timeoutTicks = 900,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void theWorkstationRunsOurFluidBatchAndRefusesAShortOne(GameTestHelper helper) {
+        var level = helper.getLevel();
+        var stationBlock = BuiltInRegistries.BLOCK.get(
+                ResourceLocation.fromNamespaceAndPath("neoecoae", "integrated_working_station"));
+        var cryotheum = BuiltInRegistries.ITEM.get(
+                ResourceLocation.fromNamespaceAndPath("neoecoae", "cryotheum"));
+        if (stationBlock == Blocks.AIR || cryotheum == net.minecraft.world.item.Items.AIR) {
+            helper.fail("eco's integrated workstation or its cryotheum is not in the registries, so nothing"
+                    + " below can be started (block=" + stationBlock + ", item=" + cryotheum + ")");
+            return;
+        }
+        var ourFluid = ModRegistration.CRYOTHEUM_ICE_CREAM_FLUID.get();
+        Runnable leave = () -> {
+            helper.setBlock(new BlockPos(2, 3, 2), Blocks.AIR);
+            helper.setBlock(new BlockPos(2, 3, 3), Blocks.AIR);
+            helper.setBlock(new BlockPos(1, 3, 2), Blocks.AIR);
+            helper.setBlock(new BlockPos(1, 3, 3), Blocks.AIR);
+        };
+        // full bill here, one cryotheum short there, both fed by the same creative cell underneath
+        var fullPos = new BlockPos(2, 3, 2);
+        var shortPos = new BlockPos(2, 3, 3);
+        helper.setBlock(fullPos.below(), AEBlocks.CREATIVE_ENERGY_CELL.block());
+        helper.setBlock(shortPos.below(), AEBlocks.CREATIVE_ENERGY_CELL.block());
+        helper.setBlock(fullPos, stationBlock);
+        helper.setBlock(shortPos, stationBlock);
+        var positions = new BlockPos[]{fullPos, shortPos};
+        var cryotheumCounts = new int[]{4, 3};
+        for (int i = 0; i < positions.length; i++) {
+            var pos = positions[i];
+            if (!(helper.getBlockEntity(pos)
+                    instanceof cn.dancingsnow.neoecoae.blocks.entity.ECOIntegratedWorkingStationBlockEntity be)) {
+                leave.run();
+                helper.fail("no eco workstation block entity at " + at(pos)
+                        + ", so the batch cannot be started there");
+                return;
+            }
+            var inv = be.getInternalInventory();
+            inv.addItems(new ItemStack(cryotheum, cryotheumCounts[i]), false);
+            inv.addItems(new ItemStack(net.minecraft.world.item.Items.SUGAR, 2), false);
+            inv.addItems(new ItemStack(net.minecraft.world.item.Items.SNOWBALL, 2), false);
+            var tank = level.getCapability(net.neoforged.neoforge.capabilities.Capabilities.FluidHandler.BLOCK,
+                    helper.absolutePos(pos), Direction.UP);
+            if (tank == null || tank.fill(new net.neoforged.neoforge.fluids.FluidStack(
+                    net.minecraft.world.level.material.Fluids.WATER, 1000),
+                    net.neoforged.neoforge.fluids.capability.IFluidHandler.FluidAction.EXECUTE) < 1000) {
+                leave.run();
+                helper.fail("the workstation at " + at(pos)
+                        + " will not take 1000 mB of water through its exposed fluid handler, so the batch"
+                        + " below cannot be attributed to the recipe");
+                return;
+            }
+        }
+        waitUntil(helper, 60, () -> heldOf(level, helper, ourFluid, fullPos) >= 1000, () -> {
+            var why = "no batch product after the whole window: " + at(fullPos) + " holds "
+                    + heldOf(level, helper, ourFluid, fullPos) + " mB of our fluid, "
+                    + itemName(new ItemStack(cryotheum, 4)) + " left in the input = "
+                    + heldItems(helper, fullPos, cryotheum);
+            leave.run();
+            return why;
+        }, () -> {
+            var shortHeld = heldOf(level, helper, ourFluid, shortPos);
+            NeoECOPrototype.LOGGER.info("workstation batch: full bill -> {} mB in the exposed handler,"
+                    + " one cryotheum short -> {} mB", heldOf(level, helper, ourFluid, fullPos), shortHeld);
+            leave.run();
+            if (shortHeld >= 1000) {
+                helper.fail("the workstation ran a batch on a bill that is one cryotheum short, so the"
+                        + " inputs the recipe names are not the inputs the machine checks");
+                return;
+            }
+            helper.succeed();
+        });
+    }
+
+    /** Millilitres of that fluid visible anywhere in the workstation's exposed handler - a pipe's view. */
+    private static int heldOf(net.minecraft.world.level.Level level, GameTestHelper helper,
+                              net.minecraft.world.level.material.Fluid fluid, BlockPos at) {
+        var be = level.getBlockEntity(helper.absolutePos(at));
+        if (!(be instanceof cn.dancingsnow.neoecoae.blocks.entity.ECOIntegratedWorkingStationBlockEntity)) {
+            return -1;
+        }
+        int best = 0;
+        for (var side : Direction.values()) {
+            var tank = level.getCapability(
+                    net.neoforged.neoforge.capabilities.Capabilities.FluidHandler.BLOCK,
+                    helper.absolutePos(at), side);
+            if (tank == null) {
+                continue;
+            }
+            for (int i = 0; i < tank.getTanks(); i++) {
+                var held = tank.getFluidInTank(i);
+                if (held.is(fluid) && held.getAmount() > best) {
+                    best = held.getAmount();
+                }
+            }
+        }
+        return best;
+    }
+
+    /** How many of that item the workstation is still holding across its input slots. */
+    private static long heldItems(GameTestHelper helper, BlockPos at, net.minecraft.world.item.Item item) {
+        var be = helper.getBlockEntity(at);
+        if (!(be instanceof cn.dancingsnow.neoecoae.blocks.entity.ECOIntegratedWorkingStationBlockEntity station)) {
+            return -1;
+        }
+        long count = 0;
+        var inv = station.getInternalInventory();
+        for (int slot = 0; slot < inv.size(); slot++) {
+            var stack = inv.getStackInSlot(slot);
+            if (stack.is(item)) {
+                count += stack.getCount();
+            }
+        }
+        return count;
+    }
+
     /** The fluid a workstation recipe hands back, or null when its output list carries none. */
     private static appeng.api.stacks.GenericStack fluidOutputOf(
             cn.dancingsnow.neoecoae.recipe.LargeWorkstationRecipe recipe) {
@@ -14462,7 +14592,6 @@ public final class NeoECOPrototypeGameTests {
         }
         return null;
     }
-
     /** -1 when the item has no fluid handler whatsoever, else what its first tank reports. */
     private static int millilitresIn(ItemStack stack) {
         var handler = net.neoforged.neoforge.fluids.FluidUtil.getFluidHandler(stack);
