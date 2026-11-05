@@ -57,11 +57,14 @@ import cn.dancingsnow.neoecoprototype.integration.ae2.OversizeInterfaceLogic;
 import cn.dancingsnow.neoecoprototype.integration.ae2.SimplifyGridFacade;
 import cn.dancingsnow.neoecoprototype.items.SimplifyMigrationDriveItem;
 import cn.dancingsnow.neoecoprototype.items.SimplifySmallBulkStorageCellItem;
+import cn.dancingsnow.neoecoprototype.items.SimplifyStructureExpansionCardItem;
 import cn.dancingsnow.neoecoprototype.multiblock.calculator.SimplifyComputationClusterCalculator;
 import cn.dancingsnow.neoecoprototype.multiblock.calculator.SimplifyTrinityClusterCalculator;
 import cn.dancingsnow.neoecoprototype.multiblock.definition.SimplifyComputationDefinition;
 import cn.dancingsnow.neoecoprototype.multiblock.definition.SimplifyCraftingDefinition;
+import cn.dancingsnow.neoecoprototype.multiblock.definition.SimplifyReactorDefinition;
 import cn.dancingsnow.neoecoprototype.multiblock.definition.SimplifyStorageDefinition;
+import cn.dancingsnow.neoecoprototype.multiblock.definition.SimplifyTrinityDefinition;
 import cn.dancingsnow.neoecoprototype.multiblock.trinity.TrinityCraftingExecutor;
 import cn.dancingsnow.neoecoprototype.registration.ModRegistration;
 import net.minecraft.core.BlockPos;
@@ -75,6 +78,7 @@ import net.minecraft.network.chat.contents.TranslatableContents;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
@@ -1050,7 +1054,7 @@ public final class NeoECOPrototypeGameTests {
      * in the test suite executes that code path -- an exception here would crash the player on
      * right-click instead of failing a build.
      */
-    @GameTest(template = "trinity_room", templateNamespace = NeoECOPrototype.MOD_ID)
+    @GameTest(template = "trinity_room", batch = "trinity_panel", templateNamespace = NeoECOPrototype.MOD_ID)
     public static void trinityControllerPanelBuilds(GameTestHelper helper) {
         BlockPos min = new BlockPos(3, 3, 3);
         BlockPos controllerPos = buildTrinityShell(helper, min);
@@ -1317,7 +1321,7 @@ public final class NeoECOPrototypeGameTests {
      * the old 7x3x7 layout borrowed eco/L1 parts that bind to their own subsystem cluster, so
      * the controller could never adopt its wings.
      */
-    @GameTest(template = "trinity_room", templateNamespace = NeoECOPrototype.MOD_ID)
+    @GameTest(template = "trinity_room", batch = "trinity_formed", templateNamespace = NeoECOPrototype.MOD_ID)
     public static void trinityStructureForms(GameTestHelper helper) {
         BlockPos min = new BlockPos(3, 3, 3);
         BlockPos controllerPos = buildTrinityShell(helper, min);
@@ -1353,7 +1357,7 @@ public final class NeoECOPrototypeGameTests {
      * aggregates its CPU bytes -- the same job eco's computation drive does for a computation
      * cluster, except here the module is a Trinity member rather than a foreign part.
      */
-    @GameTest(template = "trinity_room", templateNamespace = NeoECOPrototype.MOD_ID)
+    @GameTest(template = "trinity_room", batch = "trinity_comp_cell", templateNamespace = NeoECOPrototype.MOD_ID)
     public static void trinityComputationModuleHostsCell(GameTestHelper helper) {
         BlockPos min = new BlockPos(3, 3, 3);
         BlockPos controllerPos = buildTrinityShell(helper, min);
@@ -1396,7 +1400,7 @@ public final class NeoECOPrototypeGameTests {
      * Storage round-trip through the ME network: a cell inserted into the Trinity storage module
      * must actually hold items written into the grid, and give them back.
      */
-    @GameTest(template = "trinity_room", templateNamespace = NeoECOPrototype.MOD_ID)
+    @GameTest(template = "trinity_room", batch = "trinity_storage_items", templateNamespace = NeoECOPrototype.MOD_ID)
     public static void trinityStorageModuleStoresItems(GameTestHelper helper) {
         BlockPos min = new BlockPos(3, 3, 3);
         BlockPos controllerPos = buildTrinityShell(helper, min);
@@ -1470,7 +1474,7 @@ public final class NeoECOPrototypeGameTests {
      * {@code NEComputationCluster}), so the module delegates to AE2's {@code PatternProviderLogic}.
      * This test pins that contract down.
      */
-    @GameTest(template = "trinity_room", templateNamespace = NeoECOPrototype.MOD_ID)
+    @GameTest(template = "trinity_room", batch = "trinity_patterns", templateNamespace = NeoECOPrototype.MOD_ID)
     public static void trinityCraftingModuleProvidesPatterns(GameTestHelper helper) {
         BlockPos min = new BlockPos(3, 3, 3);
         BlockPos controllerPos = buildTrinityShell(helper, min);
@@ -1512,7 +1516,7 @@ public final class NeoECOPrototypeGameTests {
      * network must make the pattern craftable, and the provider must actually move the ingredients
      * into the adjacent inventory when a CPU dispatches to it.
      */
-    @GameTest(template = "trinity_room", templateNamespace = NeoECOPrototype.MOD_ID)
+    @GameTest(template = "trinity_room", batch = "trinity_pattern_usable", templateNamespace = NeoECOPrototype.MOD_ID)
     public static void trinityPatternIsUsableByCraftingService(GameTestHelper helper) {
         BlockPos min = new BlockPos(3, 3, 3);
         BlockPos controllerPos = buildTrinityShell(helper, min);
@@ -1664,7 +1668,7 @@ public final class NeoECOPrototypeGameTests {
      * Proves the Trinity storage module actually joins an ME grid and mounts its cell --
      * the part that used to be impossible while the wings belonged to foreign clusters.
      */
-    @GameTest(template = "trinity_room", templateNamespace = NeoECOPrototype.MOD_ID)
+    @GameTest(template = "trinity_room", batch = "trinity_storage_mounts", templateNamespace = NeoECOPrototype.MOD_ID)
     public static void trinityStorageModuleMountsCell(GameTestHelper helper) {
         BlockPos min = new BlockPos(3, 3, 3);
         BlockPos controllerPos = buildTrinityShell(helper, min);
@@ -10280,7 +10284,7 @@ public final class NeoECOPrototypeGameTests {
      * interaction id is null - which is exactly how "our storage matrices cannot be interacted with"
      * reached us. The position is the other one; without it the row is not even drawn as occupied.
      */
-    @GameTest(template = "l1_room", batch = "storage_panel_rows", timeoutTicks = 400,
+    @GameTest(template = "l1_room", batch = "storage_panel_handles", timeoutTicks = 400,
             templateNamespace = NeoECOPrototype.MOD_ID)
     public static void panelRowsCarryTheHandlesEcoClicksThrough(GameTestHelper helper) {
         buildL1Room(helper, CARD_HOST,
@@ -10391,7 +10395,7 @@ public final class NeoECOPrototypeGameTests {
      * eco's rectangle and made the panel skew one row per singularity installed. The row has to exist, be
      * clickable, and carry none of the numbers.
      */
-    @GameTest(template = "l1_room", batch = "storage_panel_rows", timeoutTicks = 400,
+    @GameTest(template = "l1_room", batch = "storage_panel_singularity_row", timeoutTicks = 400,
             templateNamespace = NeoECOPrototype.MOD_ID)
     public static void singularityCellGetsARowButNoNumbers(GameTestHelper helper) {
         buildL1Room(helper, CARD_HOST,
@@ -10456,7 +10460,7 @@ public final class NeoECOPrototypeGameTests {
      * 100.0% next to "0 / 27M". The three facts below are what have to hold together; the unbounded cell is
      * meant to drop out of both sums through its {@code Long.MAX_VALUE} byte total, not through this flag.
      */
-    @GameTest(template = "l1_room", batch = "storage_panel_rows", timeoutTicks = 400,
+    @GameTest(template = "l1_room", batch = "storage_panel_unbounded_bar", timeoutTicks = 400,
             templateNamespace = NeoECOPrototype.MOD_ID)
     public static void unboundedCellDoesNotPinTheByteBar(GameTestHelper helper) {
         buildL1Room(helper, CARD_HOST,
@@ -10517,7 +10521,7 @@ public final class NeoECOPrototypeGameTests {
      * to the backpack instead. Both branches are asserted, and so are the two refusals that keep the cell
      * inside the machine rather than on the ground: a loaded cursor without shift, no free slot with it.
      */
-    @GameTest(template = "l1_room", batch = "storage_panel_rows", timeoutTicks = 400,
+    @GameTest(template = "l1_room", batch = "storage_panel_take_split", timeoutTicks = 400,
             templateNamespace = NeoECOPrototype.MOD_ID)
     public static void panelTakeFollowsTheShiftSplit(GameTestHelper helper) {
         buildL1Room(helper, CARD_HOST,
@@ -11554,7 +11558,9 @@ public final class NeoECOPrototypeGameTests {
                     int printed = 0;
                     int orders = 0;
                     ItemStack printedStack = ItemStack.EMPTY;
-                    for (var held : player.getInventory().items) {
+                    // Through the bags as well: a refusal now seals the ticket and its pattern into the same
+                    // reward bag a swap's refund goes into, so a slot-only walk would read both as missing.
+                    for (var held : carriedStacks(player)) {
                         if (held.is(Items.PAPER)) {
                             // Count items, not stacks: two sheets share a slot, so a stack count cannot
                             // tell "ate one and handed one back" from "handed one out of nothing".
@@ -11840,7 +11846,17 @@ public final class NeoECOPrototypeGameTests {
                 ModRegistration.SIMPLIFY_CRAFTING_NETWORK_INTERFACE_BLOCK.get());
     }
 
-    @GameTest(template = "l1_room", batch = "structure_card_grow", timeoutTicks = 600,
+    /**
+     * Every block the card moves out of a growing room comes back as an item, one for one.
+     *
+     * <p>It owns its batch because tests inside one batch run at the same time while batches run one after
+     * another, and both grow tests build their room at {@code CARD_HOST} in an {@code l1_room} copy - two
+     * rooms that overlap each other, where one teardown takes the other's formation away. That is how
+     * {@code expansionCardBuildsForAPlayerWhoCarriesOnlyTheDifference} came to read "the refused grow
+     * printed no pattern" once and pass on the identical tree the next run: the room it was standing in had
+     * been un-formed under it, so the click answered "not formed", and that branch prints no bill.</p>
+     */
+    @GameTest(template = "l1_room", batch = "structure_card_grow_trade", timeoutTicks = 600,
             templateNamespace = NeoECOPrototype.MOD_ID)
     public static void expansionCardTradesEveryBlockItMovesOneForOne(GameTestHelper helper) {
         buildL1Room(helper, CARD_HOST,
@@ -11930,8 +11946,11 @@ public final class NeoECOPrototypeGameTests {
      * difference itself when it refuses, so this test reads the number off its own print, hands over
      * exactly that and demands the room build. Charge the gross bill up front and this goes red, which is
      * the reading he caught in game ("现在好像没办法搭建了").
+     *
+     * <p>One test per batch, for the reason written on {@link #expansionCardTradesEveryBlockItMovesOneForOne}
+     * - the two of them build the same room shape and tear each other down when they run at the same time.</p>
      */
-    @GameTest(template = "l1_room", batch = "structure_card_grow", timeoutTicks = 600,
+    @GameTest(template = "l1_room", batch = "structure_card_grow_pay", timeoutTicks = 600,
             templateNamespace = NeoECOPrototype.MOD_ID)
     public static void expansionCardBuildsForAPlayerWhoCarriesOnlyTheDifference(GameTestHelper helper) {
         buildL1Room(helper, CARD_HOST,
@@ -11947,7 +11966,7 @@ public final class NeoECOPrototypeGameTests {
                     // Carrying nothing the machine wants: the card must refuse and print the difference.
                     useExpansionCard(helper, player);
                     ItemStack printed = ItemStack.EMPTY;
-                    for (var held : player.getInventory().items) {
+                    for (var held : carriedStacks(player)) {
                         if (held.is(AEItems.PROCESSING_PATTERN.asItem())) {
                             printed = held;
                         }
@@ -12199,10 +12218,12 @@ public final class NeoECOPrototypeGameTests {
                                 + back.get(disk) + " in the inventory");
                         return;
                     }
-                    if (back.getOrDefault(ModRegistration.MIGRATION_DRIVE_EMPTY.get(), 0) != 1) {
-                        helper.fail("the player holds "
-                                + back.getOrDefault(ModRegistration.MIGRATION_DRIVE_EMPTY.get(), 0)
-                                + " empty disks, expected exactly the one this click should have left");
+                    // What this click owes as an empty drive is the reward bag itself: its tile is that
+                    // drive darkened, and pouring it is what turns it back. So one bag in hand is the shell,
+                    // and the guard aDiskSwapPaysItsShellWithTheBagItLeaves runs that pour.
+                    if (bagCount(player) != 1) {
+                        helper.fail("the swap left " + bagCount(player) + " reward bags in the player's"
+                                + " inventory, expected the one holding every block it took out");
                         return;
                     }
                     if (back.getOrDefault(ModRegistration.FUMO_DOLL_TEDXENON_ITEM.get(), 0) != 0) {
@@ -12384,10 +12405,12 @@ public final class NeoECOPrototypeGameTests {
                                 + back.get(disk) + " in the inventory");
                         return;
                     }
-                    if (back.getOrDefault(ModRegistration.MIGRATION_DRIVE_EMPTY.get(), 0) != 1) {
-                        helper.fail("the player holds "
-                                + back.getOrDefault(ModRegistration.MIGRATION_DRIVE_EMPTY.get(), 0)
-                                + " empty disks, expected exactly the one this click should have left");
+                    // What this click owes as an empty drive is the reward bag itself: its tile is that
+                    // drive darkened, and pouring it is what turns it back. So one bag in hand is the shell,
+                    // and the guard aDiskSwapPaysItsShellWithTheBagItLeaves runs that pour.
+                    if (bagCount(player) != 1) {
+                        helper.fail("the swap left " + bagCount(player) + " reward bags in the player's"
+                                + " inventory, expected the one holding every block it took out");
                         return;
                     }
                     if (back.getOrDefault(ModRegistration.SIMPLIFY_DRIVE_ITEM.get(), 0) != drivesBefore) {
@@ -12464,10 +12487,12 @@ public final class NeoECOPrototypeGameTests {
                                 + back.get(disk) + " in hand");
                         return;
                     }
-                    if (back.getOrDefault(ModRegistration.MIGRATION_DRIVE_EMPTY.get(), 0) != 1) {
-                        helper.fail("the player holds "
-                                + back.getOrDefault(ModRegistration.MIGRATION_DRIVE_EMPTY.get(), 0)
-                                + " empty disks, expected exactly the one this click should have left");
+                    // What this click owes as an empty drive is the reward bag itself: its tile is that
+                    // drive darkened, and pouring it is what turns it back. So one bag in hand is the shell,
+                    // and the guard aDiskSwapPaysItsShellWithTheBagItLeaves runs that pour.
+                    if (bagCount(player) != 1) {
+                        helper.fail("the swap left " + bagCount(player) + " reward bags in the player's"
+                                + " inventory, expected the one holding every block it took out");
                         return;
                     }
                     var oldCells = BuiltInRegistries.ITEM.get(ResourceLocation.fromNamespaceAndPath(
@@ -12771,6 +12796,1085 @@ public final class NeoECOPrototypeGameTests {
     }
 
     /**
+     * The ceiling is where this card's two jobs meet, and one sentence used to cover three different
+     * reasons for stopping there. It named the side length and told the player to raise a config value that
+     * does not exist on our side (our L1 ceiling is {@code SimplifyMultiblockConfig.L1_PLACEMENT_EXPAND_MAX},
+     * a constant; eco's is {@code NEConfig.*SystemMaxLength - 4}, which with its default of 15 comes to the
+     * same eleven), and it called the Trinity and the reactor - machines with one fixed shape and no
+     * tier above them - "maxed out" as if a longer room were ever on the table.
+     *
+     * <p>eco's nine hosts are read off its own definition list by host-block id, the same way the disk
+     * table above does it. The control counts are in two halves because the two halves fail differently: an
+     * empty eco loop would leave every "it climbs" row unchecked, and the "nothing sits outside the ladder"
+     * count is the one that notices a machine a future eco or a fifth family of ours would leave the card
+     * promising L9 to and then refusing.</p>
+     */
+    @GameTest(template = "empty", batch = "expansion_card_table", timeoutTicks = 100,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void expansionCardCeilingRefusalsNameTheRightReason(GameTestHelper helper) {
+        String atTop = "card.neoecoprototype.expansion.at_top";
+        String noRung = "card.neoecoprototype.expansion.no_rung";
+        String fixedShape = "card.neoecoprototype.expansion.fixed_shape";
+        var pattern = java.util.regex.Pattern.compile("^(.*)_l([469])$");
+        var byId = new java.util.HashMap<String, MultiBlockDefinition>();
+        var familyOf = new java.util.HashMap<String, String>();
+        for (var def : NEMultiBlocks.DEFINITIONS) {
+            String path = net.minecraft.core.registries.BuiltInRegistries.BLOCK
+                    .getKey(def.getOwner().value()).getPath();
+            if (pattern.matcher(path).matches()) {
+                byId.put(path, def);
+                familyOf.put(path, pattern.matcher(path).replaceFirst("$1"));
+            }
+        }
+        int climbed = 0;
+        for (var entry : byId.entrySet()) {
+            var def = entry.getValue();
+            var next = SimplifyStructureExpansionCardItem.ladderTarget(def);
+            if (entry.getKey().endsWith("_l9")) {
+                if (next != null) {
+                    helper.fail("the card offers to climb from eco's " + entry.getKey() + " to "
+                            + defName(next) + ", and there is nothing above an L9");
+                    return;
+                }
+                if (!atTop.equals(SimplifyStructureExpansionCardItem.ceilingRefusalKey(def))) {
+                    helper.fail("the refusal on eco's " + entry.getKey() + " would say "
+                            + SimplifyStructureExpansionCardItem.ceilingRefusalKey(def) + ", expected "
+                            + atTop + " - that host is out of tiers, not out of length");
+                    return;
+                }
+                continue;
+            }
+            var l9 = byId.get(familyOf.get(entry.getKey()) + "_l9");
+            if (next != l9) {
+                helper.fail("the card on eco's " + entry.getKey() + " answered " + defName(next)
+                        + ", expected " + defName(l9));
+                return;
+            }
+            climbed++;
+        }
+        if (climbed != 6) {
+            helper.fail("only " + climbed + " of eco's hosts offered a climb, expected the six L4 and L6"
+                    + " rows, so the checks above were walking an empty table");
+            return;
+        }
+        // Our three L1 rooms sit on the same ladder, which is what the item's own text says it does at the
+        // ceiling. The click that lands one of them on eco's L9 is run for real by the batch below; this
+        // row only pins which rung the ladder answers, because a wrong branch here is a wrong machine.
+        for (var entry : java.util.Map.of(
+                SimplifyStorageDefinition.L1, "storage_system_l9",
+                SimplifyComputationDefinition.L1, "computation_system_l9",
+                SimplifyCraftingDefinition.L1, "crafting_system_l9").entrySet()) {
+            var wanted = byId.get(entry.getValue());
+            if (wanted == null) {
+                helper.fail("eco ships no " + entry.getValue() + ", so this row is my own lookup");
+                return;
+            }
+            if (SimplifyStructureExpansionCardItem.ladderTarget(entry.getKey()) != wanted) {
+                helper.fail("the card on our " + defName(entry.getKey()) + " host answered "
+                        + defName(SimplifyStructureExpansionCardItem.ladderTarget(entry.getKey()))
+                        + ", expected " + entry.getValue());
+                return;
+            }
+        }
+        // The two machines with one fixed shape and no tier above them. They are refused by the shape, and
+        // the branch that says so has to stay the one they answer through: an L1 room whose range was ever
+        // flattened to a single length would be quietly moved into this group, and the player would be
+        // told the machine is unchangeable when it is only unpaid.
+        for (var def : java.util.List.of((MultiBlockDefinition) SimplifyTrinityDefinition.L1,
+                SimplifyReactorDefinition.CUBE)) {
+            if (SimplifyStructureExpansionCardItem.ladderTarget(def) != null) {
+                helper.fail("the card claims a rung for " + defName(def)
+                        + ", which has one shape and nothing above it");
+                return;
+            }
+            if (!fixedShape.equals(SimplifyStructureExpansionCardItem.ceilingRefusalKey(def))) {
+                helper.fail("the refusal on " + defName(def) + " would say "
+                        + SimplifyStructureExpansionCardItem.ceilingRefusalKey(def) + ", expected "
+                        + fixedShape);
+                return;
+            }
+            if (def.getExpandMin() != def.getExpandMax()) {
+                helper.fail(defName(def) + " is answered as a fixed shape but its range is "
+                        + def.getExpandMin() + " .. " + def.getExpandMax());
+                return;
+            }
+        }
+        // The fall-through key must have no row among the machines a player can actually point the card at.
+        // Only fourteen block entities answer MultiBlockBuildController.Host today - eco's three systems at
+        // three tiers, and our five - and every one of them either climbs or is refused for a shape or tier
+        // reason. This count is what goes red the day a fifth system or an eco host shows up that neither
+        // card covers, which is exactly when "结构已满 = 换 L9" stops being true of every machine.
+        var clickable = new java.util.ArrayList<MultiBlockDefinition>(byId.values());
+        clickable.add(SimplifyStorageDefinition.L1);
+        clickable.add(SimplifyComputationDefinition.L1);
+        clickable.add(SimplifyCraftingDefinition.L1);
+        clickable.add(SimplifyTrinityDefinition.L1);
+        clickable.add(SimplifyReactorDefinition.CUBE);
+        int outsideTheLadder = 0;
+        for (var def : clickable) {
+            if (SimplifyStructureExpansionCardItem.ladderTarget(def) == null
+                    && noRung.equals(SimplifyStructureExpansionCardItem.ceilingRefusalKey(def))) {
+                outsideTheLadder++;
+            }
+        }
+        if (outsideTheLadder != 0) {
+            helper.fail(outsideTheLadder + " of " + clickable.size() + " clickable hosts sit outside the"
+                    + " ladder, so the card's own text over-promises for them");
+            return;
+        }
+        var en = readResource("/assets/neoecoprototype/lang/en_us.json", helper);
+        var zh = readResource("/assets/neoecoprototype/lang/zh_cn.json", helper);
+        // refusal() hands every line two arguments - the machine's name and its length - and a language
+        // file that drops one of the slots silently shows a player a sentence with a hole in it. The
+        // fixed-shape line is the one that deliberately names no length: a machine with one fixed shape
+        // has nothing to report there.
+        var slots = java.util.Map.of(atTop, 2, noRung, 2, fixedShape, 1);
+        for (var pair : slots.entrySet()) {
+            for (var file : java.util.List.of(new Object[][]{{"en_us", en}, {"zh_cn", zh}})) {
+                if (file[1] == null) {
+                    return;
+                }
+                var value = langValue((String) file[1], pair.getKey());
+                if (value.isEmpty()) {
+                    helper.fail("lang/" + file[0] + ".json has no " + pair.getKey()
+                            + ", so that refusal renders as a bare key for these players");
+                    return;
+                }
+                for (int slot = 1; slot <= pair.getValue(); slot++) {
+                    if (!value.contains("%" + slot + "$s")) {
+                        helper.fail("lang/" + file[0] + ".json's " + pair.getKey() + " line has no %"
+                                + slot + "$s, so slot " + slot + " of the refusal is never shown: ["
+                                + value + "]");
+                        return;
+                    }
+                }
+                if (fixedShape.equals(pair.getKey()) && value.contains("%2$s")) {
+                    helper.fail("the fixed-shape refusal quotes a length it does not have: [" + value + "]");
+                    return;
+                }
+            }
+        }
+        // The sentence this replaced stays gone from both files: a key nobody points at is how a retired
+        // claim survives its own retirement and gets quoted back at us from a screenshot.
+        if (en != null && en.contains("card.neoecoprototype.expansion.at_max")
+                || zh != null && zh.contains("card.neoecoprototype.expansion.at_max")) {
+            helper.fail("the retired card.neoecoprototype.expansion.at_max line is still in a lang file");
+            return;
+        }
+        NeoECOPrototype.LOGGER.info("expansion ladder: {} eco hosts and 3 of ours climb, 3 L9 refused by"
+                + " tier, 2 refused by fixed shape, {} of {} clickable hosts sit outside the ladder",
+                climbed, outsideTheLadder, clickable.size());
+        helper.succeed();
+    }
+
+    /**
+     * The card's second job, run for real rather than read off its ladder: a maxed L1 storage room plus the
+     * L9 kit in the bag has to come out as eco's {@code storage_system_l9}. Nothing in the suite had ever
+     * clicked that path - every runtime card test before this one grew one of our own rooms - so up to now
+     * the tier swap had table readings and no world reading.
+     *
+     * <p>Three clicks, because the item's text makes three promises and each one fails on its own: with
+     * nothing to pay it takes apart no block and prints what the step costs; one part short of that printed
+     * number is still a refusal; carrying exactly it lands the new tier. The bill is read off the card's own
+     * print instead of typed here, for the same reason the grow-path tests read theirs - a hand-written
+     * parts list is the thing that rotted once already.</p>
+     */
+    @GameTest(template = "l1_room", batch = "expansion_card_l9_swap", timeoutTicks = 600,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void expansionCardSwapsAMaxedL1RoomWhenTheBagHoldsTheL9Kit(GameTestHelper helper) {
+        buildRoomToMaxLength(helper, CARD_HOST,
+                ModRegistration.SIMPLIFY_STORAGE_CONTROLLER_BLOCK.get(),
+                ModRegistration.SIMPLIFY_STORAGE_INTERFACE_BLOCK.get(),
+                host -> {
+                    var level = helper.getLevel();
+                    var anchor = helper.absolutePos(CARD_HOST);
+                    var ourHost = ModRegistration.SIMPLIFY_STORAGE_CONTROLLER_BLOCK.get();
+                    var before = machineSnapshot(helper);
+                    var player = cardPlayer(helper);
+                    player.setShiftKeyDown(true);
+                    player.getInventory().clearContent();
+                    giveExpansionCard(player);
+                    // Two sheets and one blank pattern: the refusal owes one sheet eaten, one blank eaten
+                    // and one pattern printed. Hand it one blank and a card that printed nothing would look
+                    // exactly like a card that ran out of blanks.
+                    player.getInventory().add(new ItemStack(Items.PAPER, 2));
+                    player.getInventory().add(new ItemStack(AEItems.BLANK_PATTERN));
+                    useExpansionCard(helper, player);
+                    if (!before.equals(machineSnapshot(helper))
+                            || level.getBlockState(anchor).getBlock() != ourHost) {
+                        clearMachineBox(helper);
+                        helper.fail("the unpaid swap touched a maxed L1 room it should have left standing: "
+                                + changed(before, machineSnapshot(helper)));
+                        return;
+                    }
+                    var difference = new KeyCounter();
+                    long pieces = printTheCardsBill(helper, player, difference);
+                    if (pieces < 0) {
+                        clearMachineBox(helper);
+                        helper.fail("a maxed L1 room is on this card's ladder, and an empty bag printed no"
+                                + " bill - so the price of the L9 kit would not be readable from the card");
+                        return;
+                    }
+                    if (pieces <= 0) {
+                        clearMachineBox(helper);
+                        helper.fail("the printed L9 bill came to " + pieces + " pieces, so there was"
+                                + " nothing to carry and this test would prove nothing");
+                        return;
+                    }
+                    // Half one: one piece short of the card's own number must still be a refusal. Without
+                    // this the half below would also pass for a card that charges nothing at all.
+                    if (!handOutPrintedDifference(player, difference, 1)) {
+                        clearMachineBox(helper);
+                        helper.fail("the fixture inventory had no room for " + pieces + " pieces minus one");
+                        return;
+                    }
+                    useExpansionCard(helper, player);
+                    if (level.getBlockState(anchor).getBlock() != ourHost) {
+                        clearMachineBox(helper);
+                        helper.fail("the room came out on " + name(level.getBlockState(anchor).getBlock())
+                                + " one piece short of the " + pieces + " the card itself printed");
+                        return;
+                    }
+                    // Half two: exactly the printed number, and it has to land.
+                    if (!handOutPrintedDifference(player, difference, 0)) {
+                        clearMachineBox(helper);
+                        helper.fail("the fixture inventory had no room for the " + pieces
+                                + " pieces the card printed as the L9 kit");
+                        return;
+                    }
+                    useExpansionCard(helper, player);
+                    var afterHost = level.getBlockState(anchor).getBlock();
+                    if (afterHost != cn.dancingsnow.neoecoae.all.NEBlocks.STORAGE_SYSTEM_L9.get()) {
+                        clearMachineBox(helper);
+                        helper.fail("carrying exactly the " + pieces + " pieces the card printed left the"
+                                + " host on " + name(afterHost) + " instead of storage_system_l9");
+                        return;
+                    }
+                    if (!(level.getBlockEntity(anchor) instanceof MultiBlockBuildController.Host fresh)
+                            || !fresh.isFormed()) {
+                        clearMachineBox(helper);
+                        helper.fail("the room is on eco's L9 host but not formed, so the swap put blocks in"
+                                + " without telling the new host to look at its own shape");
+                        return;
+                    }
+                    int standingAfter = machineSnapshot(helper).size();
+                    clearMachineBox(helper);
+                    if (standingAfter != before.size()) {
+                        helper.fail("the L9 room holds " + standingAfter + " blocks where the L1 room held "
+                                + before.size() + " - the two tiers do not fill the same cells, so this"
+                                + " swap is not the one-for-one trade the card's text describes");
+                        return;
+                    }
+                    NeoECOPrototype.LOGGER.info("expansion L9 swap: {} printed pieces took a maxed L1 room"
+                            + " ({} blocks) onto eco's storage_system_l9", pieces, standingAfter);
+                });
+    }
+
+    /**
+     * The L1 rung this card picked up on 2026-11-05 moves positions no tier swap of eco's ever touched: our
+     * members are not eco's blocks, so going from an L1 room to an L9 one replaces the pattern buses and the
+     * drives as well as the tier-bearing cores. The 升格驱动 reads what those hold out of the block before it
+     * is destroyed, because {@code giveBack} asks for no drops - the billing path never needed that, and once
+     * it could reach an L1 room it did: the patterns came out of the machine and onto the floor, which is what
+     * he caught in game. This guards the rescue on the billing path.
+     */
+    @GameTest(template = "l1_room", batch = "expansion_card_carry_bus", timeoutTicks = 600,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void expansionCardCarriesThePatternsInABusWhenItSwapsAnL1Room(GameTestHelper helper) {
+        buildRoomToMaxLength(helper, CARD_HOST,
+                ModRegistration.SIMPLIFY_CRAFTING_SYSTEM_BLOCK.get(),
+                ModRegistration.SIMPLIFY_CRAFTING_INTERFACE_BLOCK.get(),
+                host -> {
+                    var level = helper.getLevel();
+                    var anchor = helper.absolutePos(CARD_HOST);
+                    var player = cardPlayer(helper);
+                    player.setShiftKeyDown(true);
+                    player.getInventory().clearContent();
+                    giveExpansionCard(player);
+                    player.getInventory().add(new ItemStack(Items.PAPER, 2));
+                    player.getInventory().add(new ItemStack(AEItems.BLANK_PATTERN));
+                    useExpansionCard(helper, player);
+                    var bill = new KeyCounter();
+                    if (printTheCardsBill(helper, player, bill) < 0) {
+                        clearMachineBox(helper);
+                        helper.fail("the refused L9 step printed no bill, so this room could never be paid"
+                                + " for and the carry below would measure nothing");
+                        return;
+                    }
+                    var busPositions = new java.util.ArrayList<BlockPos>();
+                    for (var entry : machineSnapshot(helper).entrySet()) {
+                        if (entry.getKey().compareTo(anchor) != 0
+                                && level.getBlockEntity(entry.getKey())
+                                instanceof cn.dancingsnow.neoecoae.blocks.entity.crafting
+                                        .ECOCraftingPatternBusBlockEntity) {
+                            busPositions.add(entry.getKey());
+                        }
+                    }
+                    if (busPositions.size() < 2) {
+                        clearMachineBox(helper);
+                        helper.fail("this crafting room has " + busPositions.size() + " pattern buses; the"
+                                + " carry needs at least two so a bus that is not the first one is covered");
+                        return;
+                    }
+                    var pattern = PatternDetailsHelper.encodeProcessingPattern(
+                            List.of(new GenericStack(AEItemKey.of(Items.IRON_INGOT), 1)),
+                            List.of(new GenericStack(AEItemKey.of(Items.GOLD_INGOT), 1)));
+                    var firstBus = (cn.dancingsnow.neoecoae.blocks.entity.crafting
+                            .ECOCraftingPatternBusBlockEntity) level.getBlockEntity(busPositions.get(0));
+                    var lastBus = (cn.dancingsnow.neoecoae.blocks.entity.crafting
+                            .ECOCraftingPatternBusBlockEntity) level.getBlockEntity(
+                            busPositions.get(busPositions.size() - 1));
+                    firstBus.getPatternSlotInventory().setItemDirect(5, pattern.copy());
+                    var lastSlots = lastBus.getPatternSlotInventory();
+                    lastSlots.setItemDirect(lastSlots.size() - 1, pattern.copy());
+                    // After this call the bag holds the card and the exact kit, and the ticket the card
+                    // printed is gone with the clear - which matters, because that helper counts by
+                    // item and a leftover processing pattern would be counted as a stored pattern.
+                    if (!handOutPrintedDifference(player, bill, 0)) {
+                        clearMachineBox(helper);
+                        helper.fail("the fixture inventory had no room for the L9 crafting kit");
+                        return;
+                    }
+                    int before = everywhere(helper, player, pattern.getItem());
+                    if (before != 2) {
+                        clearMachineBox(helper);
+                        helper.fail("the fixture put in " + before + " patterns, expected 2, so the counting"
+                                + " place is not the place the swap looks at");
+                        return;
+                    }
+                    useExpansionCard(helper, player);
+                    var afterHost = level.getBlockState(anchor).getBlock();
+                    if (afterHost != cn.dancingsnow.neoecoae.all.NEBlocks.CRAFTING_SYSTEM_L9.get()) {
+                        clearMachineBox(helper);
+                        helper.fail("the paid swap left the crafting host on " + name(afterHost)
+                                + " instead of crafting_system_l9, so the two counts below measure a"
+                                + " machine that never moved");
+                        return;
+                    }
+                    int after = everywhere(helper, player, pattern.getItem());
+                    if (after != before) {
+                        clearMachineBox(helper);
+                        helper.fail("the swap left " + after + " patterns in and around this room, there"
+                                + " were " + before + " before the click, so a pattern was duplicated or"
+                                + " destroyed");
+                        return;
+                    }
+                    int inBuses = 0;
+                    for (var where : busPositions) {
+                        if (level.getBlockEntity(where) instanceof cn.dancingsnow.neoecoae.blocks.entity
+                                .crafting.ECOCraftingPatternBusBlockEntity afterBus) {
+                            for (var stack : afterBus.getPatternSlotInventory()) {
+                                if (ItemStack.isSameItemSameComponents(stack, pattern)) {
+                                    inBuses++;
+                                }
+                            }
+                        }
+                    }
+                    clearMachineBox(helper);
+                    if (inBuses != before) {
+                        helper.fail("the swap left " + inBuses + " of " + before + " patterns standing in a"
+                                + " bus; the rest came out onto the floor or into the bag, which is the"
+                                + " degraded path the disk already refuses and this card has to too");
+                        return;
+                    }
+                    NeoECOPrototype.LOGGER.info("expansion carry: {}/{} patterns are back in the buses they"
+                            + " were taken out of", inBuses, before);
+                });
+    }
+
+    /** The same rescue on the other member that carries something: a cell mounted in a drive. */
+    @GameTest(template = "l1_room", batch = "expansion_card_carry_cell", timeoutTicks = 600,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void expansionCardCarriesTheMountedCellWhenItSwapsAnL1Room(GameTestHelper helper) {
+        buildRoomToMaxLength(helper, CARD_HOST,
+                ModRegistration.SIMPLIFY_STORAGE_CONTROLLER_BLOCK.get(),
+                ModRegistration.SIMPLIFY_STORAGE_INTERFACE_BLOCK.get(),
+                host -> {
+                    var level = helper.getLevel();
+                    var player = cardPlayer(helper);
+                    player.setShiftKeyDown(true);
+                    player.getInventory().clearContent();
+                    giveExpansionCard(player);
+                    player.getInventory().add(new ItemStack(Items.PAPER, 2));
+                    player.getInventory().add(new ItemStack(AEItems.BLANK_PATTERN));
+                    useExpansionCard(helper, player);
+                    var bill = new KeyCounter();
+                    if (printTheCardsBill(helper, player, bill) < 0) {
+                        clearMachineBox(helper);
+                        helper.fail("the refused L9 step printed no bill, so the mounted cells below would"
+                                + " never have been put through a swap");
+                        return;
+                    }
+                    if (!(host instanceof cn.dancingsnow.neoecoprototype.blockentity.storage
+                            .SimplifyStorageHostBlockEntity storageHost)
+                            || storageHost.getCluster() == null
+                            || storageHost.getCluster().getDrives().isEmpty()) {
+                        clearMachineBox(helper);
+                        helper.fail("this L1 storage room has no drive to mount a cell in");
+                        return;
+                    }
+                    var drives = storageHost.getCluster().getDrives();
+                    var mountedPos = drives.get(0).getBlockPos();
+                    var lastMountedPos = drives.get(drives.size() - 1).getBlockPos();
+                    var cell = ModRegistration.SIMPLIFY_ITEM_CELL_1M.get();
+                    drives.get(0).setCellStack(new ItemStack(cell));
+                    drives.get(drives.size() - 1).setCellStack(new ItemStack(cell));
+                    if (!handOutPrintedDifference(player, bill, 0)) {
+                        clearMachineBox(helper);
+                        helper.fail("the fixture inventory had no room for the L9 storage kit");
+                        return;
+                    }
+                    int before = everywhere(helper, player, cell);
+                    useExpansionCard(helper, player);
+                    var afterHost = level.getBlockState(
+                            helper.absolutePos(CARD_HOST)).getBlock();
+                    if (afterHost != cn.dancingsnow.neoecoae.all.NEBlocks.STORAGE_SYSTEM_L9.get()) {
+                        clearMachineBox(helper);
+                        helper.fail("the paid swap left the storage host on " + name(afterHost)
+                                + " instead of storage_system_l9");
+                        return;
+                    }
+                    int after = everywhere(helper, player, cell);
+                    if (after != before) {
+                        clearMachineBox(helper);
+                        helper.fail("the swap left " + after + " mounted cells in and around this room, it"
+                                + " held " + before + " before the click, so a cell was duplicated or"
+                                + " destroyed");
+                        return;
+                    }
+                    var inPlace = (level.getBlockEntity(mountedPos)
+                            instanceof cn.dancingsnow.neoecoae.util.ICellHost one
+                            && one.getCellStack() != null && one.getCellStack().is(cell))
+                            && (level.getBlockEntity(lastMountedPos)
+                            instanceof cn.dancingsnow.neoecoae.util.ICellHost two
+                            && two.getCellStack() != null && two.getCellStack().is(cell));
+                    NeoECOPrototype.LOGGER.info("expansion carry: the two mounted cells survived{}",
+                            inPlace ? " in their own drives" : " outside at least one drive");
+                    if (!inPlace) {
+                        clearMachineBox(helper);
+                        helper.fail("the cells mounted at " + mountedPos + " and " + lastMountedPos
+                                + " came out of the swap standing in neither drive, so the card scattered"
+                                + " what the disk puts back");
+                        return;
+                    }
+                });
+    }
+
+    /**
+     * "存储矩阵怎么办" answered for every cell family this mod ships at once, not for one representative.
+     * The guard walks the item registry for everything our own L1 drive will accept, mounts one of each into
+     * separate drives of the same room, pays the bill and clicks; then every one of them has to be standing
+     * in the drive it was put in.
+     *
+     * <p>The registry rather than a list because most of our cells come out of
+     * {@code StorageMatrixRegistration} and the builder path, so a hand-typed family list is stale the moment
+     * somebody adds a rung. And the gates worth watching are eco's: {@code ECODriveBlockEntity.isItemValid}
+     * asks the same {@code ECOStorageCells.isCellHandled} our own drive asks - which is why anything that
+     * fitted before can still fit after - plus {@code canInsertStorageCell} on the new host, which refuses a
+     * <em>sealed</em> infinite member, and refuses anything but a matching migrating member while that host
+     * sits in infinite mode. Those two are the only way a mounted cell can be rejected by its own new drive,
+     * so this reading is what says whether they ever fire in a swap.</p>
+     */
+    @GameTest(template = "l1_room", batch = "expansion_card_carry_families", timeoutTicks = 600,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void expansionCardRemountsEveryCellFamilyItTookOut(GameTestHelper helper) {
+        buildRoomToMaxLength(helper, CARD_HOST,
+                ModRegistration.SIMPLIFY_STORAGE_CONTROLLER_BLOCK.get(),
+                ModRegistration.SIMPLIFY_STORAGE_INTERFACE_BLOCK.get(),
+                host -> {
+                    var level = helper.getLevel();
+                    var anchor = helper.absolutePos(CARD_HOST);
+                    var player = cardPlayer(helper);
+                    player.setShiftKeyDown(true);
+                    player.getInventory().clearContent();
+                    giveExpansionCard(player);
+                    player.getInventory().add(new ItemStack(Items.PAPER, 2));
+                    player.getInventory().add(new ItemStack(AEItems.BLANK_PATTERN));
+                    useExpansionCard(helper, player);
+                    var bill = new KeyCounter();
+                    if (printTheCardsBill(helper, player, bill) < 0) {
+                        clearMachineBox(helper);
+                        helper.fail("no bill printed, so the swap below never ran and the families were"
+                                + " never put through it");
+                        return;
+                    }
+                    if (!(host instanceof cn.dancingsnow.neoecoprototype.blockentity.storage
+                            .SimplifyStorageHostBlockEntity storageHost)
+                            || storageHost.getCluster() == null
+                            || storageHost.getCluster().getDrives().size() < 8) {
+                        clearMachineBox(helper);
+                        helper.fail("this L1 storage room does not hand back at least 8 drives through"
+                                + " our own host class, so there are not enough seats to carry a family"
+                                + " each");
+                        return;
+                    }
+                    var drives = storageHost.getCluster().getDrives();
+                    var mounted = new java.util.ArrayList<Object[]>();
+                    var seen = new java.util.HashSet<Item>();
+                    int skipped = 0;
+                    var skippedNames = new java.util.ArrayList<String>();
+                    for (var item : net.minecraft.core.registries.BuiltInRegistries.ITEM) {
+                        var id = BuiltInRegistries.ITEM.getKey(item);
+                        if (!NeoECOPrototype.MOD_ID.equals(id.getNamespace()) || !seen.add(item)) {
+                            continue;
+                        }
+                        var stack = new ItemStack(item);
+                        // The honest precondition: only what this very drive would take before the swap.
+                        if (stack.isEmpty() || !drives.get(0).isItemValid(stack)) {
+                            continue;
+                        }
+                        if (drives.size() < mounted.size() + 1) {
+                            skipped++;
+                            skippedNames.add(id.getPath());
+                            continue;
+                        }
+                        var drive = drives.get(mounted.size());
+                        drive.setCellStack(stack.copy());
+                        if (drive.getCellStack() != null && drive.getCellStack().is(item)) {
+                            mounted.add(new Object[]{drive.getBlockPos().immutable(), item});
+                        } else {
+                            skipped++;
+                            skippedNames.add(id.getPath() + " (drive refused it before the swap)");
+                        }
+                    }
+                    if (mounted.size() < 8) {
+                        clearMachineBox(helper);
+                        helper.fail("only " + mounted.size() + " cell families could be mounted in this"
+                                + " room's drives, so the scan below would be measuring almost nothing"
+                                + " (skipped " + skipped + ")");
+                        return;
+                    }
+                    if (!handOutPrintedDifference(player, bill, 0)) {
+                        clearMachineBox(helper);
+                        helper.fail("the fixture inventory had no room for the L9 storage kit");
+                        return;
+                    }
+                    useExpansionCard(helper, player);
+                    if (level.getBlockState(anchor).getBlock()
+                            != cn.dancingsnow.neoecoae.all.NEBlocks.STORAGE_SYSTEM_L9.get()) {
+                        clearMachineBox(helper);
+                        helper.fail("the paid swap left the host on "
+                                + name(level.getBlockState(anchor).getBlock())
+                                + ", so the " + mounted.size() + " families were never moved across tiers");
+                        return;
+                    }
+                    var back = carried(player);
+                    var strays = new java.util.ArrayList<String>();
+                    int inPlace = 0;
+                    for (var entry : mounted) {
+                        var where = (BlockPos) entry[0];
+                        Item wanted = (Item) entry[1];
+                        boolean mountedAgain = level.getBlockEntity(where)
+                                instanceof cn.dancingsnow.neoecoae.util.ICellHost freshDrive
+                                && freshDrive.getCellStack() != null
+                                && freshDrive.getCellStack().is(wanted);
+                        if (mountedAgain) {
+                            inPlace++;
+                            continue;
+                        }
+                        int somewhere = everywhere(helper, player, wanted);
+                        int inBag = back.getOrDefault(wanted, 0);
+                        if (somewhere <= 0 || inBag <= 0) {
+                            strays.add(BuiltInRegistries.ITEM.getKey(wanted) + " at " + where
+                                    + " (in the world+bag+floor=" + somewhere + ", in the bag=" + inBag + ")");
+                        }
+                    }
+                    var names = new java.util.ArrayList<String>();
+                    mounted.forEach(entry -> names.add(
+                            BuiltInRegistries.ITEM.getKey((Item) entry[1]).getPath()));
+                    NeoECOPrototype.LOGGER.info("expansion carry families: {}/{} are back in their own"
+                            + " drives after the L9 swap, mounted = {}, not seated = {}",
+                            inPlace, mounted.size(), names, skippedNames);
+                    clearMachineBox(helper);
+                    if (!strays.isEmpty()) {
+                        helper.fail(strays.size() + " of " + mounted.size() + " cell families are in"
+                                + " neither their own drive nor anybody's hands: " + strays);
+                        return;
+                    }
+                });
+    }
+
+    /**
+     * The same promise on the other drive that carries something: the computation crystal-array drives,
+     * which a C1 → L9 swap replaces by the row (their bill line is {@code computation_drive=22}). Here the
+     * fixture is a maxed C1 machine, every computation cell this mod ships - read off the registry, not a
+     * list - is mounted into a separate drive, and after the paid click each one has to be standing in the
+     * drive it went into.
+     *
+     * <p>Why this half is worth its own run: eco's computation drive validates through
+     * {@code ECOComputationCells.describe(stack) != null} alone - no controller gate at all, unlike
+     * {@code ECODriveBlockEntity} - and neither we nor eco overrides it, so the answer cannot drift between
+     * the two tiers. That is the claim this pins; the day it stops being true it names the cell and the
+     * position instead of leaving a player to find the empty drive.</p>
+     */
+    @GameTest(template = "l1_room", batch = "expansion_card_carry_comp", timeoutTicks = 600,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void expansionCardRemountsEveryComputationCellFamilyItTookOut(GameTestHelper helper) {
+        buildComputationStructureKept(helper, CARD_HOST,
+                ModRegistration.SIMPLIFY_COMPUTATION_THREADING_CORE_BLOCK.get(),
+                ModRegistration.SIMPLIFY_COMPUTATION_THREADING_CORE_BLOCK.get(), 0, false,
+                cn.dancingsnow.neoecoprototype.api.SimplifyMultiblockConfig.L1_PLACEMENT_EXPAND_MAX,
+                (controller, finish) -> {
+                    var level = helper.getLevel();
+                    var anchor = helper.absolutePos(CARD_HOST);
+                    var drives = new java.util.ArrayList<cn.dancingsnow.neoecoprototype
+                            .blockentity.computation.SimplifyComputationDriveBlockEntity>();
+                    if (controller.getCluster() != null) {
+                        controller.getCluster().getBlockEntities().forEachRemaining(member -> {
+                            if (member instanceof cn.dancingsnow.neoecoprototype.blockentity.computation
+                                    .SimplifyComputationDriveBlockEntity drive) {
+                                drives.add(drive);
+                            }
+                        });
+                    }
+                    if (drives.size() < 2) {
+                        helper.fail("the maxed C1 machine has " + drives.size() + " crystal-array drives,"
+                                + " so there is nowhere to seat the cell families");
+                        finish.run();
+                        return;
+                    }
+                    var player = cardPlayer(helper);
+                    player.setShiftKeyDown(true);
+                    player.getInventory().clearContent();
+                    giveExpansionCard(player);
+                    player.getInventory().add(new ItemStack(Items.PAPER, 2));
+                    player.getInventory().add(new ItemStack(AEItems.BLANK_PATTERN));
+                    useExpansionCard(helper, player);
+                    var bill = new KeyCounter();
+                    if (printTheCardsBill(helper, player, bill) < 0) {
+                        helper.fail("no bill printed, so the C1 machine was never paid through to L9 and"
+                                + " the families were never moved");
+                        finish.run();
+                        return;
+                    }
+                    var mounted = new java.util.ArrayList<Object[]>();
+                    var seen = new java.util.HashSet<Item>();
+                    var skipped = new java.util.ArrayList<String>();
+                    for (var item : net.minecraft.core.registries.BuiltInRegistries.ITEM) {
+                        var id = BuiltInRegistries.ITEM.getKey(item);
+                        if (!NeoECOPrototype.MOD_ID.equals(id.getNamespace()) || !seen.add(item)) {
+                            continue;
+                        }
+                        var stack = new ItemStack(item);
+                        if (stack.isEmpty() || !drives.get(0).isItemValid(stack)) {
+                            continue;
+                        }
+                        if (drives.size() < mounted.size() + 1) {
+                            skipped.add(id.getPath());
+                            continue;
+                        }
+                        var drive = drives.get(mounted.size());
+                        drive.setCellStack(stack.copy());
+                        var stored = drive.getCellStack();
+                        if (stored != null && stored.is(item)) {
+                            mounted.add(new Object[]{drive.getBlockPos().immutable(), item});
+                        } else {
+                            skipped.add(id.getPath() + " (drive refused it before the swap)");
+                        }
+                    }
+                    // Two is what this mod ships today (CE1M and the energized CE4M); anything less means the
+                    // walk found nothing, which is how an empty loop would pass the checks below.
+                    if (mounted.size() < 2) {
+                        helper.fail("only " + mounted.size() + " computation cell families could be seated"
+                                + " in the C1 machine's drives (skipped " + skipped + ")");
+                        finish.run();
+                        return;
+                    }
+                    if (!handOutPrintedDifference(player, bill, 0)) {
+                        helper.fail("the fixture inventory had no room for the L9 computation kit");
+                        finish.run();
+                        return;
+                    }
+                    useExpansionCard(helper, player);
+                    var afterHost = level.getBlockState(anchor).getBlock();
+                    if (afterHost != cn.dancingsnow.neoecoae.all.NEBlocks.COMPUTATION_SYSTEM_L9.get()) {
+                        helper.fail("the paid swap left the computation host on " + name(afterHost)
+                                + " instead of computation_system_l9");
+                        finish.run();
+                        return;
+                    }
+                    if (!(level.getBlockEntity(anchor) instanceof MultiBlockBuildController.Host fresh)
+                            || !fresh.isFormed()) {
+                        helper.fail("the machine is on eco's L9 computation host but not formed, so the"
+                                + " drives below the claim below were read from an unbuilt machine");
+                        finish.run();
+                        return;
+                    }
+                    var back = carried(player);
+                    var strays = new java.util.ArrayList<String>();
+                    var names = new java.util.ArrayList<String>();
+                    int inPlace = 0;
+                    for (var entry : mounted) {
+                        var where = (BlockPos) entry[0];
+                        Item wanted = (Item) entry[1];
+                        names.add(BuiltInRegistries.ITEM.getKey(wanted).getPath());
+                        boolean mountedAgain = level.getBlockEntity(where)
+                                instanceof cn.dancingsnow.neoecoae.util.ICellHost freshDrive
+                                && freshDrive.getCellStack() != null
+                                && freshDrive.getCellStack().is(wanted);
+                        if (mountedAgain) {
+                            inPlace++;
+                            continue;
+                        }
+                        if (everywhere(helper, player, wanted) <= 0 || back.getOrDefault(wanted, 0) <= 0) {
+                            strays.add(BuiltInRegistries.ITEM.getKey(wanted) + " at " + where);
+                        }
+                    }
+                    NeoECOPrototype.LOGGER.info("expansion carry computation: {}/{} cell families are back"
+                            + " in their own drives after the L9 swap, mounted = {}, not seated = {}",
+                            inPlace, mounted.size(), names, skipped);
+                    finish.run();
+                    if (!strays.isEmpty()) {
+                        helper.fail(strays.size() + " of " + mounted.size() + " computation cell families"
+                                + " are in neither their own drive nor anybody's hands: " + strays);
+                        return;
+                    }
+                    helper.succeed();
+                });
+    }
+
+    /**
+     * What a refund does when the player's bag is already full. The swap's whole refund goes into one reward
+     * bag now, so this is the case where even that bag has nowhere to go: a disk swap (it charges no parts,
+     * so nothing is consumed first) against an inventory of nothing but dirt, which has to end with the bag
+     * lying on the host's cell, holding everything, and unable to despawn.
+     *
+     * <p>Before this item existed every moved cell spawned its own one-count entity at the cell it came out
+     * of - ninety loose blocks lying in the footprint of the machine that just changed tier, and gone after
+     * five minutes. The count below is the whole refund again, which is also the claim that nothing of it
+     * leaked out as a drop: the shape's cells plus the host.</p>
+     */
+    @GameTest(template = "l1_room", batch = "reward_bag_appears", timeoutTicks = 600,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void rewardBagHoldsEveryBlockTheRefundCouldNotHandOver(GameTestHelper helper) {
+        buildRoomToMaxLength(helper, CARD_HOST,
+                ModRegistration.SIMPLIFY_STORAGE_CONTROLLER_BLOCK.get(),
+                ModRegistration.SIMPLIFY_STORAGE_INTERFACE_BLOCK.get(),
+                host -> {
+                    var level = helper.getLevel();
+                    var anchor = helper.absolutePos(CARD_HOST);
+                    var disk = ModRegistration.MIGRATION_DRIVE_1_4.get();
+                    var ourHostBlock = ModRegistration.SIMPLIFY_STORAGE_CONTROLLER_BLOCK.get();
+                    var player = cardPlayer(helper);
+                    player.setShiftKeyDown(true);
+                    player.getInventory().clearContent();
+                    // Two of them, on purpose: the click consumes one and the slot it vacates then still
+                    // holds the other. With one disk the bag would find that free slot and be handed over,
+                    // and the branch this test is about - the bag has nowhere to go - would never run.
+                    player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(disk, 2));
+                    var slots = player.getInventory().items;
+                    for (int slot = 0; slot < slots.size(); slot++) {
+                        if (slots.get(slot).isEmpty()) {
+                            slots.set(slot, new ItemStack(Items.DIRT, 64));
+                        }
+                    }
+                    // The refund is one block per cell of the shape plus the host, so the plan is the
+                    // yardstick - not the snapshot, which counts everything else standing in the plot.
+                    var shape = cn.dancingsnow.neoecoae.multiblock.placement.MultiBlockPlacementService
+                            .preview(level, anchor, level.getBlockState(anchor),
+                                    cn.dancingsnow.neoecoae.all.NEMultiBlocks.STORAGE_SYSTEM_L4,
+                                    host.getMaxBuildLength(), host.isMirrorBuild());
+                    int expectedRefund = shape.getAllBlocks().size() + 1;
+                    useCard(helper, player, disk);
+                    if (level.getBlockState(anchor).getBlock()
+                            != cn.dancingsnow.neoecoae.all.NEBlocks.STORAGE_SYSTEM_L4.get()) {
+                        clearMachineBox(helper);
+                        helper.fail("the swap did not even land on eco's L4 ("
+                                + name(level.getBlockState(anchor).getBlock())
+                                + "), so the refund below measures a machine nobody moved");
+                        return;
+                    }
+                    var loose = new java.util.ArrayList<String>();
+                    var bags = new java.util.ArrayList<net.minecraft.world.entity.item.ItemEntity>();
+                    // Items are not restored with the plot and they drift, so a foreign pile may sit in
+                    // this plot from an earlier batch. The claim under test is about the refund's own
+                    // kinds, so those - and only those - are what has to be missing from the floor.
+                    var refundKinds = new java.util.HashSet<Item>();
+                    for (var cell : shape.getAllBlocks()) {
+                        refundKinds.add(cell.targetState().getBlock().asItem());
+                    }
+                    refundKinds.add(ourHostBlock.asItem());
+                    // Bounded to this test's own plot: l1_room copies sit 5 blocks apart, so a box drawn
+                    // around the host reaches into a neighbour's room and counts a leftover of its batch.
+                    var plot = helper.absolutePos(BlockPos.ZERO);
+                    int foreign = 0;
+                    for (var entity : level.getEntitiesOfClass(net.minecraft.world.entity.item.ItemEntity.class,
+                            new net.minecraft.world.phys.AABB(plot.getX(), plot.getY() - 2, plot.getZ(),
+                                    plot.getX() + L1_ROOM_SIZE, plot.getY() + L1_ROOM_SIZE,
+                                    plot.getZ() + L1_ROOM_SIZE))) {
+                        if (entity.getItem().is(ModRegistration.STRUCTURE_REWARD_BAG.get())) {
+                            bags.add(entity);
+                            continue;
+                        }
+                        if (refundKinds.contains(entity.getItem().getItem())) {
+                            loose.add(BuiltInRegistries.ITEM.getKey(entity.getItem().getItem()).getPath()
+                                    + " x" + entity.getItem().getCount() + " at " + entity.blockPosition());
+                        } else {
+                            foreign++;
+                        }
+                    }
+                    if (bags.size() != 1) {
+                        clearMachineBox(helper);
+                        helper.fail("the refund left " + bags.size() + " reward bags on the floor, expected"
+                                + " exactly one, and " + loose.size() + " loose blocks: " + loose);
+                        return;
+                    }
+                    var bag = bags.get(0).getItem();
+                    var inside = cn.dancingsnow.neoecoprototype.items.StructureRewardBagItem
+                            .contentsOf(bag, level.registryAccess());
+                    int pieces = 0;
+                    int shells = 0;
+                    for (var stack : inside) {
+                        pieces += stack.getCount();
+                        if (stack.is(ModRegistration.MIGRATION_DRIVE_EMPTY.get())) {
+                            shells++;
+                        }
+                    }
+                    // The host cell is part of the refund too, so the count is the standing machine plus the
+                    // host block, and the kinds are however many of those do not stack into one another.
+                    int kinds = cn.dancingsnow.neoecoprototype.items.StructureRewardBagItem.kindsOf(bag);
+                    boolean persistent = bags.get(0).lifespan == Integer.MAX_VALUE;
+                    NeoECOPrototype.LOGGER.info("reward bag: {} pieces in {} kinds, despawn-proof = {},"
+                                    + " refund kinds on the floor = {}, unrelated piles in this plot = {}",
+                            pieces, kinds, persistent, loose.size(), foreign);
+                    clearMachineBox(helper);
+                    if (!loose.isEmpty()) {
+                        helper.fail(loose.size() + " blocks still came out as their own entities: " + loose);
+                        return;
+                    }
+                    if (pieces != expectedRefund) {
+                        helper.fail("the bag holds " + pieces + " blocks where the shape has "
+                                + expectedRefund + " cells (its " + (expectedRefund - 1) + " plus the"
+                                + " host), so a refund piece was lost or invented");
+                        return;
+                    }
+                    if (!persistent) {
+                        helper.fail("the bag can despawn, so a player who walks away loses a tier's parts");
+                        return;
+                    }
+                    // The bag's own tile is the empty drive darkened, and pouring it hands that drive over,
+                    // so a shell written inside the bag as well would pay the same disk twice.
+                    if (shells != 0) {
+                        helper.fail("the bag holds " + shells + " empty drive(s) and still turns into one"
+                                + " when it is poured, so this click pays its shell twice");
+                        return;
+                    }
+                    if (kinds > 6) {
+                        helper.fail(kinds + " kinds in one bag means the refund was not merged per block");
+                        return;
+                    }
+                });
+    }
+
+    /**
+     * The default the person who asked for the bag named: "应该默认收纳到奖励袋里". A disk swap with a whole
+     * empty inventory in front of it still hands one bag rather than filling thirty-six slots with the
+     * machine's old parts, and the loop closes on the disk's own promise - the disk comes back empty - because
+     * the bag's tile is that empty drive darkened and pouring it is what turns it back.
+     *
+     * <p>So the count that matters here is not "did the player get a drive", it is "did they get <b>one</b>".
+     * Handing the shell over as its own stack on top of a bag that also becomes one is the failure this guard
+     * exists for: a disk in, two drives out, and nothing in the suite would have said so. The control is to
+     * hand that shell in {@code onSwapped} whether or not a bag came out of the click.</p>
+     */
+    @GameTest(template = "l1_room", batch = "reward_bag_shell", timeoutTicks = 600,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void aDiskSwapPaysItsShellWithTheBagItLeaves(GameTestHelper helper) {
+        buildRoomToMaxLength(helper, CARD_HOST,
+                ModRegistration.SIMPLIFY_STORAGE_CONTROLLER_BLOCK.get(),
+                ModRegistration.SIMPLIFY_STORAGE_INTERFACE_BLOCK.get(),
+                host -> {
+                    var level = helper.getLevel();
+                    var anchor = helper.absolutePos(CARD_HOST);
+                    int drivesBefore = 0;
+                    for (var state : machineSnapshot(helper).values()) {
+                        if (state.getBlock() == ModRegistration.SIMPLIFY_DRIVE_BLOCK.get()) {
+                            drivesBefore++;
+                        }
+                    }
+                    if (drivesBefore == 0) {
+                        helper.fail("not one simplify_drive stands in this room, so the refund count below"
+                                + " is measuring nothing");
+                        return;
+                    }
+                    var player = cardPlayer(helper);
+                    player.setShiftKeyDown(true);
+                    player.getInventory().clearContent();
+                    var disk = ModRegistration.MIGRATION_DRIVE_1_4.get();
+                    player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(disk, 1));
+                    useCard(helper, player, disk);
+
+                    if (level.getBlockState(anchor).getBlock()
+                            != cn.dancingsnow.neoecoae.all.NEBlocks.STORAGE_SYSTEM_L4.get()) {
+                        clearMachineBox(helper);
+                        helper.fail("the swap did not land on eco's L4, so the bag below is not a refund"
+                                + " from a tier change");
+                        return;
+                    }
+                    if (bagCount(player) != 1) {
+                        clearMachineBox(helper);
+                        helper.fail("the click left " + bagCount(player)
+                                + " reward bags, expected exactly one");
+                        return;
+                    }
+                    if (!player.getItemInHand(InteractionHand.MAIN_HAND)
+                            .is(ModRegistration.STRUCTURE_REWARD_BAG.get())) {
+                        clearMachineBox(helper);
+                        helper.fail("the bag is not what the player holds ("
+                                + itemName(player.getItemInHand(InteractionHand.MAIN_HAND))
+                                + ") - the click paid something outside the bag, which is how a disk ends"
+                                + " up handing back its shell and still turning into one");
+                        return;
+                    }
+                    // The whole point of the default: nothing else came out into the slots. Read the raw
+                    // slots here, not carried() - that one opens the bag, and the refund being inside the
+                    // bag is the thing being claimed, not a loose stack to be counted against it.
+                    var loose = new java.util.HashMap<Item, Integer>();
+                    for (var held : player.getInventory().items) {
+                        if (held.isEmpty() || held.is(ModRegistration.STRUCTURE_REWARD_BAG.get())) {
+                            continue;
+                        }
+                        loose.merge(held.getItem(), held.getCount(), Integer::sum);
+                    }
+                    if (!loose.isEmpty()) {
+                        clearMachineBox(helper);
+                        helper.fail("the refund also landed loose in the inventory (" + loose
+                                + "), so the click did not put what it owes in the bag");
+                        return;
+                    }
+                    // Pour it, holding the bag in the hand the way the guard above just proved it is held.
+                    int kindsSealed = cn.dancingsnow.neoecoprototype.items.StructureRewardBagItem
+                            .kindsOf(player.getItemInHand(InteractionHand.MAIN_HAND));
+                    player.getItemInHand(InteractionHand.MAIN_HAND).getItem()
+                            .use(level, player, InteractionHand.MAIN_HAND);
+                    var after = carried(player);
+                    var held = player.getItemInHand(InteractionHand.MAIN_HAND);
+                    int shells = after.getOrDefault(ModRegistration.MIGRATION_DRIVE_EMPTY.get(), 0);
+                    NeoECOPrototype.LOGGER.info("disk bag: {} entries sealed, poured out to {} drives and"
+                                    + " {} empty drive(s), the bag is gone = {}, hand holds {}",
+                            kindsSealed, after.getOrDefault(ModRegistration.SIMPLIFY_DRIVE_ITEM.get(), 0),
+                            shells, bagCount(player) == 0, itemName(held));
+                    clearMachineBox(helper);
+                    if (bagCount(player) != 0) {
+                        helper.fail("the pour left a bag behind, so the player has to hunt for a residue");
+                        return;
+                    }
+                    if (shells != 1) {
+                        helper.fail("the disk paid out " + shells
+                                + " empty drives for one disk consumed");
+                        return;
+                    }
+                    if (after.getOrDefault(ModRegistration.SIMPLIFY_DRIVE_ITEM.get(), 0) != drivesBefore) {
+                        helper.fail("the bag poured " + after.getOrDefault(
+                                ModRegistration.SIMPLIFY_DRIVE_ITEM.get(), 0) + " drives but "
+                                + drivesBefore + " stood before the click");
+                        return;
+                    }
+                });
+    }
+
+    /**
+     * The pour, in the two shapes that decide it: a bag with no free slot at all, and one with exactly
+     * enough. Both have to end with the bag gone - the point of the rule is that nothing is kept as a
+     * residue for the player to come back for - and the difference between them is only whether the blocks
+     * land in the inventory or in front of the player.
+     */
+    @GameTest(template = "empty", batch = "reward_bag_pour", timeoutTicks = 200,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void rewardBagPoursOutAndIsDestroyedEitherWay(GameTestHelper helper) {
+        var level = helper.getLevel();
+        var player = cardPlayer(helper);
+        int total = 64 + 22 + 7;
+        // Case one: every slot taken, so all three stacks have to come out as drops.
+        player.getInventory().clearContent();
+        player.setItemInHand(InteractionHand.MAIN_HAND, rewardBagOf(helper, total));
+        var slots = player.getInventory().items;
+        for (int slot = 0; slot < slots.size(); slot++) {
+            if (slots.get(slot).isEmpty()) {
+                slots.set(slot, new ItemStack(Items.BEDROCK, 64));
+            }
+        }
+        player.getItemInHand(InteractionHand.MAIN_HAND).getItem()
+                .use(level, player, InteractionHand.MAIN_HAND);
+        // Read the hand again: the pour replaces the stack there, so a reference taken before the click
+        // would still be the bag the player no longer holds.
+        var held = player.getItemInHand(InteractionHand.MAIN_HAND);
+        int dropped = countedDrops(helper, player);
+        int inBag = countedBlocks(player);
+        NeoECOPrototype.LOGGER.info("reward bag pour, no room: {} pieces on the floor, {} in the"
+                + " inventory, the hand now holds {} x{}", dropped, inBag,
+                itemName(held), held.getCount());
+        if (!held.is(ModRegistration.MIGRATION_DRIVE_EMPTY.get()) || held.getCount() != 1
+                || dropped != total || inBag != 0) {
+            helper.fail("with no free slot the pour left " + dropped + " pieces on the floor and " + inBag
+                    + " in the inventory of " + total + ", and the hand holds " + held.getCount() + " x "
+                    + itemName(held) + " instead of one empty drive");
+            return;
+        }
+        level.getEntitiesOfClass(net.minecraft.world.entity.item.ItemEntity.class,
+                new net.minecraft.world.phys.AABB(player.blockPosition()).inflate(8, 8, 8))
+                .forEach(net.minecraft.world.entity.item.ItemEntity::discard);
+        // Case two: an empty inventory, so everything comes out and nothing is dropped.
+        player.getInventory().clearContent();
+        player.setItemInHand(InteractionHand.MAIN_HAND, rewardBagOf(helper, total));
+        player.getItemInHand(InteractionHand.MAIN_HAND).getItem()
+                .use(level, player, InteractionHand.MAIN_HAND);
+        dropped = countedDrops(helper, player);
+        inBag = countedBlocks(player);
+        var after = player.getItemInHand(InteractionHand.MAIN_HAND);
+        NeoECOPrototype.LOGGER.info("reward bag pour, room for all: {} pieces in the inventory, {} on the"
+                + " floor, the stack in hand is now {}", inBag, dropped, after.getCount());
+        helper.assertTrue(after.is(ModRegistration.MIGRATION_DRIVE_EMPTY.get()) && after.getCount() == 1,
+                "a pour that fitted left the hand holding " + after.getCount() + " x "
+                        + itemName(after) + ", expected one empty migration drive");
+        helper.assertTrue(inBag == total && dropped == 0, "the pour put " + inBag + " in the bag and "
+                + dropped + " on the floor of " + total);
+        helper.succeed();
+    }
+
+    /** A bag holding cobblestone 64 + dirt 22 + sand 7, the three stacks the pour test splits. */
+    private static ItemStack rewardBagOf(GameTestHelper helper, int total) {
+        var contents = new java.util.ArrayList<ItemStack>();
+        int left = total;
+        for (var block : List.of(Items.COBBLESTONE, Items.DIRT, Items.SAND)) {
+            if (left <= 0) {
+                continue;
+            }
+            var stack = new ItemStack(block);
+            stack.setCount(Math.min(left, block == Items.COBBLESTONE ? 64 : block == Items.DIRT ? 22 : 7));
+            contents.add(stack);
+            left -= stack.getCount();
+        }
+        return cn.dancingsnow.neoecoprototype.items.StructureRewardBagItem
+                .withContents(helper.getLevel().registryAccess(), contents);
+    }
+
+    /** How many of the three pour-test items are lying as item entities within eight blocks. */
+    private static int countedDrops(GameTestHelper helper, Player player) {
+        int pieces = 0;
+        for (var entity : helper.getLevel().getEntitiesOfClass(
+                net.minecraft.world.entity.item.ItemEntity.class,
+                new net.minecraft.world.phys.AABB(player.blockPosition()).inflate(8, 8, 8))) {
+            var stack = entity.getItem();
+            if (stack.is(Items.COBBLESTONE) || stack.is(Items.DIRT) || stack.is(Items.SAND)) {
+                pieces += stack.getCount();
+            }
+        }
+        return pieces;
+    }
+
+    /** How many of the three pour-test items the fake player is carrying. */
+    private static int countedBlocks(net.minecraft.server.level.ServerPlayer player) {
+        int pieces = 0;
+        for (var stack : player.getInventory().items) {
+            if (stack.is(Items.COBBLESTONE) || stack.is(Items.DIRT) || stack.is(Items.SAND)) {
+                pieces += stack.getCount();
+            }
+        }
+        return pieces;
+    }
+
+    /**
      * The three modifiers the pigmee housing claims, read off the stack itself, plus the two attribute
      * defaults the tooltip total is built from. Exists because the javadoc that used to describe them was
      * destroyed by an encoding accident and contained numbers nobody could re-derive from the code alone.
@@ -12985,7 +14089,7 @@ public final class NeoECOPrototypeGameTests {
      * stack, shrinks it, and clears the cursor when it runs out; this asserts the same arithmetic: two in
      * hand, one in hand plus one in the drive afterwards, never three.
      */
-    @GameTest(template = "l1_room", batch = "storage_panel_rows", timeoutTicks = 400,
+    @GameTest(template = "l1_room", batch = "storage_panel_drop_spend", timeoutTicks = 400,
             templateNamespace = NeoECOPrototype.MOD_ID)
     public static void panelDropSpendsTheHeldCell(GameTestHelper helper) {
         buildL1Room(helper, CARD_HOST,
@@ -13049,7 +14153,7 @@ public final class NeoECOPrototypeGameTests {
      * the first case is the one that catches a regression back to summing grid nodes, because the machine's
      * own nodes are non-zero here and must NOT appear in the number.
      */
-    @GameTest(template = "l1_room", batch = "storage_panel_rows", timeoutTicks = 400,
+    @GameTest(template = "l1_room", batch = "storage_panel_cell_count", timeoutTicks = 400,
             templateNamespace = NeoECOPrototype.MOD_ID)
     public static void panelCountsTheCellsAndNothingElse(GameTestHelper helper) {
         buildL1Room(helper, CARD_HOST,
@@ -13117,7 +14221,7 @@ public final class NeoECOPrototypeGameTests {
      * put a lower row before a higher one - and a number that only re-derives the sort would pass no matter
      * how the axes were chosen.
      */
-    @GameTest(template = "l1_room", batch = "storage_panel_rows", timeoutTicks = 400,
+    @GameTest(template = "l1_room", batch = "storage_panel_machine_shape", timeoutTicks = 400,
             templateNamespace = NeoECOPrototype.MOD_ID)
     public static void panelRowsFollowTheMachineShape(GameTestHelper helper) {
         buildL1Room(helper, CARD_HOST,
@@ -13240,6 +14344,41 @@ public final class NeoECOPrototypeGameTests {
         return def == null ? "nothing (refused)"
                 : net.minecraft.core.registries.BuiltInRegistries.BLOCK
                         .getKey(def.getOwner().value()).getPath();
+    }
+
+    /**
+     * Reads back the bill the card printed on its last refusal, or -1 when the refusal left no pattern to
+     * read. Callers then hand the parts out with {@link #handOutPrintedDifference}, so no test keeps a
+     * hand-written parts list for a shape that moves with the definitions.
+     *
+     * <p>Read through {@link #carriedStacks} because the ticket is no longer loose in a slot: a refusal
+     * seals the work order and its pattern into the same reward bag every other owed thing goes into, so
+     * this decode is also the suite's only round trip through that bag's item storage - a pattern whose
+     * components did not survive the write would come back here as nothing.</p>
+     */
+    private static long printTheCardsBill(GameTestHelper helper,
+                                          net.minecraft.server.level.ServerPlayer player,
+                                          KeyCounter into) {
+        ItemStack printed = ItemStack.EMPTY;
+        for (var held : carriedStacks(player)) {
+            if (held.is(AEItems.PROCESSING_PATTERN.asItem())) {
+                printed = held;
+            }
+        }
+        var details = PatternDetailsHelper.decodePattern(printed, helper.getLevel());
+        if (printed.isEmpty() || details == null) {
+            return -1;
+        }
+        long pieces = 0;
+        for (var input : details.getInputs()) {
+            for (var option : input.getPossibleInputs()) {
+                // The same idiom the assembler tests use: AE2 keeps a repeated ingredient as one slot with
+                // a multiplier, so the amount alone is not what has to be carried.
+                into.add(option.what(), option.amount() * input.getMultiplier());
+                pieces += option.amount() * input.getMultiplier();
+            }
+        }
+        return pieces;
     }
 
     /**
@@ -13633,7 +14772,7 @@ public final class NeoECOPrototypeGameTests {
                 }
             }
         }
-        for (var stack : player.getInventory().items) {
+        for (var stack : carriedStacks(player)) {
             if (stack.is(item)) {
                 total += stack.getCount();
             }
@@ -13649,12 +14788,57 @@ public final class NeoECOPrototypeGameTests {
         return total;
     }
 
+    /**
+     * What the player carries, with every reward bag opened into the things inside it.
+     *
+     * <p>A swap's refund now leaves as one bag rather than as loose stacks, so a count that only walks the
+     * inventory slots would report ninety reclaimed blocks as gone - and "the player lost them" is exactly
+     * the claim the conservation guards are there to disprove, not to make. The bag itself stays in the list
+     * as well: it is a thing the player holds, and the ledger has to balance with it.</p>
+     */
+    private static List<ItemStack> carriedStacks(net.minecraft.server.level.ServerPlayer player) {
+        List<ItemStack> stacks = new ArrayList<>();
+        for (var held : player.getInventory().items) {
+            if (held.isEmpty()) {
+                continue;
+            }
+            stacks.add(held);
+            if (held.is(ModRegistration.STRUCTURE_REWARD_BAG.get())) {
+                stacks.addAll(cn.dancingsnow.neoecoprototype.items.StructureRewardBagItem
+                        .contentsOf(held, player.level().registryAccess()));
+            }
+        }
+        return stacks;
+    }
+
+    /** How many reward bags the player holds - one click is only allowed to leave one. */
+    private static int bagCount(net.minecraft.server.level.ServerPlayer player) {
+        int bags = 0;
+        for (var held : player.getInventory().items) {
+            if (held.is(ModRegistration.STRUCTURE_REWARD_BAG.get())) {
+                bags++;
+            }
+        }
+        return bags;
+    }
+
+    /** The single bag a click left behind, or {@link ItemStack#EMPTY} when it left none or more than one. */
+    private static ItemStack onlyBag(net.minecraft.server.level.ServerPlayer player) {
+        if (bagCount(player) != 1) {
+            return ItemStack.EMPTY;
+        }
+        for (var held : player.getInventory().items) {
+            if (held.is(ModRegistration.STRUCTURE_REWARD_BAG.get())) {
+                return held;
+            }
+        }
+        return ItemStack.EMPTY;
+    }
+
     private static Map<Item, Integer> carried(net.minecraft.server.level.ServerPlayer player) {
         Map<Item, Integer> totals = new HashMap<>();
-        for (var stack : player.getInventory().items) {
-            if (!stack.isEmpty()) {
-                totals.merge(stack.getItem(), stack.getCount(), Integer::sum);
-            }
+        for (var stack : carriedStacks(player)) {
+            totals.merge(stack.getItem(), stack.getCount(), Integer::sum);
         }
         return totals;
     }
@@ -13663,10 +14847,8 @@ public final class NeoECOPrototypeGameTests {
     private static Map<Item, Integer> ledger(GameTestHelper helper,
                                              net.minecraft.server.level.ServerPlayer player) {
         Map<Item, Integer> totals = new HashMap<>();
-        for (var stack : player.getInventory().items) {
-            if (!stack.isEmpty()) {
-                totals.merge(stack.getItem(), stack.getCount(), Integer::sum);
-            }
+        for (var stack : carriedStacks(player)) {
+            totals.merge(stack.getItem(), stack.getCount(), Integer::sum);
         }
         for (var stack : player.getInventory().offhand) {
             if (!stack.isEmpty()) {

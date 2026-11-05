@@ -188,16 +188,23 @@ public final class SimplifyMigrationDriveItem extends SimplifyStructureExpansion
      * eco's host block has no mind to carry over, so that is the one thing the swap really does take away.
      * Only the one-in-sixteen hosts that grew one can pay it out, or every L1 machine in a base would be a
      * doll waiting to happen.
+     *
+     * <p>Both go the same way the refund does - into the click's reward bag - and one of them must not be
+     * paid twice: the bag's tile is this disk's own shell darkened, and pouring a bag turns it back into an
+     * empty drive, so when a bag came out of the click the bag *is* the shell. Only the click that owed
+     * nothing else has to hand the drive over by itself.</p>
      */
     @Override
     protected void onSwapped(ServerLevel level, BlockPos pos, ServerPlayer player,
-                              @Nullable BlockEntity previous) {
+                              @Nullable BlockEntity previous, Owed owed) {
         if (player.hasInfiniteMaterials()) {
             return;
         }
-        handTo(level, pos, new ItemStack(ModRegistration.MIGRATION_DRIVE_EMPTY.get()), player);
+        if (owed.isEmpty()) {
+            handTo(level, pos, new ItemStack(ModRegistration.MIGRATION_DRIVE_EMPTY.get()), player);
+        }
         if (previous instanceof SimplifyCraftingSystemBlockEntity host && host.hasMind()) {
-            handTo(level, pos, new ItemStack(ModRegistration.FUMO_DOLL_TEDXENON_ITEM.get()), player);
+            owed.bag(new ItemStack(ModRegistration.FUMO_DOLL_TEDXENON_ITEM.get()));
         }
     }
 }
