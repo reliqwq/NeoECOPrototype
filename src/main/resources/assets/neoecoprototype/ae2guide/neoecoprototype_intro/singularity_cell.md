@@ -6,6 +6,7 @@ navigation:
   parent: neoecoprototype_intro/index.md
 item_ids:
   - neoecoprototype:simplify_singularity_cell
+  - neoecoprototype:simplify_sky_stone_dust_cell
 ---
 
 # L1 Singularity Cell
@@ -55,3 +56,11 @@ It holds one content type, so it cannot be partitioned in a cell workbench and c
 <RecipeFor id="neoecoprototype:simplify_singularity_cell" />
 
 A disassembly recipe returns the four materials.
+
+## The other member: sky stone dust cell
+
+The same engine, the same tile and the same default pace (120 per 600 ticks) - it grows **sky stone dust** (`neoecoprototype:sky_stone_dust`) instead of singularities. It has its own config section, `sky_stone_dust_cell`, with the same two keys and the same defaults: they are separate entries because the two resources sit far apart in cost, and tuning one cell must not move the other.
+
+<RecipeFor id="neoecoprototype:simplify_sky_stone_dust_cell" />
+
+Its bill differs from the singularity cell's only in the last ingredient: infinite matrix housing + 64M ECO storage component + green crystal lattice + one sky stone dust. A disassembly recipe returns the same four.
