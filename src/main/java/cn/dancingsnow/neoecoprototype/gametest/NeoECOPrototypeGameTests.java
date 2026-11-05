@@ -14347,10 +14347,16 @@ public final class NeoECOPrototypeGameTests {
      *
      * <p>Everything is read through upstream's own accessors rather than off our JSON: the aggregate is
      * eco's ({@code LargeWorkstationRecipes#getById}, which only holds what its decoder accepted), the output
-     * is the {@code GenericStack} list the machine hands the network, and the bill is matched by
-     * {@code LargeWorkstationRecipe#matches} - true for exactly what it asks for, false one cryotheum short.
-     * eco's coolant rides the same call as the control, because a red on both would say its decoder changed,
-     * not that our file is wrong.</p>
+     * is the {@code GenericStack} list the machine hands the network, and the bill is matched by the
+     * machine's own gate - {@code IntegratedWorkingStationRecipe.Input(slot list, tank fluid)} - true for
+     * exactly what it asks for, false one cryotheum short and false with no water. eco's coolant rides the
+     * same call as the control, because a red on both would say its decoder changed, not that our file is
+     * wrong.</p>
+     *
+     * <p>The last block pins the three booleans both viewer categories branch on - no item output, a fluid
+     * output, a non-empty input fluid tag naming water - which is what guarantees the JEI and EMI pages draw
+     * exactly one fluid slot and no blank item slot. Widget layout and coordinates stay eco's and stay
+     * client-only.</p>
      */
     @GameTest(template = "empty", batch = "ice_cream_fluid", timeoutTicks = 200,
             templateNamespace = NeoECOPrototype.MOD_ID)
@@ -14447,6 +14453,35 @@ public final class NeoECOPrototypeGameTests {
         if (!machineRecipe.hasFluidOutput()) {
             helper.fail("the recipe the machine reads has no fluid output, while eco's aggregate reported "
                     + oursOut);
+            return;
+        }
+        // The two things the viewer pages branch on. Both eco categories ask itemOutput().isEmpty() and
+        // fluidOutput().isEmpty() and draw a slot per non-empty side (JEI: addOutputSlot + addFluidStack +
+        // setFluidRenderer; EMI: EmiStack.of(Fluid, long)), and each input fluid is drawn only when
+        // FluidIngredient.isEmpty() is false. So a page with one fluid output and no blank item slot, and a
+        // water slot that is not empty, is what this recipe shape guarantees - the widget coordinates are
+        // still eco's and still only visible in a client.
+        var inputFluids = machineRecipe.inputFluid().getFluids();
+        NeoECOPrototype.LOGGER.info("workstation page shape: item output empty = {}, fluid output = {} mB,"
+                        + " input fluid tag resolves to {} fluid(s), water among them = {}",
+                machineRecipe.itemOutput().isEmpty(), machineRecipe.fluidOutput().getAmount(),
+                inputFluids.length, java.util.Arrays.stream(inputFluids).anyMatch(
+                        fs -> fs.is(net.minecraft.world.level.material.Fluids.WATER)));
+        if (!machineRecipe.itemOutput().isEmpty()) {
+            helper.fail("the recipe also names an item output (" + machineRecipe.itemOutput()
+                    + "), so the workstation page now shows two outputs and the fluid one is no longer"
+                    + " the only thing a player is being promised");
+            return;
+        }
+        if (inputFluids.length == 0) {
+            helper.fail("the recipe's input fluid tag resolves to no fluid at all, so both viewers skip that"
+                    + " slot and the page shows the batch starting from nothing");
+            return;
+        }
+        if (!java.util.Arrays.stream(inputFluids).anyMatch(
+                fs -> fs.is(net.minecraft.world.level.material.Fluids.WATER))) {
+            helper.fail("the recipe's input fluid tag no longer names water: "
+                    + java.util.Arrays.toString(inputFluids));
             return;
         }
         helper.succeed();
