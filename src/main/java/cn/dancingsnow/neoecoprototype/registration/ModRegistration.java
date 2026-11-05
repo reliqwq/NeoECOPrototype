@@ -685,16 +685,30 @@ public class ModRegistration {
                     () -> new BlockItem(CRYOTHEUM_ICE_CREAM_BLOCK.get(), new Item.Properties()));
 
     /**
-     * The bucket that places that block. Vanilla's own precedent for "a bucket whose contents are a block"
-     * is {@code SolidBucketItem} (the class behind the powder-snow bucket, which has no class of its own in
-     * 1.21.1), and the precedent for the remainder is the milk bucket: emptying it leaves the plain bucket
-     * behind, so the container is never lost - which is what makes the four-bottle loop in
-     * {@code recipe/cryotheum_ice_cream_from_bucket.json} balance instead of eating a bucket.
+     * The bucket that places that block, and the item our fluid names as its container.
+     *
+     * <p>It is a {@code BucketItem} subclass rather than vanilla's {@code SolidBucketItem} because that one
+     * is a {@code BlockItem}, and NeoForge's built-in handler is hung on {@code getClass() ==
+     * BucketItem.class} exactly, so this class needs the explicit registration in
+     * {@code NeoECOPrototype.registerCapabilities}.
+     * Named that way, a 1000 mB draw from a tank handed the player a bucket reporting no fluid at all - the
+     * fluid left the tank and landed nowhere, which is what
+     * {@code aBucketOfOurFluidCarriesTheFluidItWasFilledWith} measures (eco's own cryotheum solution bucket
+     * answers 1000 mB to the same ruler, so that red is about ours and not about the question). Being a real
+     * fluid container is also the only way this coolant reaches a bath: the input hatch and every pump ask
+     * that handler.</p>
+     *
+     * <p>The placement is what {@code SolidBucketItem} was for and it is kept - one right-click puts down
+     * one cell and leaves a plain bucket in the hand, so one cell is one bucket is 1000 mB in both
+     * directions, the scooping side being {@code CryotheumIceCreamSnowBlock#pickupBlock}. The remainder
+     * precedent is the milk bucket, which is what makes the four-bottle loop in
+     * {@code recipe/cryotheum_ice_cream_from_bucket.json} balance instead of eating a bucket.</p>
      */
-    public static final Supplier<net.minecraft.world.item.SolidBucketItem> CRYOTHEUM_ICE_CREAM_BUCKET =
+    public static final Supplier<cn.dancingsnow.neoecoprototype.items.CryotheumIceCreamBucketItem>
+            CRYOTHEUM_ICE_CREAM_BUCKET =
             ITEMS.register("cryotheum_ice_cream_bucket",
-                    () -> new net.minecraft.world.item.SolidBucketItem(CRYOTHEUM_ICE_CREAM_BLOCK.get(),
-                            net.minecraft.sounds.SoundEvents.POWDER_SNOW_PLACE,
+                    () -> new cn.dancingsnow.neoecoprototype.items.CryotheumIceCreamBucketItem(
+                            CRYOTHEUM_ICE_CREAM_BLOCK, CRYOTHEUM_ICE_CREAM_FLUID.get(),
                             new Item.Properties().stacksTo(1)
                                     .craftRemainder(net.minecraft.world.item.Items.BUCKET)));
 

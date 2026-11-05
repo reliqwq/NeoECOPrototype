@@ -155,6 +155,15 @@ public class NeoECOPrototype {
     }
 
     private static void registerCapabilities(final RegisterCapabilitiesEvent event) {
+        // NeoForge's own item fluid handler is hung on `getClass() == BucketItem.class` exactly - it walks
+        // BuiltInRegistries.ITEM and skips anything else (CapabilityHooks.registerFallbackVanillaProviders,
+        // 21.1.251) - so the dissolution bath's plain `new BucketItem(...)` is covered and a subclass is not.
+        // That is how the dessert's bucket came back from a 1000 mB draw reporting no fluid at all: the class
+        // change alone did not fix it, and the measured red is pinned by
+        // everyBucketItemWeRegisterCarriesItsFluid.
+        event.registerItem(Capabilities.FluidHandler.ITEM,
+                (stack, context) -> new net.neoforged.neoforge.fluids.capability.wrappers.FluidBucketWrapper(stack),
+                ModRegistration.CRYOTHEUM_ICE_CREAM_BUCKET.get());
         // Trinity's crafting module must accept products back from the machines it feeds,
         // otherwise a crafting job can push ingredients out but never recover its output.
         event.registerBlock(Capabilities.ItemHandler.BLOCK,
