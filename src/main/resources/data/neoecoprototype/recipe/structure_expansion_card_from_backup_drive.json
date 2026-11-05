@@ -1,0 +1,11 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    { "item": "neoecoprototype:migration_drive_empty" }
+  ],
+  "result": {
+    "count": 1,
+    "id": "neoecoprototype:simplify_structure_expansion_card"
+  }
+}

@@ -194,9 +194,31 @@ public class SimplifyStructureExpansionCardItem extends Item {
         return true;
     }
 
-    /** Whether the card itself is the price, so a successful click has to eat it. */
+    /**
+     * Whether the card itself is the price, so a successful click has to eat it. It does, since the person
+     * who found the mint asked for it: the bag pours into an empty migration drive, so a click that pays
+     * nothing would create that drive out of nowhere. Eating the card makes the loop one-for-one - a card
+     * goes in, its shell comes back out, and the shell is what crafts the next card.
+     */
     protected boolean consumedOnSuccess() {
-        return false;
+        return true;
+    }
+
+    /**
+     * Eats one held card (or disk) after the click that paid for it succeeded, and tells {@link Owed} that
+     * the bag this click leaves therefore owes the player a shell. A creative player spends nothing, so a
+     * creative click pays nothing and its bag pours out empty - which is the other half of why the mint
+     * closed: a refusal pays nothing either, and prints a ticket into an unmarked bag.
+     */
+    private void payWith(ServerPlayer player, net.minecraft.world.InteractionHand hand, Owed owed) {
+        if (player.hasInfiniteMaterials()) {
+            return;
+        }
+        var held = player.getItemInHand(hand);
+        if (held.is(this)) {
+            held.shrink(1);
+            owed.paidAnItem();
+        }
     }
 
     /**
@@ -363,6 +385,11 @@ public class SimplifyStructureExpansionCardItem extends Item {
         }
         host.rebuildAfterBuild();
         owed.bagAll(giveNow(player, pending));
+        // Growing pays with the card too: it changed a machine, and the bag it may still leave behind
+        // would otherwise be a shell minted by a click that cost nothing.
+        if (consumedOnSuccess()) {
+            payWith(player, hand, owed);
+        }
         owed.seal(level, pos);
         say(player, Component.translatable("card.neoecoprototype.expansion.grown", target,
                 plan.getMissingBlocks().size()));
@@ -446,15 +473,13 @@ public class SimplifyStructureExpansionCardItem extends Item {
         rebuildHost(level, pos);
         returnContents(level, contents, owed);
         owed.bagAll(pending);
-        owed.seal(level, pos);
-        if (consumedOnSuccess() && !player.hasInfiniteMaterials()) {
-            // Every earlier return path leaves both the machine and the card untouched, so this is the
-            // only place the card can be eaten - and it is eaten after the new tier is standing.
-            var held = player.getItemInHand(hand);
-            if (held.is(this)) {
-                held.shrink(1);
-            }
+        // Every earlier return path leaves both the machine and the card untouched, so this is the only
+        // place the card can be eaten - after the new tier is standing, and before the bag is sealed,
+        // because paying is what makes that bag owe the shell back.
+        if (consumedOnSuccess()) {
+            payWith(player, hand, owed);
         }
+        owed.seal(level, pos);
         say(player, Component.translatable(upgradedKey(),
                 tierLabel(target), swap.moved().size() + 1));
     }
@@ -522,11 +547,8 @@ public class SimplifyStructureExpansionCardItem extends Item {
         // where it will not - never into the void.
         returnContents(level, contents, owed);
         owed.bagAll(pending);
-        if (consumedOnSuccess() && !player.hasInfiniteMaterials()) {
-            var held = player.getItemInHand(hand);
-            if (held.is(this)) {
-                held.shrink(1);
-            }
+        if (consumedOnSuccess()) {
+            payWith(player, hand, owed);
         }
         // Before the seal, so whatever the subclass still owes the player rides in the same bag.
         onSwapped(level, pos, player, previous, owed);
@@ -950,6 +972,13 @@ public class SimplifyStructureExpansionCardItem extends Item {
             return stacks.isEmpty();
         }
 
+        /** Whether this click paid an item, so its bag owes the player that item's shell back. */
+        private boolean paid;
+
+        void paidAnItem() {
+            paid = true;
+        }
+
         /** Put one thing on the list - in creative too, because the bag is what the player reads. */
         void bag(ItemStack stack) {
             if (!stack.isEmpty()) {
@@ -976,6 +1005,9 @@ public class SimplifyStructureExpansionCardItem extends Item {
             var bag = BackupDriveItem.withContents(level.registryAccess(), merged);
             if (nameColour != 0) {
                 BackupDriveItem.wearTier(bag, nameColour);
+            }
+            if (paid) {
+                BackupDriveItem.oweShell(bag);
             }
             var handed = player.getInventory().add(bag.copy());
             // One line per sealed bag: what went in, which rung it claims to wear, and whether the player

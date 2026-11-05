@@ -42,9 +42,33 @@ public class BackupDriveItem extends Item {
 
     /** The list inside {@code CUSTOM_DATA}; each element is one saved item stack. */
     private static final String TAG_BLOCKS = "neoecoprototype:blocks";
+    /**
+     * Set only when the click that filled this drive <b>paid an item</b> - a card or a disk eaten - which is
+     * what entitles the player to that item's shell back. The person who found the mint asked for exactly
+     * this accounting: a card that costs nothing could be clicked again and again, each refusal printing a
+     * ticket into a drive that pours into one more empty migration drive.
+     */
+    private static final String TAG_SHELL = "neoecoprototype:shell";
 
     public BackupDriveItem(Properties properties) {
         super(properties);
+    }
+
+    /** Mark that this drive owes its player the shell of the card or disk the click ate. */
+    public static void oweShell(ItemStack drive) {
+        CompoundTag tag = tagOf(drive);
+        tag.putBoolean(TAG_SHELL, true);
+        CustomData.set(DataComponents.CUSTOM_DATA, drive, tag);
+    }
+
+    /** Whether pouring this drive out should leave the player holding one empty migration drive. */
+    public static boolean paysShell(ItemStack drive) {
+        return tagOf(drive).getBoolean(TAG_SHELL);
+    }
+
+    private static CompoundTag tagOf(ItemStack drive) {
+        CustomData data = drive.get(DataComponents.CUSTOM_DATA);
+        return data == null ? new CompoundTag() : data.copyTag();
     }
 
     /**
@@ -182,14 +206,18 @@ public class BackupDriveItem extends Item {
                 level.addFreshEntity(drop);
             }
             // The empty drive is what a spent disk leaves in your hand, and this tile is that tile
-            // darkened - so the refund container closes the same loop: it turns back into the shell.
-            ItemStack shell = new ItemStack(ModRegistration.MIGRATION_DRIVE_EMPTY.get());
+            // darkened - so a drive whose click actually ate an item closes that loop: it turns back into
+            // the shell. A drive from a click that paid nothing (a refusal, or creative) pours out and is
+            // simply gone, or every spare card in a base would be a mint.
+            var shell = paysShell(bag)
+                    ? new ItemStack(ModRegistration.MIGRATION_DRIVE_EMPTY.get())
+                    : ItemStack.EMPTY;
             player.setItemInHand(hand, shell);
             cn.dancingsnow.neoecoprototype.NeoECOPrototype.LOGGER.info(
-                    "backup drive poured: {} entries, {} into the inventory, {} on the floor at {}, the bag"
-                            + " became {}",
-                    contents.size(), poured, dropped, player.blockPosition(),
-                    BuiltInRegistries.ITEM.getKey(shell.getItem()));
+                    "backup drive poured: {} entries, {} into the inventory, {} on the floor at {}, shell"
+                            + " owed = {}, the hand now holds {}",
+                    contents.size(), poured, dropped, player.blockPosition(), paysShell(bag),
+                    shell.isEmpty() ? "nothing" : BuiltInRegistries.ITEM.getKey(shell.getItem()));
             return InteractionResultHolder.sidedSuccess(shell, level.isClientSide);
         }
         return InteractionResultHolder.pass(bag);

@@ -82,7 +82,7 @@
   "item.neoecoprototype.simplify_singularity_cell": "ECO - L1 奇点元件",
   "item.neoecoprototype.simplify_singularity_cell.desc": "不吃任何东西，按世界时间一批一批长出奇点；库存没有上限，只受计数本身封顶",
   "item.neoecoprototype.simplify_structure_expansion_card": "ECOP - 结构扩容卡",
-  "item.neoecoprototype.simplify_structure_expansion_card.desc": "对已经成型的多方块主机使用。\n【Shift+右键】\n结构未满：一次性搭建至最大长度。\n结构已满：只要背包里有 L9 的料，这台主机就地换成 L9（我们的 L1 与 eco 的 L4/L6 三族通用）。\n【替换规则】\n拆除的旧方块返还至物品栏，新部件从物品栏扣除。\n【缺件保护】\n材料不足时，不拆除任何方块。\n消耗 1 张纸与 1 张空白样板，为当前工单追加一张假合成样板。\n（注：已备齐的部件作为输入，产出一张工单）",
+  "item.neoecoprototype.simplify_structure_expansion_card.desc": "对已经成型的多方块主机使用。\n【Shift+右键】\n结构未满：一次性搭建至最大长度。\n结构已满：只要背包里有 L9 的料，这台主机就地换成 L9（我们的 L1 与 eco 的 L4/L6 三族通用）。\n【替换规则】\n拆除的旧方块备份进一只备份驱动（右键可取出），新部件从物品栏扣除。\n【消耗】\n成功的点击吃掉这张卡；那张驱动随之变回一只空迁移驱动，而空迁移驱动在工作台无序合成就能换回一张卡（1 张卡进出 1 只空盘，不会多出）。被拒的点击不吃卡，只吃 1 张纸与 1 张空白样板，并为当前工单追加一张假合成样板。（注：已备齐的部件作为输入，产出一张工单）",
   "card.neoecoprototype.upgrade.not_full": "还没满配：这台升格迁移驱动要 %s 格长的机器，驱动未生效",
   "card.neoecoprototype.migration.upgraded": "已升格到 %1$s：%2$s 格换了档，换下的部分备份在这只驱动里，右键它就变回空驱动盘，通讯接口信息清空",
   "card.neoecoprototype.migration.wrong_machine": "这只盘管的不是这台机器现在这一档，盘没有消耗",

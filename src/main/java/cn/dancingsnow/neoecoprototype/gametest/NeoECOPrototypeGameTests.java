@@ -11615,6 +11615,32 @@ public final class NeoECOPrototypeGameTests {
                                 + " bill was not netted against the reclaim (matched " + asked + ")");
                         return;
                     }
+                    // A refusal eats the sheet and the blank, never the card - and the drive it leaves
+                    // behind must therefore owe no shell. Otherwise one card in a pocket, clicked against a
+                    // machine it cannot pay for, mints one empty migration drive per refusal forever, which
+                    // is the mint he found on the paid path.
+                    int cardAfter = player.getInventory()
+                            .countItem(ModRegistration.SIMPLIFY_STRUCTURE_EXPANSION_CARD.get());
+                    var ticketDrive = onlyBag(player);
+                    boolean owesShell = !ticketDrive.isEmpty()
+                            && cn.dancingsnow.neoecoprototype.items.BackupDriveItem.paysShell(ticketDrive);
+                    NeoECOPrototype.LOGGER.info("refusal economy: card still held = {}, drives left = {},"
+                            + " drive owes a shell = {}", cardAfter, bagCount(player), owesShell);
+                    if (cardAfter != 1) {
+                        helper.fail("the refusal consumed the card (" + cardAfter + " left) - a refusal has"
+                                + " to leave the tool in hand, only a paid click eats it");
+                        return;
+                    }
+                    if (ticketDrive.isEmpty()) {
+                        helper.fail("the refusal left " + bagCount(player) + " drives, so its ticket and"
+                                + " pattern are nowhere the player can reach");
+                        return;
+                    }
+                    if (owesShell) {
+                        helper.fail("the refusal's drive claims it owes a shell although the click paid no"
+                                + " card - that is the empty-drive mint");
+                        return;
+                    }
                     // buildL1Room ends the test once this callback returns without failing.
                 });
     }
@@ -11666,13 +11692,21 @@ public final class NeoECOPrototypeGameTests {
             }
         }
         int standingBefore = machineSnapshot(helper).size();
+        // The card pays for the click it wins, so it is taken out of the ledger and asserted on its own:
+        // "no block was lost" and "exactly one card was eaten" are two facts, and a grow that ate nothing
+        // would mint an empty migration drive out of the drive it leaves behind.
+        var cardItem = ModRegistration.SIMPLIFY_STRUCTURE_EXPANSION_CARD.get();
         var before = ledger(helper, player);
+        int cardsBefore = before.getOrDefault(cardItem, 0);
         useExpansionCard(helper, player);
         // Read everything while the machine still stands: the sweep below takes the block entity with
         // it, and every one of these answers would become a lie.
         int standingAfter = machineSnapshot(helper).size();
         boolean formed = host.isFormed();
         var after = ledger(helper, player);
+        int cardsAfter = after.getOrDefault(cardItem, 0);
+        before.remove(cardItem);
+        after.remove(cardItem);
         var def = host.getBuildDefinition();
         BlockPos absoluteHost = helper.absolutePos(CARD_HOST);
         var big = cn.dancingsnow.neoecoae.multiblock.placement.MultiBlockPlacementService
@@ -11695,6 +11729,12 @@ public final class NeoECOPrototypeGameTests {
         if (!formed) {
             helper.fail("the card grew " + what + " into a machine that is no longer formed ("
                     + standingBefore + " -> " + standingAfter + " blocks)");
+            return;
+        }
+        if (cardsBefore != 1 || cardsAfter != 0) {
+            helper.fail("growing " + what + " left " + cardsAfter + " card(s) in the ledger where the"
+                    + " click started with " + cardsBefore + " - a click that wins eats exactly one, and"
+                    + " one that eats nothing can be used to mint empty migration drives");
             return;
         }
         if (!before.equals(after)) {
@@ -11922,6 +11962,20 @@ public final class NeoECOPrototypeGameTests {
                                         big.getRequiredItems())
                                 + " [" + describeBill(player, big) + "]"
                                 + " host@" + CARD_HOST + " (a balanced ledger below proves nothing)");
+                        return;
+                    }
+                    // The card pays for the click it wins, so it is the one entry allowed to leave the
+                    // ledger. Taken out of both sides and asserted on its own: "no block was lost" and "the
+                    // card was eaten" are two facts, and merging them would let either failure hide the
+                    // other - and a grow that ate nothing would mint an empty migration drive per click.
+                    var card = ModRegistration.SIMPLIFY_STRUCTURE_EXPANSION_CARD.get();
+                    int cardsBefore = before.getOrDefault(card, 0);
+                    int cardsAfter = after.getOrDefault(card, 0);
+                    before.remove(card);
+                    after.remove(card);
+                    if (cardsBefore != 1 || cardsAfter != 0) {
+                        helper.fail("the grow started with " + cardsBefore + " card(s) in hand and left "
+                                + cardsAfter + " - a successful click eats exactly one, a refusal eats none");
                         return;
                     }
                     if (!before.equals(after)) {
@@ -13058,7 +13112,38 @@ public final class NeoECOPrototypeGameTests {
                         return;
                     }
                     int standingAfter = machineSnapshot(helper).size();
+                    // The mint he reported lives on this path: the card paid for the swap, so it is eaten,
+                    // and the drive it left owes exactly one shell back. One card in, one empty migration
+                    // drive out - anything more is a printer, and the count below is the whole claim.
+                    int cardsLeft = player.getInventory()
+                            .countItem(ModRegistration.SIMPLIFY_STRUCTURE_EXPANSION_CARD.get());
+                    var swapDrive = onlyBag(player);
+                    if (cardsLeft != 0) {
+                        clearMachineBox(helper);
+                        helper.fail("the paid swap left the card in hand (" + cardsLeft
+                                + "), so its drive would mint an empty migration drive for nothing");
+                        return;
+                    }
+                    if (swapDrive.isEmpty()
+                            || !cn.dancingsnow.neoecoprototype.items.BackupDriveItem
+                                    .paysShell(swapDrive)) {
+                        clearMachineBox(helper);
+                        helper.fail("the drive a paid swap leaves does not owe a shell, so the card that"
+                                + " was eaten never comes back");
+                        return;
+                    }
+                    player.setItemInHand(InteractionHand.MAIN_HAND, swapDrive);
+                    swapDrive.getItem().use(level, player, InteractionHand.MAIN_HAND);
+                    int shells = player.getInventory()
+                            .countItem(ModRegistration.MIGRATION_DRIVE_EMPTY.get());
+                    NeoECOPrototype.LOGGER.info("paid swap: card eaten, drive poured to {} empty drive(s),"
+                            + " {} drives left in hand", shells, bagCount(player));
                     clearMachineBox(helper);
+                    if (shells != 1 || bagCount(player) != 0) {
+                        helper.fail("a paid swap poured " + shells + " empty drive(s) out of one eaten"
+                                + " card and left " + bagCount(player) + " drive(s) behind");
+                        return;
+                    }
                     if (standingAfter != before.size()) {
                         helper.fail("the L9 room holds " + standingAfter + " blocks where the L1 room held "
                                 + before.size() + " - the two tiers do not fill the same cells, so this"
@@ -13965,7 +14050,7 @@ public final class NeoECOPrototypeGameTests {
         int total = 64 + 22 + 7;
         // Case one: every slot taken, so all three stacks have to come out as drops.
         player.getInventory().clearContent();
-        player.setItemInHand(InteractionHand.MAIN_HAND, backupDriveOf(helper, total));
+        player.setItemInHand(InteractionHand.MAIN_HAND, backupDriveOf(helper, total, true));
         var slots = player.getInventory().items;
         for (int slot = 0; slot < slots.size(); slot++) {
             if (slots.get(slot).isEmpty()) {
@@ -13994,7 +14079,7 @@ public final class NeoECOPrototypeGameTests {
                 .forEach(net.minecraft.world.entity.item.ItemEntity::discard);
         // Case two: an empty inventory, so everything comes out and nothing is dropped.
         player.getInventory().clearContent();
-        player.setItemInHand(InteractionHand.MAIN_HAND, backupDriveOf(helper, total));
+        player.setItemInHand(InteractionHand.MAIN_HAND, backupDriveOf(helper, total, true));
         player.getItemInHand(InteractionHand.MAIN_HAND).getItem()
                 .use(level, player, InteractionHand.MAIN_HAND);
         dropped = countedDrops(helper, player);
@@ -14007,11 +14092,28 @@ public final class NeoECOPrototypeGameTests {
                         + itemName(after) + ", expected one empty migration drive");
         helper.assertTrue(inBag == total && dropped == 0, "the pour put " + inBag + " in the bag and "
                 + dropped + " on the floor of " + total);
+        // Case three, and the one the mint turned on: a drive whose click paid nothing (a refusal prints a
+        // ticket into one, and a creative click leaves its refund in one) pours out and is simply gone. If
+        // it still handed over an empty migration drive, one card in a pocket would mint drives forever.
+        player.getInventory().clearContent();
+        player.setItemInHand(InteractionHand.MAIN_HAND, backupDriveOf(helper, total, false));
+        player.getItemInHand(InteractionHand.MAIN_HAND).getItem()
+                .use(level, player, InteractionHand.MAIN_HAND);
+        var unpaid = player.getItemInHand(InteractionHand.MAIN_HAND);
+        int unpaidBlocks = countedBlocks(player);
+        int minted = player.getInventory().countItem(ModRegistration.MIGRATION_DRIVE_EMPTY.get());
+        NeoECOPrototype.LOGGER.info("backup drive pour, nothing paid: {} pieces in the inventory, hand holds"
+                + " {}, empty drives minted = {}", unpaidBlocks, itemName(unpaid), minted);
+        helper.assertTrue(unpaid.isEmpty(), "a drive that was not paid for left the hand holding "
+                + itemName(unpaid) + " - that is the mint");
+        helper.assertTrue(unpaidBlocks == total && minted == 0,
+                "the unpaid pour put " + unpaidBlocks + " of " + total + " in the inventory and minted "
+                        + minted + " empty drive(s)");
         helper.succeed();
     }
 
     /** A bag holding cobblestone 64 + dirt 22 + sand 7, the three stacks the pour test splits. */
-    private static ItemStack backupDriveOf(GameTestHelper helper, int total) {
+    private static ItemStack backupDriveOf(GameTestHelper helper, int total, boolean shellOwed) {
         var contents = new java.util.ArrayList<ItemStack>();
         int left = total;
         for (var block : List.of(Items.COBBLESTONE, Items.DIRT, Items.SAND)) {
@@ -14023,8 +14125,12 @@ public final class NeoECOPrototypeGameTests {
             contents.add(stack);
             left -= stack.getCount();
         }
-        return cn.dancingsnow.neoecoprototype.items.BackupDriveItem
+        var drive = cn.dancingsnow.neoecoprototype.items.BackupDriveItem
                 .withContents(helper.getLevel().registryAccess(), contents);
+        if (shellOwed) {
+            cn.dancingsnow.neoecoprototype.items.BackupDriveItem.oweShell(drive);
+        }
+        return drive;
     }
 
     /** How many of the three pour-test items are lying as item entities within eight blocks. */
