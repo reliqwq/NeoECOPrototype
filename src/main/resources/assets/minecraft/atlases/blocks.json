@@ -7,6 +7,14 @@
     {
       "type": "single",
       "resource": "neoecoprototype:block/dissolution_solution_flow"
+    },
+    {
+      "type": "single",
+      "resource": "neoecoprototype:block/cryotheum_ice_cream_still"
+    },
+    {
+      "type": "single",
+      "resource": "neoecoprototype:block/cryotheum_ice_cream_flow"
     }
   ]
 }

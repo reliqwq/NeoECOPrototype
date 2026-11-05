@@ -321,18 +321,22 @@ public final class NeoECOPrototypeClient {
                 MolecularAssemblerRenderer::new);
     }
 
-    /** These two names only resolve because blocks.json stitches them; see the guard in the suite. */
+    /** These names only resolve because blocks.json stitches them; see the guard in the suite. */
     private static final ResourceLocation DISSOLUTION_STILL =
             ResourceLocation.fromNamespaceAndPath(NeoECOPrototype.MOD_ID, "block/dissolution_solution_still");
     private static final ResourceLocation DISSOLUTION_FLOWING =
             ResourceLocation.fromNamespaceAndPath(NeoECOPrototype.MOD_ID, "block/dissolution_solution_flow");
+    private static final ResourceLocation ICE_CREAM_STILL =
+            ResourceLocation.fromNamespaceAndPath(NeoECOPrototype.MOD_ID, "block/cryotheum_ice_cream_still");
+    private static final ResourceLocation ICE_CREAM_FLOWING =
+            ResourceLocation.fromNamespaceAndPath(NeoECOPrototype.MOD_ID, "block/cryotheum_ice_cream_flow");
 
     @SubscribeEvent
     public static void onRegisterClientExtensions(RegisterClientExtensionsEvent event) {
-        // eco gets this for free from Registrate; our fluid is hand-registered, so the two sprite names
-        // have to be handed over here. IClientFluidTypeExtensions.getStillTexture defaults to null and
-        // the bucket model bakes that straight into the block atlas lookup -- a null key is an NPE, not
-        // a missing-texture placeholder.
+        // eco gets this for free from Registrate; our fluids are hand-registered, so the sprite names have
+        // to be handed over here. IClientFluidTypeExtensions.getStillTexture defaults to null and the
+        // bucket model bakes that straight into the block atlas lookup -- a null key is what makes a
+        // bucket read as the purple-black missing sprite, with nothing but one WARN in the client log.
         event.registerFluidType(new IClientFluidTypeExtensions() {
             @Override
             public ResourceLocation getStillTexture() {
@@ -344,6 +348,17 @@ public final class NeoECOPrototypeClient {
                 return DISSOLUTION_FLOWING;
             }
         }, ModRegistration.DISSOLUTION_SOLUTION_TYPE.get());
+        event.registerFluidType(new IClientFluidTypeExtensions() {
+            @Override
+            public ResourceLocation getStillTexture() {
+                return ICE_CREAM_STILL;
+            }
+
+            @Override
+            public ResourceLocation getFlowingTexture() {
+                return ICE_CREAM_FLOWING;
+            }
+        }, ModRegistration.CRYOTHEUM_ICE_CREAM_FLUID_TYPE.get());
     }
 }
 

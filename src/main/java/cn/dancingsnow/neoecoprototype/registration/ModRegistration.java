@@ -627,7 +627,7 @@ public class ModRegistration {
                 .block(() -> DISSOLUTION_SOLUTION_BLOCK.get()).bucket(() -> DISSOLUTION_BUCKET.get());
     }
 
-    // ============ 极寒凛冰冰淇淋：流体（eco 冷却液 8 档）+ 蜂蜜块式的可放置方块 ============
+    // ============ 极寒凛冰冰淇淋：流体（eco 冷却液 8 档）+ 细雪式的可放置方块 ============
 
     /**
      * The dessert as a fluid, so it can be pumped into a coolant bath. eco reads a coolant's rung off a
