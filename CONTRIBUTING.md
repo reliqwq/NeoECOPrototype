@@ -19,6 +19,7 @@ Thank you for helping improve Neo ECO Prototype.
 - Add or update focused tests when changing shared behavior.
 - Run `.\gradlew.bat test --offline` and, when resources or packaging change, `.\gradlew.bat build --offline`.
 - Do not commit `build/`, `run/`, `.gradle/`, local dependency JARs, or reference source trees.
+- Those local JARs are the build: eco is read from `neoecobeta/` and everything else from `libs/`, both gitignored, and `build.gradle` names each file literally. A fresh clone therefore does not compile until the JARs are placed under exactly those names (today `neoecobeta/neoecoae-21.2.15.jar`), and CI cannot tell you - `repository-checks.yml` runs `git diff --check` and greps only, never a build. When the upstream baseline changes, the filename in `build.gradle` changes with it.
 
 ## Release checklist
 
