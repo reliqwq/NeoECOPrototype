@@ -496,7 +496,14 @@ public class ModRegistration {
      * as the one that refuses and went red on it.
      */
     public static final Supplier<Item> CRYOTHEUM_ICE_CREAM = ITEMS.register("cryotheum_ice_cream",
-            () -> new DrinkableFoodItem(new Item.Properties().stacksTo(64).food(
+            () -> new DrinkableFoodItem(new Item.Properties().stacksTo(64)
+                    // The bottle is the dessert's container in every direction, not only when it is drunk:
+                    // crafting four of them back into a bucket hands the four bottles out again, which is
+                    // the honey-bottle rule applied the other way. Item-level, so any future recipe that
+                    // takes an ice cream as an ingredient gets a bottle back too - vanilla's honey bottle
+                    // behaves the same, and that is the trade accepted for not writing a recipe type.
+                    .craftRemainder(net.minecraft.world.item.Items.GLASS_BOTTLE)
+                    .food(
                     new net.minecraft.world.food.FoodProperties.Builder()
                             .nutrition(6)
                             .saturationModifier(0.6F)
@@ -618,6 +625,85 @@ public class ModRegistration {
                 () -> DISSOLUTION_SOLUTION_TYPE.get(), () -> DISSOLUTION_SOLUTION.get(),
                 () -> FLOWING_DISSOLUTION_SOLUTION.get())
                 .block(() -> DISSOLUTION_SOLUTION_BLOCK.get()).bucket(() -> DISSOLUTION_BUCKET.get());
+    }
+
+    // ============ 极寒凛冰冰淇淋：流体（eco 冷却液 8 档）+ 蜂蜜块式的可放置方块 ============
+
+    /**
+     * The dessert as a fluid, so it can be pumped into a coolant bath. eco reads a coolant's rung off a
+     * {@code neoecoae:cooling} recipe rather than off code - see
+     * {@code data/neoecoprototype/recipe/cooling/cryotheum_ice_cream.json}, where this fluid is written as
+     * {@code max_overclock: 8} (water is 2, sodium 6, eco's own cryotheum solution 9).
+     */
+    public static final Supplier<net.neoforged.neoforge.fluids.FluidType> CRYOTHEUM_ICE_CREAM_FLUID_TYPE =
+            FLUID_TYPES.register("cryotheum_ice_cream",
+                    () -> new net.neoforged.neoforge.fluids.FluidType(
+                            net.neoforged.neoforge.fluids.FluidType.Properties.create()
+                                    // Cold, thick and sweet: it sits in the bucket rather than running off it,
+                                    // and a boat on top still floats (the same flag the dissolution bath sets).
+                                    .supportsBoating(true).density(1100).viscosity(1600)));
+    public static final Supplier<net.minecraft.world.level.material.FlowingFluid> CRYOTHEUM_ICE_CREAM_FLUID =
+            FLUIDS.register("cryotheum_ice_cream",
+                    () -> new net.neoforged.neoforge.fluids.BaseFlowingFluid.Source(iceCreamProps()));
+    public static final Supplier<net.minecraft.world.level.material.FlowingFluid>
+            FLOWING_CRYOTHEUM_ICE_CREAM =
+            FLUIDS.register("flowing_cryotheum_ice_cream",
+                    () -> new net.neoforged.neoforge.fluids.BaseFlowingFluid.Flowing(iceCreamProps()));
+
+    /**
+     * The fluid's own block. A {@code BaseFlowingFluid} has to name one, and this is the form the fluid
+     * takes when a pipe or a dispenser puts it down - never when a player does: the bucket below places
+     * {@link #CRYOTHEUM_ICE_CREAM_BLOCK} instead, which is what he asked for ("右键放置…而不是液体").
+     */
+    public static final Supplier<net.minecraft.world.level.block.LiquidBlock> CRYOTHEUM_ICE_CREAM_FLUID_BLOCK =
+            BLOCKS.register("cryotheum_ice_cream",
+                    () -> new net.minecraft.world.level.block.LiquidBlock(CRYOTHEUM_ICE_CREAM_FLUID.get(),
+                            net.minecraft.world.level.block.state.BlockBehaviour.Properties.of()
+                                    .noCollission().replaceable().strength(100.0F).noLootTable()
+                                    .sound(net.minecraft.world.level.block.SoundType.HONEY_BLOCK)));
+
+    /**
+     * What a right-clicked bucket leaves in the world: powder snow's manners, not a puddle. Extending
+     * {@code PowderSnowBlock} is what keeps the behaviour honest - sinking into it, the slowed fall, the
+     * extinguish and the freezing are vanilla's own, and only the texture, the sound group and the name
+     * are ours. Two things are deliberately not vanilla's: it can be picked back up with a plain bucket
+     * into <i>our</i> bucket (see {@code CryotheumIceCreamSnowBlock}, whose vanilla parent hard-codes
+     * {@code Items.POWDER_SNOW_BUCKET}), and it drops itself when broken rather than only to a bucket.
+     */
+    public static final Supplier<cn.dancingsnow.neoecoprototype.block.CryotheumIceCreamSnowBlock>
+            CRYOTHEUM_ICE_CREAM_BLOCK =
+            BLOCKS.register("cryotheum_ice_cream_block",
+                    () -> new cn.dancingsnow.neoecoprototype.block.CryotheumIceCreamSnowBlock(
+                            net.minecraft.world.level.block.state.BlockBehaviour.Properties.of()
+                                    .replaceable().noCollission().noOcclusion()
+                                    .mapColor(MapColor.COLOR_CYAN)
+                                    .strength(0.125F).sound(
+                                            net.minecraft.world.level.block.SoundType.POWDER_SNOW)));
+
+    public static final Supplier<BlockItem> CRYOTHEUM_ICE_CREAM_BLOCK_ITEM =
+            ITEMS.register("cryotheum_ice_cream_block",
+                    () -> new BlockItem(CRYOTHEUM_ICE_CREAM_BLOCK.get(), new Item.Properties()));
+
+    /**
+     * The bucket that places that block. Vanilla's own precedent for "a bucket whose contents are a block"
+     * is {@code SolidBucketItem} (the class behind the powder-snow bucket, which has no class of its own in
+     * 1.21.1), and the precedent for the remainder is the milk bucket: emptying it leaves the plain bucket
+     * behind, so the container is never lost - which is what makes the four-bottle loop in
+     * {@code recipe/cryotheum_ice_cream_from_bucket.json} balance instead of eating a bucket.
+     */
+    public static final Supplier<net.minecraft.world.item.SolidBucketItem> CRYOTHEUM_ICE_CREAM_BUCKET =
+            ITEMS.register("cryotheum_ice_cream_bucket",
+                    () -> new net.minecraft.world.item.SolidBucketItem(CRYOTHEUM_ICE_CREAM_BLOCK.get(),
+                            net.minecraft.sounds.SoundEvents.POWDER_SNOW_PLACE,
+                            new Item.Properties().stacksTo(1)
+                                    .craftRemainder(net.minecraft.world.item.Items.BUCKET)));
+
+    private static net.neoforged.neoforge.fluids.BaseFlowingFluid.Properties iceCreamProps() {
+        return new net.neoforged.neoforge.fluids.BaseFlowingFluid.Properties(
+                () -> CRYOTHEUM_ICE_CREAM_FLUID_TYPE.get(), () -> CRYOTHEUM_ICE_CREAM_FLUID.get(),
+                () -> FLOWING_CRYOTHEUM_ICE_CREAM.get())
+                .block(() -> CRYOTHEUM_ICE_CREAM_FLUID_BLOCK.get())
+                .bucket(() -> CRYOTHEUM_ICE_CREAM_BUCKET.get());
     }
     public static final Supplier<BlockItem> FLAWED_BUDDING_GRETTE_ITEM = ITEMS.register("flawed_budding_grette",
             () -> new BlockItem(FLAWED_BUDDING_GRETTE.get(), new Item.Properties()));
@@ -1822,6 +1908,11 @@ private static Supplier<BlockEntityType<SimplifyStorageVentBlockEntity>> registe
                          // models, loot tables, the structure definition and the reactor_formation suite all
                          // stay, so a world that already has one still loads and still runs.
                         output.accept(CRYOTHEUM_ICE_CREAM.get());
+                        // The dessert's two world forms: the block it pours into and the bucket that places
+                        // it. Both are obtainable on their own, since the block drops itself and the bucket
+                        // is what the crafting loop between four bottles and one bucket needs.
+                        output.accept(CRYOTHEUM_ICE_CREAM_BLOCK_ITEM.get());
+                        output.accept(CRYOTHEUM_ICE_CREAM_BUCKET.get());
                     })
                     .build());
 

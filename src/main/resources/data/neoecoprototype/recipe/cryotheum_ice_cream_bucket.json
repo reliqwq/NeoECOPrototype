@@ -1,0 +1,15 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    { "item": "neoecoprototype:cryotheum_ice_cream" },
+    { "item": "neoecoprototype:cryotheum_ice_cream" },
+    { "item": "neoecoprototype:cryotheum_ice_cream" },
+    { "item": "neoecoprototype:cryotheum_ice_cream" },
+    { "item": "minecraft:bucket" }
+  ],
+  "result": {
+    "count": 1,
+    "id": "neoecoprototype:cryotheum_ice_cream_bucket"
+  }
+}

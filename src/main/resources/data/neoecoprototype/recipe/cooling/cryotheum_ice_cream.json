@@ -1,0 +1,10 @@
+{
+  "type": "neoecoae:cooling",
+  "coolant": 10000,
+  "input": {
+    "amount": 100,
+    "fluid": "neoecoprototype:cryotheum_ice_cream"
+  },
+  "max_overclock": 8,
+  "output": {}
+}

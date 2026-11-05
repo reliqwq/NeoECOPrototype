@@ -1,0 +1,6 @@
+{
+  "parent": "minecraft:block/cube_all",
+  "textures": {
+    "all": "neoecoprototype:block/cryotheum_ice_cream_block"
+  }
+}

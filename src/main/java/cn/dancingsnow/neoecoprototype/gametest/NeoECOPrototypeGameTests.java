@@ -14054,6 +14054,158 @@ public final class NeoECOPrototypeGameTests {
     }
 
     /**
+     * The dessert as a fluid, a bucket and a block - the four promises he named, each checked where it is
+     * actually kept rather than where it is declared.
+     *
+     * <p><b>It pours a block, not a puddle.</b> The bucket is vanilla's own {@code SolidBucketItem} (the
+     * class behind the powder-snow bucket, which has no class of its own in 1.21.1), so what lands in the
+     * world is {@code CryotheumIceCreamSnowBlock} and the cell holds no fluid state at all - that is the
+     * whole difference from {@code BucketItem}, and the fluid state check is what says so. The pick-up
+     * goes back through {@code BucketPickup}, which is also the reason that class exists: vanilla's
+     * powder-sown answer hard-codes {@code Items.POWDER_SNOW_BUCKET}, so without our override a plain
+     * bucket could empty itself here but nothing could ever take the dessert back out.</p>
+     *
+     * <p><b>It cools at rung 8.</b> A coolant's rung is not a field in our code - it is a
+     * {@code neoecoae:cooling} data recipe's {@code max_overclock} - so the number is read off the loaded
+     * recipe and compared against eco's own two anchors on the same scale, water at 2 and its cryotheum
+     * solution at 9. If eco ever moves those, the comparison says so instead of quietly agreeing.</p>
+     *
+     * <p><b>The bottles and the bucket come back.</b> That is the honey-bottle rule, and it lives on the
+     * items: an ice cream's crafting remainder is a glass bottle (so four of them into a bucket hand four
+     * bottles out) and the full bucket's is a plain bucket (so pouring four desserts leaves the container
+     * in the same hand). Both directions are read back as data, and the counts are what make the loop
+     * balance instead of eating a bottle or a bucket each time round.</p>
+     */
+    @GameTest(template = "empty", batch = "ice_cream_fluid", timeoutTicks = 400,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void iceCreamPoursASnowBlockAndCoolsAtRungEight(GameTestHelper helper) {
+        var level = helper.getLevel();
+        var fluidId = cn.dancingsnow.neoecoprototype.NeoECOPrototype.id("cryotheum_ice_cream");
+        var fluid = net.minecraft.core.registries.BuiltInRegistries.FLUID.getOptional(fluidId);
+        if (fluid.isEmpty()) {
+            helper.fail("no fluid is registered under " + fluidId + ", so the cooling recipe below has"
+                    + " nothing to name and no hatch can hold it");
+            return;
+        }
+
+        // --- the bucket places a block, and the cell holds no fluid ---
+        helper.setBlock(new BlockPos(0, 0, 0), net.minecraft.world.level.block.Blocks.STONE);
+        var at = new BlockPos(0, 1, 0);
+        var absoluteAt = helper.absolutePos(at);
+        var player = cardPlayer(helper);
+        var bucket = new ItemStack(ModRegistration.CRYOTHEUM_ICE_CREAM_BUCKET.get());
+        player.setItemInHand(InteractionHand.MAIN_HAND, bucket);
+        var hit = new net.minecraft.world.phys.BlockHitResult(
+                net.minecraft.world.phys.Vec3.atCenterOf(absoluteAt), net.minecraft.core.Direction.UP,
+                helper.absolutePos(new BlockPos(0, 0, 0)), true);
+        bucket.getItem().useOn(new net.minecraft.world.item.context.UseOnContext(
+                level, player, InteractionHand.MAIN_HAND, bucket, hit));
+        var placed = level.getBlockState(absoluteAt);
+        boolean fluidInstead = !level.getFluidState(absoluteAt).isEmpty();
+        var handAfter = player.getItemInHand(InteractionHand.MAIN_HAND);
+        NeoECOPrototype.LOGGER.info("ice cream bucket: placed {}, fluid state in that cell = {}, the hand"
+                        + " now holds {}", name(placed.getBlock()), fluidInstead, itemName(handAfter));
+        if (placed.getBlock() != ModRegistration.CRYOTHEUM_ICE_CREAM_BLOCK.get()) {
+            helper.fail("the bucket placed " + name(placed.getBlock()) + " instead of the dessert's own"
+                    + " block - he asked for something you put down, not a liquid that runs");
+            return;
+        }
+        if (fluidInstead) {
+            helper.fail("the cell holds a fluid state, so the placement is a puddle and not the snow-like"
+                    + " block");
+            return;
+        }
+        if (!handAfter.is(net.minecraft.world.item.Items.BUCKET)) {
+            helper.fail("after pouring, the hand holds " + itemName(handAfter) + " rather than the empty"
+                    + " bucket the container rule promises");
+            return;
+        }
+
+        // --- and a plain bucket takes it back, into our bucket rather than vanilla's ---
+        var picked = ((net.minecraft.world.level.block.BucketPickup) placed.getBlock())
+                .pickupBlock(player, level, absoluteAt, placed);
+        var stillStanding = level.getBlockState(absoluteAt);
+        NeoECOPrototype.LOGGER.info("ice cream bucket back: picked up {}, the cell now holds {}",
+                itemName(picked), name(stillStanding.getBlock()));
+        if (!picked.is(ModRegistration.CRYOTHEUM_ICE_CREAM_BUCKET.get())
+                || !stillStanding.isAir()) {
+            helper.fail("a bucket drew the dessert up as " + itemName(picked) + " and left "
+                    + name(stillStanding.getBlock()) + " standing - vanilla's own pick-up would have"
+                    + " handed back a powder-snow bucket, which is not this");
+            return;
+        }
+
+        // --- the coolant rung, read off the loaded table and not off a file name: eco gates two of its own
+        // cooling recipes on whether Mekanism is installed, so a hard-coded path would go red for the wrong
+        // reason. Every loaded cooling recipe is walked, and 8 is then compared against its neighbours.
+        var rungs = new java.util.TreeMap<Integer, java.util.List<String>>();
+        for (var holder : level.getRecipeManager().getRecipes()) {
+            if (holder.value() instanceof cn.dancingsnow.neoecoae.recipe.CoolingRecipe cooling) {
+                rungs.computeIfAbsent(cooling.maxOverclock(), key -> new java.util.ArrayList<>())
+                        .add(BuiltInRegistries.FLUID
+                                .getKey(cooling.input().getFluids()[0].getFluid()).toString());
+            }
+        }
+        NeoECOPrototype.LOGGER.info("ice cream cooling: the loaded rungs are {}, dessert asked for 8 -> {}",
+                rungs, rungs.get(8));
+        if (rungs.get(8) == null || !rungs.get(8).contains(fluidId.toString())) {
+            helper.fail("no cooling recipe grants rung 8 to " + fluidId + " - the loaded table is " + rungs
+                    + ", so the bath is not the 8 档 coolant he asked for");
+            return;
+        }
+        if (rungs.firstKey() >= 8 || rungs.lastKey() <= 8) {
+            helper.fail("rung 8 is not a rung in the middle of a ladder: the loaded rungs are " + rungs
+                    + ", so nothing here says what 8 is worth against water or cryotheum");
+            return;
+        }
+
+        // --- the container loop, on the items themselves ---
+        var dessertRemainder = ModRegistration.CRYOTHEUM_ICE_CREAM.get().getCraftingRemainingItem();
+        var bucketRemainder = ModRegistration.CRYOTHEUM_ICE_CREAM_BUCKET.get().getCraftingRemainingItem();
+        var outOfBucket = recipeByName(helper, level, "cryotheum_ice_cream_from_bucket");
+        var intoBucket = recipeByName(helper, level, "cryotheum_ice_cream_bucket");
+        NeoECOPrototype.LOGGER.info("ice cream loop: dessert remainder {}, bucket remainder {}, bucket ->"
+                        + " {} x{}, 4 desserts + bucket -> {}",
+                itemName(new ItemStack(dessertRemainder)), itemName(new ItemStack(bucketRemainder)),
+                outOfBucket.getResultItem(level.registryAccess()).getDescriptionId(),
+                outOfBucket.getResultItem(level.registryAccess()).getCount(),
+                itemName(intoBucket.getResultItem(level.registryAccess())));
+        if (dessertRemainder != net.minecraft.world.item.Items.GLASS_BOTTLE
+                || bucketRemainder != net.minecraft.world.item.Items.BUCKET) {
+            helper.fail("the containers do not come back: a dessert returns "
+                    + itemName(new ItemStack(dessertRemainder)) + " and a full bucket returns "
+                    + itemName(new ItemStack(bucketRemainder)));
+            return;
+        }
+        var poured = outOfBucket.getResultItem(level.registryAccess());
+        if (!poured.is(ModRegistration.CRYOTHEUM_ICE_CREAM.get()) || poured.getCount() != 4) {
+            helper.fail("one bucket plus four bottles yields " + poured.getCount() + " x "
+                    + poured.getDescriptionId() + ", expected four of the desserts");
+            return;
+        }
+        var filled = intoBucket.getResultItem(level.registryAccess());
+        if (!filled.is(ModRegistration.CRYOTHEUM_ICE_CREAM_BUCKET.get())) {
+            helper.fail("four desserts and an empty bucket yield " + filled.getDescriptionId()
+                    + ", expected the full bucket back");
+            return;
+        }
+        helper.succeed();
+    }
+
+    /** A recipe by its data file name, so the counts below are read off the game and never quoted. */
+    private static net.minecraft.world.item.crafting.Recipe<?> recipeByName(GameTestHelper helper,
+                                                                            net.minecraft.world.level.Level level,
+                                                                            String name) {
+        var id = cn.dancingsnow.neoecoprototype.NeoECOPrototype.id(name);
+        var found = level.getRecipeManager().byKey(id);
+        if (found.isEmpty()) {
+            helper.fail("no recipe loaded under " + id);
+            throw new IllegalStateException("unreachable: helper.fail throws");
+        }
+        return found.get().value();
+    }
+
+    /**
      * The pour, in the two shapes that decide it: a bag with no free slot at all, and one with exactly
      * enough. Both have to end with the bag gone - the point of the rule is that nothing is kept as a
      * residue for the player to come back for - and the difference between them is only whether the blocks
