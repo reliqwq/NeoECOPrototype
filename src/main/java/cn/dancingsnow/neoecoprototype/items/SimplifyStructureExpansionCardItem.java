@@ -158,6 +158,29 @@ public class SimplifyStructureExpansionCardItem extends Item {
         return "card.neoecoprototype.expansion.no_rung";
     }
 
+    /**
+     * The colour the click's bag should wear: the rung the machine <b>started</b> on, which is the question
+     * the migration disks already answer ("each drive wears its start tier"), so a green bag and the green
+     * disk agree about where those parts came from. 0 means plain, and it is what a bag can only be when no
+     * host moved - growing a room along its edge leaves the host standing, so there is no tier in the bag
+     * to name. L9 never appears here either: nothing climbs past it, so no click can start there.
+     */
+    public static int tierColour(@Nullable MultiBlockDefinition from) {
+        if (from == SimplifyStorageDefinition.L1 || from == SimplifyComputationDefinition.L1
+                || from == SimplifyCraftingDefinition.L1) {
+            return ModRegistration.NAME_THEME_TIER_L1;
+        }
+        if (from == NEMultiBlocks.STORAGE_SYSTEM_L4 || from == NEMultiBlocks.COMPUTATION_SYSTEM_L4
+                || from == NEMultiBlocks.CRAFTING_SYSTEM_L4) {
+            return ModRegistration.NAME_THEME_TIER_L4;
+        }
+        if (from == NEMultiBlocks.STORAGE_SYSTEM_L6 || from == NEMultiBlocks.COMPUTATION_SYSTEM_L6
+                || from == NEMultiBlocks.CRAFTING_SYSTEM_L6) {
+            return ModRegistration.NAME_THEME_TIER_L6;
+        }
+        return 0;
+    }
+
     /** What to tell the player when {@link #targetOf} came back with nothing. */
     protected Component refusal(MultiBlockDefinition current, int length) {
         // Named by the machine rather than by a bare number: "已经是最大边长 11" on its own does not say
@@ -258,7 +281,8 @@ public class SimplifyStructureExpansionCardItem extends Item {
 
     private void grow(MultiBlockBuildController.Host host, ServerLevel level, BlockPos pos,
                       ServerPlayer player, net.minecraft.world.InteractionHand hand) {
-        Owed owed = new Owed(player);
+        // Plain: growing moves no host, so the parts this click hands back carry no tier to wear.
+        Owed owed = new Owed(player, 0);
         if (!host.canPlayerInteract(player) || host.isBuildInProgress()) {
             say(player, "card.neoecoprototype.expansion.busy");
             return;
@@ -356,7 +380,7 @@ public class SimplifyStructureExpansionCardItem extends Item {
     private void upgradeTier(MultiBlockBuildController.Host host, ServerLevel level, BlockPos pos,
                              ServerPlayer player, MultiBlockDefinition current, int length,
                              net.minecraft.world.InteractionHand hand) {
-        Owed owed = new Owed(player);
+        Owed owed = new Owed(player, tierColour(current));
         MultiBlockDefinition target = targetOf(current);
         if (target == null) {
             say(player, refusal(current, length));
@@ -910,9 +934,12 @@ public class SimplifyStructureExpansionCardItem extends Item {
     static final class Owed {
         private final List<ItemStack> stacks = new ArrayList<>();
         private final ServerPlayer player;
+        /** The rung to put on the bag's name, or 0 for plain - see {@link #tierColour}. */
+        private final int nameColour;
 
-        Owed(ServerPlayer player) {
+        Owed(ServerPlayer player, int nameColour) {
             this.player = player;
+            this.nameColour = nameColour;
         }
 
         /** Whether anything is on the list - which is another way of asking whether a bag will come out. */
@@ -944,6 +971,9 @@ public class SimplifyStructureExpansionCardItem extends Item {
             List<ItemStack> merged = mergedForBag(stacks);
             stacks.clear();
             var bag = StructureRewardBagItem.withContents(level.registryAccess(), merged);
+            if (nameColour != 0) {
+                StructureRewardBagItem.wearTier(bag, nameColour);
+            }
             if (player.getInventory().add(bag.copy())) {
                 say(player, Component.translatable("card.neoecoprototype.expansion.bagged", merged.size()));
                 return;

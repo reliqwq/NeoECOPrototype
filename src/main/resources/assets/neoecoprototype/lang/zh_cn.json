@@ -100,7 +100,7 @@
   "card.neoecoprototype.reward_bag.more": "还有 %s 种",
   "card.neoecoprototype.reward_bag.unresolvable": "另有 %s 样东西现在认不出来，仍留在袋里",
   "item.neoecoprototype.structure_reward_bag": "奖励袋",
-  "item.neoecoprototype.structure_reward_bag.desc": "一次点击欠你的东西，都先进这一只袋子。\n【右键】\n整袋倒回背包；格子不够的那部分掉在你脚边，袋子本身变回一只空迁移驱动，不留残留。\n【它收什么】\n换下来的方块、没能装回去的存储矩阵与样板、被拒时打出的工单和它的处理样板；用升格驱动时，这只袋子本身就是那张空盘。\n【它从哪来】\n没有配方，也不会长在机器上：由卡或驱动交给你，背包连袋子都放不下时它掉在主机那一格上（那时它不会过期消失）。\n【样子】就是空驱动盘的图压暗，不是新画的一张。",
+  "item.neoecoprototype.structure_reward_bag.desc": "一次点击欠你的东西，都先进这一只袋子。\n【右键】\n整袋倒回背包；格子不够的那部分掉在你脚边，袋子本身变回一只空迁移驱动，不留残留。\n【它收什么】\n换下来的方块、没能装回去的存储矩阵与样板、被拒时打出的工单和它的处理样板；用升格驱动时，这只袋子本身就是那张空盘。\n【它从哪来】\n没有配方，也不会长在机器上：由卡或驱动交给你，背包连袋子都放不下时它掉在主机那一格上（那时它不会过期消失）。\n【样子】就是空驱动盘的图压暗，不是新画的一张。\n【颜色】\n名字按换下来那台机器的起始档位上色：L1 绿、L4 蓝、L6 橙，跟升格盘是同一套数（沿边扩大形状的那一种没动主机，袋子里没有档位可说，就不上色）。",
   "card.neoecoprototype.reward_bag.unresolvable_refusal": "袋里有 %s 样东西现在的游戏认不出来，所以它不会自己倒空",
   "card.neoecoprototype.expansion.not_formed": "这台主机还没成型：先用它面板上的一键建造，或把缺的那几格补上",
   "card.neoecoprototype.expansion.blocked": "那一格站着不属于这台机器的方块：%1$s, %2$s, %3$s",

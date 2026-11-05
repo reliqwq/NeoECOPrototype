@@ -263,11 +263,15 @@ public class ModRegistration {
      */
     private static final int NAME_THEME_GREEN = 0xFF94EDAB;
 
-    /** The migration ladder's colours, sampled off the artist's own bands: each drive wears its start tier. */
-    private static final int NAME_THEME_TIER_L1 = 0xFF61D389;
-    private static final int NAME_THEME_TIER_L4 = 0xFF80AEFF;
-    private static final int NAME_THEME_TIER_L6 = 0xFFE57E39;
-    private static final int NAME_THEME_TIER_L9 = 0xFFB379E0;
+    /**
+     * The migration ladder's colours, sampled off the artist's own bands: each drive wears its start tier.
+     * Public because the reward bag wears the same answer - the rung the click started on - and two copies
+     * of a sampled number is how a palette drifts apart one pixel at a time.
+     */
+    public static final int NAME_THEME_TIER_L1 = 0xFF61D389;
+    public static final int NAME_THEME_TIER_L4 = 0xFF80AEFF;
+    public static final int NAME_THEME_TIER_L6 = 0xFFE57E39;
+    public static final int NAME_THEME_TIER_L9 = 0xFFB379E0;
 
     /**
      * The CPU plushie's own name colour. Deliberately not {@link #NAME_THEME_TIER_L4}: that number means

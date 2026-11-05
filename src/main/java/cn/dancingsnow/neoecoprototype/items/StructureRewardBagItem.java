@@ -121,6 +121,22 @@ public class StructureRewardBagItem extends Item {
     }
 
     /**
+     * Put the rung this bag came from on its name, in the ladder's own colours - the same answer a migration
+     * disk gives ("each drive wears its start tier"), so a green bag and the green disk say the same thing
+     * about where the parts came from.
+     *
+     * <p>On {@link DataComponents#ITEM_NAME} and never {@code CUSTOM_NAME}: the first is a display override
+     * every stack of this bag carries, the second is an anvil rename, which would make the name render
+     * italic and read as renamed. A bag whose click moved no host - one that grew a room along its edge -
+     * is left plain, because there is no tier in it to name.</p>
+     */
+    public static void wearTier(ItemStack bag, int colour) {
+        bag.set(DataComponents.ITEM_NAME, Component
+                .translatable("item.neoecoprototype.structure_reward_bag")
+                .withStyle(net.minecraft.network.chat.Style.EMPTY.withColor(colour)));
+    }
+
+    /**
      * Right-click: everything the bag holds goes into the player's inventory, whatever cannot fit falls out
      * as an ordinary item drop at their feet, and the bag itself turns into one empty migration drive - the
      * tile it is drawn from. Nothing is left holding a residue, and nothing has to be hunted for twice.
