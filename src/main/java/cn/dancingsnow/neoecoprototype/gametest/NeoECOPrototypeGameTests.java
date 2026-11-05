@@ -14058,7 +14058,9 @@ public final class NeoECOPrototypeGameTests {
      * actually kept rather than where it is declared.
      *
      * <p><b>It pours a block, not a puddle.</b> The bucket is our own {@code CryotheumIceCreamBucketItem}: a
-     * {@code BucketItem}, so it really carries the fluid, with the emptying paths overridden so what lands
+     * {@code BucketItem} with {@code FluidBucketWrapper} registered for it (see
+     * {@code everyBucketItemWeRegisterCarriesItsFluid} for why the class alone is not enough), with the
+     * emptying paths overridden so what lands
      * in the world is {@code CryotheumIceCreamSnowBlock} and the cell holds no fluid state at all - that last
      * check is what says the placement is a cell and not a puddle. The pick-up goes back through
      * {@code BucketPickup}, which is also the reason that class exists: vanilla's powder-snow answer
@@ -14257,6 +14259,10 @@ public final class NeoECOPrototypeGameTests {
      * by NeoForge's exact-class loop, so a red that names only ours is a diagnosis and not a coincidence),
      * and eco's rung-9 coolant is measured with the same ruler in the same call - because a red here while
      * that control is also red would say nothing about our buckets, only that the ruler is blind.</p>
+     *
+     * <p>Both directions are pinned, because they are wired by two different things: the bucket answering
+     * what it holds is the capability, and a filling station finding a bucket for a fluid is the fluid's own
+     * {@code Properties#bucket}. The first one is what broke; the second has no other reading anywhere.</p>
      */
     @GameTest(template = "empty", batch = "ice_cream_fluid", timeoutTicks = 200,
             templateNamespace = NeoECOPrototype.MOD_ID)
@@ -14304,7 +14310,31 @@ public final class NeoECOPrototypeGameTests {
                     + " - a 1000 mB draw leaves the tank and lands in an item that reports nothing, while"
                     + " eco's bucket on the same ruler carries 1000 mB");
         }
-        helper.succeed();
+        // The other half of the loop, which nothing else reads: fluid -> bucket item. A filling station or a
+        // hatch's "fill bucket" button asks FluidType#getBucket, which goes through the fluid's own
+        // Properties#bucket - a fluid that never called .bucket(...) hands out AIR there and the fluid is
+        // simply gone, with no red anywhere in the tank-to-bucket direction above.
+        var unnamed = new java.util.ArrayList<String>();
+        for (var entry : BuiltInRegistries.FLUID.entrySet()) {
+            var id = entry.getKey().location();
+            if (!NeoECOPrototype.MOD_ID.equals(id.getNamespace())
+                    || !(entry.getValue() instanceof net.neoforged.neoforge.fluids.BaseFlowingFluid.Source)) {
+                continue;
+            }
+            var filled = net.neoforged.neoforge.fluids.FluidUtil.getFilledBucket(
+                    new net.neoforged.neoforge.fluids.FluidStack(entry.getValue(), 1000));
+            int carried = millilitresIn(filled);
+            NeoECOPrototype.LOGGER.info("bucket link: 1000 mB of {} fills {}", id, itemName(filled));
+            if (carried != 1000) {
+                unnamed.add(id + " -> " + itemName(filled) + ", carrying " + carried + " mB");
+            }
+        }
+        if (unnamed.isEmpty()) {
+            helper.succeed();
+            return;
+        }
+        helper.fail("these fluids of ours name no bucket, so filling one by hand takes the fluid and gives"
+                + " back an item that holds nothing: " + unnamed);
     }
 
     /** -1 when the item has no fluid handler whatsoever, else what its first tank reports. */

@@ -692,8 +692,8 @@ public class ModRegistration {
      * BucketItem.class} exactly, so this class needs the explicit registration in
      * {@code NeoECOPrototype.registerCapabilities}.
      * Named that way, a 1000 mB draw from a tank handed the player a bucket reporting no fluid at all - the
-     * fluid left the tank and landed nowhere, which is what
-     * {@code aBucketOfOurFluidCarriesTheFluidItWasFilledWith} measures (eco's own cryotheum solution bucket
+     * fluid left the tank and landed nowhere, which is what {@code everyBucketItemWeRegisterCarriesItsFluid}
+     * measures (eco's own cryotheum solution bucket
      * answers 1000 mB to the same ruler, so that red is about ours and not about the question). Being a real
      * fluid container is also the only way this coolant reaches a bath: the input hatch and every pump ask
      * that handler.</p>
