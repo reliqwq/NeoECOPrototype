@@ -385,11 +385,9 @@ public class SimplifyStructureExpansionCardItem extends Item {
         }
         host.rebuildAfterBuild();
         owed.bagAll(giveNow(player, pending));
-        // Growing pays with the card too: it changed a machine, and the bag it may still leave behind
-        // would otherwise be a shell minted by a click that cost nothing.
-        if (consumedOnSuccess()) {
-            payWith(player, hand, owed);
-        }
+        // Growing pays nothing with the card: it moves the shell outward, so no host and no tier changes
+        // hands - there is nothing the card is a price for. That also closes the mint here, because a bag
+        // this click did not pay for is left unmarked and pours out without handing back a shell.
         owed.seal(level, pos);
         say(player, Component.translatable("card.neoecoprototype.expansion.grown", target,
                 plan.getMissingBlocks().size()));

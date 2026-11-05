@@ -11692,9 +11692,8 @@ public final class NeoECOPrototypeGameTests {
             }
         }
         int standingBefore = machineSnapshot(helper).size();
-        // The card pays for the click it wins, so it is taken out of the ledger and asserted on its own:
-        // "no block was lost" and "exactly one card was eaten" are two facts, and a grow that ate nothing
-        // would mint an empty migration drive out of the drive it leaves behind.
+        // Growing along the edge replaces no host and no tier, so the card is not what it pays with - it
+        // has to survive the click, and it is counted inside the ledger below rather than removed from it.
         var cardItem = ModRegistration.SIMPLIFY_STRUCTURE_EXPANSION_CARD.get();
         var before = ledger(helper, player);
         int cardsBefore = before.getOrDefault(cardItem, 0);
@@ -11705,8 +11704,6 @@ public final class NeoECOPrototypeGameTests {
         boolean formed = host.isFormed();
         var after = ledger(helper, player);
         int cardsAfter = after.getOrDefault(cardItem, 0);
-        before.remove(cardItem);
-        after.remove(cardItem);
         var def = host.getBuildDefinition();
         BlockPos absoluteHost = helper.absolutePos(CARD_HOST);
         var big = cn.dancingsnow.neoecoae.multiblock.placement.MultiBlockPlacementService
@@ -11731,10 +11728,10 @@ public final class NeoECOPrototypeGameTests {
                     + standingBefore + " -> " + standingAfter + " blocks)");
             return;
         }
-        if (cardsBefore != 1 || cardsAfter != 0) {
+        if (cardsBefore != 1 || cardsAfter != 1) {
             helper.fail("growing " + what + " left " + cardsAfter + " card(s) in the ledger where the"
-                    + " click started with " + cardsBefore + " - a click that wins eats exactly one, and"
-                    + " one that eats nothing can be used to mint empty migration drives");
+                    + " click started with " + cardsBefore + " - growing along the edge replaces no host"
+                    + " and no tier, so it must not eat the card");
             return;
         }
         if (!before.equals(after)) {
@@ -11964,18 +11961,15 @@ public final class NeoECOPrototypeGameTests {
                                 + " host@" + CARD_HOST + " (a balanced ledger below proves nothing)");
                         return;
                     }
-                    // The card pays for the click it wins, so it is the one entry allowed to leave the
-                    // ledger. Taken out of both sides and asserted on its own: "no block was lost" and "the
-                    // card was eaten" are two facts, and merging them would let either failure hide the
-                    // other - and a grow that ate nothing would mint an empty migration drive per click.
+                    // Growing replaces no host and no tier, so the card is not its price: it has to come out
+                    // of the click whole. Left in the ledger as well, so a card lost here shows twice rather
+                    // than hiding behind its own assertion.
                     var card = ModRegistration.SIMPLIFY_STRUCTURE_EXPANSION_CARD.get();
                     int cardsBefore = before.getOrDefault(card, 0);
                     int cardsAfter = after.getOrDefault(card, 0);
-                    before.remove(card);
-                    after.remove(card);
-                    if (cardsBefore != 1 || cardsAfter != 0) {
+                    if (cardsBefore != 1 || cardsAfter != 1) {
                         helper.fail("the grow started with " + cardsBefore + " card(s) in hand and left "
-                                + cardsAfter + " - a successful click eats exactly one, a refusal eats none");
+                                + cardsAfter + " - growing along the edge replaces no host, so it eats none");
                         return;
                     }
                     if (!before.equals(after)) {
