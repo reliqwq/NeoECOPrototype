@@ -477,12 +477,25 @@ public class ModRegistration {
      * {@code Item.Properties} default so that a future reader sees a decision instead of an inheritance.
      * Vanilla's bottled foods are 16 (honey bottle) and 1 (potion); the guard prints both next to ours so the
      * deviation stays measured rather than assumed.
+     *
+     * <p>It also carries {@code alwaysEdible}, which he asked for on 2026-11-05 - "吃饱时不能，这不合理".
+     * The gate is {@code player.canEat(food.canAlwaysEat())} and {@code canEat} reads
+     * {@code invulnerable || ignoreHunger || foodLevel < 20}, so without the flag a full hunger bar refuses the
+     * drink and the item looks broken. It is worth being exact about what that makes us: a plain food like
+     * cooked chicken does refuse at a full bar, while the honey bottle and potions never reach the question -
+     * {@code HoneyBottleItem#use} is {@code ItemUtils.startUsingInstantly} and consults nothing. So this item
+     * sits between them: it still goes through the food path (nutrition, saturation, the returned bottle) and
+     * is exempt from the hunger requirement. The guard asserts all three outcomes on one player at food
+     * level 20 - ours CONSUME, chicken FAIL, honey CONSUME - because the honey line is why the chicken line is
+     * the honest comparison, and I only learned that when a first version of this test named the honey bottle
+     * as the one that refuses and went red on it.
      */
     public static final Supplier<Item> CRYOTHEUM_ICE_CREAM = ITEMS.register("cryotheum_ice_cream",
             () -> new DrinkableFoodItem(new Item.Properties().stacksTo(64).food(
                     new net.minecraft.world.food.FoodProperties.Builder()
                             .nutrition(6)
                             .saturationModifier(0.6F)
+                            .alwaysEdible()
                             .usingConvertsTo(net.minecraft.world.item.Items.GLASS_BOTTLE)
                             .build())));
     public static final Supplier<BlockItem> SMALL_GRETTE_BUD_ITEM = ITEMS.register("small_grette_bud",

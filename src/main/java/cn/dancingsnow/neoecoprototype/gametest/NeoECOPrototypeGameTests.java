@@ -661,6 +661,13 @@ public final class NeoECOPrototypeGameTests {
      * stock, and nobody reads {@code usingConvertsTo} in a data file. The second is arm animation and sound,
      * both of which follow {@code ItemStack#getUseAnimation()}, whose default for a FOOD item is EAT - so it
      * is compared against the honey bottle's DRINK and the chicken's EAT rather than against our own override.
+     *
+     * <p>And a survival player at a full hunger bar must be able to start drinking it, while cooked chicken in
+     * the same tick must still be refused - that pair is the behaviour he asked for ("吃饱时不能，这不合理"),
+     * tested at the gate ({@code Item#use} → {@code player.canEat(food.canAlwaysEat())}) rather than by
+     * reading the builder flag, so a flag that never reaches the gate would still be caught. The honey bottle
+     * is asserted as the third case because it does not refuse: its {@code use} is
+     * {@code ItemUtils.startUsingInstantly} and never consults hunger at all.
      */
     @GameTest(template = "empty", batch = "ice_cream_food", timeoutTicks = 200,
             templateNamespace = NeoECOPrototype.MOD_ID)
@@ -792,13 +799,53 @@ public final class NeoECOPrototypeGameTests {
                     + " (expected 1) - one of the three references moved");
             return;
         }
+        // The gate itself, not the flag: Item#use asks player.canEat(food.canAlwaysEat()), and canEat is
+        // invulnerable || ignoreHunger || foodLevel < 20. GameTestHelper#makeMockPlayer builds an anonymous
+        // Player and never calls setGameMode, so its PlayerAbilities keeps the vanilla default
+        // invulnerable = true - which short-circuits the gate for every item and would let this test pass
+        // without measuring anything. Turning that flag off by hand is the whole setup.
+        //
+        // The contrast is cooked chicken, not the honey bottle: I wrote honey first and the guard went red
+        // on it, because HoneyBottleItem#use is ItemUtils.startUsingInstantly - it never consults canEat at
+        // all (it has to work as a poison cure), and so does PotionItem. A plain Item carrying a FOOD
+        // component is the one that refuses at a full bar. All three are asserted, because the honey line
+        // is the reason the chicken line is the honest comparison.
+        var full = helper.makeMockPlayer(GameType.SURVIVAL);
+        full.getAbilities().invulnerable = false;
+        full.getFoodData().setFoodLevel(20);
+        full.setItemInHand(InteractionHand.MAIN_HAND, stack);
+        var ours = ModRegistration.CRYOTHEUM_ICE_CREAM.get()
+                .use((net.minecraft.world.level.Level) helper.getLevel(), full, InteractionHand.MAIN_HAND)
+                .getResult();
+        full.setItemInHand(InteractionHand.MAIN_HAND,
+                new ItemStack(net.minecraft.world.item.Items.COOKED_CHICKEN));
+        var chickenGate = net.minecraft.world.item.Items.COOKED_CHICKEN
+                .use((net.minecraft.world.level.Level) helper.getLevel(), full, InteractionHand.MAIN_HAND)
+                .getResult();
+        full.setItemInHand(InteractionHand.MAIN_HAND,
+                new ItemStack(net.minecraft.world.item.Items.HONEY_BOTTLE));
+        var honeyGate = net.minecraft.world.item.Items.HONEY_BOTTLE
+                .use((net.minecraft.world.level.Level) helper.getLevel(), full, InteractionHand.MAIN_HAND)
+                .getResult();
+        if (ours != net.minecraft.world.InteractionResult.CONSUME
+                || chickenGate != net.minecraft.world.InteractionResult.FAIL
+                || honeyGate != net.minecraft.world.InteractionResult.CONSUME) {
+            helper.fail("at a full hunger bar (invulnerable=" + full.getAbilities().invulnerable
+                    + ", foodLevel=" + full.getFoodData().getFoodLevel() + ") the ice cream returned " + ours
+                    + " (expected CONSUME), cooked chicken returned " + chickenGate
+                    + " (expected FAIL - it is the plain gated food), and the honey bottle returned "
+                    + honeyGate + " (expected CONSUME - it bypasses the gate entirely)");
+            return;
+        }
         NeoECOPrototype.LOGGER.info("ICECREAM nutrition={} saturation={} convertsTo={} animation={}"
-                        + " (chicken={} honey={}) category={} stacks={} (honeyBottle={} potion={})"
-                        + " ingredients={} chickenReference={}/{}",
+                        + " (chicken={} honey={}) category={} alwaysEdible={} fullBarGate(ours={} chicken={}"
+                        + " honey={}) stacks={} (honeyBottle={} potion={}) ingredients={}"
+                        + " chickenReference={}/{}",
                 food.nutrition(), food.saturation(),
                 converts.get().getDescriptionId(), animation, chickenAnimation, honeyAnimation,
-                category, ourStack, honeyStack, potionStack, describeIngredients(ingredients),
-                chicken.nutrition(), chicken.saturation());
+                category, food.canAlwaysEat(), ours, chickenGate, honeyGate,
+                ourStack, honeyStack, potionStack,
+                describeIngredients(ingredients), chicken.nutrition(), chicken.saturation());
         helper.succeed();
     }
 
