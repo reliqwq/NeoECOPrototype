@@ -14337,6 +14337,132 @@ public final class NeoECOPrototypeGameTests {
                 + " back an item that holds nothing: " + unnamed);
     }
 
+    /**
+     * The dessert's fluid has a survival route that never touches a bucket.
+     *
+     * <p>eco's integrated workstation takes a fluid output as a first-class field: the recipe record carries
+     * {@code fluidOutput} with {@code hasFluidOutput()}, the machine fills its own {@code outputTank} from it,
+     * and eco ships exactly one such recipe of its own - its rung-9 coolant, made from water. That is the
+     * shape copied here, so this coolant arrives through the same machine that already makes eco's.</p>
+     *
+     * <p>Everything is read through upstream's own accessors rather than off our JSON: the aggregate is
+     * eco's ({@code LargeWorkstationRecipes#getById}, which only holds what its decoder accepted), the output
+     * is the {@code GenericStack} list the machine hands the network, and the bill is matched by
+     * {@code LargeWorkstationRecipe#matches} - true for exactly what it asks for, false one cryotheum short.
+     * eco's coolant rides the same call as the control, because a red on both would say its decoder changed,
+     * not that our file is wrong.</p>
+     */
+    @GameTest(template = "empty", batch = "ice_cream_fluid", timeoutTicks = 200,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void iceCreamFluidIsMadeInAnIntegratedWorkstation(GameTestHelper helper) {
+        var level = helper.getLevel();
+        var control = cn.dancingsnow.neoecoae.recipe.LargeWorkstationRecipes.getById(level,
+                ResourceLocation.fromNamespaceAndPath("neoecoae",
+                        "integrated_working_station/cryotheum_solution"));
+        if (control == null) {
+            helper.fail("eco's own fluid-output workstation recipe is not in its aggregate, so the control that"
+                    + " shows this ruler can read a working fluid output cannot be measured");
+            return;
+        }
+        var controlOut = fluidOutputOf(control);
+        NeoECOPrototype.LOGGER.info("workstation control: eco's {} hands out {}", control.id(), controlOut);
+        if (controlOut == null || controlOut.amount() != 1000) {
+            helper.fail("the ruler is blind: eco's own coolant recipe hands out "
+                    + (controlOut == null ? "no fluid at all" : controlOut.amount() + " mB")
+                    + ", so a red on ours would say nothing about ours");
+            return;
+        }
+        var ours = cn.dancingsnow.neoecoae.recipe.LargeWorkstationRecipes.getById(level,
+                NeoECOPrototype.id("integrated_working_station/cryotheum_ice_cream"));
+        if (ours == null) {
+            helper.fail("our workstation recipe never reached eco's aggregate, so its JSON was refused by"
+                    + " upstream's decoder and the fluid has no survival route that does not start with a bucket");
+            return;
+        }
+        var oursOut = fluidOutputOf(ours);
+        NeoECOPrototype.LOGGER.info("workstation fluid: ours hands out {} for energy {}", oursOut, ours.energy());
+        var ourFluid = appeng.api.stacks.AEFluidKey.of(ModRegistration.CRYOTHEUM_ICE_CREAM_FLUID.get());
+        if (oursOut == null) {
+            helper.fail("our workstation recipe names no fluid output at all, while eco's on the same ruler"
+                    + " hands out " + controlOut);
+            return;
+        }
+        if (!ourFluid.equals(oursOut.what()) || oursOut.amount() != 1000) {
+            helper.fail("the workstation hands back " + oursOut + " instead of 1000 mB of " + ourFluid
+                    + " - one cell is one bucket is 1000 mB, and this route has to agree with the bucket");
+            return;
+        }
+        var cryotheum = BuiltInRegistries.ITEM.get(ResourceLocation.fromNamespaceAndPath("neoecoae", "cryotheum"));
+        if (cryotheum == net.minecraft.world.item.Items.AIR) {
+            helper.fail("eco's cryotheum is not in the item registry, so the bill below cannot be assembled");
+            return;
+        }
+        // The machine's own gate: ECOIntegratedWorkingStationBlockEntity hands the recipe manager its slot
+        // list plus its input tank, so the bill is matched the same way - not through the pattern-facing
+        // KeyCounter matcher, which is a different question (what a CPU could extract, not what a player
+        // can start).
+        var holder = level.getRecipeManager().byKey(
+                NeoECOPrototype.id("integrated_working_station/cryotheum_ice_cream"));
+        if (holder.isEmpty()) {
+            helper.fail("no recipe of type neoecoae:integrated_working_station is loaded under our id,"
+                    + " even though eco's aggregate lists it");
+            return;
+        }
+        var loaded = holder.get().value();
+        if (!(loaded instanceof cn.dancingsnow.neoecoae.recipe.IntegratedWorkingStationRecipe machineRecipe)) {
+            helper.fail("our recipe loaded as " + loaded.getClass().getName()
+                    + ", not eco's workstation recipe class, so the machine would never look at it");
+            return;
+        }
+        var water = new net.neoforged.neoforge.fluids.FluidStack(
+                net.minecraft.world.level.material.Fluids.WATER, 1000);
+        var full = new cn.dancingsnow.neoecoae.recipe.IntegratedWorkingStationRecipe.Input(
+                java.util.List.of(new ItemStack(cryotheum, 4),
+                        new ItemStack(net.minecraft.world.item.Items.SUGAR, 2),
+                        new ItemStack(net.minecraft.world.item.Items.SNOWBALL, 2)), water);
+        var oneShort = new cn.dancingsnow.neoecoae.recipe.IntegratedWorkingStationRecipe.Input(
+                java.util.List.of(new ItemStack(cryotheum, 3),
+                        new ItemStack(net.minecraft.world.item.Items.SUGAR, 2),
+                        new ItemStack(net.minecraft.world.item.Items.SNOWBALL, 2)), water);
+        var noWater = new cn.dancingsnow.neoecoae.recipe.IntegratedWorkingStationRecipe.Input(
+                java.util.List.of(new ItemStack(cryotheum, 4),
+                        new ItemStack(net.minecraft.world.item.Items.SUGAR, 2),
+                        new ItemStack(net.minecraft.world.item.Items.SNOWBALL, 2)),
+                net.neoforged.neoforge.fluids.FluidStack.EMPTY);
+        NeoECOPrototype.LOGGER.info("workstation bill: full = {}, one cryotheum short = {}, no water = {};"
+                        + " output = {}, item output present = {}",
+                machineRecipe.matches(full, level), machineRecipe.matches(oneShort, level),
+                machineRecipe.matches(noWater, level), machineRecipe.fluidOutput(),
+                machineRecipe.hasItemOutput());
+        if (!machineRecipe.matches(full, level)) {
+            helper.fail("the workstation refuses the exact bill our own recipe asks for, so no player can"
+                    + " start this batch: " + machineRecipe);
+            return;
+        }
+        if (machineRecipe.matches(oneShort, level) || machineRecipe.matches(noWater, level)) {
+            helper.fail("the workstation accepts a bill that is short - one cryotheum missing or no water at"
+                    + " all - so the inputs are not what the recipe says they are");
+            return;
+        }
+        if (!machineRecipe.hasFluidOutput()) {
+            helper.fail("the recipe the machine reads has no fluid output, while eco's aggregate reported "
+                    + oursOut);
+            return;
+        }
+        helper.succeed();
+    }
+
+    /** The fluid a workstation recipe hands back, or null when its output list carries none. */
+    private static appeng.api.stacks.GenericStack fluidOutputOf(
+            cn.dancingsnow.neoecoae.recipe.LargeWorkstationRecipe recipe) {
+        for (var out : recipe.outputs()) {
+            if (out != null && out.what() instanceof appeng.api.stacks.AEFluidKey) {
+                return out;
+            }
+        }
+        return null;
+    }
+
     /** -1 when the item has no fluid handler whatsoever, else what its first tank reports. */
     private static int millilitresIn(ItemStack stack) {
         var handler = net.neoforged.neoforge.fluids.FluidUtil.getFluidHandler(stack);
