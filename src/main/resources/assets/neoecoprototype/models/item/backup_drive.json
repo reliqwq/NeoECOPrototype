@@ -1,6 +1,6 @@
 {
   "parent": "minecraft:item/generated",
   "textures": {
-    "layer0": "neoecoprototype:item/structure_reward_bag"
+    "layer0": "neoecoprototype:item/backup_drive"
   }
 }

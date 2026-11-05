@@ -2,6 +2,7 @@ package cn.dancingsnow.neoecoprototype.items;
 
 import cn.dancingsnow.neoecoprototype.registration.ModRegistration;
 import net.minecraft.core.HolderLookup;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
@@ -37,12 +38,12 @@ import java.util.List;
  * quietly eaten, which is the same rule the card follows everywhere else: something the player owns may move
  * places, but it never just vanishes.</p>
  */
-public class StructureRewardBagItem extends Item {
+public class BackupDriveItem extends Item {
 
     /** The list inside {@code CUSTOM_DATA}; each element is one saved item stack. */
     private static final String TAG_BLOCKS = "neoecoprototype:blocks";
 
-    public StructureRewardBagItem(Properties properties) {
+    public BackupDriveItem(Properties properties) {
         super(properties);
     }
 
@@ -51,7 +52,7 @@ public class StructureRewardBagItem extends Item {
      * each within the item's own stack limit - because that is the whole point of the container.
      */
     public static ItemStack withContents(@Nullable HolderLookup.Provider registries, List<ItemStack> stacks) {
-        ItemStack bag = new ItemStack(ModRegistration.STRUCTURE_REWARD_BAG.get());
+        ItemStack bag = new ItemStack(ModRegistration.BACKUP_DRIVE.get());
         ListTag list = new ListTag();
         for (ItemStack stack : stacks) {
             if (stack.isEmpty() || registries == null) {
@@ -132,7 +133,7 @@ public class StructureRewardBagItem extends Item {
      */
     public static void wearTier(ItemStack bag, int colour) {
         bag.set(DataComponents.ITEM_NAME, Component
-                .translatable("item.neoecoprototype.structure_reward_bag")
+                .translatable("item.neoecoprototype.backup_drive")
                 .withStyle(net.minecraft.network.chat.Style.EMPTY.withColor(colour)));
     }
 
@@ -153,22 +154,26 @@ public class StructureRewardBagItem extends Item {
         if (unresolvable > 0) {
             if (!level.isClientSide) {
                 player.displayClientMessage(Component.translatable(
-                        "card.neoecoprototype.reward_bag.unresolvable_refusal", unresolvable), true);
+                        "card.neoecoprototype.backup_drive.unresolvable_refusal", unresolvable), true);
             }
             return InteractionResultHolder.fail(bag);
         }
         if (contents.isEmpty()) {
             if (!level.isClientSide) {
                 player.displayClientMessage(
-                        Component.translatable("card.neoecoprototype.reward_bag.empty"), true);
+                        Component.translatable("card.neoecoprototype.backup_drive.empty"), true);
             }
             return InteractionResultHolder.fail(bag);
         }
         if (!level.isClientSide) {
+            int poured = 0;
+            int dropped = 0;
             for (ItemStack stack : contents) {
                 if (player.getInventory().add(stack.copy())) {
+                    poured += stack.getCount();
                     continue;
                 }
+                dropped += stack.getCount();
                 var drop = new ItemEntity(level, player.getX(), player.getEyeY(), player.getZ(),
                         stack.copy());
                 // Ten ticks, so a stack that just fell out cannot go straight back into the hand that
@@ -180,6 +185,11 @@ public class StructureRewardBagItem extends Item {
             // darkened - so the refund container closes the same loop: it turns back into the shell.
             ItemStack shell = new ItemStack(ModRegistration.MIGRATION_DRIVE_EMPTY.get());
             player.setItemInHand(hand, shell);
+            cn.dancingsnow.neoecoprototype.NeoECOPrototype.LOGGER.info(
+                    "backup drive poured: {} entries, {} into the inventory, {} on the floor at {}, the bag"
+                            + " became {}",
+                    contents.size(), poured, dropped, player.blockPosition(),
+                    BuiltInRegistries.ITEM.getKey(shell.getItem()));
             return InteractionResultHolder.sidedSuccess(shell, level.isClientSide);
         }
         return InteractionResultHolder.pass(bag);
@@ -191,23 +201,23 @@ public class StructureRewardBagItem extends Item {
         HolderLookup.Provider registries = context == null ? null : context.registries();
         List<ItemStack> contents = contentsOf(bag, registries);
         if (contents.isEmpty() && unresolvableOf(bag, registries) == 0) {
-            lines.add(Component.translatable("card.neoecoprototype.reward_bag.empty_contents"));
+            lines.add(Component.translatable("card.neoecoprototype.backup_drive.empty_contents"));
             return;
         }
         int shown = 0;
         for (ItemStack stack : contents) {
             if (shown == 4) {
-                lines.add(Component.translatable("card.neoecoprototype.reward_bag.more",
+                lines.add(Component.translatable("card.neoecoprototype.backup_drive.more",
                         contents.size() - shown));
                 break;
             }
-            lines.add(Component.translatable("card.neoecoprototype.reward_bag.line",
+            lines.add(Component.translatable("card.neoecoprototype.backup_drive.line",
                     stack.getHoverName(), stack.getCount()));
             shown++;
         }
         int unresolvable = unresolvableOf(bag, registries);
         if (unresolvable > 0) {
-            lines.add(Component.translatable("card.neoecoprototype.reward_bag.unresolvable", unresolvable));
+            lines.add(Component.translatable("card.neoecoprototype.backup_drive.unresolvable", unresolvable));
         }
     }
 }

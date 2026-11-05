@@ -38,7 +38,7 @@ public final class SimplifyTooltipHandler {
     private static final String EXPANSION_CARD_KEY =
             "item.neoecoprototype.simplify_structure_expansion_card.desc";
     /** Same reason: the bag is the only place a refund goes when the inventory is already full. */
-    private static final String REWARD_BAG_KEY = "item.neoecoprototype.structure_reward_bag.desc";
+    private static final String BACKUP_DRIVE_KEY = "item.neoecoprototype.backup_drive.desc";
     /** Each disk says what the swap costs, what comes back, and the one thing it does not carry over. */
     private static final String MIGRATION_DRIVE_KEY =
             "item.neoecoprototype.migration_drive.desc";
@@ -114,8 +114,8 @@ public final class SimplifyTooltipHandler {
             return EXPANSION_CARD_KEY;
         }
         // The bag says its rules here and its contents in the item's own appendHoverText.
-        if (stack.is(ModRegistration.STRUCTURE_REWARD_BAG.get())) {
-            return REWARD_BAG_KEY;
+        if (stack.is(ModRegistration.BACKUP_DRIVE.get())) {
+            return BACKUP_DRIVE_KEY;
         }
         if (stack.getItem() instanceof cn.dancingsnow.neoecoprototype.items.SimplifyMigrationDriveItem drive) {
             return drive.rung() == cn.dancingsnow.neoecoprototype.items.SimplifyMigrationDriveItem.Rung

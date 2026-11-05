@@ -98,7 +98,7 @@ import cn.dancingsnow.neoecoprototype.items.SimplifyConcreteStorageCellItem;
 import cn.dancingsnow.neoecoprototype.items.SimplifySingularityCellItem;
 import cn.dancingsnow.neoecoprototype.items.SimplifyMigrationDriveItem;
 import cn.dancingsnow.neoecoprototype.items.SimplifyStructureExpansionCardItem;
-import cn.dancingsnow.neoecoprototype.items.StructureRewardBagItem;
+import cn.dancingsnow.neoecoprototype.items.BackupDriveItem;
 import cn.dancingsnow.neoecoprototype.items.SimplifyStorageCellItem;
 import cn.dancingsnow.neoecoprototype.items.SimplifySmallBulkFluidStorageCellItem;
 import cn.dancingsnow.neoecoprototype.items.SimplifySmallBulkStorageCellItem;
@@ -265,7 +265,7 @@ public class ModRegistration {
 
     /**
      * The migration ladder's colours, sampled off the artist's own bands: each drive wears its start tier.
-     * Public because the reward bag wears the same answer - the rung the click started on - and two copies
+     * Public because the backup drive wears the same answer - the rung the click started on - and two copies
      * of a sampled number is how a palette drifts apart one pixel at a time.
      */
     public static final int NAME_THEME_TIER_L1 = 0xFF61D389;
@@ -903,9 +903,9 @@ public class ModRegistration {
      * player's bag: one item instead of ninety loose blocks at the machine's own cells. Right-click it to
      * pour the contents back; it stays if even that does not fit.
      */
-    public static final Supplier<StructureRewardBagItem> STRUCTURE_REWARD_BAG =
-            ITEMS.register("structure_reward_bag",
-                    () -> new StructureRewardBagItem(new Item.Properties().stacksTo(1)));
+    public static final Supplier<BackupDriveItem> BACKUP_DRIVE =
+            ITEMS.register("backup_drive",
+                    () -> new BackupDriveItem(new Item.Properties().stacksTo(1)));
 
     /** The card hands this out instead of a note when an L1 storage room cannot be paid for. */
     public static final Supplier<Item> SIMPLIFY_WORK_ORDER_GROW_L1_STORAGE =
@@ -1758,7 +1758,7 @@ private static Supplier<BlockEntityType<SimplifyStorageVentBlockEntity>> registe
                         // In the tab so the pour path can be held in hand without first overflowing a bag:
                         // in game the card only ever produces one when the refund genuinely had nowhere to
                         // go, and it never carries a recipe.
-                        output.accept(STRUCTURE_REWARD_BAG.get());
+                        output.accept(BACKUP_DRIVE.get());
                         // The whole ladder, next to the card it replaces: the four usable disks and the spent
                         // shell, so a tester can hold both ends of a rung at once. None of the five has a
                         // recipe, so this is a creative-mode route, not a survival one.

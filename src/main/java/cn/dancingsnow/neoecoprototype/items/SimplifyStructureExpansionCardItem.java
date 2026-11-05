@@ -496,7 +496,7 @@ public class SimplifyStructureExpansionCardItem extends Item {
      * this card reached our own L1 rooms that set is every cell in the machine - casings, drives with a
      * matrix mounted in them, buses with patterns in them - not just the tier-bearing parts, so
      * {@link #rescueContents} takes the contents out before the block goes and {@link #returnContents} puts
-     * them back after it. The blocks themselves go onto the click's list and leave in one reward bag,
+     * them back after it. The blocks themselves go onto the click's list and leave in one backup drive,
      * because a disk costs a disk and not the inventory - and the empty shell the disk comes back as is that
      * same bag, whose tile is the darkened drive and whose right-click turns it back.</p>
      */
@@ -680,7 +680,7 @@ public class SimplifyStructureExpansionCardItem extends Item {
      * are checked before either is taken, and each refusal says so out loud: a silent return here reads
      * to the player as a broken card.</p>
      *
-     * <p>Both go into the click's reward bag rather than being handed over loose. The pattern is the reason:
+     * <p>Both go into the click's backup drive rather than being handed over loose. The pattern is the reason:
      * an encoded AE2 pattern is nothing but components, so a one-count entity on the ground is a ticket that
      * stops being one five minutes later, and the player has no way to see that clock.</p>
      */
@@ -918,7 +918,7 @@ public class SimplifyStructureExpansionCardItem extends Item {
     }
 
     /**
-     * What one click owes the player, gathered in one place so it leaves as a single reward bag instead of
+     * What one click owes the player, gathered in one place so it leaves as a single backup drive instead of
      * a floor covered in one-count drops.
      *
      * <p>Bagged rather than handed, on {@code #refundsReplacedBlocks()} paths and for everything a refusal
@@ -928,8 +928,11 @@ public class SimplifyStructureExpansionCardItem extends Item {
      * pattern a refused click prints is the case that really needed this - its whole content is its
      * components, so a loose drop on the ground is a ticket that quietly rots.</p>
      *
-     * <p>Two paths still hand straight into the inventory, and both have to: {@link #grow}'s refund is spent
-     * by eco's own builder a moment later, and a creative player is owed nothing at all.</p>
+     * <p>One path still hands into the inventory instead: {@link #grow}'s refund, because eco's own builder
+     * bills the whole bigger shape out of those slots a moment later and would refuse without them. That
+     * path is also the one a creative player is billed nothing on, so its parts are let go rather than
+     * bagged - the first version skipped the bag for every creative click, which read to the person testing
+     * it in creative as the feature not working at all.</p>
      */
     static final class Owed {
         private final List<ItemStack> stacks = new ArrayList<>();
@@ -947,9 +950,9 @@ public class SimplifyStructureExpansionCardItem extends Item {
             return stacks.isEmpty();
         }
 
-        /** Put one thing on the list. */
+        /** Put one thing on the list - in creative too, because the bag is what the player reads. */
         void bag(ItemStack stack) {
-            if (!stack.isEmpty() && !player.isCreative()) {
+            if (!stack.isEmpty()) {
                 stacks.add(stack.copy());
             }
         }
@@ -970,11 +973,18 @@ public class SimplifyStructureExpansionCardItem extends Item {
             }
             List<ItemStack> merged = mergedForBag(stacks);
             stacks.clear();
-            var bag = StructureRewardBagItem.withContents(level.registryAccess(), merged);
+            var bag = BackupDriveItem.withContents(level.registryAccess(), merged);
             if (nameColour != 0) {
-                StructureRewardBagItem.wearTier(bag, nameColour);
+                BackupDriveItem.wearTier(bag, nameColour);
             }
-            if (player.getInventory().add(bag.copy())) {
+            var handed = player.getInventory().add(bag.copy());
+            // One line per sealed bag: what went in, which rung it claims to wear, and whether the player
+            // actually received it - so a client report can say which half failed when the hand looks wrong.
+            NeoECOPrototype.LOGGER.info("backup drive: {} entries sealed, colour = {}, host cell {}, "
+                            + "handed to the player = {}",
+                    merged.size(), nameColour == 0 ? "plain" : Integer.toHexString(nameColour), anchor,
+                    handed);
+            if (handed) {
                 say(player, Component.translatable("card.neoecoprototype.expansion.bagged", merged.size()));
                 return;
             }

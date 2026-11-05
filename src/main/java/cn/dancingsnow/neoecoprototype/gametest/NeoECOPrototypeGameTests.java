@@ -11559,7 +11559,7 @@ public final class NeoECOPrototypeGameTests {
                     int orders = 0;
                     ItemStack printedStack = ItemStack.EMPTY;
                     // Through the bags as well: a refusal now seals the ticket and its pattern into the same
-                    // reward bag a swap's refund goes into, so a slot-only walk would read both as missing.
+                    // backup drive a swap's refund goes into, so a slot-only walk would read both as missing.
                     for (var held : carriedStacks(player)) {
                         if (held.is(Items.PAPER)) {
                             // Count items, not stacks: two sheets share a slot, so a stack count cannot
@@ -12218,11 +12218,11 @@ public final class NeoECOPrototypeGameTests {
                                 + back.get(disk) + " in the inventory");
                         return;
                     }
-                    // What this click owes as an empty drive is the reward bag itself: its tile is that
+                    // What this click owes as an empty drive is the backup drive itself: its tile is that
                     // drive darkened, and pouring it is what turns it back. So one bag in hand is the shell,
                     // and the guard aDiskSwapPaysItsShellWithTheBagItLeaves runs that pour.
                     if (bagCount(player) != 1) {
-                        helper.fail("the swap left " + bagCount(player) + " reward bags in the player's"
+                        helper.fail("the swap left " + bagCount(player) + " backup drives in the player's"
                                 + " inventory, expected the one holding every block it took out");
                         return;
                     }
@@ -12405,11 +12405,11 @@ public final class NeoECOPrototypeGameTests {
                                 + back.get(disk) + " in the inventory");
                         return;
                     }
-                    // What this click owes as an empty drive is the reward bag itself: its tile is that
+                    // What this click owes as an empty drive is the backup drive itself: its tile is that
                     // drive darkened, and pouring it is what turns it back. So one bag in hand is the shell,
                     // and the guard aDiskSwapPaysItsShellWithTheBagItLeaves runs that pour.
                     if (bagCount(player) != 1) {
-                        helper.fail("the swap left " + bagCount(player) + " reward bags in the player's"
+                        helper.fail("the swap left " + bagCount(player) + " backup drives in the player's"
                                 + " inventory, expected the one holding every block it took out");
                         return;
                     }
@@ -12487,11 +12487,11 @@ public final class NeoECOPrototypeGameTests {
                                 + back.get(disk) + " in hand");
                         return;
                     }
-                    // What this click owes as an empty drive is the reward bag itself: its tile is that
+                    // What this click owes as an empty drive is the backup drive itself: its tile is that
                     // drive darkened, and pouring it is what turns it back. So one bag in hand is the shell,
                     // and the guard aDiskSwapPaysItsShellWithTheBagItLeaves runs that pour.
                     if (bagCount(player) != 1) {
-                        helper.fail("the swap left " + bagCount(player) + " reward bags in the player's"
+                        helper.fail("the swap left " + bagCount(player) + " backup drives in the player's"
                                 + " inventory, expected the one holding every block it took out");
                         return;
                     }
@@ -13544,9 +13544,9 @@ public final class NeoECOPrototypeGameTests {
      * five minutes. The count below is the whole refund again, which is also the claim that nothing of it
      * leaked out as a drop: the shape's cells plus the host.</p>
      */
-    @GameTest(template = "l1_room", batch = "reward_bag_appears", timeoutTicks = 600,
+    @GameTest(template = "l1_room", batch = "backup_drive_appears", timeoutTicks = 600,
             templateNamespace = NeoECOPrototype.MOD_ID)
-    public static void rewardBagHoldsEveryBlockTheRefundCouldNotHandOver(GameTestHelper helper) {
+    public static void backupDriveHoldsEveryBlockTheRefundCouldNotHandOver(GameTestHelper helper) {
         buildRoomToMaxLength(helper, CARD_HOST,
                 ModRegistration.SIMPLIFY_STORAGE_CONTROLLER_BLOCK.get(),
                 ModRegistration.SIMPLIFY_STORAGE_INTERFACE_BLOCK.get(),
@@ -13602,7 +13602,7 @@ public final class NeoECOPrototypeGameTests {
                             new net.minecraft.world.phys.AABB(plot.getX(), plot.getY() - 2, plot.getZ(),
                                     plot.getX() + L1_ROOM_SIZE, plot.getY() + L1_ROOM_SIZE,
                                     plot.getZ() + L1_ROOM_SIZE))) {
-                        if (entity.getItem().is(ModRegistration.STRUCTURE_REWARD_BAG.get())) {
+                        if (entity.getItem().is(ModRegistration.BACKUP_DRIVE.get())) {
                             bags.add(entity);
                             continue;
                         }
@@ -13615,12 +13615,12 @@ public final class NeoECOPrototypeGameTests {
                     }
                     if (bags.size() != 1) {
                         clearMachineBox(helper);
-                        helper.fail("the refund left " + bags.size() + " reward bags on the floor, expected"
+                        helper.fail("the refund left " + bags.size() + " backup drives on the floor, expected"
                                 + " exactly one, and " + loose.size() + " loose blocks: " + loose);
                         return;
                     }
                     var bag = bags.get(0).getItem();
-                    var inside = cn.dancingsnow.neoecoprototype.items.StructureRewardBagItem
+                    var inside = cn.dancingsnow.neoecoprototype.items.BackupDriveItem
                             .contentsOf(bag, level.registryAccess());
                     int pieces = 0;
                     int shells = 0;
@@ -13632,9 +13632,9 @@ public final class NeoECOPrototypeGameTests {
                     }
                     // The host cell is part of the refund too, so the count is the standing machine plus the
                     // host block, and the kinds are however many of those do not stack into one another.
-                    int kinds = cn.dancingsnow.neoecoprototype.items.StructureRewardBagItem.kindsOf(bag);
+                    int kinds = cn.dancingsnow.neoecoprototype.items.BackupDriveItem.kindsOf(bag);
                     boolean persistent = bags.get(0).lifespan == Integer.MAX_VALUE;
-                    NeoECOPrototype.LOGGER.info("reward bag: {} pieces in {} kinds, despawn-proof = {},"
+                    NeoECOPrototype.LOGGER.info("backup drive: {} pieces in {} kinds, despawn-proof = {},"
                                     + " refund kinds on the floor = {}, unrelated piles in this plot = {}",
                             pieces, kinds, persistent, loose.size(), foreign);
                     clearMachineBox(helper);
@@ -13667,7 +13667,7 @@ public final class NeoECOPrototypeGameTests {
     }
 
     /**
-     * The default the person who asked for the bag named: "应该默认收纳到奖励袋里". A disk swap with a whole
+     * The default the person who asked for the bag named: "应该默认收纳到备份驱动里". A disk swap with a whole
      * empty inventory in front of it still hands one bag rather than filling thirty-six slots with the
      * machine's old parts, and the loop closes on the disk's own promise - the disk comes back empty - because
      * the bag's tile is that empty drive darkened and pouring it is what turns it back.
@@ -13677,7 +13677,7 @@ public final class NeoECOPrototypeGameTests {
      * exists for: a disk in, two drives out, and nothing in the suite would have said so. The control is to
      * hand that shell in {@code onSwapped} whether or not a bag came out of the click.</p>
      */
-    @GameTest(template = "l1_room", batch = "reward_bag_shell", timeoutTicks = 600,
+    @GameTest(template = "l1_room", batch = "backup_drive_shell", timeoutTicks = 600,
             templateNamespace = NeoECOPrototype.MOD_ID)
     public static void aDiskSwapPaysItsShellWithTheBagItLeaves(GameTestHelper helper) {
         buildRoomToMaxLength(helper, CARD_HOST,
@@ -13714,11 +13714,11 @@ public final class NeoECOPrototypeGameTests {
                     if (bagCount(player) != 1) {
                         clearMachineBox(helper);
                         helper.fail("the click left " + bagCount(player)
-                                + " reward bags, expected exactly one");
+                                + " backup drives, expected exactly one");
                         return;
                     }
                     if (!player.getItemInHand(InteractionHand.MAIN_HAND)
-                            .is(ModRegistration.STRUCTURE_REWARD_BAG.get())) {
+                            .is(ModRegistration.BACKUP_DRIVE.get())) {
                         clearMachineBox(helper);
                         helper.fail("the bag is not what the player holds ("
                                 + itemName(player.getItemInHand(InteractionHand.MAIN_HAND))
@@ -13752,7 +13752,7 @@ public final class NeoECOPrototypeGameTests {
                     // bag is the thing being claimed, not a loose stack to be counted against it.
                     var loose = new java.util.HashMap<Item, Integer>();
                     for (var held : player.getInventory().items) {
-                        if (held.isEmpty() || held.is(ModRegistration.STRUCTURE_REWARD_BAG.get())) {
+                        if (held.isEmpty() || held.is(ModRegistration.BACKUP_DRIVE.get())) {
                             continue;
                         }
                         loose.merge(held.getItem(), held.getCount(), Integer::sum);
@@ -13764,7 +13764,7 @@ public final class NeoECOPrototypeGameTests {
                         return;
                     }
                     // Pour it, holding the bag in the hand the way the guard above just proved it is held.
-                    int kindsSealed = cn.dancingsnow.neoecoprototype.items.StructureRewardBagItem
+                    int kindsSealed = cn.dancingsnow.neoecoprototype.items.BackupDriveItem
                             .kindsOf(player.getItemInHand(InteractionHand.MAIN_HAND));
                     player.getItemInHand(InteractionHand.MAIN_HAND).getItem()
                             .use(level, player, InteractionHand.MAIN_HAND);
@@ -13804,7 +13804,7 @@ public final class NeoECOPrototypeGameTests {
      * ladder). The control is to make {@code tierColour} answer 0 for L1 - this and the runtime reading in
      * {@link #aDiskSwapPaysItsShellWithTheBagItLeaves} both go red on the sentence that names the colour.
      */
-    @GameTest(template = "empty", batch = "reward_bag_tier_colour", timeoutTicks = 200,
+    @GameTest(template = "empty", batch = "backup_drive_tier_colour", timeoutTicks = 200,
             templateNamespace = NeoECOPrototype.MOD_ID)
     public static void theBagWearsTheSameRungColourAsTheDiskThatStartedThere(GameTestHelper helper) {
         var rungs = List.of(
@@ -13863,20 +13863,109 @@ public final class NeoECOPrototypeGameTests {
     }
 
     /**
+     * The same click made by a player in creative, because that is the player who reports on it. The first
+     * version of the bag let a creative click go: {@code Owed#bag} skipped the whole list when the player
+     * was creative, so the parts were destroyed, nothing was handed, and the reading from his own client was
+     * "备份驱动不生效" with no log line to say why. The bag is what he looks at, so it is made in every game
+     * mode - and the disk is still not eaten here, which is the one thing that stays creative's.
+     */
+    @GameTest(template = "l1_room", batch = "backup_drive_creative", timeoutTicks = 600,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void aCreativeDiskSwapStillLeavesOneColouredBag(GameTestHelper helper) {
+        buildRoomToMaxLength(helper, CARD_HOST,
+                ModRegistration.SIMPLIFY_STORAGE_CONTROLLER_BLOCK.get(),
+                ModRegistration.SIMPLIFY_STORAGE_INTERFACE_BLOCK.get(),
+                host -> {
+                    var level = helper.getLevel();
+                    var anchor = helper.absolutePos(CARD_HOST);
+                    int drivesBefore = 0;
+                    for (var state : machineSnapshot(helper).values()) {
+                        if (state.getBlock() == ModRegistration.SIMPLIFY_DRIVE_BLOCK.get()) {
+                            drivesBefore++;
+                        }
+                    }
+                    if (drivesBefore == 0) {
+                        helper.fail("not one simplify_drive stands in this room, so the bag below"
+                                + " would have nothing to hold");
+                        return;
+                    }
+                    var player = cardPlayer(helper);
+                    // The game mode, not the ability flag: on a ServerPlayer those are two different
+                    // predicates. isCreative() reads gameMode.getGameModeForPlayer(), while
+                    // hasInfiniteMaterials() reads abilities.instabuild - setting only the second makes a
+                    // fake player "creative" to the disk's own consume check and still survival to the bag.
+                    // Caught the cheap way: the first version of this guard passed against the very control
+                    // it was written to fail on.
+                    player.gameMode.changeGameModeForPlayer(net.minecraft.world.level.GameType.CREATIVE);
+                    player.setShiftKeyDown(true);
+                    player.getInventory().clearContent();
+                    var disk = ModRegistration.MIGRATION_DRIVE_1_4.get();
+                    player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(disk, 1));
+                    useCard(helper, player, disk);
+
+                    if (level.getBlockState(anchor).getBlock()
+                            != cn.dancingsnow.neoecoae.all.NEBlocks.STORAGE_SYSTEM_L4.get()) {
+                        clearMachineBox(helper);
+                        helper.fail("the creative click did not land on eco's L4, so the bag below is not"
+                                + " a refund from a tier change");
+                        return;
+                    }
+                    var bag = onlyBag(player);
+                    if (bag.isEmpty()) {
+                        clearMachineBox(helper);
+                        helper.fail("a creative swap left " + bagCount(player) + " bags: this is the exact"
+                                + " shape he reported as the bag not working");
+                        return;
+                    }
+                    int drives = 0;
+                    for (var stack : cn.dancingsnow.neoecoprototype.items.BackupDriveItem
+                            .contentsOf(bag, level.registryAccess())) {
+                        if (stack.is(ModRegistration.SIMPLIFY_DRIVE_ITEM.get())) {
+                            drives += stack.getCount();
+                        }
+                    }
+                    var colour = bag.getHoverName().getStyle().getColor();
+                    var stillHeld = player.getInventory().countItem(disk);
+                    NeoECOPrototype.LOGGER.info("creative swap: {} drives in the bag of {} standing, colour"
+                                    + " {}, disk still held = {}",
+                            drives, drivesBefore,
+                            colour == null ? "plain" : Integer.toHexString(colour.getValue()), stillHeld);
+                    clearMachineBox(helper);
+                    if (drives != drivesBefore) {
+                        helper.fail("the creative bag holds " + drives + " drives while " + drivesBefore
+                                + " stood before the click");
+                        return;
+                    }
+                    if (colour == null || (colour.getValue() & 0xFFFFFF)
+                            != (ModRegistration.NAME_THEME_TIER_L1 & 0xFFFFFF)) {
+                        helper.fail("the creative bag wears "
+                                + (colour == null ? "no colour" : Integer.toHexString(colour.getValue()))
+                                + " instead of the L1 green - the colour rule is not the same in both modes");
+                        return;
+                    }
+                    if (stillHeld != 1) {
+                        helper.fail("creative consumed the disk (" + stillHeld + " left), which is the one"
+                                + " thing creative should not do to a player's own item");
+                        return;
+                    }
+                });
+    }
+
+    /**
      * The pour, in the two shapes that decide it: a bag with no free slot at all, and one with exactly
      * enough. Both have to end with the bag gone - the point of the rule is that nothing is kept as a
      * residue for the player to come back for - and the difference between them is only whether the blocks
      * land in the inventory or in front of the player.
      */
-    @GameTest(template = "empty", batch = "reward_bag_pour", timeoutTicks = 200,
+    @GameTest(template = "empty", batch = "backup_drive_pour", timeoutTicks = 200,
             templateNamespace = NeoECOPrototype.MOD_ID)
-    public static void rewardBagPoursOutAndIsDestroyedEitherWay(GameTestHelper helper) {
+    public static void backupDrivePoursOutAndIsDestroyedEitherWay(GameTestHelper helper) {
         var level = helper.getLevel();
         var player = cardPlayer(helper);
         int total = 64 + 22 + 7;
         // Case one: every slot taken, so all three stacks have to come out as drops.
         player.getInventory().clearContent();
-        player.setItemInHand(InteractionHand.MAIN_HAND, rewardBagOf(helper, total));
+        player.setItemInHand(InteractionHand.MAIN_HAND, backupDriveOf(helper, total));
         var slots = player.getInventory().items;
         for (int slot = 0; slot < slots.size(); slot++) {
             if (slots.get(slot).isEmpty()) {
@@ -13890,7 +13979,7 @@ public final class NeoECOPrototypeGameTests {
         var held = player.getItemInHand(InteractionHand.MAIN_HAND);
         int dropped = countedDrops(helper, player);
         int inBag = countedBlocks(player);
-        NeoECOPrototype.LOGGER.info("reward bag pour, no room: {} pieces on the floor, {} in the"
+        NeoECOPrototype.LOGGER.info("backup drive pour, no room: {} pieces on the floor, {} in the"
                 + " inventory, the hand now holds {} x{}", dropped, inBag,
                 itemName(held), held.getCount());
         if (!held.is(ModRegistration.MIGRATION_DRIVE_EMPTY.get()) || held.getCount() != 1
@@ -13905,13 +13994,13 @@ public final class NeoECOPrototypeGameTests {
                 .forEach(net.minecraft.world.entity.item.ItemEntity::discard);
         // Case two: an empty inventory, so everything comes out and nothing is dropped.
         player.getInventory().clearContent();
-        player.setItemInHand(InteractionHand.MAIN_HAND, rewardBagOf(helper, total));
+        player.setItemInHand(InteractionHand.MAIN_HAND, backupDriveOf(helper, total));
         player.getItemInHand(InteractionHand.MAIN_HAND).getItem()
                 .use(level, player, InteractionHand.MAIN_HAND);
         dropped = countedDrops(helper, player);
         inBag = countedBlocks(player);
         var after = player.getItemInHand(InteractionHand.MAIN_HAND);
-        NeoECOPrototype.LOGGER.info("reward bag pour, room for all: {} pieces in the inventory, {} on the"
+        NeoECOPrototype.LOGGER.info("backup drive pour, room for all: {} pieces in the inventory, {} on the"
                 + " floor, the stack in hand is now {}", inBag, dropped, after.getCount());
         helper.assertTrue(after.is(ModRegistration.MIGRATION_DRIVE_EMPTY.get()) && after.getCount() == 1,
                 "a pour that fitted left the hand holding " + after.getCount() + " x "
@@ -13922,7 +14011,7 @@ public final class NeoECOPrototypeGameTests {
     }
 
     /** A bag holding cobblestone 64 + dirt 22 + sand 7, the three stacks the pour test splits. */
-    private static ItemStack rewardBagOf(GameTestHelper helper, int total) {
+    private static ItemStack backupDriveOf(GameTestHelper helper, int total) {
         var contents = new java.util.ArrayList<ItemStack>();
         int left = total;
         for (var block : List.of(Items.COBBLESTONE, Items.DIRT, Items.SAND)) {
@@ -13934,7 +14023,7 @@ public final class NeoECOPrototypeGameTests {
             contents.add(stack);
             left -= stack.getCount();
         }
-        return cn.dancingsnow.neoecoprototype.items.StructureRewardBagItem
+        return cn.dancingsnow.neoecoprototype.items.BackupDriveItem
                 .withContents(helper.getLevel().registryAccess(), contents);
     }
 
@@ -14441,7 +14530,7 @@ public final class NeoECOPrototypeGameTests {
      * hand-written parts list for a shape that moves with the definitions.
      *
      * <p>Read through {@link #carriedStacks} because the ticket is no longer loose in a slot: a refusal
-     * seals the work order and its pattern into the same reward bag every other owed thing goes into, so
+     * seals the work order and its pattern into the same backup drive every other owed thing goes into, so
      * this decode is also the suite's only round trip through that bag's item storage - a pattern whose
      * components did not survive the write would come back here as nothing.</p>
      */
@@ -14878,7 +14967,7 @@ public final class NeoECOPrototypeGameTests {
     }
 
     /**
-     * What the player carries, with every reward bag opened into the things inside it.
+     * What the player carries, with every backup drive opened into the things inside it.
      *
      * <p>A swap's refund now leaves as one bag rather than as loose stacks, so a count that only walks the
      * inventory slots would report ninety reclaimed blocks as gone - and "the player lost them" is exactly
@@ -14892,19 +14981,19 @@ public final class NeoECOPrototypeGameTests {
                 continue;
             }
             stacks.add(held);
-            if (held.is(ModRegistration.STRUCTURE_REWARD_BAG.get())) {
-                stacks.addAll(cn.dancingsnow.neoecoprototype.items.StructureRewardBagItem
+            if (held.is(ModRegistration.BACKUP_DRIVE.get())) {
+                stacks.addAll(cn.dancingsnow.neoecoprototype.items.BackupDriveItem
                         .contentsOf(held, player.level().registryAccess()));
             }
         }
         return stacks;
     }
 
-    /** How many reward bags the player holds - one click is only allowed to leave one. */
+    /** How many backup drives the player holds - one click is only allowed to leave one. */
     private static int bagCount(net.minecraft.server.level.ServerPlayer player) {
         int bags = 0;
         for (var held : player.getInventory().items) {
-            if (held.is(ModRegistration.STRUCTURE_REWARD_BAG.get())) {
+            if (held.is(ModRegistration.BACKUP_DRIVE.get())) {
                 bags++;
             }
         }
@@ -14917,7 +15006,7 @@ public final class NeoECOPrototypeGameTests {
             return ItemStack.EMPTY;
         }
         for (var held : player.getInventory().items) {
-            if (held.is(ModRegistration.STRUCTURE_REWARD_BAG.get())) {
+            if (held.is(ModRegistration.BACKUP_DRIVE.get())) {
                 return held;
             }
         }
