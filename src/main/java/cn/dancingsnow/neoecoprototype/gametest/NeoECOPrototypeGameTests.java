@@ -13726,6 +13726,27 @@ public final class NeoECOPrototypeGameTests {
                                 + " up handing back its shell and still turning into one");
                         return;
                     }
+                    // The bag wears the rung the click started on, in the ladder's own green - the same
+                    // number the 1->4 disk's name is printed in, which the table guard below compares.
+                    var worn = player.getItemInHand(InteractionHand.MAIN_HAND)
+                            .getHoverName().getStyle().getColor();
+                    if (player.getItemInHand(InteractionHand.MAIN_HAND)
+                            .has(net.minecraft.core.component.DataComponents.CUSTOM_NAME)) {
+                        clearMachineBox(helper);
+                        helper.fail("the bag's colour sits on CUSTOM_NAME, so it reads as an anvil rename"
+                                + " and renders italic");
+                        return;
+                    }
+                    if (worn == null || (worn.getValue() & 0xFFFFFF)
+                            != (ModRegistration.NAME_THEME_TIER_L1 & 0xFFFFFF)) {
+                        clearMachineBox(helper);
+                        helper.fail("a bag of L1 parts wears "
+                                + (worn == null ? "no colour at all"
+                                        : Integer.toHexString(worn.getValue() & 0xFFFFFF))
+                                + ", expected the ladder's L1 green "
+                                + Integer.toHexString(ModRegistration.NAME_THEME_TIER_L1 & 0xFFFFFF));
+                        return;
+                    }
                     // The whole point of the default: nothing else came out into the slots. Read the raw
                     // slots here, not carried() - that one opens the bag, and the refund being inside the
                     // bag is the thing being claimed, not a loose stack to be counted against it.
@@ -13771,6 +13792,74 @@ public final class NeoECOPrototypeGameTests {
                         return;
                     }
                 });
+    }
+
+    /**
+     * The colour rule, named as three numbers on 2026-11-05: "1,4,6 分别是绿,蓝,橙". Those numbers are
+     * already in this pack - they are the migration disks' name colours, sampled off the artist's own bands -
+     * so this compares the bag's rule with the disks' rather than with literals copied out of a chat log: a
+     * bag that came off an L1 machine has to wear what the 1→4 disk wears, because both are the <b>start</b>
+     * tier of one rung. All three families are walked, and so are the two rows that must come back plain:
+     * L9 (nothing climbs past it, so no click can start there) and the Trinity (fixed shape, not on the
+     * ladder). The control is to make {@code tierColour} answer 0 for L1 - this and the runtime reading in
+     * {@link #aDiskSwapPaysItsShellWithTheBagItLeaves} both go red on the sentence that names the colour.
+     */
+    @GameTest(template = "empty", batch = "reward_bag_tier_colour", timeoutTicks = 200,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void theBagWearsTheSameRungColourAsTheDiskThatStartedThere(GameTestHelper helper) {
+        var rungs = List.of(
+                java.util.Map.entry(ModRegistration.MIGRATION_DRIVE_1_4.get(), List.of(
+                        SimplifyStorageDefinition.L1,
+                        cn.dancingsnow.neoecoprototype.multiblock.definition.SimplifyComputationDefinition.L1,
+                        cn.dancingsnow.neoecoprototype.multiblock.definition.SimplifyCraftingDefinition.L1)),
+                java.util.Map.entry(ModRegistration.MIGRATION_DRIVE_4_6.get(), List.of(
+                        NEMultiBlocks.STORAGE_SYSTEM_L4, NEMultiBlocks.COMPUTATION_SYSTEM_L4,
+                        NEMultiBlocks.CRAFTING_SYSTEM_L4)),
+                java.util.Map.entry(ModRegistration.MIGRATION_DRIVE_6_9.get(), List.of(
+                        NEMultiBlocks.STORAGE_SYSTEM_L6, NEMultiBlocks.COMPUTATION_SYSTEM_L6,
+                        NEMultiBlocks.CRAFTING_SYSTEM_L6)));
+        var seen = new java.util.LinkedHashMap<Integer, String>();
+        for (var rung : rungs) {
+            var colour = new ItemStack(rung.getKey()).getHoverName().getStyle().getColor();
+            if (colour == null) {
+                helper.fail(BuiltInRegistries.ITEM.getKey(rung.getKey()).getPath()
+                        + " has no name colour, so there is nothing for a bag to match");
+                return;
+            }
+            if (seen.put(colour.getValue(), BuiltInRegistries.ITEM.getKey(rung.getKey()).getPath()) != null) {
+                helper.fail("two rungs share the name colour " + Integer.toHexString(colour.getValue())
+                        + ", so the colour could not tell a bag's tier from anything else");
+                return;
+            }
+            for (var definition : rung.getValue()) {
+                // One comparison space: our constants are written with the FF alpha because that is what
+                // Style.withColor takes, while TextColor#getValue answers in 24-bit RGB. Comparing them raw
+                // is how two identical greens read as a mismatch.
+                int worn = SimplifyStructureExpansionCardItem.tierColour(definition) & 0xFFFFFF;
+                int expected = colour.getValue() & 0xFFFFFF;
+                if (worn != expected) {
+                    helper.fail(defName(definition) + " would wear "
+                            + (worn == 0 ? "no colour" : Integer.toHexString(worn)) + " while "
+                            + BuiltInRegistries.ITEM.getKey(rung.getKey()).getPath() + " wears "
+                            + Integer.toHexString(expected) + " - one rung, two answers");
+                    return;
+                }
+            }
+        }
+        for (var plain : List.of(NEMultiBlocks.STORAGE_SYSTEM_L9,
+                cn.dancingsnow.neoecoae.all.NEMultiBlocks.COMPUTATION_SYSTEM_L9,
+                cn.dancingsnow.neoecoae.all.NEMultiBlocks.CRAFTING_SYSTEM_L9, SimplifyTrinityDefinition.L1)) {
+            if (SimplifyStructureExpansionCardItem.tierColour(plain) != 0) {
+                helper.fail(defName(plain) + " is not a rung a click starts on, yet its bag would wear "
+                        + Integer.toHexString(SimplifyStructureExpansionCardItem.tierColour(plain)));
+                return;
+            }
+        }
+        NeoECOPrototype.LOGGER.info("bag colours: {} rungs each matched to their own disk's name colour {},"
+                        + " and {} rows read plain",
+                rungs.size(), seen.keySet().stream().map(c -> Integer.toHexString(c)).toList(),
+                4);
+        helper.succeed();
     }
 
     /**
