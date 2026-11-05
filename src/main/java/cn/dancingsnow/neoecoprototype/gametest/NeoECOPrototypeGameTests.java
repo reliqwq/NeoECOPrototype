@@ -720,6 +720,29 @@ public final class NeoECOPrototypeGameTests {
             return;
         }
 
+        // Four minutes of fire resistance, asked by finishing the use on a real player rather than by
+        // reading the builder: probability, effect id, amplifier and duration all have to survive the
+        // path vanilla actually takes (LivingEntity#eat → FoodProperties effects), so a flag that never
+        // reaches the eater would still be caught. 240 s x 20 = 4800 ticks.
+        var eater = helper.makeMockPlayer(GameType.SURVIVAL);
+        // A copy, not the guard's own stack: finishUsingItem consumes one of what it is handed, and the
+        // stack-size check below reads that same variable - an emptied stack reports a max size of 1, which
+        // is how this first came back red on a line it had nothing to do with.
+        ModRegistration.CRYOTHEUM_ICE_CREAM.get().finishUsingItem(
+                new ItemStack(ModRegistration.CRYOTHEUM_ICE_CREAM.get()),
+                (net.minecraft.world.level.Level) helper.getLevel(), eater);
+        var granted = eater.getEffect(net.minecraft.world.effect.MobEffects.FIRE_RESISTANCE);
+        NeoECOPrototype.LOGGER.info("ice cream drink: fire resistance = {} ticks, amplifier = {}",
+                granted == null ? "none" : granted.getDuration(),
+                granted == null ? "none" : granted.getAmplifier());
+        if (granted == null || granted.getDuration() != 4800 || granted.getAmplifier() != 0) {
+            helper.fail("drinking the ice cream gave "
+                    + (granted == null ? "no fire resistance at all"
+                    : granted.getDuration() + " ticks at amplifier " + granted.getAmplifier())
+                    + ", expected 4800 ticks (4 minutes) at amplifier 0");
+            return;
+        }
+
         var held = helper.getLevel().getRecipeManager()
                 .byKey(cn.dancingsnow.neoecoprototype.NeoECOPrototype.id("cryotheum_ice_cream"));
         if (held.isEmpty()) {

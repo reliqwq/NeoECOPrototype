@@ -501,6 +501,12 @@ public class ModRegistration {
                             .nutrition(6)
                             .saturationModifier(0.6F)
                             .alwaysEdible()
+                            // Four minutes of fire resistance, asked for by name: 240 s = 4800 ticks.
+                            // Probability 1.0 - a cold dessert that cools you down only sometimes is not a
+                            // feature, it is a coin flip the tooltip would have to advertise.
+                            .effect(() -> new net.minecraft.world.effect.MobEffectInstance(
+                                            net.minecraft.world.effect.MobEffects.FIRE_RESISTANCE, 4800),
+                                    1.0F)
                             .usingConvertsTo(net.minecraft.world.item.Items.GLASS_BOTTLE)
                             .build())));
     public static final Supplier<BlockItem> SMALL_GRETTE_BUD_ITEM = ITEMS.register("small_grette_bud",
