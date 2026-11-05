@@ -10476,6 +10476,212 @@ public final class NeoECOPrototypeGameTests {
     }
 
     /**
+     * A drive mounts each cell at the host's number plus that cell's own offset, and the offset lives on
+     * the cell.
+     *
+     * <p>eco opened this in their answer to our issue #154: the drive implements
+     * {@code IECOConfigurableCellDrive}, the figure is written onto the ItemStack through
+     * {@code ECOStorageCellSettings}, and {@code StoragePriority.mountPriority} adds it to the host baseline
+     * with integer saturation. Three things are checked rather than assumed: that an unconfigured cell still
+     * mounts at exactly the host number (so no existing world shifts when this lands), that a negative offset
+     * goes down as well as up, and that the figure travels with the stack - the same cell moved into a second
+     * drive reports the same number, because nothing here is keyed by position or dimension (§6).</p>
+     */
+    @GameTest(template = "l1_room", batch = "cell_priority", timeoutTicks = 400,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void driveMountsEachCellAtTheHostNumberPlusItsOwnOffset(GameTestHelper helper) {
+        buildL1Room(helper, CARD_HOST,
+                ModRegistration.SIMPLIFY_STORAGE_CONTROLLER_BLOCK.get(),
+                ModRegistration.SIMPLIFY_STORAGE_INTERFACE_BLOCK.get(),
+                ModRegistration.SIMPLIFY_STORAGE_INTERFACE_BLOCK.get(),
+                host -> {
+                    if (!(host instanceof SimplifyStorageHostBlockEntity storageHost)) {
+                        helper.fail("the L1 storage controller is not our host block entity: " + host);
+                        return;
+                    }
+                    var drives = storageHost.getCluster() == null
+                            ? java.util.List.<cn.dancingsnow.neoecoprototype.blockentity.storage
+                                    .SimplifyDriveBlockEntity>of()
+                            : storageHost.getCluster().getDrives();
+                    if (drives.size() < 2) {
+                        helper.fail("this batch needs two drives to show the offset travels, the room gave "
+                                + drives.size());
+                        return;
+                    }
+                    int baseline = storageHost.getStoragePriority();
+                    var first = drives.stream()
+                            .filter(drive -> drive.insertCell(new ItemStack(
+                                    ModRegistration.SIMPLIFY_ITEM_CELL_1K.get())))
+                            .findFirst().orElse(null);
+                    var second = drives.stream()
+                            .filter(drive -> drive != first && !drive.hasCell())
+                            .findFirst().orElse(null);
+                    if (first == null || second == null) {
+                        helper.fail("the room gave no drive to mount a cell in, or no second empty drive to move"
+                                + " it into: first=" + first + " second=" + second);
+                        return;
+                    }
+                    // Measured in order into locals, then asserted: setting an offset is a write, so an
+                    // assertion that re-measures would read back whatever the previous line configured.
+                    int unset = mountedPriority(first);
+                    int plusFive = mountedAfter(first, 5);
+                    int onStack = cn.dancingsnow.neoecoae.storage.ECOStorageCellSettings
+                            .priority(first.getCellStack());
+                    var moved = first.removeCell();
+                    boolean movedIn = second.insertCell(moved);
+                    int movedMount = movedIn ? mountedPriority(second) : -1;
+                    int minusThree = movedIn ? mountedAfter(second, -3) : -1;
+                    int saturated = movedIn ? mountedAfter(second, Integer.MAX_VALUE) : -1;
+                    NeoECOPrototype.LOGGER.info("cell priority: host={} unset={} plusFive={} writtenOnStack={}"
+                                    + " movedToSecond={} minusThree={} saturatedAtTop={}",
+                            baseline, unset, plusFive, onStack, movedMount, minusThree, saturated);
+                    if (unset != baseline) {
+                        helper.fail("a cell nobody configured does not mount at the host's number: host="
+                                + baseline + ", mount=" + unset + " - this would shift where every existing"
+                                + " cell writes before anyone touches a button");
+                        return;
+                    }
+                    if (plusFive != baseline + 5) {
+                        helper.fail("an offset of +5 mounted at " + plusFive + " instead of " + (baseline + 5));
+                        return;
+                    }
+                    if (onStack != 5) {
+                        helper.fail("the offset was not written onto the cell (settings say " + onStack
+                                + "), so it cannot survive the drive that set it");
+                        return;
+                    }
+                    if (!movedIn) {
+                        helper.fail("the configured cell could not move to the second drive");
+                        return;
+                    }
+                    if (movedMount != baseline + 5) {
+                        helper.fail("the same cell moved to another drive mounts at " + movedMount
+                                + " instead of " + (baseline + 5) + " - the figure is being kept per drive"
+                                + " instead of on the cell");
+                        return;
+                    }
+                    if (minusThree != baseline - 3) {
+                        helper.fail("a -3 offset mounted at " + minusThree + " instead of " + (baseline - 3));
+                        return;
+                    }
+                    if (saturated != Integer.MAX_VALUE) {
+                        helper.fail("host " + baseline + " plus Integer.MAX_VALUE did not saturate but wrapped"
+                                + " to " + saturated);
+                        return;
+                    }
+                    helper.succeed();
+                });
+    }
+
+    /** Mount this drive's cell through a recorder and report the priority it was mounted at. */
+    private static int mountedPriority(
+            cn.dancingsnow.neoecoprototype.blockentity.storage.SimplifyDriveBlockEntity drive) {
+        var seen = new int[]{-1};
+        drive.mountInventories(new appeng.api.storage.IStorageMounts() {
+            @Override
+            public void mount(appeng.api.storage.MEStorage storage, int priority) {
+                seen[0] = priority;
+            }
+        });
+        return seen[0];
+    }
+
+    private static int mountedAfter(
+            cn.dancingsnow.neoecoprototype.blockentity.storage.SimplifyDriveBlockEntity drive, int offset) {
+        drive.setConfiguredCellPriority(offset);
+        return mountedPriority(drive);
+    }
+
+    /**
+     * What eco's priority API sees when it walks our drives, and the two rules its own resolver depends on.
+     *
+     * <p>{@code ECOStorageCellPriorities#resolve} matches a click on position <em>and</em> installation id
+     * and then refuses anything whose cell cannot be configured, so the id has to change when the cell is
+     * replaced or reloaded - otherwise a window left open from the old cell would reconfigure whatever stands
+     * in its place. An empty drive must answer with no stack and refuse a write rather than crash, because
+     * the panel can hand eco a row that has since been emptied.</p>
+     */
+    @GameTest(template = "l1_room", batch = "cell_priority", timeoutTicks = 400,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void ourDrivesAnswerEcosPriorityInstallationApi(GameTestHelper helper) {
+        buildL1Room(helper, CARD_HOST,
+                ModRegistration.SIMPLIFY_STORAGE_CONTROLLER_BLOCK.get(),
+                ModRegistration.SIMPLIFY_STORAGE_INTERFACE_BLOCK.get(),
+                ModRegistration.SIMPLIFY_STORAGE_INTERFACE_BLOCK.get(),
+                host -> {
+                    if (!(host instanceof SimplifyStorageHostBlockEntity storageHost)) {
+                        helper.fail("the L1 storage controller is not our host block entity: " + host);
+                        return;
+                    }
+                    var installs = storageHost.getConfigurableCellDrives();
+                    var drives = storageHost.getCluster() == null
+                            ? java.util.List.<cn.dancingsnow.neoecoprototype.blockentity.storage
+                                    .SimplifyDriveBlockEntity>of()
+                            : storageHost.getCluster().getDrives();
+                    if (installs.size() != drives.size() || installs.isEmpty()) {
+                        helper.fail("eco's API was handed " + installs.size() + " installations for "
+                                + drives.size() + " drives, so a click can never resolve");
+                        return;
+                    }
+                    var target = drives.stream()
+                            .filter(drive -> drive.insertCell(new ItemStack(
+                                    ModRegistration.SIMPLIFY_ITEM_CELL_1K.get())))
+                            .findFirst().orElse(null);
+                    if (target == null) {
+                        helper.fail("no drive took a cell, so the installation checks below have nothing to"
+                                + " read");
+                        return;
+                    }
+                    var install = installs.stream()
+                            .filter(entry -> target.getBlockPos().equals(entry.getBlockPos()))
+                            .findFirst().orElse(null);
+                    var stack = target.getCellStack();
+                    // Read the installation list before anything is removed: eco's resolver hands out the
+                    // live drive, so its getCellStack() goes null the moment this test empties the drive.
+                    var installHeldCell = install == null ? null : install.getCellStack();
+                    var before = target.getCellInteractionId();
+                    target.removeCell();
+                    var afterRemove = target.getCellInteractionId();
+                    boolean replaced = target.insertCell(
+                            new ItemStack(ModRegistration.SIMPLIFY_ITEM_CELL_16K.get()));
+                    var afterInsert = target.getCellInteractionId();
+                    var empty = drives.stream().filter(drive -> !drive.hasCell()).findFirst().orElse(null);
+                    int emptyAfterWrite = -1;
+                    if (empty != null) {
+                        empty.setConfiguredCellPriority(7);
+                        emptyAfterWrite = empty.getConfiguredCellPriority();
+                    }
+                    NeoECOPrototype.LOGGER.info("priority installation: {} entries for {} drives, drive at {}"
+                                    + " stack={} listedStack={} canExtract={} ids {} -> {} -> {}"
+                                    + " emptyDriveAfterWrite={}",
+                            installs.size(), drives.size(), target.getBlockPos(),
+                            stack == null ? "none" : "present", installHeldCell == null ? "none" : "present",
+                            target.canExtractCell(), before, afterRemove, afterInsert, emptyAfterWrite);
+                    if (install == null || installHeldCell == null || !installHeldCell.is(stack.getItem())) {
+                        helper.fail("the drive at " + target.getBlockPos() + " is not in the list eco resolves"
+                                + " clicks against, or it reports no cell while holding one");
+                        return;
+                    }
+                    if (!replaced) {
+                        helper.fail("the drive refused to take a replacement cell, so the id check below"
+                                + " measured nothing");
+                        return;
+                    }
+                    if (before.equals(afterRemove) || afterRemove.equals(afterInsert)) {
+                        helper.fail("the installation id survived a cell change, so a stale window could"
+                                + " reconfigure the cell that replaced the one it was opened on");
+                        return;
+                    }
+                    if (empty != null && (empty.getCellStack() != null || emptyAfterWrite != 0)) {
+                        helper.fail("an empty drive took a priority write: stack=" + empty.getCellStack()
+                                + " priority=" + emptyAfterWrite);
+                        return;
+                    }
+                    helper.succeed();
+                });
+    }
+
+    /**
      * The byte bar pins itself to 100% on a host that reports "0 used": eco's
      * {@code StoragePanelState.usage} returns 1.0 for any row whose per-row {@code infinite} flag is set, and
      * it only swaps the percentage for its "unbounded" glyph when the panel-level {@code infiniteStorage}
