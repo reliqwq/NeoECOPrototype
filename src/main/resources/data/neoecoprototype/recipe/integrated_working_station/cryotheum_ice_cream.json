@@ -1,0 +1,26 @@
+{
+  "type": "neoecoae:integrated_working_station",
+  "energy": 1000,
+  "inputFluid": {
+    "amount": 1000,
+    "tag": "minecraft:water"
+  },
+  "inputItems": [
+    {
+      "count": 4,
+      "item": "neoecoae:cryotheum"
+    },
+    {
+      "count": 2,
+      "item": "minecraft:sugar"
+    },
+    {
+      "count": 2,
+      "item": "minecraft:snowball"
+    }
+  ],
+  "fluidOutput": {
+    "amount": 1000,
+    "id": "neoecoprototype:cryotheum_ice_cream"
+  }
+}
