@@ -393,15 +393,19 @@ public class NeoECOPrototype {
         // AE2 的卡↔元件关联表决定：卡片 tooltip 的"可用于"清单、元件工作台升级槽放行
         // （查无登记即拒绝，界面标红"与单元格不兼容"）。按命名空间扫描以同时覆盖
         // KubeJS 脚本创建的矩阵；getConfigInventory 返回 null 的固定无限源没有分区，
-        // 跳过（其 isEditable=false，工作台本就拒收）。关联带同一分组翻译键，
-        // 卡片清单里我们的几十个矩阵合并为一行"L1 存储元件"，与 AE2/eco 的分组展示一致。
+        // 跳过（其 isEditable=false，工作台本就拒收）。这里认 AE2 的 ICellWorkbenchItem
+        // 而不是 eco 的 IBasicECOCellItem：Omni Cells 那一族只 implements eco 的
+        // IECOStorageCellItem，真正带分区表与升级槽的是基类 AEUniversalCellItem ——
+        // 按旧口径扫时整族被 continue 掉，元件工作台里反向/模糊两格永远是红的。
+        // 关联带同一分组翻译键，卡片清单里我们的几十个矩阵合并为一行"L1 存储元件"，
+        // 与 AE2/eco 的分组展示一致。
         var storageCellGroup = "gui.neoecoprototype.l1_storage_cells";
         for (var entry : net.minecraft.core.registries.BuiltInRegistries.ITEM.entrySet()) {
             var item = entry.getValue();
             var namespace = entry.getKey().location().getNamespace();
             boolean ourNamespace = namespace.equals(MOD_ID) || namespace.equals("kubejs");
             if (!ourNamespace
-                    || !(item instanceof cn.dancingsnow.neoecoae.api.storage.IBasicECOCellItem cell)
+                    || !(item instanceof appeng.api.storage.cells.ICellWorkbenchItem cell)
                     || cell.getConfigInventory(net.minecraft.world.item.ItemStack.EMPTY) == null) {
                 continue;
             }

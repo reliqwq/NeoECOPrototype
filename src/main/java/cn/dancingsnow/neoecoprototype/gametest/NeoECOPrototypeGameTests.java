@@ -204,32 +204,33 @@ public final class NeoECOPrototypeGameTests {
     }
 
     /**
-     * Two card rules over the whole storage family, read from the same table the cell workbench consults: a
-     * matrix whose backend is AE2 Omni Cells takes no card of any kind, and nothing we register takes the
-     * overflow destruction card.
+     * Card rules over the whole storage family, read from the same table the cell workbench consults: every
+     * matrix of ours that carries a partition table accepts the fuzzy and inverter cards (one of each), nothing
+     * we register accepts any other card, and nothing takes the overflow destruction card.
      *
-     * <p>Both are registration facts, so both are swept rather than argued: AE2's upgrade filter lets a card
+     * <p>These are registration facts, so they are swept rather than argued: AE2's upgrade filter lets a card
      * in only while {@code installed < getMaxInstalled(card)}, and that call is exactly
      * {@code Upgrades.getMaxInstallable(card, stack.getItem())} - the table this sweep reads, and the one the
-     * card's "usable on" tooltip is built from. Our own pass associates fuzzy and inverter with the cells it
-     * walks; eco's Omni Cells pass adds fuzzy, inverter <em>and void</em>, but only to its own item
-     * instances - so whether a matrix of ours sits in that list is something only a runtime read can answer,
-     * and a grep of upstream would have been a guess about a table that is filled at startup.</p>
+     * card's "usable on" tooltip is built from. The sweep walks the same predicate the registration pass uses
+     * ({@link appeng.api.storage.cells.ICellWorkbenchItem} with a non-null partition table), which is what makes
+     * the Omni Cells family visible here: those eight items implement eco's {@code IECOStorageCellItem}, not
+     * {@code IBasicECOCellItem}, and the earlier predicate skipped all of them - the workbench then refused
+     * inverter and fuzzy with "incompatible with this cell".</p>
      *
      * <p>The last assertion is the ruler's own control: a family that took no card anywhere would satisfy the
-     * two rules by measuring nothing. At least one non-omni item has to still accept a fuzzy card, which is the
-     * reading that says the sweep is looking at a live table.</p>
+     * rules by measuring nothing. At least one item has to still accept a fuzzy card, which is the reading that
+     * says the sweep is looking at a live table.</p>
      */
     @GameTest(template = "empty", batch = "cell_card_policy", timeoutTicks = 100,
             templateNamespace = NeoECOPrototype.MOD_ID)
-    public static void omniMatricesTakeNoCardsAndNothingInL1TakesVoid(GameTestHelper helper) {
+    public static void everyPartitionedCellTakesTheFilterCards(GameTestHelper helper) {
         var cards = List.<net.minecraft.world.level.ItemLike>of(
-                AEItems.FUZZY_CARD.asItem(), AEItems.INVERTER_CARD.asItem(), AEItems.VOID_CARD.asItem(),
                 AEItems.CAPACITY_CARD.asItem(), AEItems.SPEED_CARD.asItem(), AEItems.REDSTONE_CARD.asItem(),
                 AEItems.CRAFTING_CARD.asItem(), AEItems.EQUAL_DISTRIBUTION_CARD.asItem(),
                 AEItems.ENERGY_CARD.asItem());
         var voidCard = AEItems.VOID_CARD.asItem();
         var fuzzyCard = AEItems.FUZZY_CARD.asItem();
+        var inverterCard = AEItems.INVERTER_CARD.asItem();
         // The probe names an Omni Cells class, so it is reached only past this gate.
         var omniLoaded = ModList.get().isLoaded("ae2omnicells");
 
@@ -237,7 +238,8 @@ public final class NeoECOPrototypeGameTests {
         for (var entry : BuiltInRegistries.ITEM.entrySet()) {
             var namespace = entry.getKey().location().getNamespace();
             if ((namespace.equals(NeoECOPrototype.MOD_ID) || namespace.equals("kubejs"))
-                    && entry.getValue() instanceof cn.dancingsnow.neoecoae.api.storage.IECOStorageCellItem) {
+                    && entry.getValue() instanceof appeng.api.storage.cells.ICellWorkbenchItem cell
+                    && cell.getConfigInventory(net.minecraft.world.item.ItemStack.EMPTY) != null) {
                 cells.add(entry.getValue());
             }
         }
@@ -245,49 +247,61 @@ public final class NeoECOPrototypeGameTests {
         int omniBacked = 0;
         int fuzzySeen = 0;
         var accepted = new java.util.TreeSet<String>();
-        var omniOffenders = new ArrayList<String>();
+        var missingFilters = new ArrayList<String>();
+        var unexpected = new ArrayList<String>();
         var voidOffenders = new ArrayList<String>();
-        var cardless = new ArrayList<String>();
         for (var item : cells) {
             var id = BuiltInRegistries.ITEM.getKey(item).toString();
-            var backed = omniLoaded && CellCardPolicyProbe.isOmniBacked(item);
-            if (backed) {
+            if (omniLoaded && CellCardPolicyProbe.isOmniBacked(item)) {
                 omniBacked++;
             }
-            int taken = 0;
+            var fuzzy = Upgrades.getMaxInstallable(fuzzyCard, item);
+            var inverter = Upgrades.getMaxInstallable(inverterCard, item);
+            if (fuzzy == 0 || inverter == 0) {
+                missingFilters.add(id + " fuzzy=" + fuzzy + " inverter=" + inverter);
+            }
+            if (fuzzy != 0) {
+                fuzzySeen++;
+                accepted.add("ae2:fuzzy_card=" + fuzzy);
+            }
+            if (inverter != 0) {
+                accepted.add("ae2:inverter_card=" + inverter);
+            }
             for (var card : cards) {
                 var max = Upgrades.getMaxInstallable(card, item);
                 if (max == 0) {
                     continue;
                 }
-                taken++;
                 var cardId = BuiltInRegistries.ITEM.getKey(card.asItem()).toString();
                 accepted.add(cardId + "=" + max);
-                if (backed) {
-                    omniOffenders.add(id + " takes " + cardId + " x" + max);
-                }
-                if (card == voidCard) {
-                    voidOffenders.add(id + " takes the void card x" + max);
-                }
-                if (card == fuzzyCard) {
-                    fuzzySeen++;
-                }
+                unexpected.add(id + " takes " + cardId + " x" + max);
             }
-            if (!backed && taken == 0) {
-                cardless.add(id);
+            var voidMax = Upgrades.getMaxInstallable(voidCard, item);
+            if (voidMax != 0) {
+                accepted.add("ae2:void_card=" + voidMax);
+                voidOffenders.add(id + " takes the void card x" + voidMax);
             }
         }
         NeoECOPrototype.LOGGER.info("cell card policy: cells={} omniBacked={} fuzzySeen={} acceptedPairs={}"
-                        + " omniOffenders={} voidOffenders={} cardlessNonOmni={}",
-                cells.size(), omniBacked, fuzzySeen, accepted, omniOffenders, voidOffenders, cardless);
+                        + " missingFilters={} unexpected={} voidOffenders={}",
+                cells.size(), omniBacked, fuzzySeen, accepted, missingFilters, unexpected, voidOffenders);
         if (cells.isEmpty()) {
-            helper.fail("no storage cell of ours resolved as IECOStorageCellItem, so nothing below was"
-                    + " measured and both rules are vacuous");
+            helper.fail("no storage cell of ours resolved as a workbench item with a partition table, so"
+                    + " nothing below was measured and every rule is vacuous");
             return;
         }
-        if (!omniOffenders.isEmpty()) {
-            helper.fail("an Omni Cells-backed matrix accepts a card, and it must accept none: " + omniOffenders
-                    + " (the whole accepted set was " + accepted + ")");
+        if (omniLoaded && omniBacked == 0) {
+            helper.fail("ae2omnicells is loaded but no matrix in the sweep resolved as Omni Cells-backed, so the"
+                    + " family this rule exists for was not actually looked at");
+            return;
+        }
+        if (!missingFilters.isEmpty()) {
+            helper.fail("a matrix of ours carries a partition table but the cell workbench would refuse a"
+                    + " filter card: " + missingFilters + " (the whole accepted set was " + accepted + ")");
+            return;
+        }
+        if (!unexpected.isEmpty()) {
+            helper.fail("a card outside fuzzy/inverter is associated with one of our matrices: " + unexpected);
             return;
         }
         if (!voidOffenders.isEmpty()) {
@@ -296,7 +310,7 @@ public final class NeoECOPrototypeGameTests {
             return;
         }
         if (fuzzySeen == 0) {
-            helper.fail("nothing in the family takes a fuzzy card, so the two rules above were satisfied by an"
+            helper.fail("nothing in the family takes a fuzzy card, so the rules above were satisfied by an"
                     + " empty table instead of by policy");
             return;
         }
