@@ -4,9 +4,10 @@
   "key": {
     "A": { "item": "neoecoprototype:simplify_green_crystal_matrix" },
     "B": { "item": "minecraft:pink_dye" },
-    "C": { "item": "minecraft:porkchop" }
+    "C": { "item": "minecraft:porkchop" },
+    "D": { "item": "minecraft:cooked_porkchop" }
   },
-  "pattern": ["ABA", "B B", "CCC"],
+  "pattern": ["ABA", "BDB", "CCC"],
   "result": {
     "count": 1,
     "id": "neoecoprototype:pigmee_storage_matrix_housing"

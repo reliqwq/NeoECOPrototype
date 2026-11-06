@@ -399,7 +399,13 @@ public class NeoECOPrototype {
         // 按旧口径扫时整族被 continue 掉，元件工作台里反向/模糊两格永远是红的。
         // 关联带同一分组翻译键，卡片清单里我们的几十个矩阵合并为一行"L1 存储元件"，
         // 与 AE2/eco 的分组展示一致。
+        //
+        // 溢出销毁卡对普通矩阵开放，但小宗那六只不收：它们的类型上限只有 3（扩容后 10），
+        // 误插一张就会在超类型时静默吞掉玩家已经存进去的货，而普通盘至少有足够的类型
+        // 空间让玩家先看见"满了"。按 id 前缀排除而不是按类，因为化学品那只住在
+        // integration/mekanism 里，核心层不能为了一个 instanceof 去解析可选 mod 的类。
         var storageCellGroup = "gui.neoecoprototype.l1_storage_cells";
+        var smallBulkPrefix = "simplify_small_bulk_";
         for (var entry : net.minecraft.core.registries.BuiltInRegistries.ITEM.entrySet()) {
             var item = entry.getValue();
             var namespace = entry.getKey().location().getNamespace();
@@ -411,6 +417,9 @@ public class NeoECOPrototype {
             }
             appeng.api.upgrades.Upgrades.add(appeng.core.definitions.AEItems.FUZZY_CARD.asItem(), item, 1, storageCellGroup);
             appeng.api.upgrades.Upgrades.add(appeng.core.definitions.AEItems.INVERTER_CARD.asItem(), item, 1, storageCellGroup);
+            if (!entry.getKey().location().getPath().startsWith(smallBulkPrefix)) {
+                appeng.api.upgrades.Upgrades.add(appeng.core.definitions.AEItems.VOID_CARD.asItem(), item, 1, storageCellGroup);
+            }
         }
         // eco's storage hosts enumerate neoecoae:cell_type, so a failed cross-mod registration would
         // silently hide our matrices' rows on eco's own storage systems.

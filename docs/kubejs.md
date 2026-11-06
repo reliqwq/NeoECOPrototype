@@ -241,10 +241,10 @@ StartupEvents.registry('item', event => {
 **卡片（AE2 的升级卡）按后端归属走**：
 
 - 所有带分区表的矩阵（包括 `universal` / `quantum` 两个家族）**都认模糊卡与反转卡各一张**。这两张改的是分区表的匹配方式，Omni Cells 后端照单执行；其余卡不收 —— 容量、速度这类靠数字改机器行为的卡不动它们（它们的类型上限与字节由 Omni Cells 那侧决定，量子连上限都没有）。
-- **溢出销毁卡全族都不接受** —— 那只卡会把塞不下的东西删掉，而在我们的仓里被删的可能是玩家已经存进去的货。
+- **溢出销毁卡除小宗仓外都接受** —— 它会删掉塞不下的东西，所以小宗那六只（3 类/10 类上限）不收：删掉的可能是玩家还看得见位置、只是被类型上限挡住的那部分货。其余矩阵（含 `universal` / `quantum`）收一张，和 Omni Cells 自己那族一致。
 - 没有分区表的那几只（自产矩阵、无限混凝土源）本来就收不了卡，存储盘的工作台对它们是拒开的。
 
-这些不是文档里的愿望：`everyPartitionedCellTakesTheFilterCards`（batch `cell_card_policy`）在启动后按注册时的同一条谓词把 AE2 的卡↔元件关联表整个扫一遍，读数写进日志（`cell card policy:` 那行）。
+这些不是文档里的愿望：`everyPartitionedCellTakesTheFilterCardsAndVoidSkipsSmallBulk`（batch `cell_card_policy`）在启动后按注册时的同一条谓词把 AE2 的卡↔元件关联表整个扫一遍，读数写进日志（`cell card policy:` 那行）。
 
 默认模型不需要脚本配置，按矩阵**类型**自动选择材质，不会所有矩阵都长一样。
 材质定义集中在 `MatrixMaterials`，脚本不应自行乱放贴图：

@@ -3,7 +3,7 @@
   "cell": "neoecoprototype:pigmee_storage_cell",
   "cell_disassembly_items": [
     { "id": "neoecoprototype:pigmee_storage_matrix_housing", "count": 1 },
-    { "id": "ae2:cell_component_4k", "count": 1 },
+    { "id": "ae2:cell_component_1k", "count": 1 },
     { "id": "minecraft:porkchop", "count": 1 }
   ]
 }

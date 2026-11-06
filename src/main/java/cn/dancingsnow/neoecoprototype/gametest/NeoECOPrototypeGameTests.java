@@ -205,8 +205,9 @@ public final class NeoECOPrototypeGameTests {
 
     /**
      * Card rules over the whole storage family, read from the same table the cell workbench consults: every
-     * matrix of ours that carries a partition table accepts the fuzzy and inverter cards (one of each), nothing
-     * we register accepts any other card, and nothing takes the overflow destruction card.
+     * matrix of ours that carries a partition table accepts the fuzzy and inverter cards (one of each), the
+     * overflow destruction card reaches every one of them except the small-bulk family, and nothing else is
+     * associated at all.
      *
      * <p>These are registration facts, so they are swept rather than argued: AE2's upgrade filter lets a card
      * in only while {@code installed < getMaxInstalled(card)}, and that call is exactly
@@ -217,13 +218,19 @@ public final class NeoECOPrototypeGameTests {
      * {@code IBasicECOCellItem}, and the earlier predicate skipped all of them - the workbench then refused
      * inverter and fuzzy with "incompatible with this cell".</p>
      *
-     * <p>The last assertion is the ruler's own control: a family that took no card anywhere would satisfy the
-     * rules by measuring nothing. At least one item has to still accept a fuzzy card, which is the reading that
-     * says the sweep is looking at a live table.</p>
+     * <p>The small-bulk exception is a policy, not an engine limit: those six cells hold three types (ten after
+     * the expansion card), so a card that silently drops whatever does not fit would eat stock while the player
+     * can still see room for it. The infinite sources are not in this sweep at all - their partition table is
+     * null and the registration pass skips them, so they take no card of any kind.</p>
+     *
+     * <p>The control assertions are the ruler's own: a family that took no card anywhere would satisfy the
+     * rules by measuring nothing. At least one item has to still accept a fuzzy card, at least one has to accept
+     * the void card, and when MegaCells is loaded the small-bulk family has to actually be in the sweep, or the
+     * exclusion below was never tested.</p>
      */
     @GameTest(template = "empty", batch = "cell_card_policy", timeoutTicks = 100,
             templateNamespace = NeoECOPrototype.MOD_ID)
-    public static void everyPartitionedCellTakesTheFilterCards(GameTestHelper helper) {
+    public static void everyPartitionedCellTakesTheFilterCardsAndVoidSkipsSmallBulk(GameTestHelper helper) {
         var cards = List.<net.minecraft.world.level.ItemLike>of(
                 AEItems.CAPACITY_CARD.asItem(), AEItems.SPEED_CARD.asItem(), AEItems.REDSTONE_CARD.asItem(),
                 AEItems.CRAFTING_CARD.asItem(), AEItems.EQUAL_DISTRIBUTION_CARD.asItem(),
@@ -233,6 +240,8 @@ public final class NeoECOPrototypeGameTests {
         var inverterCard = AEItems.INVERTER_CARD.asItem();
         // The probe names an Omni Cells class, so it is reached only past this gate.
         var omniLoaded = ModList.get().isLoaded("ae2omnicells");
+        var megaLoaded = ModList.get().isLoaded("megacells");
+        var smallBulkPrefix = "simplify_small_bulk_";
 
         var cells = new ArrayList<net.minecraft.world.item.Item>();
         for (var entry : BuiltInRegistries.ITEM.entrySet()) {
@@ -246,12 +255,19 @@ public final class NeoECOPrototypeGameTests {
 
         int omniBacked = 0;
         int fuzzySeen = 0;
+        int voidSeen = 0;
+        int smallBulkSeen = 0;
         var accepted = new java.util.TreeSet<String>();
         var missingFilters = new ArrayList<String>();
         var unexpected = new ArrayList<String>();
-        var voidOffenders = new ArrayList<String>();
+        var voidOnSmallBulk = new ArrayList<String>();
+        var voidMissing = new ArrayList<String>();
         for (var item : cells) {
             var id = BuiltInRegistries.ITEM.getKey(item).toString();
+            var smallBulk = BuiltInRegistries.ITEM.getKey(item).getPath().startsWith(smallBulkPrefix);
+            if (smallBulk) {
+                smallBulkSeen++;
+            }
             if (omniLoaded && CellCardPolicyProbe.isOmniBacked(item)) {
                 omniBacked++;
             }
@@ -279,12 +295,19 @@ public final class NeoECOPrototypeGameTests {
             var voidMax = Upgrades.getMaxInstallable(voidCard, item);
             if (voidMax != 0) {
                 accepted.add("ae2:void_card=" + voidMax);
-                voidOffenders.add(id + " takes the void card x" + voidMax);
+                voidSeen++;
+                if (smallBulk) {
+                    voidOnSmallBulk.add(id + " takes the void card x" + voidMax);
+                }
+            } else if (!smallBulk) {
+                voidMissing.add(id);
             }
         }
-        NeoECOPrototype.LOGGER.info("cell card policy: cells={} omniBacked={} fuzzySeen={} acceptedPairs={}"
-                        + " missingFilters={} unexpected={} voidOffenders={}",
-                cells.size(), omniBacked, fuzzySeen, accepted, missingFilters, unexpected, voidOffenders);
+        NeoECOPrototype.LOGGER.info("cell card policy: cells={} omniBacked={} smallBulk={} fuzzySeen={}"
+                        + " voidSeen={} acceptedPairs={} missingFilters={} unexpected={} voidOnSmallBulk={}"
+                        + " voidMissing={}",
+                cells.size(), omniBacked, smallBulkSeen, fuzzySeen, voidSeen, accepted, missingFilters,
+                unexpected, voidOnSmallBulk, voidMissing);
         if (cells.isEmpty()) {
             helper.fail("no storage cell of ours resolved as a workbench item with a partition table, so"
                     + " nothing below was measured and every rule is vacuous");
@@ -301,17 +324,28 @@ public final class NeoECOPrototypeGameTests {
             return;
         }
         if (!unexpected.isEmpty()) {
-            helper.fail("a card outside fuzzy/inverter is associated with one of our matrices: " + unexpected);
+            helper.fail("a card outside fuzzy/inverter/void is associated with one of our matrices: " + unexpected);
             return;
         }
-        if (!voidOffenders.isEmpty()) {
-            helper.fail("something in the L1 family takes the overflow destruction card: " + voidOffenders
-                    + " - destroying stored stock is not a thing we ship");
+        if (!voidOnSmallBulk.isEmpty()) {
+            helper.fail("a small-bulk cell takes the overflow destruction card: " + voidOnSmallBulk
+                    + " - those hold three or ten types, so the card would delete stock the player can still"
+                    + " see room for");
             return;
         }
-        if (fuzzySeen == 0) {
-            helper.fail("nothing in the family takes a fuzzy card, so the rules above were satisfied by an"
-                    + " empty table instead of by policy");
+        if (!voidMissing.isEmpty()) {
+            helper.fail("a matrix outside the small-bulk family does not take the overflow destruction card: "
+                    + voidMissing);
+            return;
+        }
+        if (megaLoaded && smallBulkSeen == 0) {
+            helper.fail("megacells is loaded but no small-bulk cell was in the sweep, so the exclusion above was"
+                    + " never measured");
+            return;
+        }
+        if (fuzzySeen == 0 || voidSeen == 0) {
+            helper.fail("nobody in the family takes a fuzzy or void card (fuzzy=" + fuzzySeen + " void=" + voidSeen
+                    + "), so the rules above were satisfied by an empty table instead of by policy");
             return;
         }
         helper.succeed();
