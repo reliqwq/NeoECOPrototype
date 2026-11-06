@@ -11128,6 +11128,132 @@ public final class NeoECOPrototypeGameTests {
     }
 
     /** Mount this drive's cell through a recorder and report the priority it was mounted at. */
+    /**
+     * A foreign eco bulk cell takes its offset on the cell object, and the gated branch is what puts it there.
+     *
+     * <p>eco keeps this figure in two places at once, and the two are not interchangeable. The stack carries it
+     * for an ordinary cell, and that is the copy our own mount path reads
+     * ({@code getConfiguredCellPriority} → {@code StoragePriority.mountPriority}). A bulk cell also carries it
+     * on the cell object, and that is the copy <i>eco's</i> drives read. Our drive reaches the object only
+     * through the branch that tests the inventory against eco's implementation class - which is the reference
+     * now sitting behind a {@code Class.forName} gate. So the assertion that pins the branch is the object
+     * reading: the stack number comes out the same either way and would not notice a dead branch.</p>
+     *
+     * <p>The third reading is a design fact rather than a hope: a foreign eco bulk cell does not mount in an
+     * L1 host at all, because {@code isAcceptedByL1Host} admits L1-native cells, our own small-bulk cells,
+     * OmniCells and whitelist entries only. The guard asserts that refusal too, so if the acceptance rule
+     * ever widens, this file says which one moved.</p>
+     *
+     * <p>What the control measured is the reason the two writes are not interchangeable. With the branch
+     * forced off, an offset of 6 came back as <b>1</b> from both places - not 0, not 6 - because an eco bulk
+     * cell answers eco's own "marked bulk sits one above" default and ignores a figure written onto its stack
+     * by the generic path. So the fallback does not merely miss the object copy: it loses the player's number
+     * outright, and the only reading that shows that is one taken after the write. Measured both ways:
+     * branch on {@code stack = 6, object = 6}, branch off {@code stack = 1, object = 1}.</p>
+     *
+     * <p>The cell used is one of eco's own bulk cells, not a Mega Cells one, so this needs no optional mod:
+     * eco is a hard dependency and the candidate list is walked until something is actually handled as a cell.
+     * If none of them is, the guard says which ones it tried instead of skipping, because a silent pass here
+     * would mean the branch went back to having no coverage at all.</p>
+     */
+    @GameTest(template = "l1_room", batch = "bulk_cell_priority", timeoutTicks = 400,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void aForeignBulkCellKeepsItsOffsetOnTheCellObject(GameTestHelper helper) {
+        var candidates = java.util.List.of("eco_bulk_item_cell_16m", "eco_bulk_item_cell_64m",
+                "eco_bulk_item_cell_256m", "eco_mega_long_bulk_cell");
+        ItemStack bulk = ItemStack.EMPTY;
+        var tried = new StringBuilder();
+        for (String path : candidates) {
+            var item = BuiltInRegistries.ITEM.getOptional(
+                    ResourceLocation.fromNamespaceAndPath("neoecoae", path));
+            tried.append(path).append(item.isEmpty() ? "=absent " : "=present ");
+            if (item.isEmpty()) {
+                continue;
+            }
+            var stack = new ItemStack(item.get());
+            if (cn.dancingsnow.neoecoae.api.storage.ECOStorageCells.isCellHandled(stack)) {
+                bulk = stack;
+                tried.append("handled by ").append(path);
+                break;
+            }
+            tried.append(path).append(" not handled ");
+        }
+        NeoECOPrototype.LOGGER.info("bulk cell priority: candidates {} -> chosen {}", tried,
+                bulk.isEmpty() ? "none" : BuiltInRegistries.ITEM
+                        .getKey(bulk.getItem()).toString());
+        if (bulk.isEmpty()) {
+            helper.fail("none of eco's bulk cell items is handled as a cell by eco's own factory (" + tried
+                    + "), so the drive cannot mount one and the gated branch would have no coverage");
+            return;
+        }
+        var stack = bulk;
+        buildL1Room(helper, CARD_HOST,
+                ModRegistration.SIMPLIFY_STORAGE_CONTROLLER_BLOCK.get(),
+                ModRegistration.SIMPLIFY_STORAGE_INTERFACE_BLOCK.get(),
+                ModRegistration.SIMPLIFY_STORAGE_INTERFACE_BLOCK.get(),
+                host -> {
+                    if (!(host instanceof SimplifyStorageHostBlockEntity storageHost)) {
+                        helper.fail("the L1 storage controller is not our host block entity: " + host);
+                        return;
+                    }
+                    var drives = storageHost.getCluster() == null
+                            ? java.util.List.<cn.dancingsnow.neoecoprototype.blockentity.storage
+                                    .SimplifyDriveBlockEntity>of()
+                            : storageHost.getCluster().getDrives();
+                    if (drives.isEmpty()) {
+                        helper.fail("the room gave no drive to mount a foreign bulk cell in");
+                        return;
+                    }
+                    var drive = drives.stream().filter(candidate -> candidate.insertCell(stack))
+                            .findFirst().orElse(null);
+                    if (drive == null) {
+                        helper.fail("no drive accepted " + stack.getHoverName()
+                                + ", so isItemValid or eco's own handling says this is not a cell to us");
+                        return;
+                    }
+                    var inventory = drive.getCellInventory();
+                    if (inventory == null) {
+                        helper.fail("the drive took the bulk cell but eco's factory returned no cell"
+                                + " inventory, so there is nothing to write the offset to");
+                        return;
+                    }
+                    // Measured into locals in order, then asserted: setting an offset is a write, so an
+                    // assertion that re-measures would read back whatever the next line configured.
+                    int baseline = storageHost.getStoragePriority();
+                    int mounted = mountedAfter(drive, 6);
+                    int onStack = cn.dancingsnow.neoecoae.storage.ECOStorageCellSettings
+                            .priority(drive.getCellStack());
+                    // The figure through eco's own interface, which for a bulk cell is the cell object's copy
+                    // and nothing else. Our mount reads the stack, so onStack alone cannot tell the two
+                    // branches apart - this can, and it is the reason the branch exists.
+                    int onCell = inventory.getStoragePriority();
+                    NeoECOPrototype.LOGGER.info("bulk cell priority: cell class = {}, host = {}, mounted ="
+                                    + " {}, on the stack = {}, on the cell object = {}",
+                            inventory.getClass().getName(), baseline, mounted, onStack, onCell);
+                    if (onStack != 6) {
+                        helper.fail("a +6 offset on the foreign bulk cell left " + onStack
+                                + " on the stack, which is what our own mount path reads, so the number"
+                                + " would not reach the mount for a whitelisted bulk cell (host=" + baseline
+                                + ", mounted=" + mounted + ")");
+                        return;
+                    }
+                    if (onCell != 6) {
+                        helper.fail("the bulk cell object reports " + onCell + " after the drive wrote 6"
+                                + " through it, so the gated bulk branch is not the code that ran and eco's"
+                                + " own drives - which read the object, not the stack - would keep ignoring"
+                                + " this cell's offset");
+                        return;
+                    }
+                    if (mounted != -1) {
+                        helper.fail("a foreign eco bulk cell mounted in an L1 host at " + mounted
+                                + "; isAcceptedByL1Host only lets L1-native cells, our own small-bulk cells,"
+                                + " OmniCells and whitelist entries mount, so this row was not supposed to"
+                                + " appear at all");
+                    }
+                    helper.succeed();
+                });
+    }
+
     private static int mountedPriority(
             cn.dancingsnow.neoecoprototype.blockentity.storage.SimplifyDriveBlockEntity drive) {
         var seen = new int[]{-1};
