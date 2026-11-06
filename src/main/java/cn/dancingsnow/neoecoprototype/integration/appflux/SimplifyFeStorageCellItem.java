@@ -22,8 +22,13 @@ import java.util.function.Supplier;
  * in the tooltip and ours should read like the rest of the family.
  */
 public final class SimplifyFeStorageCellItem extends ECOFeStorageCellItem {
-    /** AE2's 1K component's byte count, one rung under appflux's own ladder. */
-    public static final long BYTES_1K = 1L << 10;
+    /**
+     * The same surcharged 1K rung the item, fluid and chemical families carry - 1280 bytes, not the 1024
+     * the name still says. It was left on the raw power of two when the small rungs went up 25% (1.4.6), so an
+     * FE cell at 1K stored a quarter less than every other 1K in the family; appflux's own 1M and 4M rungs
+     * stay level, because those were never part of the surcharge.
+     */
+    public static final long BYTES_1K = (1L << 10) * 5 / 4;
     /** appflux's own 1M rung, and the byte count {@code SimplifyTier.L1} already carries. */
     public static final long BYTES_1M = 1L << 20;
     /** appflux's own 4M rung. */

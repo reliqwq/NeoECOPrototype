@@ -7,7 +7,8 @@ import net.minecraft.world.item.Item;
 
 /** L1 quantum matrix using eco's unlimited-type OmniCells backend. */
 public final class SimplifyQuantumStorageCellItem extends ECOUniversalStorageCellItem {
-    public static final long BYTES_1K = 1L << 10;
+    // The surcharged 1K, same as the item / fluid / chemical / FE families as of 1.4.6; 1M stays level.
+    public static final long BYTES_1K = (1L << 10) * 5 / 4;
     public static final long BYTES_1M = 1L << 20;
     public static final int UNLIMITED_TYPES = -1;
     public static final double IDLE_DRAIN = 8.0D;
