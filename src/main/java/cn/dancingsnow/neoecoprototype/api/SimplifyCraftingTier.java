@@ -133,16 +133,17 @@ public enum SimplifyCraftingTier implements IECOTier {
     }
 
     /**
-     * Same digit as {@link SimplifyTier#getCraftConfirmCpuTierGlyph()}, and this is the one that actually
-     * answers the screen: an F1 job runs on a CPU whose tier is this enum - the parallel core hands it out at
-     * construction - so when only {@code SimplifyTier} answered, the crafting confirmation page kept reading
-     * "EC0" while the suite was green. eco asks each tier separately everywhere else in the panel code too;
-     * this file is not the fallback for anything.
+     * The same {@code crafting_tier.png} cell as {@link SimplifyTier#getCraftConfirmCpuTierGlyph()} - the
+     * page decides the art, not which machine the job came from, so both enums answer it and they answer it
+     * identically. This one is the half that actually shows: an F1 job runs on a CPU whose tier is this enum
+     * (the parallel core hands it out at construction), so when only {@code SimplifyTier} answered, the
+     * crafting confirmation page kept reading "EC0" while the suite was green. eco asks each tier separately
+     * everywhere else in the panel code too; this file is not the fallback for anything.
      */
     @Override
     public cn.dancingsnow.neoecoae.api.ECOCpuTierGlyph getCraftConfirmCpuTierGlyph() {
         return new cn.dancingsnow.neoecoae.api.ECOCpuTierGlyph(ResourceLocation.fromNamespaceAndPath(
-                "neoecoprototype", "textures/gui/panel/computation_tier.png"));
+                "neoecoprototype", "textures/gui/panel/crafting_tier.png"));
     }
 
     /** Same six sheets as {@link SimplifyTier#getPanelAtlas(String)}; the crafting panel asks its own tier. */

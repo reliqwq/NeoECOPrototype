@@ -304,16 +304,22 @@ public final class NeoECOPrototypeGameTests {
     }
 
     /**
-     * eco issue #153's hook, answered: every one of our tiers hands the crafting confirmation screen the
-     * same 13x18 digit the C1 host panel already paints, rather than the interface default's null - which is
-     * what made our CPUs read "EC0", since the wordmark's third letter is a cell stamped over the "O" and the
-     * only cells eco's own switch knew were the digits 4, 6 and 9.
+     * eco issue #153's hook, answered: every one of our tiers hands the crafting confirmation screen a
+     * 13x18 digit rather than the interface default's null - which is what made our CPUs read "EC0", since
+     * the wordmark's third letter is a cell stamped over the "O" and the only cells eco's own switch knew
+     * were the digits 4, 6 and 9.
      *
      * <p>A suite test can say something about a badge because the addon's whole responsibility is what the
      * tier answers and whether the file is really that size: the screen blits a fixed rectangle and the
      * one-argument glyph is (0, 0, {@code ECOCpuTierGlyph.WIDTH}, {@code HEIGHT}), so a rescaled cell or a
      * wrong atlas number draws the wrong pixels without throwing anything. Where it lands on the wordmark
      * stays a client reading.</p>
+     *
+     * <p>Which of our three look-alike cells is the one that is pinned too, and that part is a colour
+     * reading rather than a path comparison: the page it lands on is dark, so the frame has to be the dark
+     * one. {@code textures/gui/panel/computation_tier.png} and {@code storage_tier.png} carry the identical
+     * digit under a light frame and read as a pasted rectangle on that ground - reliqwq saw exactly that on
+     * 2026-11-06, three commits after the badge first went green.</p>
      */
     @GameTest(template = "empty", batch = "cpu_tier_glyph", timeoutTicks = 100,
             templateNamespace = NeoECOPrototype.MOD_ID)
@@ -321,6 +327,8 @@ public final class NeoECOPrototypeGameTests {
         var width = cn.dancingsnow.neoecoae.api.ECOCpuTierGlyph.WIDTH;
         var height = cn.dancingsnow.neoecoae.api.ECOCpuTierGlyph.HEIGHT;
         var expected = net.minecraft.resources.ResourceLocation.fromNamespaceAndPath(
+                NeoECOPrototype.MOD_ID, "textures/gui/panel/crafting_tier.png");
+        var lightFrame = net.minecraft.resources.ResourceLocation.fromNamespaceAndPath(
                 NeoECOPrototype.MOD_ID, "textures/gui/panel/computation_tier.png");
         var url = NeoECOPrototype.class.getClassLoader()
                 .getResource("assets/" + NeoECOPrototype.MOD_ID + "/" + expected.getPath());
@@ -340,6 +348,23 @@ public final class NeoECOPrototypeGameTests {
         if (pixels[0] != width || pixels[1] != height) {
             helper.fail(expected + " is " + pixels[0] + "x" + pixels[1] + " but eco blits a " + width
                     + "x" + height + " cell from it, so the digit is drawn with the wrong pixels");
+            return;
+        }
+        // Same digit, different frame, and the page decides which one is right: the confirmation screen is
+        // dark, so the lightest colour of the cell has to sit under the light sheet's. Reading both keeps
+        // this from being a path comparison against itself - the reference file has to fail the same ruler.
+        var badgeLightest = brightestOpaquePixel(expected);
+        var lightFrameLightest = brightestOpaquePixel(lightFrame);
+        if (badgeLightest < 0 || lightFrameLightest < 0) {
+            helper.fail("cannot measure the badge frames: " + expected + "=" + badgeLightest
+                    + " " + lightFrame + "=" + lightFrameLightest + " (-1 = missing or unreadable),"
+                    + " so the sheet the tiers point at was never checked");
+            return;
+        }
+        if (badgeLightest >= lightFrameLightest) {
+            helper.fail("the badge sheet " + expected + " tops out at rgb-sum " + badgeLightest + ", which is"
+                    + " not darker than " + lightFrame + "'s " + lightFrameLightest + " - the light frame is"
+                    + " what reads as a pasted rectangle on the confirmation screen's dark ground");
             return;
         }
         // Every tier we own, not just the one the panel code names first. The crafting host's CPU carries
@@ -381,18 +406,62 @@ public final class NeoECOPrototypeGameTests {
                 return;
             }
         }
-        NeoECOPrototype.LOGGER.info("cpu tier glyph: tiers={} ids={} texture={} cell={}x{} atlas={}x{}",
+        NeoECOPrototype.LOGGER.info("cpu tier glyph: tiers={} ids={} texture={} cell={}x{} atlas={}x{}"
+                        + " lightest={} (light sheet {}={})",
                 tiers.size(),
                 tiers.stream().map(t -> String.valueOf(ecoTiers.getId(t))).toList(),
-                expected, pixels[0], pixels[1], width, height);
+                expected, pixels[0], pixels[1], width, height, badgeLightest, lightFrame, lightFrameLightest);
         // The sweep has to be the size of the family, or "all of them answer" is only "the ones I listed".
-        // The JUnit TierGlyphCoverageTest is what checks this list against the classes that actually exist.
+        // Walking eco's registry is what makes that true rather than assumed: a tier that got published but
+        // never added to the list above would otherwise keep its badge answer unverified and keep the suite
+        // green, which is the same shape as the "EC0" that survived the first two versions of this test.
+        for (var registered : ecoTiers) {
+            if (registered == null || !registered.getClass().getName()
+                    .startsWith("cn.dancingsnow.neoecoprototype.")) {
+                continue;
+            }
+            if (!tiers.contains(registered)) {
+                helper.fail(registered.getClass().getName() + " " + registered + " is one of ours and is"
+                        + " published into eco's tier registry, but this sweep never asked it for a badge");
+                return;
+            }
+        }
         if (tiers.size() < 5) {
             helper.fail("only " + tiers.size() + " tiers were swept, but the family is 4 storage tiers plus"
                     + " the crafting tier - one of the two enums stopped being enumerable");
             return;
         }
         helper.succeed();
+    }
+
+    /**
+     * The largest r+g+b over the non-transparent pixels of one of our GUI cells, or -1 when it cannot be
+     * read. A suite test cannot look at a screen, but it can look at the 234 pixels the screen would blit
+     * and say which of two look-alike cells disappears into a dark ground and which one does not.
+     */
+    private static int brightestOpaquePixel(net.minecraft.resources.ResourceLocation texture) {
+        var url = NeoECOPrototype.class.getClassLoader().getResource(
+                "assets/" + texture.getNamespace() + "/" + texture.getPath());
+        if (url == null) {
+            return -1;
+        }
+        try {
+            var image = javax.imageio.ImageIO.read(url);
+            int brightest = 0;
+            for (int x = 0; x < image.getWidth(); x++) {
+                for (int y = 0; y < image.getHeight(); y++) {
+                    var argb = image.getRGB(x, y);
+                    if ((argb >>> 24) == 0) {
+                        continue;
+                    }
+                    brightest = Math.max(brightest,
+                            ((argb >> 16) & 0xFF) + ((argb >> 8) & 0xFF) + (argb & 0xFF));
+                }
+            }
+            return brightest;
+        } catch (java.io.IOException failure) {
+            return -1;
+        }
     }
 
     /**

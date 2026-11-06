@@ -156,9 +156,17 @@ public enum SimplifyTier implements IECOTier {
      * {@code null} (that is today's behaviour, so eco's own three tiers changed nothing), the sentinel for
      * "no CPU reported" moved from 0 to -1 so a tier numbered 0 is no longer indistinguishable from
      * silence, and {@code ECOCpuTierGlyph} carries the texture plus the rectangle to cut from it. The
-     * one-argument form is exactly {@code (u=0, v=0, 13, 18)}, which is the size of the cell this returns -
-     * the same 13x18 digit the C1 host panel already paints, so no new art was needed and the badge in the
-     * confirmation screen and the badge on the machine are the same drawing.</p>
+     * one-argument form is exactly {@code (u=0, v=0, 13, 18)}, which is the size of every one of our three
+     * 13x18 panel badge cells.</p>
+     *
+     * <p>Which of the three, then: {@code crafting_tier}, not the computation or storage sheet the C1 and
+     * F1 host panels use. The three cells hold the same digit — the same greens, (172,242,111) and
+     * (97,211,137) — and differ only in frame: computation and storage top out at a 108-pixel
+     * (203,204,212), this one at (135,143,165) with a (65,63,84) bottom, because the page it is stamped on
+     * is dark. On the confirmation screen's ground the light cell reads as a pasted rectangle rather than
+     * as part of the wordmark. So the answer to "which art" is the page, not the machine: this hook has
+     * exactly one consumer, {@code ECOCraftConfirmScreen.drawCpuTierGlyph}, and it is reached from both
+     * tier enums.</p>
      *
      * <p>What this cannot prove from here: where the glyph lands on screen. The screen blits it at a fixed
      * offset from the wordmark, and only a client can say whether it sits on the "O" and not next to it.</p>
@@ -166,7 +174,7 @@ public enum SimplifyTier implements IECOTier {
     @Override
     public cn.dancingsnow.neoecoae.api.ECOCpuTierGlyph getCraftConfirmCpuTierGlyph() {
         return new cn.dancingsnow.neoecoae.api.ECOCpuTierGlyph(ResourceLocation.fromNamespaceAndPath(
-                "neoecoprototype", "textures/gui/panel/computation_tier.png"));
+                "neoecoprototype", "textures/gui/panel/crafting_tier.png"));
     }
 
     /**
