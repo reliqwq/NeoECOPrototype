@@ -10486,6 +10486,10 @@ public final class NeoECOPrototypeGameTests {
      * mounts at exactly the host number (so no existing world shifts when this lands), that a negative offset
      * goes down as well as up, and that the figure travels with the stack - the same cell moved into a second
      * drive reports the same number, because nothing here is keyed by position or dimension (§6).</p>
+     *
+     * <p>The host number is also set through {@code IECOStoragePriorityHost}, eco's published interface for
+     * it, rather than through our own method: the interface's javadoc promises persistence, sync and a mount
+     * refresh, and a third party coding to it would expect exactly that from an L1 host.</p>
      */
     @GameTest(template = "l1_room", batch = "cell_priority", timeoutTicks = 400,
             templateNamespace = NeoECOPrototype.MOD_ID)
@@ -10524,6 +10528,13 @@ public final class NeoECOPrototypeGameTests {
                     // Measured in order into locals, then asserted: setting an offset is a write, so an
                     // assertion that re-measures would read back whatever the previous line configured.
                     int unset = mountedPriority(first);
+                    // Reach the host through eco's published interface, not our own method: that is the
+                    // contract a third party would code against, and it promises persistence, sync and a
+                    // mount refresh. The cell still carries no offset here, so whatever moves is the host.
+                    cn.dancingsnow.neoecoae.api.storage.IECOStoragePriorityHost asHost = storageHost;
+                    asHost.setStoragePriority(baseline + 5);
+                    int viaInterface = mountedPriority(first);
+                    asHost.setStoragePriority(baseline);
                     int plusFive = mountedAfter(first, 5);
                     int onStack = cn.dancingsnow.neoecoae.storage.ECOStorageCellSettings
                             .priority(first.getCellStack());
@@ -10532,13 +10543,20 @@ public final class NeoECOPrototypeGameTests {
                     int movedMount = movedIn ? mountedPriority(second) : -1;
                     int minusThree = movedIn ? mountedAfter(second, -3) : -1;
                     int saturated = movedIn ? mountedAfter(second, Integer.MAX_VALUE) : -1;
-                    NeoECOPrototype.LOGGER.info("cell priority: host={} unset={} plusFive={} writtenOnStack={}"
-                                    + " movedToSecond={} minusThree={} saturatedAtTop={}",
-                            baseline, unset, plusFive, onStack, movedMount, minusThree, saturated);
+                    NeoECOPrototype.LOGGER.info("cell priority: host={} unset={} viaInterface={} plusFive={}"
+                                    + " writtenOnStack={} movedToSecond={} minusThree={} saturatedAtTop={}",
+                            baseline, unset, viaInterface, plusFive, onStack, movedMount, minusThree, saturated);
                     if (unset != baseline) {
                         helper.fail("a cell nobody configured does not mount at the host's number: host="
                                 + baseline + ", mount=" + unset + " - this would shift where every existing"
                                 + " cell writes before anyone touches a button");
+                        return;
+                    }
+                    if (viaInterface != baseline + 5) {
+                        helper.fail("writing the host priority through eco's IECOStoragePriorityHost did not"
+                                + " reach the mount (host=" + baseline + ", mount=" + viaInterface
+                                + ") - our host matches the interface's signatures but not its promise to"
+                                + " refresh the affected AE2 storage mounts");
                         return;
                     }
                     if (plusFive != baseline + 5) {
