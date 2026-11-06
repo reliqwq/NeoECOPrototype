@@ -51,6 +51,10 @@ final class FluidHatchPanelTitleContractTest {
     private static final String OUTPUT_BE =
             "cn/dancingsnow/neoecoae/blocks/entity/crafting/ECOFluidOutputHatchBlockEntity";
     private static final String BLOCK_NAME = "net/minecraft/world/level/block/Block";
+    private static final String FLUID_HATCH_UI = "cn/dancingsnow/neoecoae/gui/common/FluidHatchUI";
+    private static final String OUR_OUTPUT_BLOCK
+            = "cn/dancingsnow/neoecoprototype/block/crafting/SimplifyFluidOutputHatchBlock";
+    private static final String OUR_TITLE_KEY = "block.neoecoprototype.simplify_fluid_output_hatch";
     private static final Path LANG_DIR
             = Path.of("src/main/resources/assets/neoecoprototype/lang");
 
@@ -98,10 +102,10 @@ final class FluidHatchPanelTitleContractTest {
     }
 
     /**
-     * The output half, which we never got: {@code ECOFluidOutputHatchBlockEntity.createUI} still loads eco's
-     * own key as a string, so our output hatch's panel is titled "ECO Fluid Output Hatch" and the two
-     * hatches of one machine disagree. This arm is <em>meant</em> to redden when upstream fixes it -
-     * see the message.
+     * The output half, which we never got and now supply ourselves: upstream's
+     * {@code ECOFluidOutputHatchBlockEntity.createUI} still loads its own key as a string, which is why our
+     * block carries the copy at all. This arm is <em>meant</em> to redden when upstream takes the same
+     * one-line change #155 was - see the message.
      */
     @Test
     void outputHatchPanelIsStillTitledByEco() throws Exception {
@@ -110,13 +114,42 @@ final class FluidHatchPanelTitleContractTest {
         assertTrue(literals.contains("block.neoecoae.output_hatch"),
                 "eco's output hatch no longer hardcodes its panel title (" + literals + ") - that is the one"
                         + " line 上游请求稿/NEO_ECO_AE_PR_FLUID_OUTPUT_HATCH_TITLE.md asks for, and it landed."
-                        + " Retire that draft, delete the caveat sentence from the release notes' 变更 5 and"
-                        + " from SimplifyFluidOutputHatchBlock's javadoc, and turn this arm into 'both panels"
-                        + " take their title from the block'. Do not just invert the assertion here: the"
-                        + " player-facing sentence is the other half of this claim.");
+                        + " So our copy is now the thing that is redundant: delete"
+                        + " SimplifyFluidOutputHatchBlock.createUI, retire that draft, drop the sentence about"
+                        + " the output hatch from the release notes' 变更 5 and from that class's javadoc, and"
+                        + " turn this arm into 'both panels take their title from the block'. Do not just"
+                        + " invert the assertion here: the player-facing sentence is the other half.");
         assertTrue(callsTo(be, BLOCK_NAME, "getDescriptionId").isEmpty(),
                 "the output hatch now asks the block for its name while it still passes the literal too;"
                         + " read " + OUTPUT_BE + " before trusting either arm");
+    }
+
+    /**
+     * Our half of the same claim, and the reason the hand copy is a reading rather than a promise: our block
+     * must be the one supplying the title, through the same public factory upstream calls, with the same two
+     * direction flags, and with the tank reached through the accessor #143 promised instead of the field.
+     * The flags are compared against upstream's own call rather than written out here, so if eco ever flips
+     * which hatch reads as the input side, this reddens on the difference and not on my transcription.
+     */
+    @Test
+    void ourOutputHatchSuppliesItsOwnTitleThroughThePublicFactory() throws Exception {
+        var ours = read(FluidHatchPanelTitleContractTest.class.getClassLoader()
+                .getResourceAsStream(OUR_OUTPUT_BLOCK + ".class"));
+        assertEquals(1, callsTo(ours, FLUID_HATCH_UI, "createFluidHatchUI").size(),
+                "our output hatch block no longer builds its panel through"
+                        + " FluidHatchUI.createFluidHatchUI, so nothing here supplies our title any more");
+        assertTrue(strings(ours).contains(OUR_TITLE_KEY),
+                "our output hatch no longer passes " + OUR_TITLE_KEY + " - the panel title is eco's again");
+        assertTrue(callsTo(ours, OUTPUT_BE, "createUI").isEmpty(),
+                "our output hatch delegates to eco's block entity again, which discards the title above");
+        assertEquals(1, callsTo(ours, OUTPUT_BE, "getFluidTankHandler").size(),
+                "our output hatch no longer asks the block entity for its tank handler: the accessor is what"
+                        + " #143 promised, and reading the field instead is the exact shape that broke 1.4.2");
+        var oursFlags = lastTwoConstants(ours, "createFluidHatchUI");
+        var theirsFlags = lastTwoConstants(ecoClass(OUTPUT_BE), "createFluidHatchUI");
+        assertEquals(theirsFlags, oursFlags, "our copy of the panel call no longer matches upstream's own"
+                + " direction flags (ours " + oursFlags + ", eco's " + theirsFlags + ") - the two booleans"
+                + " decide which side the tank fills, so a silent drift here is a panel that lies");
     }
 
     /**
@@ -138,8 +171,48 @@ final class FluidHatchPanelTitleContractTest {
         }
     }
 
-    private static List<String> callsTo(ClassNode node, String owner, String name) {
+    /** Every string a class loads as a constant, which is where a hardcoded title key shows up. */
+    private static List<String> strings(ClassNode node) {
         var found = new ArrayList<String>();
+        node.methods.forEach(method -> {
+            for (AbstractInsnNode insn : method.instructions) {
+                if (insn instanceof LdcInsnNode constant && constant.cst instanceof String text) {
+                    found.add(text);
+                }
+            }
+        });
+        return found;
+    }
+
+    /**
+     * The two constants pushed into the panel factory just before the call itself - the flags that say which
+     * side of the hatch the tank sits on. Read out of both classes and compared to each other rather than
+     * written down here, so what fails is a difference between the two implementations and not between one of
+     * them and my transcription of it.
+     */
+    private static List<Integer> lastTwoConstants(ClassNode node, String callName) {
+        for (var method : node.methods) {
+            for (AbstractInsnNode insn = method.instructions.getFirst(); insn != null;
+                    insn = insn.getNext()) {
+                if (!(insn instanceof MethodInsnNode call) || !call.name.equals(callName)) {
+                    continue;
+                }
+                var flags = new ArrayList<Integer>();
+                for (var before = insn.getPrevious(); before != null && flags.size() < 2;
+                        before = before.getPrevious()) {
+                    var opcode = before.getOpcode();
+                    if ((opcode >= Opcodes.ICONST_M1 && opcode <= Opcodes.ICONST_5)
+                            || opcode == Opcodes.BIPUSH || opcode == Opcodes.SIPUSH) {
+                        flags.add(opcode);
+                    }
+                }
+                return flags;
+            }
+        }
+        return List.of(-1);
+    }
+
+    private static List<String> callsTo(ClassNode node, String owner, String name) {        var found = new ArrayList<String>();
         node.methods.forEach(method -> {
             for (AbstractInsnNode insn : method.instructions) {
                 if (insn instanceof MethodInsnNode call
