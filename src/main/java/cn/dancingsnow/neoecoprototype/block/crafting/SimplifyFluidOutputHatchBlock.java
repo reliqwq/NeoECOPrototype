@@ -12,10 +12,14 @@ import cn.dancingsnow.neoecoae.blocks.crafting.ECOFluidOutputHatchBlock;
  *
  * <p>What the copy did buy was our own title string in the panel: {@code FluidHatchUI
  * .createFluidHatchUI} takes a title key, so the override could pass
- * {@code block.neoecoprototype.simplify_fluid_output_hatch}. The new input panel hardcodes its
- * key and keeps the title hook package-private, so it cannot do the same - see eco issue #155.
- * Until that lands the panel title of both hatches is eco's; the block's own name still uses our
- * key either way.</p>
+ * {@code block.neoecoprototype.simplify_fluid_output_hatch}. This panel still loads eco's key as a literal
+ * ({@code createUI}, offset 5, on 21.2.15 - and offset 2 reads the {@code tank} field rather than the
+ * accessor eco promised in #143), so its header says "ECO Fluid Output Hatch" while its neighbour on the
+ * same machine now says ours: #155 gave the input panel its block-name title in 21.2.15 and this half was
+ * never part of that request. The draft asking for the identical one-line change sits unsent at
+ * {@code 上游请求稿/NEO_ECO_AE_PR_FLUID_OUTPUT_HATCH_TITLE.md}; {@code FluidHatchPanelTitleContractTest}
+ * reddens when it lands so the caveat cannot outlive the fix. Buying the title back by re-copying the method
+ * body is the option we already rejected once, on 2026-11-04, for exactly the drift it caused.</p>
  */
 public class SimplifyFluidOutputHatchBlock extends ECOFluidOutputHatchBlock {
     public SimplifyFluidOutputHatchBlock(Properties properties) {
