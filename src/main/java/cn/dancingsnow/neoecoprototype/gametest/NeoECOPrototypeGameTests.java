@@ -352,7 +352,20 @@ public final class NeoECOPrototypeGameTests {
         for (var tier : cn.dancingsnow.neoecoprototype.api.SimplifyCraftingTier.values()) {
             tiers.add(tier);
         }
+        var ecoTiers = cn.dancingsnow.neoecoae.all.NERegistries.ECO_TIER;
         for (var tier : tiers) {
+            // The round-trip first, because that is the path the screen takes: eco's mixin reports
+            // getId(cpu.getTier()) and the client resolves the glyph from byId(that int). A tier that is not
+            // in the table answers -1 and the glyph method is never reached, however it is implemented -
+            // which is how the badge stayed "EC0" after both the override and this test had gone green.
+            var registeredId = ecoTiers.getId(tier);
+            if (registeredId < 0 || ecoTiers.byId(registeredId) != tier) {
+                helper.fail(tier + " does not survive eco's own tier-registry round-trip (getId="
+                        + registeredId + ", byId=" + ecoTiers.byId(registeredId) + ") - the crafting"
+                        + " confirmation badge resolves the CPU's tier through that table, so an"
+                        + " unregistered tier never reaches the glyph method at all");
+                return;
+            }
             var glyph = tier.getCraftConfirmCpuTierGlyph();
             if (glyph == null) {
                 helper.fail(tier + " still answers eco's interface default (null), which is exactly the"
@@ -368,8 +381,10 @@ public final class NeoECOPrototypeGameTests {
                 return;
             }
         }
-        NeoECOPrototype.LOGGER.info("cpu tier glyph: tiers={} texture={} cell={}x{} atlas={}x{}",
-                tiers.size(), expected, pixels[0], pixels[1], width, height);
+        NeoECOPrototype.LOGGER.info("cpu tier glyph: tiers={} ids={} texture={} cell={}x{} atlas={}x{}",
+                tiers.size(),
+                tiers.stream().map(t -> String.valueOf(ecoTiers.getId(t))).toList(),
+                expected, pixels[0], pixels[1], width, height);
         // The sweep has to be the size of the family, or "all of them answer" is only "the ones I listed".
         // The JUnit TierGlyphCoverageTest is what checks this list against the classes that actually exist.
         if (tiers.size() < 5) {

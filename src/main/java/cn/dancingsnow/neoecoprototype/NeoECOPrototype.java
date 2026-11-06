@@ -62,6 +62,34 @@ public class NeoECOPrototype {
         }
         ModRegistration.ITEMS.register(modBus);
         ModRegistration.BLOCK_ENTITIES.register(modBus);
+        // eco does not ask our tier object for the crafting-confirmation badge. Its mixin reports
+        // NERegistries.ECO_TIER.getId(cpu.getTier()) - an int - and the client turns that int back into a
+        // tier with byId(). A tier that is not in eco's registry therefore comes back as -1, the glyph
+        // getter returns null before the interface method is ever reached, and the wordmark keeps showing
+        // its "O": that is why implementing IECOTier's new default (eco issue #153) was not enough on its
+        // own. Putting ours in the table is what makes the hook reachable. Two facts make this safe rather
+        // than a gamble: nothing else in eco's jar reads ECO_TIER (the only consumers are this mixin and
+        // LDLib2's accessor wrapper), and the registry is created with sync(true), so server and client
+        // agree on the ids the badge round-trips through.
+        modBus.addListener((net.neoforged.neoforge.registries.RegisterEvent event) -> {
+            if (!event.getRegistryKey().equals(cn.dancingsnow.neoecoae.all.NERegistries.Keys.ECO_TIER)) {
+                return;
+            }
+            int published = 0;
+            for (var tier : cn.dancingsnow.neoecoprototype.api.SimplifyTier.values()) {
+                event.register(cn.dancingsnow.neoecoae.all.NERegistries.Keys.ECO_TIER,
+                        id(tier.name().toLowerCase(java.util.Locale.ROOT)), () -> tier);
+                published++;
+            }
+            for (var tier : cn.dancingsnow.neoecoprototype.api.SimplifyCraftingTier.values()) {
+                // Both enums have a constant named L1, and a registry key has to stay unique.
+                event.register(cn.dancingsnow.neoecoae.all.NERegistries.Keys.ECO_TIER,
+                        id("crafting_" + tier.name().toLowerCase(java.util.Locale.ROOT)), () -> tier);
+                published++;
+            }
+            LOGGER.info("published {} tiers into eco's tier registry so the crafting badge can resolve them",
+                    published);
+        });
         ModRegistration.RECIPE_TYPES.register(modBus);
         ModRegistration.RECIPE_SERIALIZERS.register(modBus);
         ModRegistration.ATTACHMENT_TYPES.register(modBus);
