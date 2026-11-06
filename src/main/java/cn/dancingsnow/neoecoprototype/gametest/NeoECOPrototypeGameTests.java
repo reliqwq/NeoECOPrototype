@@ -503,58 +503,73 @@ public final class NeoECOPrototypeGameTests {
     }
 
     /**
-     * The surcharged small rungs have to be full at the byte count their item claims, not at the power of
-     * two their name still says.
+     * Every rung of our own storage ladder has to be full at the byte count its item claims, and at nothing
+     * else: 1K / 16K / 64K at +25%, and 1M / 4M left level with AE2 at 1048576 and 4194304. The level rungs
+     * are not padding - they are the rows that fail if somebody replaces the ladder with one multiplier. The
+     * single exception anywhere in the family is the quantum matrix's own 1M, which reads below.
      *
      * <p>Nothing else in this suite covered the shipped cells' capacity: the only test that touches these
      * numbers reads them off the same constants it would be checking, so a rung could quietly stop paying
-     * for its extra quarter and stay green. Capacity is never written into the stack either - eco's
+     * for its extra bytes and stay green. Capacity is never written into the stack either - eco's
      * {@code ECOStorageCell} holds a {@code final IBasicECOCellItem} and asks it each time - so the one
      * reading worth having is the boundary the engine enforces. The literals are what pin the ladder: put
      * {@code BYTES_1K} back to 1024 and the item row goes red, put the chemical {@code BYTES_64K} back to
      * 65536 and its row does - both control groups were run here, one red each, naming the right rung.</p>
      *
-     * <p>What the boundary also proves, for anyone reading this as documentation: the extra quarter is real
+     * <p>What the boundary also proves, for anyone reading this as documentation: the extra bytes are real
      * storage, not a number the type limit eats. That was probed rather than assumed - walking the item
      * registry and filling each key in turn shows the second key (the first is air, which AE2 refuses
      * outright) taking the cell to a full 1280 used bytes, and the third refused. The one subtlety the
      * accepted amount records: a key gets every byte except the {@code bytesPerType} its own opening costs
      * (1276 of 1280 at the 1K rung, 10208 items), because eco's private {@code canHoldNewItem} charges that
      * reservation when a type appears and never gives it back. So {@code bytesPerType} prices opening a type;
-     * it does not cap one that is already open. Everything here runs on the MODULATE path and reads the
-     * accounting back, because a SIMULATE pre-check of the same whole-budget ask reported less than it on
-     * today's fixture - the accepted amount and the used-bytes pair are what the engine promises, and those
-     * are what this pins.</p>
+     * it does not cap one that is already open - which is why raising a rung's byte total needs no change to
+     * the opening price beside it. Everything here runs on the MODULATE path and reads the accounting back,
+     * because a SIMULATE pre-check of the same whole-budget ask reported less than it on today's fixture -
+     * the accepted amount and the used-bytes pair are what the engine promises, and those are what this
+     * pins.</p>
      */
     @GameTest(template = "empty", batch = "cell_capacity", timeoutTicks = 100,
             templateNamespace = NeoECOPrototype.MOD_ID)
-    public static void smallRungsFillToTheirSurchargedBytes(GameTestHelper helper) {
+    public static void everyRungFillsToItsOwnBudget(GameTestHelper helper) {
         var items = appeng.api.stacks.AEKeyType.items();
         var fluids = appeng.api.stacks.AEKeyType.fluids();
+        var water = appeng.api.stacks.AEFluidKey.of(net.minecraft.world.level.material.Fluids.WATER);
+        var lava = appeng.api.stacks.AEFluidKey.of(net.minecraft.world.level.material.Fluids.LAVA);
+        var cobble = appeng.api.stacks.AEItemKey.of(net.minecraft.world.item.Items.COBBLESTONE);
+        var dirt = appeng.api.stacks.AEItemKey.of(net.minecraft.world.item.Items.DIRT);
+        // Which rungs actually got read. The family tables below are gated on optional mods, so the list is
+        // what makes "the ladder was swept" a statement about this run rather than about the source file.
+        var measured = new ArrayList<String>();
 
-        // The three surcharged item rungs, then one rung left alone: a blanket multiplier over the whole
-        // ladder has to fail here rather than look like a win.
-        Object[][] itemRungs = {
+        // Every rung of the two families we register ourselves, at the numbers the ladder is meant to add up
+        // to: the small three +25%, the 1M and the 4M level. Item and fluid share SimplifyStorageCellItem's
+        // constants but not its registrations, so each keeps its own five rows and each expected number is
+        // written out rather than computed from the constant the row is checking.
+        Object[][] ownRungs = {
                 {"item 1k", ModRegistration.SIMPLIFY_ITEM_CELL_1K.get(), 1280L},
                 {"item 16k", ModRegistration.SIMPLIFY_ITEM_CELL_16K.get(), 20480L},
                 {"item 64k", ModRegistration.SIMPLIFY_ITEM_CELL_64K.get(), 81920L},
                 {"item 1m", ModRegistration.SIMPLIFY_ITEM_CELL_1M.get(), 1048576L},
+                {"item 4m", ModRegistration.SIMPLIFY_ITEM_CELL_4M.get(), 4194304L},
+                {"fluid 1k", ModRegistration.SIMPLIFY_FLUID_CELL_1K.get(), 1280L},
+                {"fluid 16k", ModRegistration.SIMPLIFY_FLUID_CELL_16K.get(), 20480L},
+                {"fluid 64k", ModRegistration.SIMPLIFY_FLUID_CELL_64K.get(), 81920L},
+                {"fluid 1m", ModRegistration.SIMPLIFY_FLUID_CELL_1M.get(), 1048576L},
+                {"fluid 4m", ModRegistration.SIMPLIFY_FLUID_CELL_4M.get(), 4194304L},
         };
-        for (Object[] rung : itemRungs) {
-            fillToBoundary(helper, (net.minecraft.world.item.Item) rung[1], items,
-                    appeng.api.stacks.AEItemKey.of(net.minecraft.world.item.Items.COBBLESTONE),
-                    appeng.api.stacks.AEItemKey.of(net.minecraft.world.item.Items.DIRT),
-                    (Long) rung[2], (String) rung[0]);
+        for (Object[] rung : ownRungs) {
+            var label = (String) rung[0];
+            boolean fluidFamily = label.startsWith("fluid");
+            fillToBoundary(helper, (net.minecraft.world.item.Item) rung[1],
+                    fluidFamily ? fluids : items,
+                    (appeng.api.stacks.AEKey) (fluidFamily ? water : cobble),
+                    (appeng.api.stacks.AEKey) (fluidFamily ? lava : dirt),
+                    (Long) rung[2], label);
+            measured.add(label);
         }
 
-        // The fluid side shares the same three constants, so it gets its own rung - and its own
-        // amount-per-byte, which is why the expected quantity is never written here.
-        fillToBoundary(helper, ModRegistration.SIMPLIFY_FLUID_CELL_1K.get(), fluids,
-                appeng.api.stacks.AEFluidKey.of(net.minecraft.world.level.material.Fluids.WATER),
-                appeng.api.stacks.AEFluidKey.of(net.minecraft.world.level.material.Fluids.LAVA),
-                1280L, "fluid 1k");
-
-        // The chemical family carries the same three surcharged rungs. Its keys come from Mekanism and
+        // The chemical family carries the same five rungs. Its keys come from Mekanism and
         // Applied Mekanistics, so this whole block sits behind both checks and reaches those classes only
         // through a probe class - see MekanismCellCapacityTestProbe, which exists for the same reason
         // AppFluxTestProbe does: an unresolved optional class would stop the test server from starting.
@@ -571,32 +586,56 @@ public final class NeoECOPrototypeGameTests {
                     {"chemical 1k", ModRegistration.OPTIONAL_CHEMICAL_CELL_1K, 1280L},
                     {"chemical 16k", ModRegistration.OPTIONAL_CHEMICAL_CELL_16K, 20480L},
                     {"chemical 64k", ModRegistration.OPTIONAL_CHEMICAL_CELL_64K, 81920L},
+                    {"chemical 1m", ModRegistration.OPTIONAL_CHEMICAL_CELL_1M, 1048576L},
+                    {"chemical 4m", ModRegistration.OPTIONAL_CHEMICAL_CELL_4M, 4194304L},
             };
             for (Object[] rung : chemicalRungs) {
                 var supplier = (java.util.function.Supplier<? extends net.minecraft.world.item.Item>) rung[1];
                 fillToBoundary(helper, supplier.get(), sulfur.getType(), sulfur, hydrogen,
                         (Long) rung[2], (String) rung[0]);
+                measured.add((String) rung[0]);
             }
         } else {
-            NeoECOPrototype.LOGGER.info("cell_capacity: the three chemical rungs were not read,"
+            NeoECOPrototype.LOGGER.info("cell_capacity: the five chemical rungs were not read,"
                     + " Mekanism or Applied Mekanistics is absent from this run");
         }
 
-        // The two families the 25% round left behind, reported by reliqwq on 2026-11-06: FE and the Omni
-        // Cells rungs stayed at the raw 1024 while item, fluid and chemical went to 1280. They cannot join
-        // the pour-to-full test above - that helper reads the per-type opening off IBasicECOCellItem, and
-        // eco's omni cell implements IECOStorageCellItem instead - so what is asked here is the number the
-        // engine itself reports for the cell it builds. That is still not our constant read back to us: it
-        // goes through ECOStorageCells, so a byte count the backend ignores would show up as the old number.
-        if (ModList.get().isLoaded("appflux") && ModRegistration.OPTIONAL_FE_CELL_1K != null) {
-            reportsSurchargedBudget(helper, ModRegistration.OPTIONAL_FE_CELL_1K.get(), 1280L, "fe 1k");
+        // FE and the Omni Cells rungs were the two families the 25% round left behind (reported by reliqwq on
+        // 2026-11-06). They cannot join the pour-to-full test above - that helper reads the per-type opening
+        // off IBasicECOCellItem, and eco's omni cell implements IECOStorageCellItem instead - so what is asked
+        // here is the number the engine itself reports for the cell it builds. That is still not our constant
+        // read back to us: it goes through ECOStorageCells, so a byte count the backend ignores would show up
+        // as the old number.
+        if (ModList.get().isLoaded("appflux")) {
+            Object[][] feRungs = {
+                    {"fe 1k", ModRegistration.OPTIONAL_FE_CELL_1K, 1280L},
+                    {"fe 1m", ModRegistration.OPTIONAL_FE_CELL_1M, 1048576L},
+                    {"fe 4m", ModRegistration.OPTIONAL_FE_CELL_4M, 4194304L},
+            };
+            for (Object[] rung : feRungs) {
+                var supplier = (java.util.function.Supplier<? extends net.minecraft.world.item.Item>) rung[1];
+                if (supplier == null) {
+                    NeoECOPrototype.LOGGER.info("cell_capacity: {} is not registered in this run", rung[0]);
+                    continue;
+                }
+                reportsTheBudgetTheEngineClaims(helper, supplier.get(), (Long) rung[2], (String) rung[0]);
+                measured.add((String) rung[0]);
+            }
         }
         if (ModList.get().isLoaded("ae2omnicells")) {
+            // Four families, two rungs each, and exactly one of the eight rows is surcharged at the top: the
+            // quantum 1M, which reliqwq raised on 2026-11-06 and left every other family's 1M alone. Writing
+            // the seven level rows here is the point - a second family quietly picking up the quantum number
+            // is the same kind of drift as the one that left FE behind last round.
             Object[][] omniRungs = {
-                    {"universal 1k", ModRegistration.OPTIONAL_UNIVERSAL_CELL_1K},
-                    {"complex universal 1k", ModRegistration.OPTIONAL_COMPLEX_UNIVERSAL_CELL_1K},
-                    {"quantum 1k", ModRegistration.OPTIONAL_QUANTUM_CELL_1K},
-                    {"spent waste 1k", ModRegistration.OPTIONAL_SPENT_WASTE_CELL_1K},
+                    {"universal 1k", ModRegistration.OPTIONAL_UNIVERSAL_CELL_1K, 1280L},
+                    {"universal 1m", ModRegistration.OPTIONAL_UNIVERSAL_CELL_1M, 1048576L},
+                    {"complex universal 1k", ModRegistration.OPTIONAL_COMPLEX_UNIVERSAL_CELL_1K, 1280L},
+                    {"complex universal 1m", ModRegistration.OPTIONAL_COMPLEX_UNIVERSAL_CELL_1M, 1048576L},
+                    {"quantum 1k", ModRegistration.OPTIONAL_QUANTUM_CELL_1K, 1280L},
+                    {"quantum 1m", ModRegistration.OPTIONAL_QUANTUM_CELL_1M, 1572864L},
+                    {"spent waste 1k", ModRegistration.OPTIONAL_SPENT_WASTE_CELL_1K, 1280L},
+                    {"spent waste 1m", ModRegistration.OPTIONAL_SPENT_WASTE_CELL_1M, 1048576L},
             };
             for (Object[] rung : omniRungs) {
                 var supplier = (java.util.function.Supplier<? extends net.minecraft.world.item.Item>) rung[1];
@@ -604,18 +643,32 @@ public final class NeoECOPrototypeGameTests {
                     NeoECOPrototype.LOGGER.info("cell_capacity: {} is not registered in this run", rung[0]);
                     continue;
                 }
-                reportsSurchargedBudget(helper, supplier.get(), 1280L, (String) rung[0]);
+                reportsTheBudgetTheEngineClaims(helper, supplier.get(), (Long) rung[2], (String) rung[0]);
+                measured.add((String) rung[0]);
             }
+        }
+        // The tables above are gated on optional mods, so "the ladder was swept" can only be answered from
+        // what this run actually read. The ten ungated arms are the five rungs of each family we register
+        // ourselves; if one of them stops existing the count says so, instead of the test quietly measuring
+        // nine and calling that a pass.
+        NeoECOPrototype.LOGGER.info("cell_capacity: {} arms read {}", measured.size(), measured);
+        if (measured.size() < 10) {
+            helper.fail("only " + measured.size() + " rungs were measured (" + measured + "), but the item and"
+                    + " fluid families alone are five rungs each - a rung that stopped being registered is not"
+                    + " the same thing as a rung that was checked");
+            return;
         }
         helper.succeed();
     }
 
     /**
      * What the storage engine reports for a freshly built cell: the total it claims and the whole of it free.
-     * Used for the families whose cells do not carry the per-type opening the pour test needs.
+     * Used for the families whose cells do not carry the per-type opening the pour test needs, which is why
+     * their level rung (FE 4M) is checked here too rather than left out.
      */
-    private static void reportsSurchargedBudget(GameTestHelper helper, net.minecraft.world.item.Item cellItem,
-                                                long expectedBytes, String label) {
+    private static void reportsTheBudgetTheEngineClaims(GameTestHelper helper,
+                                                        net.minecraft.world.item.Item cellItem,
+                                                        long expectedBytes, String label) {
         var cell = cn.dancingsnow.neoecoae.api.storage.ECOStorageCells.getCellInventory(
                 new ItemStack(cellItem), (appeng.api.storage.cells.ISaveProvider) null);
         if (cell == null) {
@@ -625,8 +678,7 @@ public final class NeoECOPrototypeGameTests {
         if (cell.getTotalBytes() != expectedBytes
                 || cell.getTotalBytes() - cell.getUsedBytes() != expectedBytes) {
             helper.fail(label + " reports total=" + cell.getTotalBytes() + " used=" + cell.getUsedBytes()
-                    + ", expected the surcharged " + expectedBytes + " bytes free and clear - the rung this"
-                    + " family was left on is 1024, which is the gap reliqwq reported");
+                    + ", expected " + expectedBytes + " bytes free and clear");
             return;
         }
         NeoECOPrototype.LOGGER.info("cell_capacity: {} total={} used={}", label,
