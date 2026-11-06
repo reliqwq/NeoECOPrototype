@@ -208,12 +208,13 @@ public final class NeoECOPrototypeGameTests {
      * matrix whose backend is AE2 Omni Cells takes no card of any kind, and nothing we register takes the
      * overflow destruction card.
      *
-     * <p>Both are registration facts, so both are swept rather than argued: AE2 refuses a pair that was never
-     * added to {@code Upgrades}, and that is the same table the card's "usable on" tooltip is built from. Our
-     * own pass associates fuzzy and inverter with the cells it walks; eco's Omni Cells pass adds fuzzy,
-     * inverter <em>and void</em>, but only to its own item instances - so whether a matrix of ours sits in
-     * that list is something only a runtime read can answer, and a grep of upstream would have been a guess
-     * about a table that is filled at startup.</p>
+     * <p>Both are registration facts, so both are swept rather than argued: AE2's upgrade filter lets a card
+     * in only while {@code installed < getMaxInstalled(card)}, and that call is exactly
+     * {@code Upgrades.getMaxInstallable(card, stack.getItem())} - the table this sweep reads, and the one the
+     * card's "usable on" tooltip is built from. Our own pass associates fuzzy and inverter with the cells it
+     * walks; eco's Omni Cells pass adds fuzzy, inverter <em>and void</em>, but only to its own item
+     * instances - so whether a matrix of ours sits in that list is something only a runtime read can answer,
+     * and a grep of upstream would have been a guess about a table that is filled at startup.</p>
      *
      * <p>The last assertion is the ruler's own control: a family that took no card anywhere would satisfy the
      * two rules by measuring nothing. At least one non-omni item has to still accept a fuzzy card, which is the
