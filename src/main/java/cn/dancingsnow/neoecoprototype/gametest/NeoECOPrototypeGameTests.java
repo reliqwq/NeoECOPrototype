@@ -4890,6 +4890,50 @@ public final class NeoECOPrototypeGameTests {
         }
     }
 
+    /**
+     * The gate on the drive's bulk branch has to actually open in a running game.
+     *
+     * <p>{@code SimplifyDriveBlockEntity} asks {@code Class.forName(name, false, loader)} with *our*
+     * classloader for a class that lives in eco's jar. If those are ever two different loaders, the answer is
+     * false on every start and the bulk branch quietly stops running - which no other test would notice,
+     * because the sweep that exists for cell priority drives our own cells, never a foreign bulk one. This
+     * reads the flag the way the drive reads it, so a silent downgrade to the stack route is a red instead of
+     * a behaviour change nobody sees.</p>
+     *
+     * <p>The half this does not cover is named outright: the body of that branch - handing the figure to an
+     * actual eco bulk cell - is still executed by no test at all, before and after the gate.</p>
+     */
+    @GameTest(template = "empty", templateNamespace = NeoECOPrototype.MOD_ID, batch = "small_bulk_gate")
+    public static void theDriveStillReachesEcossBulkCellBranch(GameTestHelper helper) {
+        java.lang.reflect.Field gate;
+        try {
+            gate = cn.dancingsnow.neoecoprototype.blockentity.storage.SimplifyDriveBlockEntity.class
+                    .getDeclaredField("ECO_BULK_CELL_PRESENT");
+        } catch (NoSuchFieldException renamed) {
+            helper.fail("the drive no longer has an ECO_BULK_CELL_PRESENT field, so the gate this guard reads"
+                    + " is gone - re-read how the bulk branch decides whether to run");
+            return;
+        }
+        boolean open;
+        try {
+            gate.setAccessible(true);
+            open = gate.getBoolean(null);
+        } catch (IllegalAccessException refused) {
+            helper.fail("could not read the drive's bulk gate: " + refused);
+            return;
+        }
+        NeoECOPrototype.LOGGER.info("bulk cell branch: the drive resolves eco's class through its own"
+                + " classloader = {}", open);
+        if (!open) {
+            helper.fail("the drive answers Class.forName for cn.dancingsnow.neoecoae.storage.bulk"
+                    + ".ECOBulkStorageCell = false in a game where eco is installed, so the bulk priority"
+                    + " branch is dead on every start and every foreign eco bulk cell silently gets the stack"
+                    + " route instead");
+            return;
+        }
+        helper.succeed();
+    }
+
     @GameTest(template = "empty", templateNamespace = NeoECOPrototype.MOD_ID, batch = "cell_type_stripe")
     public static void driveCellModelsReadTheirOwnTypeStripe(GameTestHelper helper) {
         // The reader is pointed at planted models first, both ways round, because a scan that finds no type
