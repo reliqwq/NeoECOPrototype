@@ -146,6 +146,30 @@ public enum SimplifyTier implements IECOTier {
     }
 
     /**
+     * The digit eco paints over the "ECO" wordmark on the crafting confirmation screen, which is the second
+     * half of why our CPUs read as "EC0" there: the wordmark's third letter is not a letter but a cell
+     * stamped on top, and until eco 21.2.15 the only cells it knew were the three in its own atlas - the
+     * digits 4, 6 and 9 - chosen by a switch over the tier's index. Our tier index is 0, which matched
+     * nothing, so the "O" underneath stayed visible.
+     *
+     * <p>eco issue #153 is what opened this: the interface now declares a default method answering
+     * {@code null} (that is today's behaviour, so eco's own three tiers changed nothing), the sentinel for
+     * "no CPU reported" moved from 0 to -1 so a tier numbered 0 is no longer indistinguishable from
+     * silence, and {@code ECOCpuTierGlyph} carries the texture plus the rectangle to cut from it. The
+     * one-argument form is exactly {@code (u=0, v=0, 13, 18)}, which is the size of the cell this returns -
+     * the same 13x18 digit the C1 host panel already paints, so no new art was needed and the badge in the
+     * confirmation screen and the badge on the machine are the same drawing.</p>
+     *
+     * <p>What this cannot prove from here: where the glyph lands on screen. The screen blits it at a fixed
+     * offset from the wordmark, and only a client can say whether it sits on the "O" and not next to it.</p>
+     */
+    @Override
+    public cn.dancingsnow.neoecoae.api.ECOCpuTierGlyph getCraftConfirmCpuTierGlyph() {
+        return new cn.dancingsnow.neoecoae.api.ECOCpuTierGlyph(ResourceLocation.fromNamespaceAndPath(
+                "neoecoprototype", "textures/gui/panel/computation_tier.png"));
+    }
+
+    /**
      * eco's own default spells the tier number, and our tier index is 0, so without this the host panel
      * labels every L1 cell "L0" - a tier that does not exist.
      *
