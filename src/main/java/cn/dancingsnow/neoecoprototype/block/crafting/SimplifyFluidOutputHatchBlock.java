@@ -1,28 +1,38 @@
 package cn.dancingsnow.neoecoprototype.block.crafting;
 
 import cn.dancingsnow.neoecoae.blocks.crafting.ECOFluidOutputHatchBlock;
+import cn.dancingsnow.neoecoae.blocks.entity.crafting.ECOFluidOutputHatchBlockEntity;
+import cn.dancingsnow.neoecoae.gui.common.FluidHatchUI;
+import com.lowdragmc.lowdraglib2.gui.factory.BlockUIMenuType;
+import com.lowdragmc.lowdraglib2.gui.ui.ModularUI;
 
 /**
- * Our output hatch is eco's block under our id, and that includes the panel: eco's own
- * {@code ECOFluidOutputHatchBlock.createUI} already does the instanceof-and-delegate to its block
- * entity, which is the same thing the five lines we used to write here did. Keeping a copy of
- * upstream's method body only buys us a place to drift - the input hatch stopped carrying one on
- * 2026-10-27 and that is what made the two hatches agree with eco instead of with each other's
- * history.
+ * Our output hatch is eco's block under our id, with one exception: the panel title. eco's
+ * {@code ECOFluidOutputHatchBlockEntity.createUI} loads its own key as a literal (21.2.15, offset 5) and
+ * hands it to a factory whose title argument is public, so the only way our name can appear there is to
+ * call that factory ourselves. Issue #155 gave the input panel its block-name title in the stable release
+ * and this half was never part of that request, which is why the two hatches of one machine read
+ * differently.
  *
- * <p>What the copy did buy was our own title string in the panel: {@code FluidHatchUI
- * .createFluidHatchUI} takes a title key, so the override could pass
- * {@code block.neoecoprototype.simplify_fluid_output_hatch}. This panel still loads eco's key as a literal
- * ({@code createUI}, offset 5, on 21.2.15 - and offset 2 reads the {@code tank} field rather than the
- * accessor eco promised in #143), so its header says "ECO Fluid Output Hatch" while its neighbour on the
- * same machine now says ours: #155 gave the input panel its block-name title in 21.2.15 and this half was
- * never part of that request. The draft asking for the identical one-line change sits unsent at
- * {@code 上游请求稿/NEO_ECO_AE_PR_FLUID_OUTPUT_HATCH_TITLE.md}; {@code FluidHatchPanelTitleContractTest}
- * reddens when it lands so the caveat cannot outlive the fix. Buying the title back by re-copying the method
- * body is the option we already rejected once, on 2026-11-04, for exactly the drift it caused.</p>
+ * <p>This is the hand copy we deleted on 2026-11-04, taken back deliberately: one line, whose every number
+ * is pinned against upstream's class file by {@code FluidHatchPanelTitleContractTest} - the factory it
+ * calls, the two direction flags {@code (false, true)}, and the tank coming through the accessor #143
+ * promised rather than the field. If upstream changes any of those the test reddens before a player does.
+ * When they take the same one-line change #155 was, arm three of that file reddens instead, and the answer
+ * is to delete this override and the caveat sentence in the release notes - not to leave both behind.</p>
  */
 public class SimplifyFluidOutputHatchBlock extends ECOFluidOutputHatchBlock {
     public SimplifyFluidOutputHatchBlock(Properties properties) {
         super(properties);
+    }
+
+    @Override
+    public ModularUI createUI(BlockUIMenuType.BlockUIHolder holder) {
+        if (holder.player.level().getBlockEntity(holder.pos)
+                instanceof ECOFluidOutputHatchBlockEntity hatch) {
+            return FluidHatchUI.createFluidHatchUI(holder, hatch.getFluidTankHandler(),
+                    "block.neoecoprototype.simplify_fluid_output_hatch", false, true);
+        }
+        return null;
     }
 }
