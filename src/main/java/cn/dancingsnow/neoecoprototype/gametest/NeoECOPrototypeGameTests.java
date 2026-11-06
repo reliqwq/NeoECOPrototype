@@ -304,6 +304,67 @@ public final class NeoECOPrototypeGameTests {
     }
 
     /**
+     * eco issue #153's hook, answered: every one of our tiers hands the crafting confirmation screen the
+     * same 13x18 digit the C1 host panel already paints, rather than the interface default's null - which is
+     * what made our CPUs read "EC0", since the wordmark's third letter is a cell stamped over the "O" and the
+     * only cells eco's own switch knew were the digits 4, 6 and 9.
+     *
+     * <p>A suite test can say something about a badge because the addon's whole responsibility is what the
+     * tier answers and whether the file is really that size: the screen blits a fixed rectangle and the
+     * one-argument glyph is (0, 0, {@code ECOCpuTierGlyph.WIDTH}, {@code HEIGHT}), so a rescaled cell or a
+     * wrong atlas number draws the wrong pixels without throwing anything. Where it lands on the wordmark
+     * stays a client reading.</p>
+     */
+    @GameTest(template = "empty", batch = "cpu_tier_glyph", timeoutTicks = 100,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void ourTiersAnswerTheCraftConfirmTierBadge(GameTestHelper helper) {
+        var width = cn.dancingsnow.neoecoae.api.ECOCpuTierGlyph.WIDTH;
+        var height = cn.dancingsnow.neoecoae.api.ECOCpuTierGlyph.HEIGHT;
+        var expected = net.minecraft.resources.ResourceLocation.fromNamespaceAndPath(
+                NeoECOPrototype.MOD_ID, "textures/gui/panel/computation_tier.png");
+        var url = NeoECOPrototype.class.getClassLoader()
+                .getResource("assets/" + NeoECOPrototype.MOD_ID + "/" + expected.getPath());
+        if (url == null) {
+            helper.fail(expected + " does not ship, so the badge would draw nothing and only a client"
+                    + " would notice");
+            return;
+        }
+        int[] pixels;
+        try {
+            var image = javax.imageio.ImageIO.read(url);
+            pixels = new int[]{image.getWidth(), image.getHeight()};
+        } catch (java.io.IOException failure) {
+            helper.fail(expected + " cannot be read as an image: " + failure);
+            return;
+        }
+        if (pixels[0] != width || pixels[1] != height) {
+            helper.fail(expected + " is " + pixels[0] + "x" + pixels[1] + " but eco blits a " + width
+                    + "x" + height + " cell from it, so the digit is drawn with the wrong pixels");
+            return;
+        }
+        for (var tier : cn.dancingsnow.neoecoprototype.api.SimplifyTier.values()) {
+            var glyph = tier.getCraftConfirmCpuTierGlyph();
+            if (glyph == null) {
+                helper.fail(tier + " still answers eco's interface default (null), which is exactly the"
+                        + " EC0 reading issue #153 exists to let an addon fix");
+                return;
+            }
+            if (!expected.equals(glyph.texture()) || glyph.u() != 0 || glyph.v() != 0
+                    || glyph.textureWidth() != width || glyph.textureHeight() != height) {
+                helper.fail(tier + " answers texture=" + glyph.texture() + " u=" + glyph.u()
+                        + " v=" + glyph.v() + " atlas=" + glyph.textureWidth() + "x" + glyph.textureHeight()
+                        + ", expected the whole " + expected + " at 0,0 in a " + width + "x" + height
+                        + " atlas - the cell is 13x18 because that is the file's own size");
+                return;
+            }
+        }
+        NeoECOPrototype.LOGGER.info("cpu tier glyph: tiers={} texture={} cell={}x{} atlas={}x{}",
+                cn.dancingsnow.neoecoprototype.api.SimplifyTier.values().length, expected,
+                pixels[0], pixels[1], width, height);
+        helper.succeed();
+    }
+
+    /**
      * The small-bulk item cell mounts through eco's standard engine, and its type ceiling is the item's
      * own slot count.
      *
