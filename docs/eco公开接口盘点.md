@@ -80,7 +80,7 @@
 | `api/storage/IECOConfigurableCellDrive` | 3 | **11-06 新接**：每盘优先级（issue #154），偏移存在盘上 |
 | `api/power/ECOPowerProfiles` | 3 | 我们命名空间的 idle 功率 provider |
 | `api/storage/ECOStorageCellPriorities` | 3 | **11-06 新接**：面板那扇优先级窗口的后端 |
-| `api/storage/IBasicECOCellItem` | 3 | 卡片关联表那圈扫描的入口（`cell_card_policy`） |
+| `api/storage/IBasicECOCellItem` | 3 | 自产盘与 Beyond 那只的父口；**不再是卡片关联表的入口**（11-06 改认 AE2 的 `ICellWorkbenchItem`，否则 omni 八只整族被跳过） |
 | `api/storage/IECOStoragePriorityHost` | 1 | **11-06 新接**：主机基线经这个接口读写（见第一节翻案那条） |
 | `api/me/planning/ECOPlannerRequester` | **0** | 我们套它规划一次作业再对照两套装不进同一个 plan |
 
