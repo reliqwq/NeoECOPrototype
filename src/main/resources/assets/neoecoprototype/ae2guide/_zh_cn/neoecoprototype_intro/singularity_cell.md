@@ -59,7 +59,7 @@ item_ids:
 
 ## 同一族的另一台：陨石粉元件
 
-同一套引擎、同一格图标、同样的默认速度（120 个 / 600 tick），只是长的是**陨石粉**（`neoecoprototype:sky_stone_dust`）而不是奇点。它有自己的配置段 `sky_stone_dust_cell`，两个键与上面同名同默认值——分开写是因为这两样东西差着好几个档位，调一台不该动另一台。
+同一套引擎、同一格图标、同样的默认速度（120 个 / 600 tick），只是长的是**陨石粉**（`ae2:sky_dust`，AE2 自己那只）而不是奇点。它有自己的配置段 `sky_stone_dust_cell`，两个键与上面同名同默认值——分开写是因为这两样东西差着好几个档位，调一台不该动另一台。
 
 <RecipeFor id="neoecoprototype:simplify_sky_stone_dust_cell" />
 

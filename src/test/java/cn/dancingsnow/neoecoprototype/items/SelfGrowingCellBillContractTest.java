@@ -36,7 +36,7 @@ final class SelfGrowingCellBillContractTest {
     private static final String COMPONENT_64M = "neoecoae:eco_cell_component_64m";
     private static final String COMPONENT_INFINITE = "neoecoae:eco_infinite_cell_component";
     private static final String SINGULARITY = "ae2:singularity";
-    private static final String SKY_STONE_DUST = "neoecoprototype:sky_stone_dust";
+    private static final String SKY_STONE_DUST = "ae2:sky_dust";
 
     private static JsonObject read(Path file) throws Exception {
         try (Reader reader = Files.newBufferedReader(file)) {

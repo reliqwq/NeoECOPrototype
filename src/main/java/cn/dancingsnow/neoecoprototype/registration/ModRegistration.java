@@ -580,9 +580,6 @@ public class ModRegistration {
                     .requiresCorrectToolForDrops()));
     public static final Supplier<BlockItem> METEORITE_CORE_ITEM = ITEMS.register("meteorite_core",
             () -> new BlockItem(METEORITE_CORE.get(), new Item.Properties()));
-    /** The dust one table grinds a core into. Stacks like every other dust. */
-    public static final Supplier<Item> SKY_STONE_DUST = ITEMS.register("sky_stone_dust",
-            () -> new Item(new Item.Properties()));
 
     /** The machine that runs those tables. Standalone: it joins the ME grid, but no structure does. */
     public static final Supplier<cn.dancingsnow.neoecoprototype.block.dissociation.MeteoriteDissociatorBlock>

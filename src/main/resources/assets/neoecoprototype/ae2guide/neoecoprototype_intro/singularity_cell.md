@@ -59,7 +59,7 @@ A disassembly recipe returns the four materials.
 
 ## The other member: sky stone dust cell
 
-The same engine, the same tile and the same default pace (120 per 600 ticks) - it grows **sky stone dust** (`neoecoprototype:sky_stone_dust`) instead of singularities. It has its own config section, `sky_stone_dust_cell`, with the same two keys and the same defaults: they are separate entries because the two resources sit far apart in cost, and tuning one cell must not move the other.
+The same engine, the same tile and the same default pace (120 per 600 ticks) - it grows **sky stone dust** (`ae2:sky_dust`, AE2's own) instead of singularities. It has its own config section, `sky_stone_dust_cell`, with the same two keys and the same defaults: they are separate entries because the two resources sit far apart in cost, and tuning one cell must not move the other.
 
 <RecipeFor id="neoecoprototype:simplify_sky_stone_dust_cell" />
 

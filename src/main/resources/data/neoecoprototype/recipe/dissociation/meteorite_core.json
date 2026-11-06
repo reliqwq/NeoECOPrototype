@@ -3,7 +3,7 @@
   "input": { "id": "neoecoprototype:meteorite_core" },
   "products": {
     "ae2:sky_stone_block": 0.4,
-    "neoecoprototype:sky_stone_dust": 0.4,
+    "ae2:sky_dust": 0.4,
     "neoecoae:energized_crystal_block": 0.02,
     "neoecoae:tungsten_dust": 0.02,
     "neoecoae:aluminum_dust": 0.02,

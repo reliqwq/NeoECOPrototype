@@ -49,7 +49,7 @@ public final class SimplifySingularityCellItem extends Item implements IBasicECO
         return SingularityKey.SINGULARITY;
     }
 
-    /** The one thing the meteorite-dust member of the family ever holds. */
+    /** The one thing the meteorite-dust member of the family ever holds: AE2's own sky dust. */
     public static AEItemKey skyStoneDust() {
         return SkyStoneDustKey.SKY_STONE_DUST;
     }
@@ -63,10 +63,19 @@ public final class SimplifySingularityCellItem extends Item implements IBasicECO
         private static final AEItemKey SINGULARITY = AEItemKey.of(AEItems.SINGULARITY);
     }
 
-    /** Same rule for our own item: the holder class only loads once somebody asks what it grows. */
+    /**
+     * The same lazy rule as {@link SingularityKey}, and the same reason: AE2 binds its registry objects
+     * during its own RegisterEvent, and this class is loaded by our item registration.
+     *
+     * <p>What it points at changed on 2026-11-06. This used to be our own {@code
+     * neoecoprototype:sky_stone_dust}, an item whose display name in both of our lang files was copied
+     * straight from AE2 - "Sky Stone Dust" and 陨石粉 are exactly what {@code ae2:sky_dust} is called - so
+     * one dissociation table could pay out two different items under one name, in the same screen as AE2's
+     * own 陨石 block. The duplicate is gone and the cell grows AE2's material, which is also what makes it
+     * the sibling of the singularity cell rather than a parallel invention.</p>
+     */
     private static final class SkyStoneDustKey {
-        private static final AEItemKey SKY_STONE_DUST = AEItemKey.of(
-                cn.dancingsnow.neoecoprototype.registration.ModRegistration.SKY_STONE_DUST.get());
+        private static final AEItemKey SKY_STONE_DUST = AEItemKey.of(AEItems.SKY_DUST);
     }
 
     /** One type, one row. */

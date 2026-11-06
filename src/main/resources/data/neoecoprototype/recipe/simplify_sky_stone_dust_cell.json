@@ -5,7 +5,7 @@
     { "item": "neoecoprototype:simplify_concrete_storage_matrix_housing" },
     { "item": "neoecoae:eco_cell_component_64m" },
     { "item": "neoecoprototype:simplify_green_crystal_matrix" },
-    { "item": "neoecoprototype:sky_stone_dust" }
+    { "item": "ae2:sky_dust" }
   ],
   "result": {
     "count": 1,
