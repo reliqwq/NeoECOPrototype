@@ -64,7 +64,12 @@ import java.util.List;
 /** L1 storage controller state and host for the reusable eco builder UI. */
 public class SimplifyStorageHostBlockEntity
         extends NEBlockEntity<SimplifyStorageCluster, SimplifyStorageHostBlockEntity>
-        implements ISyncPersistRPCBlockEntity, IStorageProvider, MultiBlockBuildController.Host {
+        implements ISyncPersistRPCBlockEntity, IStorageProvider, MultiBlockBuildController.Host,
+        // eco's published integration point for host priority (issue #154). Its javadoc says no AE2 submenu
+        // and no eco block entity is required by the contract, and our two methods already do exactly what it
+        // asks - read the configured number, and set it with persistence, sync and a mount refresh - so
+        // anything coding to the interface can drive an L1 host as well as one of eco's.
+        cn.dancingsnow.neoecoae.api.storage.IECOStoragePriorityHost {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(SimplifyStorageHostBlockEntity.class);
     private static final int DEFAULT_BUILD_LENGTH = 1;
@@ -172,10 +177,12 @@ public class SimplifyStorageHostBlockEntity
         this.communicationInterface = communicationInterface;
     }
 
+    @Override
     public int getStoragePriority() {
         return storagePriority;
     }
 
+    @Override
     public void setStoragePriority(int storagePriority) {
         if (this.storagePriority == storagePriority) {
             return;
