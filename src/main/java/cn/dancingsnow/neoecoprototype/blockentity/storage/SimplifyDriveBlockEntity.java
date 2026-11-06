@@ -156,6 +156,33 @@ public class SimplifyDriveBlockEntity extends NEBlockEntity<SimplifyStorageClust
     }
 
     /**
+     * Whether eco still ships the bulk cell class our priority branch reaches for.
+     *
+     * <p>Loaded with {@code initialize = false} and remembered once, because this is not an optional-mod
+     * question - eco is a hard dependency and {@code ModList.isLoaded("neoecoae")} is always true - it is a
+     * question about the next eco release. {@code cn.dancingsnow.neoecoae.storage.bulk.ECOBulkStorageCell} is
+     * the implementation class, not an api interface, and no interface of eco's declares the setter, so the
+     * only way to ask a bulk cell for its priority is to name it. Naming it on a path that runs would be a
+     * {@code NoClassDefFoundError} the first time anyone set a priority on a foreign bulk cell, which is why
+     * the name sits behind this flag: §4.2's own measurement is that a branch the JVM never reaches does not
+     * resolve the class it mentions.</p>
+     */
+    private static final boolean ECO_BULK_CELL_PRESENT = ecoBulkCellPresent();
+
+    private static boolean ecoBulkCellPresent() {
+        try {
+            Class.forName("cn.dancingsnow.neoecoae.storage.bulk.ECOBulkStorageCell", false,
+                    SimplifyDriveBlockEntity.class.getClassLoader());
+            return true;
+        } catch (ClassNotFoundException gone) {
+            NeoECOPrototype.LOGGER.warn("eco no longer ships its bulk cell class, so a priority set on an"
+                    + " eco bulk cell in one of our drives is written to the stack like any other cell and"
+                    + " eco will ignore it; our own cells are unaffected");
+            return false;
+        }
+    }
+
+    /**
      * Writes the offset onto the cell itself, which is where eco keeps it: a cell moved to another drive or
      * left in a chest carries its own priority, and nothing here has to be keyed by position or dimension
      * (§6). The bulk branch is eco's own, copied because our drive accepts foreign cells - an eco bulk cell
@@ -167,7 +194,7 @@ public class SimplifyDriveBlockEntity extends NEBlockEntity<SimplifyStorageClust
                 || !cn.dancingsnow.neoecoae.storage.ECOStorageCellSettings.canConfigure(cellStack)) {
             return;
         }
-        if (getCellInventory() instanceof cn.dancingsnow.neoecoae.storage.bulk.ECOBulkStorageCell bulk) {
+        if (ECO_BULK_CELL_PRESENT && getCellInventory() instanceof cn.dancingsnow.neoecoae.storage.bulk.ECOBulkStorageCell bulk) {
             bulk.setConfiguredStoragePriority(priority);
         } else {
             cn.dancingsnow.neoecoae.storage.ECOStorageCellSettings.setPriority(cellStack, priority);

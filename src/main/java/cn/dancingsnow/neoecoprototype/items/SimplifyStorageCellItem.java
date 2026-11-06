@@ -1,10 +1,9 @@
 package cn.dancingsnow.neoecoprototype.items;
 
 import appeng.api.stacks.AEKeyType;
-import cn.dancingsnow.neoecoae.all.NERegistries;
 import cn.dancingsnow.neoecoae.api.storage.ECOCellType;
 import cn.dancingsnow.neoecoae.items.ECOStorageCellItem;
-import net.minecraft.resources.ResourceLocation;
+import cn.dancingsnow.neoecoprototype.api.EcoCellTypes;
 import cn.dancingsnow.neoecoprototype.api.SimplifyTier;
 import net.minecraft.world.item.Item;
 
@@ -60,26 +59,20 @@ public class SimplifyStorageCellItem extends ECOStorageCellItem {
 
     /** Resolve after eco's custom registry has finished loading. */
     public static ECOCellType getItemCellType() {
-        return ecoCellType("items");
+        return EcoCellTypes.require("items");
     }
 
     /** Resolve after eco's custom registry has finished loading. */
     public static ECOCellType getFluidCellType() {
-        return ecoCellType("fluids");
+        return EcoCellTypes.require("fluids");
     }
 
-    /** ECO MEGA item type used by the small-bulk matrix family. */
+    /**
+     * ECO MEGA item type used by the small-bulk matrix family, or the plain item type if eco stops
+     * registering it - see {@code EcoCellTypes.bulkOrPlain} for why the throw was the wrong answer here.
+     */
     public static ECOCellType getMegaItemCellType() {
-        return ecoCellType("mega_item");
-    }
-
-    private static ECOCellType ecoCellType(String path) {
-        ECOCellType type = NERegistries.CELL_TYPE.get(
-                ResourceLocation.fromNamespaceAndPath("neoecoae", path));
-        if (type == null) {
-            throw new IllegalStateException("Missing eco cell type: " + path);
-        }
-        return type;
+        return EcoCellTypes.bulkOrPlain("mega_item", "items");
     }
 
     /** 1 MiB cell with the original L1 tuning. */

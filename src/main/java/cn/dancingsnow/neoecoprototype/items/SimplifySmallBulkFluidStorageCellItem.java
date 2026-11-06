@@ -4,11 +4,10 @@ import appeng.api.ids.AEComponents;
 import appeng.api.stacks.AEKeyType;
 import appeng.api.stacks.GenericStack;
 import appeng.util.ConfigInventory;
-import cn.dancingsnow.neoecoae.all.NERegistries;
 import cn.dancingsnow.neoecoae.api.storage.ECOCellType;
 import cn.dancingsnow.neoecoae.items.ECOStorageCellItem;
+import cn.dancingsnow.neoecoprototype.api.EcoCellTypes;
 import cn.dancingsnow.neoecoprototype.api.SimplifyTier;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 
@@ -37,14 +36,12 @@ public final class SimplifySmallBulkFluidStorageCellItem extends ECOStorageCellI
         this.totalTypes = totalTypes;
     }
 
-    /** ECO MEGA fluid type shared with upstream's mega fluid cells. */
+    /**
+     * ECO MEGA fluid type shared with upstream's mega fluid cells, or the plain fluid type if eco stops
+     * registering it. The cells' own budget is ours, so losing the id costs the row label and nothing else.
+     */
     public static ECOCellType getMegaFluidCellType() {
-        ECOCellType type = NERegistries.CELL_TYPE.get(
-                ResourceLocation.fromNamespaceAndPath("neoecoae", "mega_fluid"));
-        if (type == null) {
-            throw new IllegalStateException("Missing eco cell type: mega_fluid");
-        }
-        return type;
+        return EcoCellTypes.bulkOrPlain("mega_fluid", "fluids");
     }
 
     @Override

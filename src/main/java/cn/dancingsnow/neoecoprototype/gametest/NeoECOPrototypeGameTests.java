@@ -4795,10 +4795,13 @@ public final class NeoECOPrototypeGameTests {
      * broken gate. The rest of the suite cannot see either, because the only test that walks the family is
      * currently disabled.
      *
-     * <p>There is deliberately no assertion that eco still ships {@code neoecoae:mega_item} - that cannot go
-     * missing quietly. {@code SimplifyStorageCellItem.ecoCellType} throws
-     * {@code IllegalStateException("Missing eco cell type: ...")} the first time any member is built, so a
-     * rename or a package move on eco's side stops startup, which is louder than anything asserted here.
+     * <p>Whether eco still registers {@code neoecoae:mega_item} is now asserted separately, by
+     * {@code ecoCellTypeLookupSurvivesAnIdEcoStopsRegistering}. It used to be left out on the theory that
+     * {@code SimplifyStorageCellItem} throws {@code IllegalStateException("Missing eco cell type: ...")} the
+     * first time a member is built, so a rename or removal on eco's side stops the game on its own - that was
+     * wrong twice over: the item constructors only store the supplier, so the throw lands on the first call
+     * from a storage host panel or a drive renderer, not at startup; and a throw at panel time is the worst
+     * shape of the failure, because it takes the cell view of a whole base down over one missing label.
      */
     @GameTest(template = "empty", templateNamespace = NeoECOPrototype.MOD_ID, batch = "small_bulk_gate")
     public static void smallBulkFamilyIsGatedExactlyOnMegaCells(GameTestHelper helper) {
@@ -4832,6 +4835,59 @@ public final class NeoECOPrototypeGameTests {
                     + " are registered inside that one if-block in ModRegistration)");
         }
         helper.succeed();
+    }
+
+    /**
+     * What a missing eco cell type costs. The small-bulk family reads {@code neoecoae:mega_item} /
+     * {@code mega_fluid} / {@code mega_chemical} out of eco's registry, and whether those ids exist is a
+     * fact about a future eco release rather than about this mod, so reading them as "throw when absent" put
+     * the failure at the first panel redraw - a base-wide loss of the cell view over one row label. They now
+     * fall back to the plain medium's type, which is what {@code panelRowOf} already routes them to anyway.
+     *
+     * <p>The rule is measured with an id that cannot exist, because the three real ones do exist in this
+     * environment and a check that only reads them proves nothing about the branch that matters. The
+     * hard-failure half is kept on purpose too: the media eco has always registered itself must still throw,
+     * or the fallback would also swallow a genuinely broken environment.</p>
+     */
+    @GameTest(template = "empty", templateNamespace = NeoECOPrototype.MOD_ID, batch = "small_bulk_gate")
+    public static void ecoCellTypeLookupSurvivesAnIdEcoStopsRegistering(GameTestHelper helper) {
+        var absent = "this_cell_type_cannot_exist";
+        if (cn.dancingsnow.neoecoprototype.api.EcoCellTypes.find(absent) != null) {
+            helper.fail("the lookup answered a type for " + absent + ", so this guard cannot tell a missing"
+                    + " id from a present one and nothing below it is measured");
+            return;
+        }
+        var items = cn.dancingsnow.neoecoprototype.api.EcoCellTypes.find("items");
+        if (items == null) {
+            helper.fail("eco registers no neoecoae:items type in this environment, so there is nothing for"
+                    + " the fallback to land on and the assertion below would be vacuous");
+            return;
+        }
+        var fellBack = cn.dancingsnow.neoecoprototype.api.EcoCellTypes.bulkOrPlain(absent, "items");
+        NeoECOPrototype.LOGGER.info("eco cell type lookup: {} absent, fallback landed on {} ({}),"
+                        + " require() of a plain medium threw = {}",
+                absent, fellBack, fellBack == items, threwOnRequire(absent));
+        if (fellBack != items) {
+            helper.fail("bulkOrPlain(" + absent + ", \"items\") returned " + fellBack
+                    + " instead of the plain item type " + items + ", so an eco release that drops a mega_*"
+                    + " id would still take the panel down");
+            return;
+        }
+        if (!threwOnRequire(absent)) {
+            helper.fail("require(\"" + absent + "\") did not throw, so the fallback now hides a genuinely"
+                    + " broken environment instead of only the bulk ids");
+        }
+        helper.succeed();
+    }
+
+    /** Whether the hard path still refuses an id eco does not register, caught here rather than propagated. */
+    private static boolean threwOnRequire(String path) {
+        try {
+            cn.dancingsnow.neoecoprototype.api.EcoCellTypes.require(path);
+            return false;
+        } catch (IllegalStateException expected) {
+            return true;
+        }
     }
 
     @GameTest(template = "empty", templateNamespace = NeoECOPrototype.MOD_ID, batch = "cell_type_stripe")

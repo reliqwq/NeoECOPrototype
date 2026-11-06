@@ -1,10 +1,9 @@
 package cn.dancingsnow.neoecoprototype.integration.mekanism;
 
-import cn.dancingsnow.neoecoae.all.NERegistries;
 import cn.dancingsnow.neoecoae.api.storage.ECOCellType;
 import cn.dancingsnow.neoecoae.integration.appmek.item.ECOChemicalStorageCellItem;
+import cn.dancingsnow.neoecoprototype.api.EcoCellTypes;
 import cn.dancingsnow.neoecoprototype.api.SimplifyTier;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 
@@ -27,15 +26,13 @@ public final class SimplifySmallBulkChemicalStorageCellItem extends ECOChemicalS
         this.totalTypes = totalTypes;
     }
 
-    /** ECO MEGA chemical type shared with upstream's mega chemical cells. */
+    /**
+     * ECO MEGA chemical type shared with upstream's mega chemical cells, or the plain chemical type if eco
+     * stops registering it - see {@code EcoCellTypes.bulkOrPlain} for why reaching for the id must not throw.
+     */
     @Override
     public ECOCellType getCellType() {
-        ECOCellType type = NERegistries.CELL_TYPE.get(
-                ResourceLocation.fromNamespaceAndPath("neoecoae", "mega_chemical"));
-        if (type == null) {
-            throw new IllegalStateException("Missing eco cell type: mega_chemical");
-        }
-        return type;
+        return EcoCellTypes.bulkOrPlain("mega_chemical", "mekanism");
     }
 
     @Override

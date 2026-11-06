@@ -1120,9 +1120,10 @@ public class ModRegistration {
     /** 10-type expansion target for {@link #SIMPLIFY_SMALL_BULK_FLUID_CELL}; null without MegaCells. */
     public static Supplier<? extends Item> SIMPLIFY_SMALL_BULK_FLUID_CELL_EXPANDED;
 
-    // The small-bulk family needs the mega cell types and the long-bulk storage backend
-    // from neoecoae's MEGA Cells integration; without MegaCells the whole family stays
-    // unregistered instead of failing startup.
+    // The family only needs eco's mega_item / mega_fluid cell types, and eco registers those inside
+    // its MEGA Cells integration. The storage engine is eco's standard ECOStorageCell - the MEGA
+    // long-bulk backend this family used to sit on is gone (c5241b8). Without MegaCells the types do
+    // not exist, so the whole family stays unregistered instead of failing startup.
     static {
         if (ModList.get().isLoaded("megacells")) {
             SIMPLIFY_SMALL_BULK_CELL = ITEMS.register("simplify_small_bulk_storage_cell",
