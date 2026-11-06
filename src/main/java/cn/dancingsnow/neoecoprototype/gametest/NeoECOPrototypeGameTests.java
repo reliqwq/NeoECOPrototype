@@ -342,7 +342,17 @@ public final class NeoECOPrototypeGameTests {
                     + "x" + height + " cell from it, so the digit is drawn with the wrong pixels");
             return;
         }
+        // Every tier we own, not just the one the panel code names first. The crafting host's CPU carries
+        // SimplifyCraftingTier - the parallel core hands it out at construction - so sweeping only
+        // SimplifyTier is exactly how this test went green while the screen still read "EC0".
+        var tiers = new ArrayList<cn.dancingsnow.neoecoae.api.IECOTier>();
         for (var tier : cn.dancingsnow.neoecoprototype.api.SimplifyTier.values()) {
+            tiers.add(tier);
+        }
+        for (var tier : cn.dancingsnow.neoecoprototype.api.SimplifyCraftingTier.values()) {
+            tiers.add(tier);
+        }
+        for (var tier : tiers) {
             var glyph = tier.getCraftConfirmCpuTierGlyph();
             if (glyph == null) {
                 helper.fail(tier + " still answers eco's interface default (null), which is exactly the"
@@ -359,8 +369,14 @@ public final class NeoECOPrototypeGameTests {
             }
         }
         NeoECOPrototype.LOGGER.info("cpu tier glyph: tiers={} texture={} cell={}x{} atlas={}x{}",
-                cn.dancingsnow.neoecoprototype.api.SimplifyTier.values().length, expected,
-                pixels[0], pixels[1], width, height);
+                tiers.size(), expected, pixels[0], pixels[1], width, height);
+        // The sweep has to be the size of the family, or "all of them answer" is only "the ones I listed".
+        // The JUnit TierGlyphCoverageTest is what checks this list against the classes that actually exist.
+        if (tiers.size() < 5) {
+            helper.fail("only " + tiers.size() + " tiers were swept, but the family is 4 storage tiers plus"
+                    + " the crafting tier - one of the two enums stopped being enumerable");
+            return;
+        }
         helper.succeed();
     }
 
@@ -10002,16 +10018,20 @@ public final class NeoECOPrototypeGameTests {
         var gretteDust = itemTag("c:dusts/grette");
         var gretteGem = itemTag("c:gems/grette");
         var dust = item(NeoECOPrototype.MOD_ID + ":grette_crystal_dust");
-        var skyDust = item(NeoECOPrototype.MOD_ID + ":sky_stone_dust");
+        // AE2's own meteorite powder, which is what our dissociation table pays out here. It used to be an
+        // item of ours under the same name, and that item was cut on 2026-11-06 - the negative assertion
+        // below is the reason the cut had to be checked at all: a pack that names #c:dusts/grette must
+        // never start consuming meteorite powder because two different things shared a display name.
+        var skyDust = item("ae2:sky_dust");
         var crystal = item(NeoECOPrototype.MOD_ID + ":grette_crystal");
         if (dust == null || skyDust == null || crystal == null) {
-            wrong.add("one of grette_crystal_dust / sky_stone_dust / grette_crystal is not registered");
+            wrong.add("one of grette_crystal_dust / ae2:sky_dust / grette_crystal is not registered");
         } else {
             if (!new net.minecraft.world.item.ItemStack(dust).is(gretteDust)) {
                 wrong.add("grette_crystal_dust is not in #c:dusts/grette");
             }
             if (new net.minecraft.world.item.ItemStack(skyDust).is(gretteDust)) {
-                wrong.add("sky_stone_dust is inside #c:dusts/grette; meteorite powder is not grette powder,"
+                wrong.add("ae2:sky_dust is inside #c:dusts/grette; meteorite powder is not grette powder,"
                         + " and a pack author naming that tag would start eating it");
             }
             if (!new net.minecraft.world.item.ItemStack(crystal).is(gretteGem)) {
@@ -11220,12 +11240,6 @@ public final class NeoECOPrototypeGameTests {
             helper.fail("the meteorite core block has no item pointing back at it, the item is " + coreItem);
             return;
         }
-        var dust = new ItemStack(ModRegistration.SKY_STONE_DUST.get());
-        if (dust.getMaxStackSize() != 64) {
-            helper.fail("sky stone dust should stack like any other dust, it stacks to "
-                    + dust.getMaxStackSize());
-            return;
-        }
         var still = ModRegistration.DISSOLUTION_SOLUTION.get();
         var flowing = ModRegistration.FLOWING_DISSOLUTION_SOLUTION.get();
         if (!(still instanceof net.minecraft.world.level.material.FlowingFluid stillFlowing)
@@ -11301,9 +11315,12 @@ public final class NeoECOPrototypeGameTests {
         }
         var skyStone = net.minecraft.core.registries.BuiltInRegistries.ITEM.get(
                 net.minecraft.resources.ResourceLocation.parse("ae2:sky_stone_block"));
-        var skyStoneDust = ModRegistration.SKY_STONE_DUST.get();
-        if (skyStone == null || skyStone == net.minecraft.world.item.Items.AIR) {
-            helper.fail("the shipped table names ae2:sky_stone_block, which is not registered here");
+        var skyStoneDust = net.minecraft.core.registries.BuiltInRegistries.ITEM.get(
+                net.minecraft.resources.ResourceLocation.parse("ae2:sky_dust"));
+        if (skyStone == null || skyStone == net.minecraft.world.item.Items.AIR
+                || skyStoneDust == null || skyStoneDust == net.minecraft.world.item.Items.AIR) {
+            helper.fail("the shipped table names ae2:sky_stone_block and ae2:sky_dust, and one of them is"
+                    + " not registered here: block=" + skyStone + " dust=" + skyStoneDust);
             return;
         }
         if (Math.abs(table.weights().getOrDefault(skyStone, 0.0D) - 0.4D) > 1.0E-9D
