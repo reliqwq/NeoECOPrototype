@@ -204,6 +204,105 @@ public final class NeoECOPrototypeGameTests {
     }
 
     /**
+     * Two card rules over the whole storage family, read from the same table the cell workbench consults: a
+     * matrix whose backend is AE2 Omni Cells takes no card of any kind, and nothing we register takes the
+     * overflow destruction card.
+     *
+     * <p>Both are registration facts, so both are swept rather than argued: AE2 refuses a pair that was never
+     * added to {@code Upgrades}, and that is the same table the card's "usable on" tooltip is built from. Our
+     * own pass associates fuzzy and inverter with the cells it walks; eco's Omni Cells pass adds fuzzy,
+     * inverter <em>and void</em>, but only to its own item instances - so whether a matrix of ours sits in
+     * that list is something only a runtime read can answer, and a grep of upstream would have been a guess
+     * about a table that is filled at startup.</p>
+     *
+     * <p>The last assertion is the ruler's own control: a family that took no card anywhere would satisfy the
+     * two rules by measuring nothing. At least one non-omni item has to still accept a fuzzy card, which is the
+     * reading that says the sweep is looking at a live table.</p>
+     */
+    @GameTest(template = "empty", batch = "cell_card_policy", timeoutTicks = 100,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void omniMatricesTakeNoCardsAndNothingInL1TakesVoid(GameTestHelper helper) {
+        var cards = List.<net.minecraft.world.level.ItemLike>of(
+                AEItems.FUZZY_CARD.asItem(), AEItems.INVERTER_CARD.asItem(), AEItems.VOID_CARD.asItem(),
+                AEItems.CAPACITY_CARD.asItem(), AEItems.SPEED_CARD.asItem(), AEItems.REDSTONE_CARD.asItem(),
+                AEItems.CRAFTING_CARD.asItem(), AEItems.EQUAL_DISTRIBUTION_CARD.asItem(),
+                AEItems.ENERGY_CARD.asItem());
+        var voidCard = AEItems.VOID_CARD.asItem();
+        var fuzzyCard = AEItems.FUZZY_CARD.asItem();
+        // The probe names an Omni Cells class, so it is reached only past this gate.
+        var omniLoaded = ModList.get().isLoaded("ae2omnicells");
+
+        var cells = new ArrayList<net.minecraft.world.item.Item>();
+        for (var entry : BuiltInRegistries.ITEM.entrySet()) {
+            var namespace = entry.getKey().location().getNamespace();
+            if ((namespace.equals(NeoECOPrototype.MOD_ID) || namespace.equals("kubejs"))
+                    && entry.getValue() instanceof cn.dancingsnow.neoecoae.api.storage.IECOStorageCellItem) {
+                cells.add(entry.getValue());
+            }
+        }
+
+        int omniBacked = 0;
+        int fuzzySeen = 0;
+        var accepted = new java.util.TreeSet<String>();
+        var omniOffenders = new ArrayList<String>();
+        var voidOffenders = new ArrayList<String>();
+        var cardless = new ArrayList<String>();
+        for (var item : cells) {
+            var id = BuiltInRegistries.ITEM.getKey(item).toString();
+            var backed = omniLoaded && CellCardPolicyProbe.isOmniBacked(item);
+            if (backed) {
+                omniBacked++;
+            }
+            int taken = 0;
+            for (var card : cards) {
+                var max = Upgrades.getMaxInstallable(card, item);
+                if (max == 0) {
+                    continue;
+                }
+                taken++;
+                var cardId = BuiltInRegistries.ITEM.getKey(card.asItem()).toString();
+                accepted.add(cardId + "=" + max);
+                if (backed) {
+                    omniOffenders.add(id + " takes " + cardId + " x" + max);
+                }
+                if (card == voidCard) {
+                    voidOffenders.add(id + " takes the void card x" + max);
+                }
+                if (card == fuzzyCard) {
+                    fuzzySeen++;
+                }
+            }
+            if (!backed && taken == 0) {
+                cardless.add(id);
+            }
+        }
+        NeoECOPrototype.LOGGER.info("cell card policy: cells={} omniBacked={} fuzzySeen={} acceptedPairs={}"
+                        + " omniOffenders={} voidOffenders={} cardlessNonOmni={}",
+                cells.size(), omniBacked, fuzzySeen, accepted, omniOffenders, voidOffenders, cardless);
+        if (cells.isEmpty()) {
+            helper.fail("no storage cell of ours resolved as IECOStorageCellItem, so nothing below was"
+                    + " measured and both rules are vacuous");
+            return;
+        }
+        if (!omniOffenders.isEmpty()) {
+            helper.fail("an Omni Cells-backed matrix accepts a card, and it must accept none: " + omniOffenders
+                    + " (the whole accepted set was " + accepted + ")");
+            return;
+        }
+        if (!voidOffenders.isEmpty()) {
+            helper.fail("something in the L1 family takes the overflow destruction card: " + voidOffenders
+                    + " - destroying stored stock is not a thing we ship");
+            return;
+        }
+        if (fuzzySeen == 0) {
+            helper.fail("nothing in the family takes a fuzzy card, so the two rules above were satisfied by an"
+                    + " empty table instead of by policy");
+            return;
+        }
+        helper.succeed();
+    }
+
+    /**
      * The small-bulk item cell mounts through eco's standard engine, and its type ceiling is the item's
      * own slot count.
      *
