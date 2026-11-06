@@ -83,15 +83,16 @@ side = "BOTH"
 [[dependencies.neoecoprototype]]
 modId = "neoecoae"
 mandatory = true
-versionRange = "[21.2.15-beta,)"
-# Issue #16 forced this one, and it is the first floor this file wrote that a player was already
-# past: 21.2.15-beta grew StorageHostActionUI$Config from 13 to 14 components, so our shipped 1.4.5
-# call to the 13-argument descriptor hits NoSuchMethodError on right-clicking the L1 storage host.
-# Nothing was deleted, which is why the member audit missed it (its own docstring: "<init> can never
-# match"); the constructor-level scan is what names it, 1 undeclared of the 55 descriptors we name.
-# The -beta is spelled into the range on purpose: FML reads these ranges with maven-artifact, where
-# 21.2.15-beta compares BELOW 21.2.15 (measured -4), so "[21.2.15,)" would have shut out the very jar
-# this build compiles against, while this one shuts out 21.2.14 and still admits a future release.
+versionRange = "[21.2.15,)"
+# Issue #16 forced the floor up to this series, and the -beta that used to be spelled into the range was
+# written while the stable release could not be installed: FML reads these ranges with maven-artifact, where
+# 21.2.15-beta compares BELOW 21.2.15 (measured -4), so "[21.2.15,)" would have shut out the very jar this
+# build compiled against. That is no longer true - 21.2.15 is on GitHub (2 assets) and on Modrinth since
+# 2026-11-05, and its entry-level CRCs match the jar we compile against - so the range now names the stable
+# release and the baseline rule holds again. Two consequences, both intended: a player who only ever
+# installed 21.2.15-beta is refused until they move to the stable release, and this addon's bytecode now
+# names a class the beta never shipped (cn/dancingsnow/neoecoae/api/ECOCpuTierGlyph, eco issue #153), so a
+# -beta floor would have been a promise this jar cannot keep.
 # 21.2.13 takes no symbol away from us - the member audit over the types we reference is identical to the
 # 21.2.12 control, and the accessor below still exists - so this floor is the baseline rule rather than a
 # break: the compile baseline moved, and the runtime floor stays equal to it. What the round buys is the
