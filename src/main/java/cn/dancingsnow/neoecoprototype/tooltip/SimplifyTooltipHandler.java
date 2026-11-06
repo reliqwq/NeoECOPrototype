@@ -48,8 +48,6 @@ public final class SimplifyTooltipHandler {
             "item.neoecoprototype.migration_drive_creative.desc";
     /** Trinity is implemented but withheld from players; every one of its parts says so in red. */
     private static final String NOT_IMPLEMENTED_KEY = "item.neoecoprototype.not_implemented";
-    /** The one fact about the dessert a player acts on: what it does to the drinker, not its recipe. */
-    private static final String ICE_CREAM_KEY = "item.neoecoprototype.cryotheum_ice_cream.desc";
 
     @SubscribeEvent
     public static void onItemTooltip(ItemTooltipEvent event) {
@@ -96,9 +94,6 @@ public final class SimplifyTooltipHandler {
     private static String descriptionKey(ItemStack stack) {
         if (stack.is(ModRegistration.PIGMEE_STORAGE_CELL.get())) {
             return PIGMEE_CELL_KEY;
-        }
-        if (stack.is(ModRegistration.CRYOTHEUM_ICE_CREAM.get())) {
-            return ICE_CREAM_KEY;
         }
         if (stack.is(ModRegistration.PIGMEE_STORAGE_MATRIX_HOUSING.get())) {
             return PIGMEE_HOUSING_KEY;

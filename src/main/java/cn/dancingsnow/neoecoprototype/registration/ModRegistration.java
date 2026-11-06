@@ -91,6 +91,7 @@ import cn.dancingsnow.neoecoprototype.blockentity.storage.SimplifyStorageHostBlo
 import cn.dancingsnow.neoecoprototype.blockentity.storage.SimplifyStorageInterfaceBlockEntity;
 import cn.dancingsnow.neoecoprototype.blockentity.storage.SimplifyStorageVentBlockEntity;
 import cn.dancingsnow.neoecoprototype.blockentity.computation.SimplifyComputationDriveBlockEntity;
+import cn.dancingsnow.neoecoprototype.items.CryotheumIceCreamItem;
 import cn.dancingsnow.neoecoprototype.items.DrinkableFoodItem;
 import cn.dancingsnow.neoecoprototype.items.PigmeeStorageMatrixHousingItem;
 import cn.dancingsnow.neoecoprototype.items.SimplifyComputationCellItem;
@@ -478,6 +479,14 @@ public class ModRegistration {
      * to the family. Swapping the flavour means replacing that file and the model's {@code layer0},
      * nothing else.
      *
+     * <p>What it does to the drinker is two things and now carries no tooltip line: four minutes of fire
+     * resistance ({@code 4800} ticks, probability 1.0) plus {@link CryotheumIceCreamItem#FREEZE_TICKS} ticks
+     * of the same frost powder snow gives you, which is entity state rather than an effect and sits under
+     * the 140 ticks where vanilla begins to deal freezing damage. reliqwq asked for the frost on 2026-11-06
+     * and cut the description line in the same breath, so both numbers live here and in the release notes -
+     * {@code SimplifyTooltipHandler} no longer maps this item to a {@code .desc} key, and the guard reads
+     * the pair off a real player instead of off the builder.
+     *
      * <p>It stacks to 64 - the number he set on 2026-11-04, written out rather than left to the
      * {@code Item.Properties} default so that a future reader sees a decision instead of an inheritance.
      * Vanilla's bottled foods are 16 (honey bottle) and 1 (potion); the guard prints both next to ours so the
@@ -496,7 +505,7 @@ public class ModRegistration {
      * as the one that refuses and went red on it.
      */
     public static final Supplier<Item> CRYOTHEUM_ICE_CREAM = ITEMS.register("cryotheum_ice_cream",
-            () -> new DrinkableFoodItem(new Item.Properties().stacksTo(64)
+            () -> new CryotheumIceCreamItem(new Item.Properties().stacksTo(64)
                     // The bottle is the dessert's container in every direction, not only when it is drunk:
                     // crafting four of them back into a bucket hands the four bottles out again, which is
                     // the honey-bottle rule applied the other way. Item-level, so any future recipe that
@@ -510,7 +519,8 @@ public class ModRegistration {
                             .alwaysEdible()
                             // Four minutes of fire resistance, asked for by name: 240 s = 4800 ticks.
                             // Probability 1.0 - a cold dessert that cools you down only sometimes is not a
-                            // feature, it is a coin flip the tooltip would have to advertise.
+                            // feature, it is a coin flip. The frost that goes with it is not in this builder:
+                            // freezing is entity state, so it lives in CryotheumIceCreamItem.
                             .effect(() -> new net.minecraft.world.effect.MobEffectInstance(
                                             net.minecraft.world.effect.MobEffects.FIRE_RESISTANCE, 4800),
                                     1.0F)

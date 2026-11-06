@@ -1105,6 +1105,28 @@ public final class NeoECOPrototypeGameTests {
             return;
         }
 
+        // The frost, read off the same player and the same call. Freezing is not an effect on this version,
+        // so there is nothing to look up in a mob-effect list: it is Entity#setTicksFrozen, and what makes
+        // it safe is vanilla's own threshold - the damage only starts once the field reaches
+        // getTicksRequiredToFreeze(), so the comparison is against the number the engine is about, not
+        // against our constant restated. 80 ticks is four seconds, and it must stay under that line.
+        var frozen = eater.getTicksFrozen();
+        var required = eater.getTicksRequiredToFreeze();
+        NeoECOPrototype.LOGGER.info("ice cream drink: freeze ticks={} required={} percent={}",
+                frozen, required, String.format(java.util.Locale.ROOT, "%.2f", (double) frozen / required));
+        if (frozen != cn.dancingsnow.neoecoprototype.items.CryotheumIceCreamItem.FREEZE_TICKS) {
+            helper.fail("drinking the ice cream left the drinker at " + frozen + " freeze ticks, expected "
+                    + cn.dancingsnow.neoecoprototype.items.CryotheumIceCreamItem.FREEZE_TICKS
+                    + " (4 seconds of powder-snow frost)");
+            return;
+        }
+        if (frozen >= required) {
+            helper.fail("the frost reaches " + frozen + " of the " + required
+                    + " ticks vanilla needs before freezing damage lands every 40 ticks - a dessert should"
+                    + " not hurt");
+            return;
+        }
+
         var held = helper.getLevel().getRecipeManager()
                 .byKey(cn.dancingsnow.neoecoprototype.NeoECOPrototype.id("cryotheum_ice_cream"));
         if (held.isEmpty()) {
