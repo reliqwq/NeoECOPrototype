@@ -512,7 +512,56 @@ public final class NeoECOPrototypeGameTests {
             NeoECOPrototype.LOGGER.info("cell_capacity: the three chemical rungs were not read,"
                     + " Mekanism or Applied Mekanistics is absent from this run");
         }
+
+        // The two families the 25% round left behind, reported by reliqwq on 2026-11-06: FE and the Omni
+        // Cells rungs stayed at the raw 1024 while item, fluid and chemical went to 1280. They cannot join
+        // the pour-to-full test above - that helper reads the per-type opening off IBasicECOCellItem, and
+        // eco's omni cell implements IECOStorageCellItem instead - so what is asked here is the number the
+        // engine itself reports for the cell it builds. That is still not our constant read back to us: it
+        // goes through ECOStorageCells, so a byte count the backend ignores would show up as the old number.
+        if (ModList.get().isLoaded("appflux") && ModRegistration.OPTIONAL_FE_CELL_1K != null) {
+            reportsSurchargedBudget(helper, ModRegistration.OPTIONAL_FE_CELL_1K.get(), 1280L, "fe 1k");
+        }
+        if (ModList.get().isLoaded("ae2omnicells")) {
+            Object[][] omniRungs = {
+                    {"universal 1k", ModRegistration.OPTIONAL_UNIVERSAL_CELL_1K},
+                    {"complex universal 1k", ModRegistration.OPTIONAL_COMPLEX_UNIVERSAL_CELL_1K},
+                    {"quantum 1k", ModRegistration.OPTIONAL_QUANTUM_CELL_1K},
+                    {"spent waste 1k", ModRegistration.OPTIONAL_SPENT_WASTE_CELL_1K},
+            };
+            for (Object[] rung : omniRungs) {
+                var supplier = (java.util.function.Supplier<? extends net.minecraft.world.item.Item>) rung[1];
+                if (supplier == null) {
+                    NeoECOPrototype.LOGGER.info("cell_capacity: {} is not registered in this run", rung[0]);
+                    continue;
+                }
+                reportsSurchargedBudget(helper, supplier.get(), 1280L, (String) rung[0]);
+            }
+        }
         helper.succeed();
+    }
+
+    /**
+     * What the storage engine reports for a freshly built cell: the total it claims and the whole of it free.
+     * Used for the families whose cells do not carry the per-type opening the pour test needs.
+     */
+    private static void reportsSurchargedBudget(GameTestHelper helper, net.minecraft.world.item.Item cellItem,
+                                                long expectedBytes, String label) {
+        var cell = cn.dancingsnow.neoecoae.api.storage.ECOStorageCells.getCellInventory(
+                new ItemStack(cellItem), (appeng.api.storage.cells.ISaveProvider) null);
+        if (cell == null) {
+            helper.fail(label + " produced no storage inventory, so its budget could not be read");
+            return;
+        }
+        if (cell.getTotalBytes() != expectedBytes
+                || cell.getTotalBytes() - cell.getUsedBytes() != expectedBytes) {
+            helper.fail(label + " reports total=" + cell.getTotalBytes() + " used=" + cell.getUsedBytes()
+                    + ", expected the surcharged " + expectedBytes + " bytes free and clear - the rung this"
+                    + " family was left on is 1024, which is the gap reliqwq reported");
+            return;
+        }
+        NeoECOPrototype.LOGGER.info("cell_capacity: {} total={} used={}", label,
+                cell.getTotalBytes(), cell.getUsedBytes());
     }
 
     /** Fill one cell to its claimed byte budget with a single key, then ask for more than it can hold. */
