@@ -11,7 +11,7 @@ item_ids:
 
 # L1 处理器装配室
 
-**L1 处理器装配室**相当于绿色外壳的<ItemLink id="ae2:molecular_assembler" />，专门给还没压印器的存档用：处理器三件套在这里直接用样板做出来。它只跑本模组的处理器装配配方，普通分子装配样板会被拒收， 那类活请交给分子装配室。它配下面的 L1 样板供应器使用。
+**L1 处理器装配室**相当于绿色外壳的<ItemLink id="ae2:molecular_assembler" />，专门给还没压印器的存档用：处理器三件套在这里直接用样板做出来。它只跑本模组的处理器装配配方，普通分子装配样板会被拒收， 那类活请交给分子装配室。它配下面的 L1 样板供应器使用。已经有 eco 的大型集成工作站的话，装上 [L1 处理器装配卡](processor_assembly_card.md) 就能在那台机器上跑这一族配方。
 
 <ItemGrid>
   <ItemIcon id="neoecoprototype:simplify_stonecutting_assembler" />

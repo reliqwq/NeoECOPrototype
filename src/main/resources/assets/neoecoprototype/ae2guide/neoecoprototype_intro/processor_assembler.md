@@ -11,7 +11,7 @@ item_ids:
 
 # L1 Processor Assembler
 
-The **L1 Processor Assembler** is a green-shell version of the <ItemLink id="ae2:molecular_assembler" /> built for saves that do not have an inscriber yet: it crafts the three processors straight from patterns. It runs only this mod's processor assembly recipes; ordinary molecular assembly patterns are refused, and that work belongs to a Molecular Assembler. It is used with the L1 Pattern Provider below.
+The **L1 Processor Assembler** is a green-shell version of the <ItemLink id="ae2:molecular_assembler" /> built for saves that do not have an inscriber yet: it crafts the three processors straight from patterns. It runs only this mod's processor assembly recipes; ordinary molecular assembly patterns are refused, and that work belongs to a Molecular Assembler. It is used with the L1 Pattern Provider below. If you already own eco's large integrated working station, the [L1 Processor Assembly Card](processor_assembly_card.md) runs this same family there.
 
 <ItemGrid>
   <ItemIcon id="neoecoprototype:simplify_stonecutting_assembler" />
