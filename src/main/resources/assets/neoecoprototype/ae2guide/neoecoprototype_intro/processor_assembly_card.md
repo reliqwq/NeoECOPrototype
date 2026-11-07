@@ -6,51 +6,55 @@ navigation:
   parent: neoecoprototype_intro/index.md
 item_ids:
   - neoecoprototype:processor_assembly_workstation_card
-  - neoecoprototype:simplify_stonecutting_assembler
-  - neoecoprototype:energized_computation_core
-  - neoecoprototype:simplify_green_crystal_matrix
 ---
 
 # L1 Processor Assembly Card
 
-The **L1 Processor Assembly Card** is an upgrade module for eco's <ItemLink id="neoecoae:large_integrated_working_station" />. With it in the station's module slot, that station also runs this mod's processor-assembly recipes - the same family the [L1 Processor Assembler](processor_assembler.md) runs.
+The **L1 Processor Assembly Card** is an upgrade module for the large integrated working station. With it installed, the station runs this mod's processor-assembly recipes the same way the [L1 Processor Assembler](processor_assembler.md) does: patterns go into the communication interface, and ingredients and results move through the ME network.
 
 <ItemGrid>
   <ItemIcon id="neoecoprototype:processor_assembly_workstation_card" />
+  <ItemIcon id="neoecoprototype:simplify_stonecutting_assembler" />
+  <ItemIcon id="neoecoprototype:energized_computation_core" />
+  <ItemIcon id="neoecoprototype:simplify_green_crystal_matrix" />
 </ItemGrid>
 
-## Where it goes
+## Installing
 
-The station has **one** module slot, at the top right of its screen, and it holds one card at a time: installing this card means eco's other module cards are not installed. The station's own recipes, and compatible recipes that need no module, keep working either way; a family that belongs to another module card needs that card instead.
+The station's controller has one **upgrade module** slot at the top right of its screen, and it holds one card at a time. Installing this card means eco's other module cards are not installed - one slot, one route at a time. The station's own recipes, and compatible recipes that need no module, keep working either way.
 
-The card does **not** go into the L1 Processor Assembler: that machine's five upgrade slots accept only <ItemLink id="ae2:speed_card" /> and energy cards.
+The card does **not** go into the L1 Processor Assembler: that machine's five upgrade slots take only <ItemLink id="ae2:speed_card" /> and energy cards, and it already carries the processor recipes itself.
 
-## How it is made
+While the card is installed, the controller takes our look, and this family appears in JEI / EMI under the "Large Integrated Working Station" category.
 
-The card is crafted **in eco's large integrated working station** - not at a crafting table, and not in our assembler:
+## Crafting
 
-| Ingredient | Count |
-|------------|-------|
-| L1 Processor Assembler | 8 |
-| Energized Reinforced Computation Core | 1 |
-| Green Crystal Matrix | 32 |
+Like the other upgrade modules, the card is crafted **in a large integrated working station**:
 
-One card costs 10000 AE. The station's recipe screen cannot be drawn on this page, so the materials are in the table.
+<RecipeFor id="neoecoprototype:processor_assembly_workstation_card" />
 
-The card is priced in the station's recipe shape on purpose: our own processor-assembly recipe type states neither per-ingredient counts nor an energy cost, so a card written there would have cost one unit of each ingredient.
+One card costs 10000 AE.
 
 ## Encoding patterns
 
-One pattern execution runs our recipe **64 times**, and a pattern is matched only when its output is an exact multiple of that batch. Encode it at 64 runs:
+This family is ordered in **batches of 64**: one pattern execution runs our recipe 64 times. A pattern has to state the whole batch, ingredients and results alike.
 
-| Recipe | 64 runs produce | Energy per batch |
-|--------|-----------------|------------------|
-| Processor (1 per run) | 64 processors | 64 AE |
-| Snowball (4 per run) | 256 snowballs | 64 AE |
+| Recipe | One batch | Energy per batch |
+|--------|----------:|-----------------:|
+| Processor (1 per run) | 64 | 64 AE |
+| Snowball (4 per run) | 256 | 64 AE |
 
-The inputs have to be encoded at the same multiple: a 64x Logic Processor pattern is 64 silicon + 64 redstone + 64 gold ingots for 64 processors.
+The ingredients scale the same way. A 64x Logic Processor pattern, for instance, is 64 silicon + 64 redstone + 64 gold ingots for 64 logic processors.
 
-- A pattern smaller than one batch - 1x or 32x, say - is not accepted by the station, and its materials are never pulled out of the network.
-- Doubling the pattern doubles both the materials and the energy, so the price per item does not change: one processor is still 1 AE.
-- The batch size does not slow a batch down; the station's own overclock decides the pace.
-- The [L1 Processor Assembler](processor_assembler.md) is not affected - it still accepts 1x patterns and keeps its own nine-slot batch rules.
+- A pattern smaller than one batch - 1x or 32x - is not accepted, and its materials are never pulled from the network.
+- Scaling the pattern up scales the ingredients and the energy together, so the price per item does not change: one processor is still 1 AE.
+- Batch size does not slow a batch down: every batch is worked in 1 tick, and the station's overclock and parallelism decide how many run at once.
+- The [L1 Processor Assembler](processor_assembler.md) is unaffected: it still takes 1x patterns and keeps its nine-slot batch rules.
+
+## Common questions
+
+| Symptom | Cause and fix |
+| --- | --- |
+| I cannot find our recipes | Look under the "Large Integrated Working Station" category in JEI / EMI; for the station to accept them, the card also has to be in the module slot |
+| A pattern goes in but is never accepted | Check that the count is a multiple of 64 and the ingredients are scaled by the same multiple |
+| I want another mod's module back | The slot holds one card at a time - take this one out first |
