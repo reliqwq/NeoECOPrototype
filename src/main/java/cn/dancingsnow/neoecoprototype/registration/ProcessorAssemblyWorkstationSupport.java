@@ -9,6 +9,7 @@ import cn.dancingsnow.neoecoae.recipe.LargeWorkstationRecipe;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.item.crafting.RecipeHolder;
 import net.neoforged.neoforge.common.crafting.SizedIngredient;
@@ -37,13 +38,20 @@ import java.util.List;
  * nothing either, because no adapter existed. That is why both registrations are one change: a family with no
  * recipes behind it would only remove access.</p>
  *
- * <p>The numbers are eco's own cheapest rung, not invented here: 1000 AE comes from the lowest
- * {@code energy} in eco's shipped {@code integrated_working_station} data (and matches what our own recipes in
- * that folder already pay), and 100 ticks is {@code IntegratedWorkingStationRecipe}'s own default. The ticks
- * have to be set explicitly through {@link LargeWorkstationRecipe#processing}: the convenience constructor
- * derives them from {@code referenceTicks}, whose fallback for a source type eco does not know is 200, the
- * cap - so leaving them out would have quietly doubled every batch. 100 is the lower cooling bar reliqwq
- * asked for, and it is where eco's own native rung sits.</p>
+ * <p>The numbers are ours: one AE per run, so the cost of running this family is the ingredients and the
+ * time, not a second energy gate on top of them. The adapted recipe states {@link #RECIPE_SCALE} runs at
+ * once, and its energy is scaled with it, because that is the shape our patterns are encoded at on this
+ * machine: eco multiplies the recipe's inputs and energy by the pattern's own scale. A one-run declaration
+ * would still answer a 128x pattern, so the per-item price would be the same - but a pattern smaller than
+ * the stated scale would also be accepted, and this family is meant to be pulled in batches. Stating 64
+ * runs makes that batch the smallest answerable unit.</p>
+ *
+ * <p>{@link #PROCESSING_TICKS} is what eco's panel shows, not how long the station takes:
+ * {@code createPendingBatch} writes the batch's own {@code processingTicks = 1} and never reads the
+ * recipe's, so the station's overclock decides the pace. The number still has to be set through
+ * {@link LargeWorkstationRecipe#processing} because the convenience constructor derives it from
+ * {@code referenceTicks}, whose fallback for a source type eco does not know is 200 - the cap - and that
+ * would be the wrong number on the panel and in eco's own tie-break between equally costly recipes.</p>
  */
 public final class ProcessorAssemblyWorkstationSupport {
     /** eco refuses {@code neoecoae} here on purpose: modules are named by the addon that owns them. */
@@ -52,7 +60,19 @@ public final class ProcessorAssemblyWorkstationSupport {
     private static final ResourceLocation SOURCE_TYPE = sourceType();
     /** eco ORs 0xFF000000 onto this number in its panel, so the alpha byte must not be carried. */
     static final int MODULE_COLOR = ModRegistration.NAME_THEME_TIER_L1 & 0xFFFFFF;
-    private static final int ENERGY_AE = 1000;
+    /**
+     * How many runs of one of our recipes a single workstation pattern execution carries. The L1 assembler
+     * is unaffected: it matches the pattern it is handed against its own recipe type, so 1x patterns still
+     * run there.
+     */
+    private static final int RECIPE_SCALE = 64;
+    /** What one run costs; the adapted recipe states {@link #RECIPE_SCALE} runs, so the per-item price holds. */
+    private static final int ENERGY_PER_RUN = 1;
+    private static final int ENERGY_AE = ENERGY_PER_RUN * RECIPE_SCALE;
+    /**
+     * The interval the panel shows for one adaptation. Display and ordering only: the large station writes
+     * its batch's own {@code processingTicks = 1}, so this number does not slow the machine down.
+     */
     private static final int PROCESSING_TICKS = 100;
 
     private ProcessorAssemblyWorkstationSupport() {
@@ -109,16 +129,14 @@ public final class ProcessorAssemblyWorkstationSupport {
     }
 
     /**
-     * One processor-assembly recipe, stated as a workstation contract: every ingredient is one unit (that is
-     * what our machine consumes per craft, and a repeated ingredient is already a second list entry), no
-     * fluid in either direction.
+     * One processor-assembly recipe, stated as a workstation contract: every ingredient is
+     * {@link #RECIPE_SCALE} units (a repeated ingredient is already a second list entry), the output count
+     * is scaled the same way, and there is no fluid in either direction.
      *
-     * <p>The card that unlocks this family is part of it, like every other recipe our assembler runs. An
-     * earlier draft left it out, and that cannot be done here: eco dispatches an adapter by recipe type and
-     * then {@code Objects.requireNonNull}s its result, so a null for one of our own recipes is logged as a
-     * failed adaptation on every recipe reload. It is also not a leak - the card's first copy comes off the
-     * processor assembler, and this is the same recipe the workstation already mirrors, so it can copy a key
-     * you hold, never mint one.
+     * <p>The card is deliberately not one of these. It is crafted by eco's large integrated working station
+     * from a {@code neoecoae:large_integrated_working_station} recipe, because that is the one shape that can
+     * state per-ingredient counts and a per-craft energy cost; our own recipe type carries neither, so putting
+     * the card here would have made eight assemblers and 32 crystal matrices collapse to one unit each.</p>
      *
      * @return null for anything that is not our recipe, which never happens through our own registration
      */
@@ -131,10 +149,12 @@ public final class ProcessorAssemblyWorkstationSupport {
                 // here is cheaper than letting the workstation show a craft the assembler cannot run.
                 return null;
             }
-            inputs.add(new SizedIngredient(ingredient, 1));
+            inputs.add(new SizedIngredient(ingredient, RECIPE_SCALE));
         }
+        ItemStack result = processor.result().copy();
+        result.setCount(Math.multiplyExact(result.getCount(), RECIPE_SCALE));
         var display = new IntegratedWorkingStationRecipe(inputs,
-                new SizedFluidIngredient(FluidIngredient.empty(), 1), processor.result(), FluidStack.EMPTY,
+                new SizedFluidIngredient(FluidIngredient.empty(), 1), result, FluidStack.EMPTY,
                 ENERGY_AE, PROCESSING_TICKS);
         return new LargeWorkstationRecipe(recipe.id(), display, ENERGY_AE, List.of(), SOURCE_TYPE)
                 .processing(PROCESSING_TICKS, 0, false);

@@ -11399,9 +11399,10 @@ public final class NeoECOPrototypeGameTests {
      * {@code ECOWorkstationRecipeAdapters} entry adapted. That list is the module's whole share of the
      * catalog and also carries every recipe no card gates, eco's own native rung included, which every
      * module answers; the family assertions below are therefore scoped to the type this module claims. The
-     * numbers are asserted with them, because the convenience constructor takes ticks from
-     * {@code referenceTicks}, whose fallback for a source type eco does not know is 200, the cap, while this
-     * module pays 100.</p>
+     * numbers are asserted with them: every adapted entry is stated at 64 runs with 64 of each ingredient
+     * and 64 AE, which is the shape the workstation patterns are encoded at, and 100 is what the panel
+     * shows (the convenience constructor would otherwise take ticks from {@code referenceTicks}, whose
+     * fallback for a source type eco does not know is 200, the cap).</p>
      *
      * <p>What decides ownership is measured rather than assumed: registering our type takes it out of eco's
      * catch-all, so the eight builtin cards stop granting it and only our own id does. Before registration
@@ -11789,6 +11790,7 @@ public final class NeoECOPrototypeGameTests {
         }
         var actual = new java.util.TreeSet<String>();
         var wrongNumbers = new java.util.ArrayList<String>();
+        cn.dancingsnow.neoecoae.recipe.LargeWorkstationRecipe cardRecipe = null;
         int ungated = 0;
         for (var recipe : available) {
             // The list a module answers is "every recipe no card gates, plus this card's family": eco's native
@@ -11796,13 +11798,59 @@ public final class NeoECOPrototypeGameTests {
             // are this module's business, so the family assertions are scoped to them.
             if (!recipe.sourceType().equals(ourType)) {
                 ungated++;
+                if (recipe.display().itemOutput().is(card.getItem())) cardRecipe = recipe;
                 continue;
             }
             actual.add(recipe.id().toString());
-            if (recipe.energy() != 1000 || recipe.processingTicks() != 100) {
+            if (recipe.energy() != 64 || recipe.processingTicks() != 100) {
                 wrongNumbers.add(recipe.id() + " energy=" + recipe.energy()
                         + " ticks=" + recipe.processingTicks());
             }
+            // The scale is the whole point of this family's declaration: an adapted recipe must state the
+            // pattern's 64 runs, not one. A one-run recipe would still match a 128x pattern - eco scales by
+            // the pattern - so the reading has to be the counts themselves, on both sides of the craft.
+            var sourceHolder = helper.getLevel().getRecipeManager().byKey(recipe.id());
+            if (!(sourceHolder.isPresent()
+                    && sourceHolder.get().value() instanceof cn.dancingsnow.neoecoprototype
+                    .recipe.ProcessorAssemblerRecipe assemblerRecipe)) {
+                helper.fail("no processor-assembler recipe is loaded under " + recipe.id()
+                        + ", so the adapted entry has no source to be a scale of");
+                return;
+            }
+            var inputSizes = new java.util.ArrayList<Integer>();
+            for (var sized : recipe.display().inputItems()) inputSizes.add(sized.count());
+            int expectedCount = Math.multiplyExact(assemblerRecipe.result().getCount(), 64);
+            if (inputSizes.size() != assemblerRecipe.ingredients().size()
+                    || !inputSizes.stream().allMatch(count -> count == 64)
+                    || recipe.display().itemOutput().getCount() != expectedCount) {
+                helper.fail("our adapted recipe " + recipe.id() + " reads back as " + inputSizes + " -> "
+                        + recipe.display().itemOutput().getCount() + " instead of 64 of each ingredient -> "
+                        + expectedCount + ": the family is stated at 64 runs, and a recipe that quietly went"
+                        + " back to one run would be answered at one run's worth of material and energy");
+                return;
+            }
+        }
+        if (cardRecipe == null) {
+            helper.fail("the upgrade card is not in the recipe list of the station it is installed in: it is a"
+                    + " neoecoae:large_integrated_working_station recipe, and if that file stops parsing or stops"
+                    + " being served there is no in-game way to make the card at all");
+            return;
+        }
+        var expectedInputs = new java.util.TreeMap<String, Integer>();
+        expectedInputs.put("neoecoprototype:simplify_stonecutting_assembler", 8);
+        expectedInputs.put("neoecoprototype:energized_computation_core", 1);
+        expectedInputs.put("neoecoprototype:simplify_green_crystal_matrix", 32);
+        var seenInputs = new java.util.TreeMap<String, Integer>();
+        for (var sized : cardRecipe.display().inputItems()) {
+            var choices = sized.ingredient().getItems();
+            seenInputs.put(choices.length == 0 ? "<empty>"
+                    : BuiltInRegistries.ITEM.getKey(choices[0].getItem()).toString(), sized.count());
+        }
+        if (cardRecipe.energy() != 10000 || !seenInputs.equals(expectedInputs)) {
+            helper.fail("the card recipe reads back as " + cardRecipe.energy() + " AE from " + seenInputs
+                    + " instead of 10000 AE from " + expectedInputs + ": counts and energy only exist in eco's"
+                    + " large-station shape, so a number lost here is a cheaper or unavailable card");
+            return;
         }
         if (actual.isEmpty()) {
             helper.fail("the module answered " + available.size() + " recipes, none of them from " + ourType
@@ -11811,9 +11859,9 @@ public final class NeoECOPrototypeGameTests {
         }
         if (!wrongNumbers.isEmpty()) {
             helper.fail("our adapted recipes did not carry the module's numbers (" + wrongNumbers
-                    + "): the adapter's convenience constructor derives ticks from referenceTicks, whose"
-                    + " fallback for an unknown type is 200, so the explicit .processing(100, 0, false) is"
-                    + " what keeps this at eco's native rung");
+                    + "): every entry is stated at 64 runs with 64 AE, so a run still costs 1 AE and a"
+                    + " pattern smaller than 64x is refused; leaving the energy at one would make the family"
+                    + " 64 times cheaper than the same pattern was before");
             return;
         }
         if (!actual.equals(expected)) {
@@ -11842,10 +11890,11 @@ public final class NeoECOPrototypeGameTests {
         }
         NeoECOPrototype.LOGGER.info("workstation module: our card {} resolves to {}, our type {} classifies"
                         + " as it, the module grants {} of {} loaded recipes plus {} recipes no card gates,"
-                        + " none of eco's eight cards sees ours, and every one costs 1000 AE over 100 ticks;"
-                        + " panel art reads back as {}",
+                        + " none of eco's eight cards sees ours, and every one states 64 runs for 64 AE,"
+                        + " the panel showing 100 ticks;"
+                        + " the card's own recipe costs {} AE from {}; panel art reads back as {}",
                 BuiltInRegistries.ITEM.getKey(card.getItem()), module.id(), ourType, actual.size(),
-                expected.size(), ungated, panelArt);
+                expected.size(), ungated, cardRecipe.energy(), seenInputs, panelArt);
         helper.succeed();
     }
 

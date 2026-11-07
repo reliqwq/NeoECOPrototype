@@ -1,0 +1,22 @@
+{
+  "type": "neoecoae:large_integrated_working_station",
+  "inputItems": [
+    {
+      "count": 8,
+      "item": "neoecoprototype:simplify_stonecutting_assembler"
+    },
+    {
+      "count": 1,
+      "item": "neoecoprototype:energized_computation_core"
+    },
+    {
+      "count": 32,
+      "item": "neoecoprototype:simplify_green_crystal_matrix"
+    }
+  ],
+  "itemOutput": {
+    "count": 1,
+    "id": "neoecoprototype:processor_assembly_workstation_card"
+  },
+  "energy": 10000
+}
