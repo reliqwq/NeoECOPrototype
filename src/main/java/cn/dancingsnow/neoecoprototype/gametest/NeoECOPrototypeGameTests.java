@@ -11426,6 +11426,60 @@ public final class NeoECOPrototypeGameTests {
                     + ", so it is either granting more than our family or not granting it at all");
             return;
         }
+        // The panel draws the icon as a 15x15 and the circuit as a 28x28 sprite straight from the module, and
+        // both are null-able: eco answers null with its own OTHER column, so a typo in either path would show
+        // eco's art and nothing would say so. Read them back out of this game's packs rather than trusting the
+        // strings, and require the file sizes the panel slices, because the sprite rect is fixed, not measured.
+        if (module.icon() == null || module.circuit() == null) {
+            helper.fail("our module registers no panel art (icon=" + module.icon() + ", circuit="
+                    + module.circuit() + "), so eco would draw its own OTHER column beside our family name");
+            return;
+        }
+        var panelArt = new java.util.TreeMap<String, String>();
+        var expectedArt = new java.util.LinkedHashMap<net.minecraft.resources.ResourceLocation, Integer>();
+        expectedArt.put(module.icon(), 15);
+        expectedArt.put(module.circuit(), 28);
+        for (var entry : expectedArt.entrySet()) {
+            var art = entry.getKey();
+            int side = entry.getValue();
+            try {
+                var resource = helper.getLevel().getServer().getResourceManager().getResource(art);
+                if (resource.isEmpty()) {
+                    helper.fail("the module names " + art + " but no pack in this game carries it, so the"
+                            + " panel would fall back to eco's own art for our family");
+                    return;
+                }
+                java.awt.image.BufferedImage image;
+                try (var stream = resource.get().open()) {
+                    image = javax.imageio.ImageIO.read(stream);
+                }
+                if (image == null) {
+                    helper.fail(art + " is not a readable image, so the panel would fail to bind it");
+                    return;
+                }
+                if (image.getWidth() != side || image.getHeight() != side) {
+                    helper.fail(art + " is " + image.getWidth() + "x" + image.getHeight() + " but the panel"
+                            + " slices it as " + side + "x" + side + ", so it would be cropped to nothing"
+                            + " useful or leave the cell empty");
+                    return;
+                }
+                int opaque = 0;
+                for (int y = 0; y < side; y++) {
+                    for (int x = 0; x < side; x++) {
+                        if ((image.getRGB(x, y) >>> 24) != 0) opaque++;
+                    }
+                }
+                if (opaque == 0) {
+                    helper.fail(art + " is fully transparent, so the module would show an empty cell even"
+                            + " though both the file and the path are right");
+                    return;
+                }
+                panelArt.put(art.toString(), side + "x" + side + " opaque=" + opaque);
+            } catch (java.io.IOException e) {
+                helper.fail("could not read " + art + ": " + e);
+                return;
+            }
+        }
         var fromCard = cn.dancingsnow.neoecoae.api.workstation.ECOWorkstationModules.customFromCard(card);
         if (fromCard == null || !fromCard.id().equals(module.id())) {
             helper.fail("eco resolved our card " + BuiltInRegistries.ITEM.getKey(card.getItem()) + " to "
@@ -11537,9 +11591,10 @@ public final class NeoECOPrototypeGameTests {
         }
         NeoECOPrototype.LOGGER.info("workstation module: our card {} resolves to {}, our type {} classifies"
                         + " as it, the module grants {} of {} loaded recipes plus {} recipes no card gates,"
-                        + " none of eco's eight cards sees ours, and every one costs 1000 AE over 100 ticks",
+                        + " none of eco's eight cards sees ours, and every one costs 1000 AE over 100 ticks;"
+                        + " panel art reads back as {}",
                 BuiltInRegistries.ITEM.getKey(card.getItem()), module.id(), ourType, actual.size(),
-                expected.size(), ungated);
+                expected.size(), ungated, panelArt);
         helper.succeed();
     }
 

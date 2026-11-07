@@ -71,13 +71,25 @@ public final class ProcessorAssemblyWorkstationSupport {
     static final String TITLE_KEY = "gui.neoecoprototype.workstation.module.processor_assembly";
     static final String SHORT_TITLE_KEY = "gui.neoecoprototype.workstation.module_short.processor_assembly";
 
+    /**
+     * The panel draws these with {@code SpriteTexture.of(location)}, whose default location is
+     * {@code textures/gui/icon.png} - so the whole texture path has to be in the id, not just a name. Sizes
+     * are read by the panel as (0, 0, 15, 15) for the icon and (0, 0, 28, 28) for the circuit, which is why
+     * the two files are exactly that.
+     */
+    static final ResourceLocation ICON_TEXTURE =
+            NeoECOPrototype.id("textures/gui/workstation/processor_assembly_icon.png");
+    static final ResourceLocation CIRCUIT_TEXTURE =
+            NeoECOPrototype.id("textures/gui/workstation/processor_assembly_circuit.png");
+
     /** Called from commonSetup alongside the other eco extension registrations. */
     public static void register() {
         ResourceLocation card = BuiltInRegistries.ITEM.getKey(
                 ModRegistration.PROCESSOR_ASSEMBLY_WORKSTATION_CARD.get());
         ECOWorkstationModules.register(100, new ECOWorkstationModules.Module(MODULE_ID, card,
                 java.util.Set.of(SOURCE_TYPE), Component.translatable(TITLE_KEY),
-                Component.translatable(SHORT_TITLE_KEY), MODULE_COLOR, null, null, null, null));
+                Component.translatable(SHORT_TITLE_KEY), MODULE_COLOR,
+                ICON_TEXTURE, CIRCUIT_TEXTURE, null, null));
         ECOWorkstationRecipeAdapters.register(MODULE_ID, 100, SOURCE_TYPE,
                 (recipe, registries) -> adapt(recipe));
     }
