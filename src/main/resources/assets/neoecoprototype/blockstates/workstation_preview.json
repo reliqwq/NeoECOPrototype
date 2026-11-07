@@ -1,0 +1,10 @@
+{
+  "variants": {
+    "body=true": {
+      "model": "neoecoprototype:block/workstation/controller_on_flat"
+    },
+    "body=false": {
+      "model": "neoecoprototype:block/workstation/preview_empty"
+    }
+  }
+}

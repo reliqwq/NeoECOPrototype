@@ -6,6 +6,7 @@ import appeng.blockentity.AEBaseBlockEntity;
 import appeng.blockentity.crafting.CraftingBlockEntity;
 import cn.dancingsnow.neoecoprototype.block.SimplifyCasingBlock;
 import cn.dancingsnow.neoecoprototype.block.SimplifyCryotheumOreBlock;
+import cn.dancingsnow.neoecoprototype.block.WorkstationPreviewBlock;
 import cn.dancingsnow.neoecoprototype.block.grette.GretteBuddingBlock;
 import cn.dancingsnow.neoecoae.blocks.entity.ECOMachineCasingBlockEntity;
 import cn.dancingsnow.neoecoae.blocks.entity.ECOMachineInterfaceBlockEntity;
@@ -385,6 +386,18 @@ public class ModRegistration {
             BLOCKS.register("simplify_computation_casing", () -> new cn.dancingsnow.neoecoae.blocks.ECOMachineCasing(COMPUTATION_PROPS));
      public static final Supplier<SimplifyCasingBlock> SIMPLIFY_GREEN_ALUMINUM_CASING_BLOCK =
              BLOCKS.register("simplify_green_aluminum_casing", () -> new SimplifyCasingBlock(GREEN_CASING_PROPS));
+
+    /**
+     * Guide-only, not a player block: its blockstate is the large integrated working station's working
+     * model, so a GuideMe scene can show the appearance this card installs. GuideMe hands the baked model
+     * {@code ModelData.EMPTY} and its level is a client-side stub with no block entities, so eco's
+     * {@code WorkstationModuleBakedModel} has no module id to look up there and falls back to eco's own
+     * compat model - a plain blockstate is the way around that. No BlockItem and no recipe.
+     */
+    public static final Supplier<WorkstationPreviewBlock> WORKSTATION_PREVIEW_BLOCK =
+            BLOCKS.register("workstation_preview",
+                    () -> new WorkstationPreviewBlock(BlockBehaviour.Properties.of().mapColor(MapColor.METAL)
+                            .strength(1.0F).noOcclusion()));
 
     /**
      * eco has no ore for its 天外寒冰 - the crystal only comes out of a crafting grid - so these are the

@@ -41,12 +41,6 @@ public final class SimplifyTooltipHandler {
             "item.neoecoprototype.simplify_structure_expansion_card.desc";
     /** Same reason: the bag is the only place a refund goes when the inventory is already full. */
     private static final String BACKUP_DRIVE_KEY = "item.neoecoprototype.backup_drive.desc";
-    /**
-     * The workstation module has no screen of its own either, and the one thing a player can get wrong is
-     * which machine it belongs in, so that line is on the card.
-     */
-    private static final String PROCESSOR_ASSEMBLY_CARD_KEY =
-            "item.neoecoprototype.processor_assembly_workstation_card.desc";
     /** Each disk says what the swap costs, what comes back, and the one thing it does not carry over. */
     private static final String MIGRATION_DRIVE_KEY =
             "item.neoecoprototype.migration_drive.desc";
@@ -123,10 +117,6 @@ public final class SimplifyTooltipHandler {
         }
         if (stack.is(ModRegistration.SIMPLIFY_STRUCTURE_EXPANSION_CARD.get())) {
             return EXPANSION_CARD_KEY;
-        }
-        // It goes into eco's workstation, not into our assembler - say so on the item, not only in docs.
-        if (stack.is(ModRegistration.PROCESSOR_ASSEMBLY_WORKSTATION_CARD.get())) {
-            return PROCESSOR_ASSEMBLY_CARD_KEY;
         }
         // The bag says its rules here and its contents in the item's own appendHoverText.
         if (stack.is(ModRegistration.BACKUP_DRIVE.get())) {
