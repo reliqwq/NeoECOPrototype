@@ -191,17 +191,14 @@ public final class SimplifyMigrationDriveItem extends SimplifyStructureExpansion
      *
      * <p>Both go the same way the refund does - into the click's reward bag - and one of them must not be
      * paid twice: the bag's tile is this disk's own shell darkened, and pouring a bag turns it back into an
-     * empty drive, so when a bag came out of the click the bag *is* the shell. Only the click that owed
-     * nothing else has to hand the drive over by itself.</p>
+     * empty drive, so when a bag came out of the click the bag *is* the shell. The click that owes nothing
+     * else is handed the drive by {@link Owed#seal} itself, which is also what every paid grow relies on.</p>
      */
     @Override
     protected void onSwapped(ServerLevel level, BlockPos pos, ServerPlayer player,
                               @Nullable BlockEntity previous, Owed owed) {
         if (player.hasInfiniteMaterials()) {
             return;
-        }
-        if (owed.isEmpty()) {
-            handTo(level, pos, new ItemStack(ModRegistration.MIGRATION_DRIVE_EMPTY.get()), player);
         }
         if (previous instanceof SimplifyCraftingSystemBlockEntity host && host.hasMind()) {
             owed.bag(new ItemStack(ModRegistration.FUMO_DOLL_TEDXENON_ITEM.get()));

@@ -13327,18 +13327,15 @@ public final class NeoECOPrototypeGameTests {
             }
         }
         int standingBefore = machineSnapshot(helper).size();
-        // Growing along the edge replaces no host and no tier, so the card is not what it pays with - it
-        // has to survive the click, and it is counted inside the ledger below rather than removed from it.
-        var cardItem = ModRegistration.SIMPLIFY_STRUCTURE_EXPANSION_CARD.get();
+        // A successful grow costs the card, exactly like a tier swap - the click's bag (or, when the grow
+        // reclaims nothing, the shell handed over by itself) is what comes back in its place.
         var before = ledger(helper, player);
-        int cardsBefore = before.getOrDefault(cardItem, 0);
         useExpansionCard(helper, player);
         // Read everything while the machine still stands: the sweep below takes the block entity with
         // it, and every one of these answers would become a lie.
         int standingAfter = machineSnapshot(helper).size();
         boolean formed = host.isFormed();
         var after = ledger(helper, player);
-        int cardsAfter = after.getOrDefault(cardItem, 0);
         var def = host.getBuildDefinition();
         BlockPos absoluteHost = helper.absolutePos(CARD_HOST);
         var big = cn.dancingsnow.neoecoae.multiblock.placement.MultiBlockPlacementService
@@ -13363,18 +13360,62 @@ public final class NeoECOPrototypeGameTests {
                     + standingBefore + " -> " + standingAfter + " blocks)");
             return;
         }
-        if (cardsBefore != 1 || cardsAfter != 1) {
-            helper.fail("growing " + what + " left " + cardsAfter + " card(s) in the ledger where the"
-                    + " click started with " + cardsBefore + " - growing along the edge replaces no host"
-                    + " and no tier, so it must not eat the card");
-            return;
-        }
-        if (!before.equals(after)) {
-            helper.fail("the card invented or lost blocks while growing " + what + "; before " + before
-                    + " after " + after + " | " + describeMissingBill(helper, host));
+        if (!requireTheCardPaidForItself(helper, player, before, after, what)) {
             return;
         }
         helper.succeed();
+    }
+
+    /**
+     * The ledger a successful grow is expected to leave: exactly one card gone and exactly one shell back
+     * in its place - the paid bag when the grow had blocks to hand back, the empty migration drive the
+     * card's shell is when it had none. The rest of the ledger has to balance untouched, so this also
+     * keeps the old "the card invented or lost blocks" reading.
+     *
+     * <p>Returns false after failing, so the caller can stop where the machine still stands.</p>
+     */
+    private static boolean requireTheCardPaidForItself(GameTestHelper helper,
+                                                       net.minecraft.server.level.ServerPlayer player,
+                                                       Map<Item, Integer> before,
+                                                       Map<Item, Integer> after, String what) {
+        var card = ModRegistration.SIMPLIFY_STRUCTURE_EXPANSION_CARD.get();
+        int cardsBefore = before.getOrDefault(card, 0);
+        int cardsAfter = after.getOrDefault(card, 0);
+        if (cardsBefore != 1 || cardsAfter != 0) {
+            helper.fail("growing " + what + " started with " + cardsBefore + " card(s) and left "
+                    + cardsAfter + " - a successful grow costs the card, the same way a tier swap does");
+            return false;
+        }
+        var bag = onlyBag(player);
+        var shell = ModRegistration.MIGRATION_DRIVE_EMPTY.get();
+        int looseShells = after.getOrDefault(shell, 0);
+        if (bag.isEmpty()) {
+            if (looseShells != 1) {
+                helper.fail("growing " + what + " ate the card but handed back " + looseShells
+                        + " empty drive(s), expected exactly one");
+                return false;
+            }
+        } else if (!cn.dancingsnow.neoecoprototype.items.BackupDriveItem.paysShell(bag)) {
+            helper.fail("growing " + what + " left a backup drive that does not owe the card's shell,"
+                    + " so pouring it out would delete the card the click ate");
+            return false;
+        } else if (looseShells != 0) {
+            helper.fail("growing " + what + " left both a paid backup drive and " + looseShells
+                    + " empty drive(s): the shell is paid twice");
+            return false;
+        }
+        // Put the card back and take the one shell out of the ledger: everything else has to be untouched.
+        var expected = new HashMap<>(after);
+        expected.merge(card, 1, Integer::sum);
+        expected.merge(bag.isEmpty() ? shell : ModRegistration.BACKUP_DRIVE.get(), -1, Integer::sum);
+        expected.entrySet().removeIf(entry -> entry.getValue() <= 0);
+        if (!before.equals(expected)) {
+            helper.fail("the card ate or invented something besides itself while growing " + what
+                    + "; before " + before + " after " + after + " (one shell removed, the card put"
+                    + " back) " + expected);
+            return false;
+        }
+        return true;
     }
 
     /**
@@ -13557,14 +13598,9 @@ public final class NeoECOPrototypeGameTests {
                         }
                     }
                     var before = ledger(helper, player);
-                    var worldBefore = blockCounts(helper);
-                    var carriedBefore = carried(player);
-                    String missingBill = describeMissingBill(helper, host);
                     int standingBefore = machineSnapshot(helper).size();
                     useExpansionCard(helper, player);
                     var after = ledger(helper, player);
-                    var worldAfter = blockCounts(helper);
-                    var carriedAfter = carried(player);
                     int standingAfter = machineSnapshot(helper).size();
                     boolean formed = host.isFormed();
                     // Read before the sweep: once the cells are air the host block entity is gone and
@@ -13596,23 +13632,10 @@ public final class NeoECOPrototypeGameTests {
                                 + " host@" + CARD_HOST + " (a balanced ledger below proves nothing)");
                         return;
                     }
-                    // Growing replaces no host and no tier, so the card is not its price: it has to come out
-                    // of the click whole. Left in the ledger as well, so a card lost here shows twice rather
-                    // than hiding behind its own assertion.
-                    var card = ModRegistration.SIMPLIFY_STRUCTURE_EXPANSION_CARD.get();
-                    int cardsBefore = before.getOrDefault(card, 0);
-                    int cardsAfter = after.getOrDefault(card, 0);
-                    if (cardsBefore != 1 || cardsAfter != 1) {
-                        helper.fail("the grow started with " + cardsBefore + " card(s) in hand and left "
-                                + cardsAfter + " - growing along the edge replaces no host, so it eats none");
-                        return;
-                    }
-                    if (!before.equals(after)) {
-                        helper.fail("the card lost or invented blocks while growing the room; before "
-                                + before + " after " + after
-                                + " | world " + worldAfter + " was " + worldBefore
-                                + " | carried " + carriedAfter + " was " + carriedBefore
-                                + " | " + missingBill);
+                    // The card is the price of this click too, and what it leaves in exchange is one
+                    // shell - a paid bag, or the empty drive when the grow reclaimed nothing. Its ledger
+                    // reading also keeps the old "the card invented or lost blocks" check.
+                    if (!requireTheCardPaidForItself(helper, player, before, after, "the room")) {
                         return;
                     }
                     if (!formed) {

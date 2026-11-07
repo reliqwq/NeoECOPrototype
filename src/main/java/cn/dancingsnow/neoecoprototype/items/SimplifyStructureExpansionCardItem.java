@@ -385,9 +385,12 @@ public class SimplifyStructureExpansionCardItem extends Item {
         }
         host.rebuildAfterBuild();
         owed.bagAll(giveNow(player, pending));
-        // Growing pays nothing with the card: it moves the shell outward, so no host and no tier changes
-        // hands - there is nothing the card is a price for. That also closes the mint here, because a bag
-        // this click did not pay for is left unmarked and pours out without handing back a shell.
+        // A grow is a click that changes the machine, so it costs the card exactly like a tier swap does.
+        // Leaving it free made the same card pay on one path and not on the other - and the bag this
+        // click leaves would then be an unmarked drive that hands nothing back.
+        if (consumedOnSuccess()) {
+            payWith(player, hand, owed);
+        }
         owed.seal(level, pos);
         say(player, Component.translatable("card.neoecoprototype.expansion.grown", target,
                 plan.getMissingBlocks().size()));
@@ -990,12 +993,18 @@ public class SimplifyStructureExpansionCardItem extends Item {
 
         /**
          * Seal what is on the list into one bag, hand it over, and drop it on the host's cell - unable to
-         * despawn - if even the bag will not fit. A subclass that still owes the player something asks
-         * {@link #isEmpty} before this runs, because the bag is itself the empty drive its tile was drawn
-         * from and paying a shell as well would hand the same disk back twice.
+         * despawn - if even the bag will not fit.
+         *
+         * <p>A bag is itself the empty drive its tile was drawn from, so pouring a paid one out turns it
+         * back into the shell. When a paid click has nothing to bag at all - a grow that reclaimed no
+         * block - this hands the shell over directly instead: whether a successful click costs the card
+         * must not depend on whether the room happened to have a block to hand back.</p>
          */
         void seal(ServerLevel level, BlockPos anchor) {
             if (stacks.isEmpty()) {
+                if (paid) {
+                    handShell(level, anchor);
+                }
                 return;
             }
             List<ItemStack> merged = mergedForBag(stacks);
@@ -1027,6 +1036,20 @@ public class SimplifyStructureExpansionCardItem extends Item {
             say(player, Component.translatable("card.neoecoprototype.expansion.bagged_dropped",
                     merged.size()));
         }
+
+        /** The empty drive a paid click is owed when there is no bag to pour it out of. */
+        private void handShell(ServerLevel level, BlockPos anchor) {
+            var shell = new ItemStack(ModRegistration.MIGRATION_DRIVE_EMPTY.get());
+            if (player.getInventory().add(shell.copy())) {
+                return;
+            }
+            var drop = new ItemEntity(level, anchor.getX() + 0.5D, anchor.getY() + 0.5D,
+                    anchor.getZ() + 0.5D, shell);
+            drop.setNoPickUpDelay();
+            drop.lifespan = Integer.MAX_VALUE;
+            level.addFreshEntity(drop);
+            say(player, "card.neoecoprototype.expansion.bagged_dropped");
+        }
     }
 
     /** What the list holds, merged per item and split again at each item's own stack limit. */
@@ -1056,14 +1079,6 @@ public class SimplifyStructureExpansionCardItem extends Item {
             }
         }
         return merged;
-    }
-
-    /** Into the inventory first, on the floor second - a reclaimed block must never just vanish. */
-    protected static void handTo(Level level, BlockPos where, ItemStack stack, ServerPlayer player) {
-        if (!player.getInventory().add(stack.copy())) {
-            level.addFreshEntity(new ItemEntity(level, where.getX() + 0.5D, where.getY() + 0.5D,
-                    where.getZ() + 0.5D, stack.copy()));
-        }
     }
 
     /**
