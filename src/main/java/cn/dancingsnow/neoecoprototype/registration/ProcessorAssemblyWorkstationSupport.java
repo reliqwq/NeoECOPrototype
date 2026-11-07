@@ -82,6 +82,20 @@ public final class ProcessorAssemblyWorkstationSupport {
     static final ResourceLocation CIRCUIT_TEXTURE =
             NeoECOPrototype.id("textures/gui/workstation/processor_assembly_circuit.png");
 
+    /**
+     * The formed controller's appearance while this card is installed. eco bakes these standalone
+     * ({@code ModelEvent.RegisterAdditional}) and draws them instead of the blockstate model, which is the
+     * only way an addon can own the look: writing into {@code assets/neoecoae/} is rejected by CI. Both are
+     * eco's geometry re-pointed at our textures - see {@code tools/make_workstation_controller_textures.py}.
+     * Both light strips animate at eco's own rhythm (two frames, 15 ticks, interpolated): the working
+     * strip is eco's pair retinted, the idle strip pairs the retinted idle sheet with a frame that flips
+     * both greens across every lit pixel of the front and top faces - a smaller change reads as a still
+     * image at block scale. The working screen keeps eco's 22-frame scan at 5 ticks; the idle screen is
+     * still, as eco's is.
+     */
+    static final ResourceLocation IDLE_MODEL = NeoECOPrototype.id("block/workstation/controller_off");
+    static final ResourceLocation WORKING_MODEL = NeoECOPrototype.id("block/workstation/controller_on");
+
     /** Called from commonSetup alongside the other eco extension registrations. */
     public static void register() {
         ResourceLocation card = BuiltInRegistries.ITEM.getKey(
@@ -89,7 +103,7 @@ public final class ProcessorAssemblyWorkstationSupport {
         ECOWorkstationModules.register(100, new ECOWorkstationModules.Module(MODULE_ID, card,
                 java.util.Set.of(SOURCE_TYPE), Component.translatable(TITLE_KEY),
                 Component.translatable(SHORT_TITLE_KEY), MODULE_COLOR,
-                ICON_TEXTURE, CIRCUIT_TEXTURE, null, null));
+                ICON_TEXTURE, CIRCUIT_TEXTURE, IDLE_MODEL, WORKING_MODEL));
         ECOWorkstationRecipeAdapters.register(MODULE_ID, 100, SOURCE_TYPE,
                 (recipe, registries) -> adapt(recipe));
     }

@@ -3131,6 +3131,16 @@ public final class NeoECOPrototypeGameTests {
         helper.runAfterDelay(10,
                 () -> waitUntil(helper, triesLeft - 1, condition, failureMessage, onSuccess));
     }
+
+    /**
+     * Reads one of the mod's own assets. The dedicated game-test server's resource manager only serves
+     * {@code SERVER_DATA} packs, so models and textures are never in it; the mod's classpath is what
+     * actually loads for a player, and that is what these guards have to look at.
+     */
+    private static java.io.InputStream addonAsset(ResourceLocation location) {
+        return NeoECOPrototype.class.getResourceAsStream(
+                "/assets/" + location.getNamespace() + "/" + location.getPath());
+    }
     /**
      * Guards the 1.2.5 regression: loading eco's interface UI classes must never abort with a fatal
      * mixin injection error. Loading with initialize = false still runs the transformer, which is the
@@ -11443,14 +11453,14 @@ public final class NeoECOPrototypeGameTests {
             var art = entry.getKey();
             int side = entry.getValue();
             try {
-                var resource = helper.getLevel().getServer().getResourceManager().getResource(art);
-                if (resource.isEmpty()) {
-                    helper.fail("the module names " + art + " but no pack in this game carries it, so the"
-                            + " panel would fall back to eco's own art for our family");
+                var stream = addonAsset(art);
+                if (stream == null) {
+                    helper.fail("the module names " + art + " but the mod's own resources carry no such"
+                            + " file, so the panel would fall back to eco's own art for our family");
                     return;
                 }
                 java.awt.image.BufferedImage image;
-                try (var stream = resource.get().open()) {
+                try (stream) {
                     image = javax.imageio.ImageIO.read(stream);
                 }
                 if (image == null) {
@@ -11477,6 +11487,247 @@ public final class NeoECOPrototypeGameTests {
                 panelArt.put(art.toString(), side + "x" + side + " opaque=" + opaque);
             } catch (java.io.IOException e) {
                 helper.fail("could not read " + art + ": " + e);
+                return;
+            }
+        }
+        // The formed controller looks like us only because the module names two standalone models: eco's
+        // wrapper draws them instead of the blockstate model, and a null falls back to eco's blue module art
+        // with nothing written to the log. Read the JSONs and their textures out of the mod's own resources, and
+        // require the pair to differ - identical files would make "working" indistinguishable from "idle".
+        if (module.idleModel() == null || module.workingModel() == null) {
+            helper.fail("our module registers no in-world appearance (idle=" + module.idleModel()
+                    + ", working=" + module.workingModel() + "), so an installed card would silently fall"
+                    + " back to eco's blue module art");
+            return;
+        }
+        var modelLights = new java.util.TreeMap<String, String>();
+        var appearanceTextures = new java.util.TreeSet<String>();
+        for (var model : java.util.List.of(module.idleModel(), module.workingModel())) {
+            var modelPath = ResourceLocation.fromNamespaceAndPath(model.getNamespace(),
+                    "models/" + model.getPath() + ".json");
+            try {
+                var stream = addonAsset(modelPath);
+                if (stream == null) {
+                    helper.fail("the module names model " + model + " but the mod's own resources carry no "
+                            + modelPath + ", so the controller would draw eco's fallback art");
+                    return;
+                }
+                String text;
+                try (stream) {
+                    text = new String(stream.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+                }
+                var json = com.google.gson.JsonParser.parseString(text).getAsJsonObject();
+                if (!"block/block".equals(json.get("parent").getAsString())) {
+                    helper.fail(model + " has parent " + json.get("parent").getAsString() + " instead of"
+                            + " block/block, which is the only parent an addon may use here");
+                    return;
+                }
+                var textures = json.getAsJsonObject("textures");
+                for (var entry : textures.entrySet()) {
+                    var value = entry.getValue().getAsString();
+                    if (!value.startsWith(NeoECOPrototype.MOD_ID + ":")) {
+                        helper.fail(model + " points " + entry.getKey() + " at " + value + ", outside our"
+                                + " own namespace");
+                        return;
+                    }
+                    appearanceTextures.add(value);
+                }
+                modelLights.put(model.toString(), textures.get("light").getAsString());
+            } catch (java.io.IOException e) {
+                helper.fail("could not read " + modelPath + ": " + e);
+                return;
+            }
+        }
+        if (modelLights.size() != 2 || new java.util.HashSet<>(modelLights.values()).size() != 2) {
+            helper.fail("the idle and working models share one light texture (" + modelLights + "), so the"
+                    + " controller would look the same while running as while idle");
+            return;
+        }
+        if (appearanceTextures.size() != 6) {
+            helper.fail("the two models name " + appearanceTextures.size() + " distinct textures "
+                    + appearanceTextures + " instead of the 6 the shipped art consists of");
+            return;
+        }
+        var appearanceSizes = new java.util.TreeMap<String, String>();
+        for (var value : appearanceTextures) {
+            var texture = ResourceLocation.parse(value);
+            var png = ResourceLocation.fromNamespaceAndPath(texture.getNamespace(),
+                    "textures/" + texture.getPath() + ".png");
+            var meta = ResourceLocation.fromNamespaceAndPath(texture.getNamespace(),
+                    "textures/" + texture.getPath() + ".png.mcmeta");
+            try {
+                var stream = addonAsset(png);
+                if (stream == null) {
+                    helper.fail("model texture " + value + " has no " + png + " in the mod's own resources");
+                    return;
+                }
+                java.awt.image.BufferedImage image;
+                try (stream) {
+                    image = javax.imageio.ImageIO.read(stream);
+                }
+                // Three sheets animate, on eco's own rhythms. The two light strips are two frames,
+                // interpolated, 15 ticks each: the working strip is eco's own pair, the idle strip is ours,
+                // its second frame flipping both greens on the front and top faces. The working screen is
+                // eco's 22-frame scan at 5 ticks with no interpolation. Every other sheet is one static
+                // frame with no .mcmeta - a missing one leaves the sheet frozen on frame 0, and the idle
+                // screen has to stay still because eco's does.
+                boolean lightStrip = value.contains("controller_light");
+                boolean screenLoop = value.endsWith("/controller_screen_on");
+                boolean animated = lightStrip || screenLoop;
+                int side = lightStrip || value.contains("body") || value.contains("light") ? 128 : 16;
+                int height = lightStrip ? side * 2 : screenLoop ? side * 22 : side;
+                if (image == null || image.getWidth() != side || image.getHeight() != height) {
+                    helper.fail(value + " is " + (image == null ? "unreadable"
+                            : image.getWidth() + "x" + image.getHeight()) + " but this sheet has to be "
+                            + side + "x" + height + "; " + (lightStrip
+                            ? "both light strips are two-frame vertical animations"
+                            : screenLoop ? "the working screen is eco's 22-frame scan"
+                            : "every other sheet is a single static frame"));
+                    return;
+                }
+                var metaStream = addonAsset(meta);
+                if (!animated) {
+                    if (metaStream != null) {
+                        metaStream.close();
+                        helper.fail(value + " ships a .mcmeta, so it would animate; only the two light"
+                                + " strips and the working screen are meant to");
+                        return;
+                    }
+                } else {
+                    if (metaStream == null) {
+                        helper.fail(value + " has no " + meta + ", so the game would draw frame 0 only -"
+                                + " the sheet would sit still");
+                        return;
+                    }
+                    String metaText;
+                    try (metaStream) {
+                        metaText = new String(metaStream.readAllBytes(),
+                                java.nio.charset.StandardCharsets.UTF_8);
+                    }
+                    var animation = com.google.gson.JsonParser.parseString(metaText).getAsJsonObject()
+                            .getAsJsonObject("animation");
+                    boolean rhythm = lightStrip
+                            ? animation != null && animation.has("interpolate")
+                                    && animation.get("interpolate").getAsBoolean()
+                                    && animation.has("frametime") && animation.get("frametime").getAsInt() == 15
+                            : animation != null
+                                    && (!animation.has("interpolate")
+                                            || !animation.get("interpolate").getAsBoolean())
+                                    && animation.has("frametime") && animation.get("frametime").getAsInt() == 5;
+                    if (!rhythm) {
+                        helper.fail(value + ".mcmeta is " + metaText.strip() + " instead of "
+                                + (lightStrip ? "eco's interpolated 15-tick light loop"
+                                        : "eco's 5-tick screen scan"));
+                        return;
+                    }
+                    if (!lightStrip) {
+                        // eco's scan walks a two-tone pattern across all 22 frames; a pair that repeats
+                        // would be a still frame that took 22 slots.
+                        boolean repeats = true;
+                        for (int y = 0; y < side && repeats; y++) {
+                            for (int x = 0; x < side; x++) {
+                                if (image.getRGB(x, y) != image.getRGB(x, side + y)) {
+                                    repeats = false;
+                                    break;
+                                }
+                            }
+                        }
+                        if (repeats) {
+                            helper.fail(value + " repeats one frame, so the 22-frame scan would sit still");
+                            return;
+                        }
+                    } else {
+                        // Read the pair the way the eye does, and on the faces that are lit: the 344
+                        // opaque pixels on the north and up faces (uv [0,0,6,4] and [6,8,0,4] at
+                        // texture_size 128).
+                        int lit = 0;
+                        int moved = 0;
+                        for (int y = 0; y < 64; y++) {
+                            for (int x = 0; x < 48; x++) {
+                                int first = image.getRGB(x, y);
+                                if ((first >>> 24) == 0) continue;
+                                lit++;
+                                if (first != image.getRGB(x, side + y)) moved++;
+                            }
+                        }
+                        if (moved == 0) {
+                            helper.fail(value + " repeats one frame, so the animation would be a still"
+                                    + " image");
+                            return;
+                        }
+                        // The idle strip is the one we build, and it is the one that shipped looking
+                        // still: an earlier draft moved only the 68 base-green pixels and reliqwq read it
+                        // as a still image (2026-11-07). Its second frame now flips both greens, so nothing
+                        // lit stands still. The working strip is eco's own pair, quantised onto our two
+                        // greens; eco moves all 344 of those pixels upstream, but the collapse to two tones
+                        // leaves 173 of them unchanged, and that is upstream's art and rhythm rather than
+                        // ours to re-time.
+                        if (value.endsWith("/controller_light") && moved != lit) {
+                            helper.fail(value + " holds " + (lit - moved) + " of its " + lit
+                                    + " lit front/top pixels still between its two frames, so at block"
+                                    + " scale the animation reads as a still image - the earlier 68-pixel"
+                                    + " draft shipped that way");
+                            return;
+                        }
+                    }
+                }
+                // The light sheets and the working screen are the three sheets we repaint, and they are
+                // repainted onto exactly the two greens our storage host controller's formed multiblock
+                // lights up with: #61D389 (NAME_THEME_TIER_L1) and its #ACF26F highlight. Asserting the
+                // set rather than a hue range is the point - a third green, or a gradient between the
+                // two, lands on mint tones that read as ExtendedAE's green instead of our own tier.
+                if (value.contains("controller_light") || value.endsWith("/controller_screen_on")) {
+                    var greens = new java.util.TreeSet<Integer>();
+                    var blues = new java.util.TreeSet<Integer>();
+                    for (int y = 0; y < image.getHeight(); y++) {
+                        for (int x = 0; x < image.getWidth(); x++) {
+                            int argb = image.getRGB(x, y);
+                            if ((argb >>> 24) == 0) continue;
+                            int r = (argb >> 16) & 255;
+                            int g = (argb >> 8) & 255;
+                            int b = argb & 255;
+                            if (b - Math.max(r, g) >= 30 && b >= 120) {
+                                blues.add(argb & 0xFFFFFF);
+                            } else if (g - r >= 50 && g - b >= 30) {
+                                greens.add(argb & 0xFFFFFF);
+                            }
+                        }
+                    }
+                    var strayGreens = new java.util.TreeSet<>(greens);
+                    strayGreens.remove(0x61D389);
+                    strayGreens.remove(0xACF26F);
+                    if (greens.isEmpty() || !strayGreens.isEmpty()) {
+                        helper.fail(value + " repaints onto " + (greens.isEmpty() ? "no green at all"
+                                : greens + " (foreign " + strayGreens + ")") + " instead of exactly the"
+                                + " storage host controller's #61D389 and its #ACF26F highlight; a third"
+                                + " tone reads as ExtendedAE's mint rather than our own tier");
+                        return;
+                    }
+                    // Only the light sheet keeps eco's sides: the front/top are retinted and the
+                    // west/south/east faces, where the machine's input hatch and interface sit, keep
+                    // eco's blue the way eco's own family sheets do. The screen is repainted whole.
+                    if (value.contains("controller_light")) {
+                        // eco's two accents plus the one in its east face; anything else blue means a
+                        // face outside the front/top was repainted.
+                        var stray = new java.util.TreeSet<>(blues);
+                        stray.remove(0x337FF0);
+                        stray.remove(0x40C1FF);
+                        stray.remove(0x3CABFF);
+                        if (blues.isEmpty() || !stray.isEmpty()) {
+                            helper.fail(value + " has " + (blues.isEmpty() ? "no" : "foreign")
+                                    + " blue accents " + stray + " where the input-hatch/interface side must"
+                                    + " keep eco's own blue");
+                            return;
+                        }
+                    } else if (!blues.isEmpty()) {
+                        helper.fail(value + " still carries eco's blue accents " + blues + ", so the working"
+                                + " screen was not repainted onto our palette");
+                        return;
+                    }
+                }
+                appearanceSizes.put(value, side + "x" + height);
+            } catch (java.io.IOException e) {
+                helper.fail("could not read " + png + ": " + e);
                 return;
             }
         }
