@@ -1022,6 +1022,15 @@ public class ModRegistration {
                     () -> new SimplifyStructureExpansionCardItem(new Item.Properties().stacksTo(1)));
 
     /**
+     * eco's workstation card for our machine: put it in the large integrated working station's module slot
+     * and the station takes our processor-assembly recipes. The family it names is registered in
+     * {@link ProcessorAssemblyWorkstationSupport}; this is the item that card is.
+     */
+    public static final Supplier<Item> PROCESSOR_ASSEMBLY_WORKSTATION_CARD =
+            ITEMS.register("processor_assembly_workstation_card",
+                    () -> new Item(new Item.Properties().stacksTo(1)));
+
+    /**
      * What a structure card hands over when the blocks it took out of a machine no longer fit in the
      * player's bag: one item instead of ninety loose blocks at the machine's own cells. Right-click it to
      * pour the contents back; it stays if even that does not fit.
@@ -1880,6 +1889,10 @@ private static Supplier<BlockEntityType<SimplifyStorageVentBlockEntity>> registe
                           output.accept(SIMPLIFY_SINGULARITY_CELL.get());
                           output.accept(SIMPLIFY_SKY_STONE_DUST_CELL.get());
                         output.accept(SIMPLIFY_STRUCTURE_EXPANSION_CARD.get());
+                        // This one belongs to eco's machine, not ours: it goes in the large workstation's module
+                        // slot. In the tab next to the card above so the two directions of "insert a card" can
+                        // be held at once, and it does have a survival recipe.
+                        output.accept(PROCESSOR_ASSEMBLY_WORKSTATION_CARD.get());
                         // In the tab so the pour path can be held in hand without first overflowing a bag:
                         // in game the card only ever produces one when the refund genuinely had nowhere to
                         // go, and it never carries a recipe.

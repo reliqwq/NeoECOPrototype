@@ -365,6 +365,10 @@ public class NeoECOPrototype {
                         && isOurBlock(context.state())
                         ? cn.dancingsnow.neoecoprototype.api.SimplifyPowerProfile.L1.baseComponentIdlePower()
                         : null);
+        // eco's large workstation takes its recipe families from two public addon registries, both of them
+        // revision-checked inside the recipe cache, so registering here - after registries are frozen, before
+        // any level loads recipes - is the same window the three registrations above use.
+        cn.dancingsnow.neoecoprototype.registration.ProcessorAssemblyWorkstationSupport.register();
         // AE2 only lets a card into a machine when the card is associated with that machine's item,
         // and the machine tooltip is generated from the same association. The slot count mirrors the
         // inherited molecular assembler, which allows five cards.
