@@ -39,9 +39,11 @@ import java.util.List;
  *
  * <p>The numbers are eco's own cheapest rung, not invented here: 1000 AE comes from the lowest
  * {@code energy} in eco's shipped {@code integrated_working_station} data (and matches what our own recipes in
- * that folder already pay), and 100 ticks is {@code IntegratedWorkingStationRecipe}'s own default. eco's
- * reference value for a source type it does not know would be 200, the cap, so this is the lower cooling bar
- * reliqwq asked for rather than a number of our own devising.</p>
+ * that folder already pay), and 100 ticks is {@code IntegratedWorkingStationRecipe}'s own default. The ticks
+ * have to be set explicitly through {@link LargeWorkstationRecipe#processing}: the convenience constructor
+ * derives them from {@code referenceTicks}, whose fallback for a source type eco does not know is 200, the
+ * cap - so leaving them out would have quietly doubled every batch. 100 is the lower cooling bar reliqwq
+ * asked for, and it is where eco's own native rung sits.</p>
  */
 public final class ProcessorAssemblyWorkstationSupport {
     /** eco refuses {@code neoecoae} here on purpose: modules are named by the addon that owns them. */
@@ -85,15 +87,17 @@ public final class ProcessorAssemblyWorkstationSupport {
      * what our machine consumes per craft, and a repeated ingredient is already a second list entry), no
      * fluid in either direction.
      *
-     * <p>The card itself is deliberately not part of the family it unlocks: it is the key, not the content,
-     * and a workstation that could print it would hand out its own unlocks without ever going near our
-     * assembler. It stays a processor-assembler recipe, which is where every one of our cards is made.
+     * <p>The card that unlocks this family is part of it, like every other recipe our assembler runs. An
+     * earlier draft left it out, and that cannot be done here: eco dispatches an adapter by recipe type and
+     * then {@code Objects.requireNonNull}s its result, so a null for one of our own recipes is logged as a
+     * failed adaptation on every recipe reload. It is also not a leak - the card's first copy comes off the
+     * processor assembler, and this is the same recipe the workstation already mirrors, so it can copy a key
+     * you hold, never mint one.
      *
-     * @return null for anything that is not our recipe, which leaves it to eco's own compat table
+     * @return null for anything that is not our recipe, which never happens through our own registration
      */
     static LargeWorkstationRecipe adapt(RecipeHolder<?> recipe) {
         if (!(recipe.value() instanceof ProcessorAssemblerRecipe processor)) return null;
-        if (processor.result().is(ModRegistration.PROCESSOR_ASSEMBLY_WORKSTATION_CARD.get())) return null;
         List<SizedIngredient> inputs = new ArrayList<>(processor.ingredients().size());
         for (Ingredient ingredient : processor.ingredients()) {
             if (ingredient.isEmpty()) {
@@ -106,6 +110,7 @@ public final class ProcessorAssemblyWorkstationSupport {
         var display = new IntegratedWorkingStationRecipe(inputs,
                 new SizedFluidIngredient(FluidIngredient.empty(), 1), processor.result(), FluidStack.EMPTY,
                 ENERGY_AE, PROCESSING_TICKS);
-        return new LargeWorkstationRecipe(recipe.id(), display, ENERGY_AE, List.of(), SOURCE_TYPE);
+        return new LargeWorkstationRecipe(recipe.id(), display, ENERGY_AE, List.of(), SOURCE_TYPE)
+                .processing(PROCESSING_TICKS, 0, false);
     }
 }

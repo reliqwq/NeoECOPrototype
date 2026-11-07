@@ -11255,45 +11255,21 @@ public final class NeoECOPrototypeGameTests {
     }
 
     /**
-     * eco's workstation module table, read out loud - the premise the L1 assembler's card feature stands on.
+     * eco's eight built-in workstation cards, and the classifier behind them - the table our module sits beside.
      *
-     * <p>The first version of this guard assumed the opposite - that {@code ECOWorkstationModules.Module},
-     * being a public record with {@code id()} / {@code upgradeCard()} / {@code sourceTypes()}, is a table an
-     * addon can join. It is not, and the chain that decides this is short enough to write down (each link
-     * re-read from 21.2.15 bytecode, then executed below):
-     * {@code ECOLargeIntegratedWorkingStationBlockEntity.getInstalledModule()} - the call that actually picks
-     * the recipe set - is {@code LargeWorkstationModule.fromUpgradeCard(moduleInventory.getStackInSlot(0))},
-     * and that method only recognises the eight enum constants' own card ids. So an addon card resolves to
-     * {@code REGULAR}, and {@code selectForModule} then runs
-     * {@code unlocks(builtin(module).id(), recipe.sourceType())} against {@code LargeWorkstationModule}, whose
-     * family table is a namespace switch inside {@code fromSourceType} over eight hardcoded mod namespaces -
-     * not {@code sourceTypes()}, which is why that field read empty for all eight builtins here.</p>
+     * <p>Each builtin's {@code upgradeCard()} is read against the item and block registries, and
+     * {@code getAvailable(level, module)} is executed for every one of them. Seven of the eight card ids resolve
+     * to neither an item nor a block in this game, which is what a missing companion mod looks like on eco's
+     * side, and all eight answer the same recipe count: that overload filters by the enum and does not know
+     * about addon modules. Neither observation is a defect - the addon route lives in the
+     * {@link java.util.ResourceLocation} overload, and the guard next to this one walks it.</p>
      *
-     * <p>The public addon half of the API is honoured in exactly one place - {@code customFromCard(ItemStack)}
-     * matches on {@code upgradeCard()} - and {@code fromUpgradeCard} consults it first, so an addon-registered
-     * card collapses to {@code OTHER} rather than to its own family. That is a half-open door, not a closed
-     * one, and it is the part worth pinning: it decides whether our card needs a request to eco or a family
-     * list of our own. {@code register()} also has a footgun on the way: {@code fromSourceType} walks the
-     * addon registry before the enum, so a module claiming a type strips that type from every builtin card
-     * (the custom branch of {@code unlocks} compares the caller's module id, which is {@code neoecoae:*}, to
-     * ours). We must never claim a recipe type here, which is why the probe below registers nothing.</p>
-     *
-     * <p>What is asserted is the one thing our card list has to have to exist at all: the recipe family is
-     * reachable, i.e. {@code LargeWorkstationRecipes.getAvailable(level, module)} returns non-zero somewhere.
-     * The rest of this run is deliberately a reading rather than a rule, because it disproved two things I
-     * had assumed from the class files and a third assertion would just be my guess written down:</p>
-     * <ul>
-     * <li>{@code Module.upgradeCard()} is not an item an addon can put in a slot - seven of eight ids resolve
-     * to neither item nor block in this game, which is what a missing companion mod looks like on eco's side;</li>
-     * <li>{@code Module.sourceTypes()} is empty for all eight builtins, because the recipe filter never reads
-     * it - the family is decided by namespace inside {@code LargeWorkstationModule.fromSourceType};</li>
-     * <li>{@code getAvailable(level, module)} answered the <b>same</b> count for every module, so that call is
-     * not the per-family filter either.</li>
-     * </ul>
-     * <p>So "which card unlocks which family" is answerable for the eight builtins and not extensible by an
-     * addon. The L1 assembler's card therefore has to carry its own family list; what eco can still give us is
-     * the module table as display data and {@code LargeWorkstationModule.fromSourceType(type)} as a classifier
-     * for the families it knows.</p>
+     * <p>This run used to carry the opposite headline - that an addon card cannot name a family - because it
+     * only read the enum-keyed path. eco's own sources show the rest: {@code fromUpgradeCard} consults
+     * {@code ECOWorkstationModules.customFromCard} first, {@code LargeWorkstationPatternProvider} asks
+     * {@code getAvailable(level, moduleId)}, and that overload serves a registered module from
+     * {@code customModuleRecipes}. The wrong sentence is corrected here rather than left standing, because a
+     * guard's javadoc is what the next person reads instead of the sources.</p>
      */
     @GameTest(template = "empty", batch = "workstation_module_cards", timeoutTicks = 200,
             templateNamespace = NeoECOPrototype.MOD_ID)
@@ -11341,17 +11317,17 @@ public final class NeoECOPrototypeGameTests {
         // What this run also measured, and why the card-resolvability line above is a reading rather than an
         // assertion: seven of the eight module ids resolve to neither an item nor a block here, because the
         // corresponding mods are not installed (advanced_ae / ae2cs / aelt / appgen / data_energistics), and
-        // getAvailable(level, module) returns the same count for all eight. So neither call is the
-        // "which family does this card unlock" gate an addon could code against; asking eco is.
+        // the enum overload of getAvailable answers the same count for all eight - it serves every recipe no
+        // card gates and knows nothing about addon modules. The per-module filter is the ResourceLocation
+        // overload; the guard next to this one walks it.
         var absent = new java.util.ArrayList<String>();
         for (var entry : familySizes.entrySet()) {
             absent.add(entry.getKey() + "=" + entry.getValue());
         }
         NeoECOPrototype.LOGGER.info("workstation module: per-module counts did not differ from the total for"
                 + " any module ({}), and {} module ids name a card that resolves to neither an item nor a"
-                + " block in this game ({}) - together these are the reading that says the family filter is"
-                + " not in either of the two places an addon would first look", absent, badCards.size(),
-                badCards);
+                + " block in this game ({}) - the enum overload is not the per-family gate, which is why it"
+                + " answers every module alike", absent, badCards.size(), badCards);
         // The last question before a card can be designed at all: can an addon map a recipe type back to a
         // module through the public API? Walked over the recipe types this game actually has, because a probe
         // against ids we only know from strings would prove nothing either way.
@@ -11374,36 +11350,10 @@ public final class NeoECOPrototypeGameTests {
         }
         NeoECOPrototype.LOGGER.info("workstation module: fromSourceType answered for {} of {} registered recipe"
                 + " types, samples = {}", answered, types, answers);
-        // The linchpin, executed rather than read off the class file: take the item a player would actually
-        // put in the machine's module slot - one of our own cards, so it exists unconditionally and is
-        // certainly not one of eco's eight - and ask the three questions the feature depends on. Deliberately
-        // no ECOWorkstationModules.register() here: fromSourceType() walks the addon registry before the enum,
-        // so claiming a recipe type would strip that family from every builtin card for the whole batch.
-        var ourCard = new ItemStack(ModRegistration.WIRELESS_LINK_CARD.get());
-        var ourCardId = BuiltInRegistries.ITEM.getKey(ourCard.getItem());
-        var ourType = BuiltInRegistries.RECIPE_TYPE.getKey(
-                ModRegistration.PROCESSOR_ASSEMBLER_RECIPE_TYPE.get());
-        if (ourType == null) {
-            helper.fail("our own recipe type is not in BuiltInRegistries.RECIPE_TYPE, so this guard asked"
-                    + " about null instead of about the family our card would have to grant");
-            return;
-        }
-        var modules = cn.dancingsnow.neoecoae.recipe.LargeWorkstationModule.values();
-        var builtinForCard = cn.dancingsnow.neoecoae.recipe.LargeWorkstationModule.fromUpgradeCard(ourCard);
-        var familyOfOurType = cn.dancingsnow.neoecoae.recipe.LargeWorkstationModule.fromSourceType(ourType);
-        if (builtinForCard == null || familyOfOurType == null) {
-            helper.fail("LargeWorkstationModule answered null for our card (" + builtinForCard
-                    + ") or for our recipe type (" + familyOfOurType
-                    + "), so these lookups are not total and cannot be coded against");
-            return;
-        }
-        var ourCardGrantsOurFamily = cn.dancingsnow.neoecoae.api.workstation.ECOWorkstationModules
-                .unlocks(cn.dancingsnow.neoecoae.api.workstation.ECOWorkstationModules
-                        .builtin(builtinForCard).id(), ourType);
-        // The self-proof, because the three readings above are all "no" and a ruler that reports no for
-        // everything cannot tell a wall from a blindfold: ask about a namespace eco's switch does know, and
-        // its own card does grant while the base card does not. If this pair ever stops differing, the
-        // per-family gate has been replaced by something else and the reading below means nothing.
+        // The self-proof, because everything above is a "no" and a ruler that reports no for everything cannot
+        // tell a wall from a blindfold: ask about a namespace eco's switch does know, and its own card does
+        // grant while the base card does not. If this pair ever stops differing, the per-family gate has been
+        // replaced by something else and the readings above mean nothing.
         var foreignType = net.minecraft.resources.ResourceLocation
                 .fromNamespaceAndPath("advanced_ae", "self_proof_that_the_gate_works");
         var grantsItsOwnFamily = cn.dancingsnow.neoecoae.api.workstation.ECOWorkstationModules.unlocks(
@@ -11414,39 +11364,182 @@ public final class NeoECOPrototypeGameTests {
                 cn.dancingsnow.neoecoae.api.workstation.ECOWorkstationModules
                         .builtin(cn.dancingsnow.neoecoae.recipe.LargeWorkstationModule.REGULAR).id(),
                 foreignType);
-        NeoECOPrototype.LOGGER.info("workstation module: eco reads our card {} as enum {} (isUpgradeCard={});"
-                        + " our recipe type {} classifies as {} and that card grants it = {} - so an addon"
-                        + " card cannot name a family; for contrast a namespace eco does know ({})."
-                        + " own-card-grants={} other-card-grants={}, which is the reading that says the gate"
-                        + " really discriminates and that our family is already granted by every card",
-                ourCardId, builtinForCard,
-                cn.dancingsnow.neoecoae.recipe.LargeWorkstationModule.isUpgradeCard(ourCard),
-                ourType, familyOfOurType, ourCardGrantsOurFamily, foreignType,
-                grantsItsOwnFamily, grantsSomeOtherFamily);
         if (!grantsItsOwnFamily || grantsSomeOtherFamily) {
             helper.fail("the per-family gate did not discriminate (" + grantsItsOwnFamily + " vs "
                     + grantsSomeOtherFamily + ") for advanced_ae, so either every card grants everything or"
                     + " the mapping moved - this guard's readings can no longer be trusted either");
             return;
         }
-        // The two readings that decide the design, pinned so a future eco flips them loudly rather than
-        // silently changing what our card does: an addon item is not one of the eight cards, and our recipes
-        // fall into the catch-all family, which every card grants.
-        if (builtinForCard != cn.dancingsnow.neoecoae.recipe.LargeWorkstationModule.REGULAR) {
-            helper.fail("eco mapped our card to " + builtinForCard + " instead of REGULAR, so fromUpgradeCard"
-                    + " now recognises addon cards and the L1 card can be built on eco's table instead of our"
-                    + " own family list - re-read this guard's javadoc before writing any feature code");
-            return;
-        }
-        if (!ourCardGrantsOurFamily) {
-            helper.fail("the catch-all family stopped granting our own recipe type, so a card named after that"
-                    + " family would grant nothing and the premise of the whole feature has moved");
-            return;
-        }
-        if (modules.length < 8) {
-            helper.fail("LargeWorkstationModule now has " + modules.length
+        if (builtins.length < 8) {
+            helper.fail("LargeWorkstationModule now has " + builtins.length
                     + " constants, fewer than the eight families this feature was priced against");
         }
+        helper.succeed();
+    }
+
+    /**
+     * Our processor-assembly family, reached the way the machine reaches it: a card in the module slot, a
+     * module id, and eco's per-module recipe list.
+     *
+     * <p>eco 21.2.15 has a public addon route and this walks it in the order the machine does:
+     * {@code ECOWorkstationModules.register} names our card, {@code customFromCard} resolves that card when it
+     * sits in the slot (which is what {@code fromUpgradeCard} consults first), and
+     * {@code LargeWorkstationRecipes.getAvailable(level, moduleId)} - the exact call in
+     * {@code LargeWorkstationPatternProvider} - answers with the recipes our
+     * {@code ECOWorkstationRecipeAdapters} entry adapted. That list is the module's whole share of the
+     * catalog and also carries every recipe no card gates, eco's own native rung included, which every
+     * module answers; the family assertions below are therefore scoped to the type this module claims. The
+     * numbers are asserted with them, because the convenience constructor takes ticks from
+     * {@code referenceTicks}, whose fallback for a source type eco does not know is 200, the cap, while this
+     * module pays 100.</p>
+     *
+     * <p>What decides ownership is measured rather than assumed: registering our type takes it out of eco's
+     * catch-all, so the eight builtin cards stop granting it and only our own id does. Before registration
+     * every builtin card answered true for our type - that was the reading this guard replaces - so the pair
+     * asserted below is the difference the registration makes, not a formality.</p>
+     */
+    @GameTest(template = "empty", batch = "workstation_module_cards", timeoutTicks = 200,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void ourWorkstationModuleUnlocksOurOwnRecipes(GameTestHelper helper) {
+        if (cn.dancingsnow.neoecoae.config.NEConfig.largeWorkstationIgnoreUpgradeCards) {
+            helper.fail("largeWorkstationIgnoreUpgradeCards is on, so eco hands every module the whole catalog"
+                    + " and the card-versus-family assertions below would pass for the wrong reason");
+            return;
+        }
+        var card = new ItemStack(ModRegistration.PROCESSOR_ASSEMBLY_WORKSTATION_CARD.get());
+        var ourType = BuiltInRegistries.RECIPE_TYPE.getKey(
+                ModRegistration.PROCESSOR_ASSEMBLER_RECIPE_TYPE.get());
+        if (ourType == null) {
+            helper.fail("our own recipe type is not in BuiltInRegistries.RECIPE_TYPE, so this guard would ask"
+                    + " eco about null instead of about the family our card has to grant");
+            return;
+        }
+        var module = cn.dancingsnow.neoecoae.api.workstation.ECOWorkstationModules.find(
+                cn.dancingsnow.neoecoprototype.registration.ProcessorAssemblyWorkstationSupport.MODULE_ID);
+        if (module == null) {
+            helper.fail("our workstation module is not in eco's registry, so commonSetup never ran its"
+                    + " registration: a card in the slot would fall back to REGULAR and unlock nothing");
+            return;
+        }
+        if (!module.sourceTypes().equals(java.util.Set.of(ourType))) {
+            helper.fail("our module claims " + module.sourceTypes() + " instead of just " + ourType
+                    + ", so it is either granting more than our family or not granting it at all");
+            return;
+        }
+        var fromCard = cn.dancingsnow.neoecoae.api.workstation.ECOWorkstationModules.customFromCard(card);
+        if (fromCard == null || !fromCard.id().equals(module.id())) {
+            helper.fail("eco resolved our card " + BuiltInRegistries.ITEM.getKey(card.getItem()) + " to "
+                    + (fromCard == null ? "no custom module" : fromCard.id()) + " instead of " + module.id()
+                    + ", so the item in the machine's module slot is not the module that was registered");
+            return;
+        }
+        if (!cn.dancingsnow.neoecoae.recipe.LargeWorkstationModule.isUpgradeCard(card)) {
+            helper.fail("LargeWorkstationModule.isUpgradeCard answers false for our card, and that predicate is"
+                    + " exactly what LargeWorkstationModuleInventory.isItemValid asks - the machine's module"
+                    + " slot would refuse the card before any of the above could matter");
+            return;
+        }
+        var fromType = cn.dancingsnow.neoecoae.api.workstation.ECOWorkstationModules.fromSourceType(ourType);
+        if (fromType == null || !fromType.id().equals(module.id())) {
+            helper.fail("our recipe type " + ourType + " classifies as "
+                    + (fromType == null ? "null" : fromType.id()) + " instead of " + module.id()
+                    + ", so eco's adapter lookup and family gate would not point at this module");
+            return;
+        }
+        if (!cn.dancingsnow.neoecoae.api.workstation.ECOWorkstationModules.unlocks(module.id(), ourType)) {
+            helper.fail("unlocks(" + module.id() + ", " + ourType + ") is false, so our own card does not grant"
+                    + " the family it registers - the card in the slot would show nothing from us");
+            return;
+        }
+        var builtinsThatGrantOurs = new java.util.ArrayList<String>();
+        for (var builtin : cn.dancingsnow.neoecoae.recipe.LargeWorkstationModule.values()) {
+            if (cn.dancingsnow.neoecoae.api.workstation.ECOWorkstationModules.unlocks(
+                    cn.dancingsnow.neoecoae.api.workstation.ECOWorkstationModules.builtin(builtin).id(),
+                    ourType)) {
+                builtinsThatGrantOurs.add(String.valueOf(builtin));
+            }
+        }
+        if (!builtinsThatGrantOurs.isEmpty()) {
+            helper.fail("eco's builtin cards " + builtinsThatGrantOurs + " still grant our recipe type "
+                    + ourType + ", so our family did not leave the catch-all and every workstation would"
+                    + " already craft it without our card");
+            return;
+        }
+        var expected = new java.util.TreeSet<String>();
+        for (var holder : helper.getLevel().getRecipeManager().getAllRecipesFor(
+                ModRegistration.PROCESSOR_ASSEMBLER_RECIPE_TYPE.get())) {
+            expected.add(holder.id().toString());
+        }
+        if (expected.isEmpty()) {
+            helper.fail("no processor-assembler recipe loaded in this world, so this guard would pass an empty"
+                    + " family against an empty family");
+            return;
+        }
+        var available = cn.dancingsnow.neoecoae.recipe.LargeWorkstationRecipes.getAvailable(
+                helper.getLevel(), module.id());
+        if (available.isEmpty()) {
+            helper.fail("getAvailable(level, " + module.id() + ") answered no recipes, which is the exact call"
+                    + " the workstation's pattern provider makes, so a pattern of ours would find nothing");
+            return;
+        }
+        var actual = new java.util.TreeSet<String>();
+        var wrongNumbers = new java.util.ArrayList<String>();
+        int ungated = 0;
+        for (var recipe : available) {
+            // The list a module answers is "every recipe no card gates, plus this card's family": eco's native
+            // rung is ungated by design and shows up for every module. Only the entries our type contributes
+            // are this module's business, so the family assertions are scoped to them.
+            if (!recipe.sourceType().equals(ourType)) {
+                ungated++;
+                continue;
+            }
+            actual.add(recipe.id().toString());
+            if (recipe.energy() != 1000 || recipe.processingTicks() != 100) {
+                wrongNumbers.add(recipe.id() + " energy=" + recipe.energy()
+                        + " ticks=" + recipe.processingTicks());
+            }
+        }
+        if (actual.isEmpty()) {
+            helper.fail("the module answered " + available.size() + " recipes, none of them from " + ourType
+                    + ", so the adapter never reached the list our patterns are matched against");
+            return;
+        }
+        if (!wrongNumbers.isEmpty()) {
+            helper.fail("our adapted recipes did not carry the module's numbers (" + wrongNumbers
+                    + "): the adapter's convenience constructor derives ticks from referenceTicks, whose"
+                    + " fallback for an unknown type is 200, so the explicit .processing(100, 0, false) is"
+                    + " what keeps this at eco's native rung");
+            return;
+        }
+        if (!actual.equals(expected)) {
+            var missing = new java.util.TreeSet<>(expected);
+            missing.removeAll(actual);
+            var extra = new java.util.TreeSet<>(actual);
+            extra.removeAll(expected);
+            helper.fail("the family is not the set our assembler runs: missing " + missing + ", extra " + extra
+                    + " (from " + expected.size() + " loaded recipes)");
+            return;
+        }
+        // The same question at the machine's other entry point: a builtin card's list must not contain a
+        // single recipe of ours, or the family is only ours on the tooltip.
+        var leaked = new java.util.ArrayList<String>();
+        for (var builtin : cn.dancingsnow.neoecoae.recipe.LargeWorkstationModule.values()) {
+            for (var recipe : cn.dancingsnow.neoecoae.recipe.LargeWorkstationRecipes.getAvailable(
+                    helper.getLevel(),
+                    cn.dancingsnow.neoecoae.api.workstation.ECOWorkstationModules.builtin(builtin).id())) {
+                if (expected.contains(recipe.id().toString())) leaked.add(builtin + ":" + recipe.id());
+            }
+        }
+        if (!leaked.isEmpty()) {
+            helper.fail("eco's builtin cards still serve our recipes (" + leaked + "), so the split between"
+                    + " our card and eco's own is only on paper");
+            return;
+        }
+        NeoECOPrototype.LOGGER.info("workstation module: our card {} resolves to {}, our type {} classifies"
+                        + " as it, the module grants {} of {} loaded recipes plus {} recipes no card gates,"
+                        + " none of eco's eight cards sees ours, and every one costs 1000 AE over 100 ticks",
+                BuiltInRegistries.ITEM.getKey(card.getItem()), module.id(), ourType, actual.size(),
+                expected.size(), ungated);
         helper.succeed();
     }
 
