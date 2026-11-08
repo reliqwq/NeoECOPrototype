@@ -31,6 +31,10 @@ public final class SimplifyTooltipHandler {
             "item.neoecoprototype.simplify_singularity_cell.desc";
     private static final String SKY_STONE_DUST_CELL_KEY =
             "item.neoecoprototype.simplify_sky_stone_dust_cell.desc";
+    private static final String ALL_ITEMS_CELL_KEY =
+            "item.neoecoprototype.all_items_creative_cell.desc";
+    private static final String PATTERN_GENERATOR_KEY =
+            "item.neoecoprototype.pattern_generator.desc";
     private static final String L4_COMPONENT_KEY =
             "item.neoecoprototype.simplify_storage_component_4m.desc";
     /** The 3-type small bulk matrix is upgraded to 10 types with a crafting-table recipe. */
@@ -106,6 +110,12 @@ public final class SimplifyTooltipHandler {
         }
         if (stack.is(ModRegistration.SIMPLIFY_SKY_STONE_DUST_CELL.get())) {
             return SKY_STONE_DUST_CELL_KEY;
+        }
+        if (stack.is(ModRegistration.ALL_ITEMS_CREATIVE_CELL.get())) {
+            return ALL_ITEMS_CELL_KEY;
+        }
+        if (stack.is(ModRegistration.PATTERN_GENERATOR.get())) {
+            return PATTERN_GENERATOR_KEY;
         }
         var smallBulkCell = ModRegistration.SIMPLIFY_SMALL_BULK_CELL;
         if (smallBulkCell != null && stack.is(smallBulkCell.get())) {

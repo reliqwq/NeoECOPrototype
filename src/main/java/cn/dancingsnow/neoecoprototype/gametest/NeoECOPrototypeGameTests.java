@@ -14,12 +14,14 @@ import appeng.api.parts.IPartHost;
 import appeng.api.networking.security.IActionSource;
 import appeng.api.stacks.AEFluidKey;
 import appeng.api.stacks.AEItemKey;
+import appeng.api.stacks.AEKey;
 import appeng.api.stacks.GenericStack;
 import appeng.api.stacks.KeyCounter;
 import appeng.api.storage.cells.ISaveProvider;
 import appeng.api.upgrades.Upgrades;
 import appeng.api.util.AEColor;
 import appeng.blockentity.crafting.CraftingBlockEntity;
+import appeng.crafting.pattern.AECraftingPattern;
 import appeng.core.definitions.AEBlocks;
 import appeng.core.definitions.AEItems;
 import appeng.core.definitions.AEParts;
@@ -27,10 +29,13 @@ import appeng.helpers.InterfaceLogicHost;
 import appeng.helpers.patternprovider.PatternProviderLogicHost;
 import appeng.me.helpers.IGridConnectedBlockEntity;
 import cn.dancingsnow.neoecoae.all.NEMultiBlocks;
+import cn.dancingsnow.neoecoae.all.NERecipeTypes;
 import cn.dancingsnow.neoecoae.blocks.entity.NEBlockEntity;
 import cn.dancingsnow.neoecoae.blocks.entity.computation.ECOComputationSystemBlockEntity;
 import cn.dancingsnow.neoecoae.api.storage.ECOStorageCells;
+import cn.dancingsnow.neoecoae.crafting.display.terminal.ExactAmountSource;
 import cn.dancingsnow.neoecoae.gui.GuiTitleProvider;
+import cn.dancingsnow.neoecoae.recipe.IntegratedWorkingStationRecipe;
 import cn.dancingsnow.neoecoae.multiblock.cluster.NEComputationCluster;
 import cn.dancingsnow.neoecoae.multiblock.definition.MultiBlockDefinition;
 import cn.dancingsnow.neoecoae.multiblock.placement.MultiBlockPlacementPlan;
@@ -55,6 +60,8 @@ import cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig;
 import cn.dancingsnow.neoecoprototype.event.WirelessLinks;
 import cn.dancingsnow.neoecoprototype.integration.ae2.OversizeInterfaceLogic;
 import cn.dancingsnow.neoecoprototype.integration.ae2.SimplifyGridFacade;
+import cn.dancingsnow.neoecoprototype.items.AllItemsCreativeCellItem;
+import cn.dancingsnow.neoecoprototype.items.PatternGeneratorItem;
 import cn.dancingsnow.neoecoprototype.items.SimplifyMigrationDriveItem;
 import cn.dancingsnow.neoecoprototype.items.SimplifySmallBulkStorageCellItem;
 import cn.dancingsnow.neoecoprototype.items.SimplifyStructureExpansionCardItem;
@@ -66,7 +73,9 @@ import cn.dancingsnow.neoecoprototype.multiblock.definition.SimplifyReactorDefin
 import cn.dancingsnow.neoecoprototype.multiblock.definition.SimplifyStorageDefinition;
 import cn.dancingsnow.neoecoprototype.multiblock.definition.SimplifyTrinityDefinition;
 import cn.dancingsnow.neoecoprototype.multiblock.trinity.TrinityCraftingExecutor;
+import cn.dancingsnow.neoecoprototype.recipe.ProcessorAssemblerRecipe;
 import cn.dancingsnow.neoecoprototype.registration.ModRegistration;
+import cn.dancingsnow.neoecoprototype.registration.ProcessorAssemblyWorkstationSupport;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.GlobalPos;
 import net.minecraft.core.Direction;
@@ -4781,7 +4790,8 @@ public final class NeoECOPrototypeGameTests {
 
     /** The cell models that deliberately draw no type lamp at all, only the level bands. */
     private static final List<String> CELL_MODELS_WITHOUT_TYPE =
-            List.of("storage_cell_l1_concrete", "storage_cell_l1_pigmee", "storage_cell_l1_singularity",
+            List.of("storage_cell_l1_concrete", "storage_cell_l1_all_items",
+                    "storage_cell_l1_pigmee", "storage_cell_l1_singularity",
                     // The omni families, taken by the artist batch of 2026-10-19: the type band came out and
                     // the housing plate carries the family colour instead. Asked upstream the same day, the
                     // answer was 靠外壳辨认 - read it off the shell.
@@ -14317,6 +14327,9 @@ public final class NeoECOPrototypeGameTests {
                         helper.fail("a refused click still changed the host block");
                         return;
                     }
+                    if (billedOnRefusal(helper, player, "an L6 disk on an L4 room")) {
+                        return;
+                    }
 
                     int l4CellsBefore = 0;
                     for (var state : machineSnapshot(helper).values()) {
@@ -14433,6 +14446,9 @@ public final class NeoECOPrototypeGameTests {
                                     + player.getInventory().countItem(disk) + " after a refused click");
                             return;
                         }
+                    }
+                    if (billedOnRefusal(helper, player, "a wrong-rung disk on a short machine")) {
+                        return;
                     }
                     var after = machineSnapshot(helper);
                     if (before.isEmpty()) {
@@ -17688,6 +17704,33 @@ public final class NeoECOPrototypeGameTests {
             }
         }
         return total;
+    }
+
+    /**
+     * What a refused rung disk may never leave behind. The disk is the whole price, so a refusal has to
+     * come back out whole: no work order, no backup drive to carry one, no printed pattern. The orders are
+     * read off the registry by id rather than a typed list, so a rung added later cannot slip past this.
+     */
+    private static boolean billedOnRefusal(GameTestHelper helper,
+                                           net.minecraft.server.level.ServerPlayer player,
+                                           String what) {
+        int orders = 0;
+        for (var item : BuiltInRegistries.ITEM) {
+            var id = BuiltInRegistries.ITEM.getKey(item);
+            if (NeoECOPrototype.MOD_ID.equals(id.getNamespace())
+                    && id.getPath().startsWith("simplify_work_order_")) {
+                orders += everywhere(helper, player, item);
+            }
+        }
+        int bags = bagCount(player);
+        int printed = everywhere(helper, player, AEItems.PROCESSING_PATTERN.asItem());
+        if (orders == 0 && bags == 0 && printed == 0) {
+            return false;
+        }
+        helper.fail(what + " billed the player: " + orders + " work order(s), " + bags
+                + " backup drive(s) and " + printed + " printed pattern(s); the disk is the whole"
+                + " price, so a refusal must hand back nothing at all");
+        return true;
     }
 
     /**
@@ -20954,6 +20997,445 @@ public final class NeoECOPrototypeGameTests {
                                 helper.succeed();
                             });
                 });
+    }
+
+    /**
+     * One right-click is a handful of patterns drawn from the whole family, not the front of a list.
+     * Two facts are pinned separately: a cleared pack gets a different row on the next click (the pool is
+     * really shuffled), and the selection rule never offers a pattern the pack already holds - that is what
+     * makes repeated clicks converge instead of looping over the same first nine. Randomness cannot be
+     * pinned by odds, so the rule is called directly with a pool where ten of twelve entries are held.
+     */
+    @GameTest(template = "empty", batch = "creative_tools", timeoutTicks = 400,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void patternGeneratorHandsOutFreshBatchesAndSkipsHeldPatterns(GameTestHelper helper) {
+        var level = helper.getLevel();
+        var player = helper.makeMockPlayer(GameType.CREATIVE);
+        var item = ModRegistration.PATTERN_GENERATOR.get();
+        var generator = new ItemStack(item);
+
+        player.getInventory().clearContent();
+        player.setItemInHand(InteractionHand.MAIN_HAND, generator.copy());
+        item.use(level, player, InteractionHand.MAIN_HAND);
+
+        var first = heldPatterns(player);
+        if (first.size() != PatternGeneratorItem.BATCH_SIZE) {
+            helper.fail("one click should hand out " + PatternGeneratorItem.BATCH_SIZE
+                    + " patterns, it handed out " + first.size());
+            return;
+        }
+
+        var pool = PatternGeneratorItem.buildPool(level);
+        for (var pattern : first) {
+            if (PatternDetailsHelper.decodePattern(pattern, level) == null) {
+                helper.fail("a delivered pattern does not decode: " + pattern);
+                return;
+            }
+            if (!poolContains(pool, pattern)) {
+                helper.fail("a delivered pattern is not in the generator's pool: " + pattern);
+                return;
+            }
+        }
+
+        // Empty the pack but keep the generator: a picker that never shuffled hands back the same row.
+        player.getInventory().clearContent();
+        player.setItemInHand(InteractionHand.MAIN_HAND, generator.copy());
+        item.use(level, player, InteractionHand.MAIN_HAND);
+        var second = heldPatterns(player);
+        if (second.size() != PatternGeneratorItem.BATCH_SIZE) {
+            helper.fail("the second click handed out " + second.size() + " patterns, expected "
+                    + PatternGeneratorItem.BATCH_SIZE);
+            return;
+        }
+        if (samePatternSet(first, second)) {
+            helper.fail("two clicks on an emptied pack produced the same row, so the pool is not shuffled");
+            return;
+        }
+
+        var entries = List.of(new ItemStack(Items.PAPER), new ItemStack(Items.STICK),
+                new ItemStack(Items.APPLE), new ItemStack(Items.COAL), new ItemStack(Items.BREAD),
+                new ItemStack(Items.ARROW), new ItemStack(Items.BONE), new ItemStack(Items.BRICK),
+                new ItemStack(Items.CLAY_BALL), new ItemStack(Items.EGG), new ItemStack(Items.FEATHER),
+                new ItemStack(Items.FLINT));
+        var held = new ArrayList<>(entries.subList(0, 10));
+        var picked = PatternGeneratorItem.selectBatch(entries, PatternGeneratorItem.BATCH_SIZE, held::contains);
+        if (picked.size() != 2) {
+            helper.fail("with ten of twelve entries held the picker should offer the two unheld ones, "
+                    + "it offered " + picked.size());
+            return;
+        }
+        if (!picked.get(0).is(Items.FEATHER) || !picked.get(1).is(Items.FLINT)) {
+            helper.fail("the picker offered " + picked.get(0) + " / " + picked.get(1)
+                    + " instead of the two unheld entries");
+            return;
+        }
+        helper.succeed();
+    }
+
+    /**
+     * The pool is the guarantee behind "we and eco, everything": all three recipe families, at the amounts
+     * each consumer divides by. Crafting recipes go through AE2's own 3x3 encoder; our processor family is
+     * stated at {@link ProcessorAssemblyWorkstationSupport#RECIPE_SCALE} times the recipe's declared
+     * amounts; eco's station family at its declared demand. Each family is matched back to a real recipe
+     * rather than to a count we remembered, because a whole missing family is the failure this test exists
+     * for.
+     */
+    @GameTest(template = "empty", batch = "creative_tools", timeoutTicks = 400,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void patternGeneratorPoolCoversEveryRecipeFamilyAtItsDeclaredScale(GameTestHelper helper) {
+        var level = helper.getLevel();
+        List<ItemStack> pool;
+        try {
+            pool = PatternGeneratorItem.buildPool(level);
+        } catch (RuntimeException e) {
+            helper.fail("building the pattern pool threw " + e);
+            return;
+        }
+        var unique = new java.util.HashSet<AEItemKey>();
+        var details = new ArrayList<IPatternDetails>();
+        int crafting = 0;
+        int processing = 0;
+        for (var stack : pool) {
+            var key = AEItemKey.of(stack);
+            if (key == null || !unique.add(key)) {
+                helper.fail("the pool contains a null or duplicated encoding: " + stack);
+                return;
+            }
+            IPatternDetails decoded;
+            try {
+                decoded = PatternDetailsHelper.decodePattern(stack, level);
+            } catch (RuntimeException e) {
+                helper.fail("a pool pattern does not decode: " + e);
+                return;
+            }
+            if (decoded == null) {
+                helper.fail("a pool pattern decodes to null");
+                return;
+            }
+            details.add(decoded);
+            if (decoded instanceof AECraftingPattern) {
+                crafting++;
+            } else {
+                processing++;
+            }
+        }
+        NeoECOPrototype.LOGGER.info("pattern pool: {} entries, {} crafting, {} processing",
+                pool.size(), crafting, processing);
+        if (pool.size() < 150 || crafting < 50 || processing < 50) {
+            helper.fail("the pool has " + pool.size() + " entries (" + crafting + " crafting, "
+                    + processing + " processing); both families supply dozens, so one of them is missing");
+            return;
+        }
+
+        var processorRecipes = level.getRecipeManager()
+                .getAllRecipesFor(ModRegistration.PROCESSOR_ASSEMBLER_RECIPE_TYPE.get());
+        ProcessorAssemblerRecipe processor = null;
+        for (var holder : processorRecipes) {
+            if (!holder.value().result().isEmpty()) {
+                processor = holder.value();
+                break;
+            }
+        }
+        if (processor == null) {
+            helper.fail("no processor-assembly recipe is loaded, so the scale check would measure nothing");
+            return;
+        }
+        var processorInputs = new HashMap<AEKey, Long>();
+        for (var ingredient : processor.ingredients()) {
+            var choices = ingredient.getItems();
+            if (choices.length == 0) {
+                helper.fail("processor recipe " + processor + " has an ingredient with no items");
+                return;
+            }
+            processorInputs.merge(AEItemKey.of(choices[0]),
+                    (long) ProcessorAssemblyWorkstationSupport.RECIPE_SCALE, Long::sum);
+        }
+        var processorOutput = AEItemKey.of(processor.result());
+        long processorAmount = (long) processor.result().getCount()
+                * ProcessorAssemblyWorkstationSupport.RECIPE_SCALE;
+        boolean processorCovered = false;
+        for (var decoded : details) {
+            if (decoded instanceof AECraftingPattern) {
+                continue;
+            }
+            var outputs = decoded.getOutputs();
+            if (demandedInputs(decoded).equals(processorInputs)
+                    && outputs.size() == 1
+                    && outputs.get(0).what().equals(processorOutput)
+                    && outputs.get(0).amount() == processorAmount) {
+                processorCovered = true;
+                break;
+            }
+        }
+        if (!processorCovered) {
+            helper.fail("no pattern states processor recipe " + processor + " at "
+                    + ProcessorAssemblyWorkstationSupport.RECIPE_SCALE + "x its declared amounts");
+            return;
+        }
+
+        IntegratedWorkingStationRecipe station = null;
+        for (var holder : level.getRecipeManager()
+                .getAllRecipesFor(NERecipeTypes.INTEGRATED_WORKING_STATION.get())) {
+            var namespace = holder.id().getNamespace();
+            if (!namespace.equals(NeoECOPrototype.MOD_ID) && !namespace.equals("neoecoae")) {
+                continue;
+            }
+            var recipe = holder.value();
+            if (recipe.itemOutput().isEmpty()) {
+                continue;
+            }
+            station = recipe;
+            break;
+        }
+        if (station == null) {
+            helper.fail("no integrated working station recipe in our namespaces is loaded, so the station "
+                    + "family would be unchecked");
+            return;
+        }
+        var stationInputs = new HashMap<AEKey, Long>();
+        for (var sized : station.inputItems()) {
+            var choices = sized.getItems();
+            if (choices.length == 0) {
+                helper.fail("station recipe " + station + " has an item ingredient with no items");
+                return;
+            }
+            stationInputs.merge(AEItemKey.of(choices[0]), (long) sized.count(), Long::sum);
+        }
+        if (!station.inputFluid().ingredient().isEmpty()) {
+            var fluids = station.inputFluid().getFluids();
+            if (fluids.length == 0) {
+                helper.fail("station recipe " + station + " has a fluid ingredient with no fluids");
+                return;
+            }
+            stationInputs.merge(AEFluidKey.of(fluids[0]), (long) station.inputFluid().amount(), Long::sum);
+        }
+        var stationOutputs = new HashMap<AEKey, Long>();
+        stationOutputs.merge(AEItemKey.of(station.itemOutput()),
+                (long) station.itemOutput().getCount(), Long::sum);
+        if (!station.fluidOutput().isEmpty()) {
+            stationOutputs.merge(AEFluidKey.of(station.fluidOutput()),
+                    (long) station.fluidOutput().getAmount(), Long::sum);
+        }
+        boolean stationCovered = false;
+        for (var decoded : details) {
+            if (decoded instanceof AECraftingPattern) {
+                continue;
+            }
+            if (demandedInputs(decoded).equals(stationInputs)
+                    && producedOutputs(decoded).equals(stationOutputs)) {
+                stationCovered = true;
+                break;
+            }
+        }
+        if (!stationCovered) {
+            helper.fail("no pattern states station recipe " + station + " at its declared amounts");
+            return;
+        }
+        helper.succeed();
+    }
+
+    /**
+     * The all-items cell is a source, not a sink: it lists exactly the registry entries of our two mods,
+     * answers unlimited pulls for them, and refuses every deposit. The refusal is the important half - a
+     * cell that accepted stores would swallow the network's items and starve every real cell beside it.
+     */
+    @GameTest(template = "empty", batch = "creative_tools", timeoutTicks = 200,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void allItemsCreativeCellListsBothModsAndNeverAbsorbs(GameTestHelper helper) {
+        var stack = new ItemStack(ModRegistration.ALL_ITEMS_CREATIVE_CELL.get());
+        var cell = ECOStorageCells.getCellInventory(stack, null);
+        if (cell == null) {
+            helper.fail("eco did not hand back a cell inventory for the all-items creative cell");
+            return;
+        }
+        var listed = new KeyCounter();
+        cell.getAvailableStacks(listed);
+
+        int ours = 0;
+        int eco = 0;
+        for (var key : listed.keySet()) {
+            if (!(key instanceof AEItemKey item)) {
+                helper.fail("the all-items cell lists a non-item key: " + key);
+                return;
+            }
+            var namespace = item.getId().getNamespace();
+            if (namespace.equals(NeoECOPrototype.MOD_ID)) {
+                ours++;
+            } else if (namespace.equals("neoecoae")) {
+                eco++;
+            } else {
+                helper.fail("the all-items cell lists " + item.getId()
+                        + ", which belongs to neither of these two mods");
+                return;
+            }
+        }
+        if (ours < 50 || eco < 50) {
+            helper.fail("the cell lists " + ours + " of our items and " + eco
+                    + " eco items; both families supply dozens, so one namespace is missing");
+            return;
+        }
+
+        int expected = 0;
+        var missing = new ArrayList<String>();
+        for (var id : BuiltInRegistries.ITEM.keySet()) {
+            var namespace = id.getNamespace();
+            if (!namespace.equals(NeoECOPrototype.MOD_ID) && !namespace.equals("neoecoae")) {
+                continue;
+            }
+            var item = BuiltInRegistries.ITEM.get(id);
+            if (item == Items.AIR) {
+                continue;
+            }
+            expected++;
+            var key = AEItemKey.of(item);
+            if (key == null || listed.get(key) <= 0) {
+                missing.add(id.toString());
+            }
+        }
+        if (!missing.isEmpty()) {
+            helper.fail(missing.size() + " registered items are not listed, first: " + missing.get(0));
+            return;
+        }
+        if (listed.size() != expected) {
+            helper.fail("the cell lists " + listed.size() + " keys, but the two namespaces hold "
+                    + expected + " items");
+            return;
+        }
+
+        var source = IActionSource.empty();
+        var sample = AEItemKey.of(ModRegistration.SIMPLIFY_CONCRETE_STORAGE_CELL.get());
+        long inserted = cell.insert(sample, 64, Actionable.MODULATE, source);
+        if (inserted != 0) {
+            helper.fail("the endless cell accepted " + inserted + " items instead of refusing the deposit");
+            return;
+        }
+        long extracted = cell.extract(sample, 64, Actionable.SIMULATE, source);
+        if (extracted != 64) {
+            helper.fail("the cell released " + extracted + " of the 64 items requested");
+            return;
+        }
+        long foreign = cell.extract(AEItemKey.of(Items.DIAMOND), 64, Actionable.SIMULATE, source);
+        if (foreign != 0) {
+            helper.fail("the cell released " + foreign + " minecraft:diamond, which is outside its listing");
+            return;
+        }
+        if (cell.isPreferredStorageFor(sample, source)) {
+            helper.fail("the endless cell claims to be preferred storage, so it would soak up every deposit");
+            return;
+        }
+        if (cell.getTotalItemTypes() != listed.size() || cell.getStoredItemTypes() != listed.size()) {
+            helper.fail("the cell reports " + cell.getStoredItemTypes() + " stored of "
+                    + cell.getTotalItemTypes() + " types while listing " + listed.size() + " keys");
+            return;
+        }
+        if (!cell.hasInfiniteTypeCapacity()) {
+            helper.fail("the cell does not advertise infinite type capacity");
+            return;
+        }
+        if (cell.isInfiniteStorageEligible()) {
+            helper.fail("the cell asks to be treated as a finite storage target");
+            return;
+        }
+        if (cell.getTotalBytes() != AllItemsCreativeCellItem.REPORTED_BYTES) {
+            helper.fail("the cell reports " + cell.getTotalBytes() + " bytes, expected "
+                    + AllItemsCreativeCellItem.REPORTED_BYTES);
+            return;
+        }
+        if (!(cell instanceof ExactAmountSource exact)) {
+            helper.fail("the cell does not expose eco's exact-amount interface, so eco will charge it as finite");
+            return;
+        }
+        var visited = new int[] { 0 };
+        var allUnbounded = new boolean[] { true };
+        exact.neoecoae$visitExactAmounts((key, amount) -> {
+            visited[0]++;
+            if (!amount.infinite()) {
+                allUnbounded[0] = false;
+            }
+        });
+        if (visited[0] != listed.size()) {
+            helper.fail("the exact-amount interface reports " + visited[0] + " keys, expected "
+                    + listed.size());
+            return;
+        }
+        if (!allUnbounded[0]) {
+            helper.fail("at least one listed item is reported as a finite amount");
+            return;
+        }
+        if (!exact.neoecoae$hasSaturatingListing()) {
+            helper.fail("the cell does not report a saturating listing");
+            return;
+        }
+        helper.succeed();
+    }
+
+    /** Every encoded pattern the player's pack currently holds, in slot order. */
+    private static List<ItemStack> heldPatterns(Player player) {
+        var held = new ArrayList<ItemStack>();
+        var inventory = player.getInventory();
+        for (int slot = 0; slot < inventory.getContainerSize(); slot++) {
+            var stack = inventory.getItem(slot);
+            if (PatternDetailsHelper.isEncodedPattern(stack)) {
+                held.add(stack);
+            }
+        }
+        return held;
+    }
+
+    private static boolean poolContains(List<ItemStack> pool, ItemStack pattern) {
+        for (var candidate : pool) {
+            if (ItemStack.matches(candidate, pattern)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean samePatternSet(List<ItemStack> left, List<ItemStack> right) {
+        if (left.size() != right.size()) {
+            return false;
+        }
+        for (var candidate : left) {
+            boolean found = false;
+            for (var other : right) {
+                if (ItemStack.matches(candidate, other)) {
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * What a processing pattern actually demands, with repeated keys merged the way the encoder merges them.
+     * The amount is the input's multiplier, not the one on its possible-stack template: AE2 decodes every
+     * template as "this key, amount 1" and keeps the real demand in {@code getMultiplier()}.
+     */
+    private static Map<AEKey, Long> demandedInputs(IPatternDetails details) {
+        Map<AEKey, Long> demand = new HashMap<>();
+        for (var input : details.getInputs()) {
+            if (input == null) {
+                continue;
+            }
+            var possible = input.getPossibleInputs();
+            if (possible.length == 0) {
+                continue;
+            }
+            demand.merge(possible[0].what(), input.getMultiplier(), Long::sum);
+        }
+        return demand;
+    }
+
+    private static Map<AEKey, Long> producedOutputs(IPatternDetails details) {
+        Map<AEKey, Long> produced = new HashMap<>();
+        for (var output : details.getOutputs()) {
+            produced.merge(output.what(), output.amount(), Long::sum);
+        }
+        return produced;
     }
 
     /**

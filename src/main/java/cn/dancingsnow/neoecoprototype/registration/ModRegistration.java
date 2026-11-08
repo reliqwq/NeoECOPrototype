@@ -1013,6 +1013,26 @@ public class ModRegistration {
              ITEMS.register("simplify_concrete_storage_cell",
                      () -> new SimplifyConcreteStorageCellItem(new Item.Properties().stacksTo(1)));
 
+    /**
+     * Creative-only source listing every item this addon and eco register. No recipe and no survival
+     * route on purpose: it exists to test drives, terminals and crafting setups without hoarding items.
+     */
+    public static final Supplier<cn.dancingsnow.neoecoprototype.items.AllItemsCreativeCellItem>
+            ALL_ITEMS_CREATIVE_CELL =
+            ITEMS.register("all_items_creative_cell",
+                    () -> new cn.dancingsnow.neoecoprototype.items.AllItemsCreativeCellItem(
+                            new Item.Properties().stacksTo(1)));
+
+    /**
+     * Creative-only: right-click hands out a random batch of encoded patterns for this addon's and eco's
+     * recipes, skipping the ones already in the inventory. See {@code PatternGeneratorItem}.
+     */
+    public static final Supplier<cn.dancingsnow.neoecoprototype.items.PatternGeneratorItem>
+            PATTERN_GENERATOR =
+            ITEMS.register("pattern_generator",
+                    () -> new cn.dancingsnow.neoecoprototype.items.PatternGeneratorItem(
+                            new Item.Properties().stacksTo(1)));
+
     /** Grows its own singularities and takes nothing in, so it needs no housing of another medium. */
     public static final Supplier<SimplifySingularityCellItem> SIMPLIFY_SINGULARITY_CELL =
             ITEMS.register("simplify_singularity_cell",
@@ -1898,6 +1918,11 @@ private static Supplier<BlockEntityType<SimplifyStorageVentBlockEntity>> registe
                           }
                           output.accept(SIMPLIFY_CONCRETE_STORAGE_MATRIX_HOUSING.get());
                           output.accept(SIMPLIFY_CONCRETE_STORAGE_CELL.get());
+                          // Creative-only helpers: an endless everything-cell, and the pattern generator.
+                          // Neither has a survival recipe; they exist so testers can build a crafting
+                          // setup without hand-encoding hundreds of patterns.
+                          output.accept(ALL_ITEMS_CREATIVE_CELL.get());
+                          output.accept(PATTERN_GENERATOR.get());
                           output.accept(SIMPLIFY_SINGULARITY_CELL.get());
                           output.accept(SIMPLIFY_SKY_STONE_DUST_CELL.get());
                         output.accept(SIMPLIFY_STRUCTURE_EXPANSION_CARD.get());

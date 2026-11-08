@@ -104,7 +104,7 @@ public final class NeoECOPrototypeClient {
             // 脚本矩阵按家族拿模型（.material('small_bulk')），没有档位维度，所以这张不分介质的旧图
             // 还得继续加载；注册表里那 27 张才是真在用的。
             "l1_small_bulk",
-            "l1_pigmee", "l1_concrete", "l1_universal", "l1_quantum", "l1_default", "l1_custom",
+            "l1_pigmee", "l1_concrete", "l1_all_items", "l1_universal", "l1_quantum", "l1_default", "l1_custom",
             "l0_fe_1k", "l0_spent_waste", "l0_universal", "l0_quantum", "l0_complex_universal");
 
     private static ResourceLocation cellModel(String name) {
@@ -146,6 +146,7 @@ public final class NeoECOPrototypeClient {
         }
         ECOCellModels.register(ModRegistration.PIGMEE_STORAGE_CELL.get(), cellModel("l1_pigmee"));
         ECOCellModels.register(ModRegistration.SIMPLIFY_CONCRETE_STORAGE_CELL.get(), cellModel("l1_concrete"));
+        ECOCellModels.register(ModRegistration.ALL_ITEMS_CREATIVE_CELL.get(), cellModel("l1_all_items"));
         // Its own copy of the special-cell housing, so repainting one does not move the other.
         ECOCellModels.register(ModRegistration.SIMPLIFY_SINGULARITY_CELL.get(), cellModel("l1_singularity"));
         // The second member of the same family wears the same tile: what tells them apart is what the drive

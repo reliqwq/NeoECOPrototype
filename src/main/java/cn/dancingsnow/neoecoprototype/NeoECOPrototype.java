@@ -436,6 +436,10 @@ public class NeoECOPrototype {
         // The infinite concrete matrix is vanilla-only, so its handler needs no mod check.
         event.enqueueWork(
                 cn.dancingsnow.neoecoprototype.items.InfiniteConcreteCellHandler::register);
+        // Creative-only everything-cell: it only reacts to its own item, and its key list is read lazily
+        // on first use, so no mod check or extra ordering is involved.
+        event.enqueueWork(
+                cn.dancingsnow.neoecoprototype.items.AllItemsCreativeCellHandler::register);
         // Same for the singularity cell: AE2's own singularity is the only thing it ever holds.
         event.enqueueWork(
                 cn.dancingsnow.neoecoprototype.items.SingularityCellHandler::register);

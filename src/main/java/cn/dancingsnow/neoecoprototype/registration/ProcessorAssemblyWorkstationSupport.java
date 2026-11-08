@@ -65,7 +65,7 @@ public final class ProcessorAssemblyWorkstationSupport {
      * is unaffected: it matches the pattern it is handed against its own recipe type, so 1x patterns still
      * run there.
      */
-    private static final int RECIPE_SCALE = 64;
+    public static final int RECIPE_SCALE = 64;
     /** What one run costs; the adapted recipe states {@link #RECIPE_SCALE} runs, so the per-item price holds. */
     private static final int ENERGY_PER_RUN = 1;
     private static final int ENERGY_AE = ENERGY_PER_RUN * RECIPE_SCALE;
