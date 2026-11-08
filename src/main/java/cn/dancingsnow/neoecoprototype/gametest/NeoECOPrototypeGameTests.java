@@ -16380,6 +16380,74 @@ public final class NeoECOPrototypeGameTests {
     }
 
     /**
+     * The blank shell has a bill of its own, so the drive ladder is reachable without spending a drive first.
+     *
+     * <p>Every rung recipe above starts from {@code migration_drive_empty}, and the only other way to hold
+     * one is the shell a spent card or drive hands back. That made the ladder a closed loop: a player with
+     * no spare shell could not make the first drive. This recipe opens it - one structure expansion card and
+     * one AE2 1k storage component go into eco's integrated workstation and a blank drive comes out. Read
+     * the same three ways as the rungs: eco's decoder, the recipe manager, and the machine's own matcher,
+     * with the component removed as the control that the bill is counted and not just listed.</p>
+     */
+    @GameTest(template = "empty", batch = "migration_drive_recipes", timeoutTicks = 200,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void theBlankDriveIsBuiltFromACardAndAStorageComponent(GameTestHelper helper) {
+        var level = helper.getLevel();
+        var card = ModRegistration.SIMPLIFY_STRUCTURE_EXPANSION_CARD.get();
+        var component = BuiltInRegistries.ITEM.get(
+                ResourceLocation.fromNamespaceAndPath("ae2", "cell_component_1k"));
+        var empty = ModRegistration.MIGRATION_DRIVE_EMPTY.get();
+        if (component == Items.AIR) {
+            helper.fail("ae2:cell_component_1k is not in the item registry, so the blank drive recipe"
+                    + " names an ingredient no pack can have");
+            return;
+        }
+        var id = NeoECOPrototype.id("integrated_working_station/migration_drive_empty");
+        if (cn.dancingsnow.neoecoae.recipe.LargeWorkstationRecipes.getById(level, id) == null) {
+            helper.fail("eco's recipe decoder refused " + id
+                    + ", so the blank drive has no survival route");
+            return;
+        }
+        var holder = level.getRecipeManager().byKey(id);
+        if (holder.isEmpty() || !(holder.get().value()
+                instanceof cn.dancingsnow.neoecoae.recipe.IntegratedWorkingStationRecipe recipe)) {
+            helper.fail("no neoecoae:integrated_working_station recipe is loaded under " + id
+                    + ", so the file that names the blank drive is not the file the machine reads");
+            return;
+        }
+        var expected = new java.util.TreeMap<String, Integer>();
+        expected.put(BuiltInRegistries.ITEM.getKey(card).toString(), 1);
+        expected.put(BuiltInRegistries.ITEM.getKey(component).toString(), 1);
+        var bill = new java.util.TreeMap<String, Integer>();
+        for (var sized : recipe.inputItems()) {
+            var choices = sized.ingredient().getItems();
+            bill.put(choices.length == 1
+                            ? BuiltInRegistries.ITEM.getKey(choices[0].getItem()).toString()
+                            : "<tag of " + choices.length + " item(s)>",
+                    sized.count());
+        }
+        var full = new cn.dancingsnow.neoecoae.recipe.IntegratedWorkingStationRecipe.Input(
+                java.util.List.of(new ItemStack(card), new ItemStack(component)),
+                net.neoforged.neoforge.fluids.FluidStack.EMPTY);
+        var noComponent = new cn.dancingsnow.neoecoae.recipe.IntegratedWorkingStationRecipe.Input(
+                java.util.List.of(new ItemStack(card)),
+                net.neoforged.neoforge.fluids.FluidStack.EMPTY);
+        boolean exact = recipe.matches(full, level);
+        boolean shortBill = recipe.matches(noComponent, level);
+        NeoECOPrototype.LOGGER.info("blank drive recipe {}: {} AE, bill = {}, exact accepted = {},"
+                + " component missing accepted = {}", id, recipe.energy(), bill, exact, shortBill);
+        if (!bill.equals(expected) || recipe.energy() != 10000 || !recipe.itemOutput().is(empty)
+                || !exact || shortBill) {
+            helper.fail("the blank drive recipe reads back as " + bill + " / " + recipe.energy()
+                    + " AE -> " + recipe.itemOutput() + " instead of " + expected + " / 10000 AE -> "
+                    + new ItemStack(empty) + ": exact = " + exact
+                    + ", component missing = " + shortBill);
+            return;
+        }
+        helper.succeed();
+    }
+
+    /**
      * The workstation runs our fluid batch for real, and refuses it when the bill is short.
      *
      * <p>The guard above proves the recipe loaded and matches; it never starts a batch. This one places

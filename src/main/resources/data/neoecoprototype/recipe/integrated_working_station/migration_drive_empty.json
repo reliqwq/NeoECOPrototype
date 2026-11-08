@@ -1,0 +1,18 @@
+{
+  "type": "neoecoae:integrated_working_station",
+  "energy": 10000,
+  "inputItems": [
+    {
+      "count": 1,
+      "item": "neoecoprototype:simplify_structure_expansion_card"
+    },
+    {
+      "count": 1,
+      "item": "ae2:cell_component_1k"
+    }
+  ],
+  "itemOutput": {
+    "count": 1,
+    "id": "neoecoprototype:migration_drive_empty"
+  }
+}
