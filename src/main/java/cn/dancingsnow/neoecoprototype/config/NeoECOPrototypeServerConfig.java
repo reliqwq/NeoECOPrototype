@@ -181,7 +181,9 @@ public final class NeoECOPrototypeServerConfig {
         builder.push("l1_storage");
         L1_ADDITIONAL_STORAGE_CELLS = builder
                 .comment("Additional eco storage-cell item IDs accepted by L1 drives despite tier.",
-                        "Example: [\"neoecoae:eco_mega_long_bulk_cell\"]. Default: []")
+                        "Example: [\"neoecoae:eco_mega_long_bulk_cell\"]. Default: []",
+                        "中文：额外允许 L1 驱动器挂载的 eco 存储单元物品 ID，不受档位限制。",
+                        "示例：[\"neoecoae:eco_mega_long_bulk_cell\"]。默认：[]。")
                 .defineListAllowEmpty("additional_storage_cells", List::of, value -> value instanceof String id
                         && net.minecraft.resources.ResourceLocation.tryParse(id) != null);
         builder.pop();
@@ -189,7 +191,9 @@ public final class NeoECOPrototypeServerConfig {
                 .comment("Whether the structure expansion card eats the ticket it works from: one paper to",
                         "write a shortfall note, and one blank AE2 pattern to write an exchange pattern.",
                         "On by default - off, every shift-click prints either of them for nothing, and a",
-                        "pattern is a real recipe that stays in the world once it is made.")
+                        "pattern is a real recipe that stays in the world once it is made.",
+                        "中文：结构扩容卡是否消耗用掉的那张纸与空白样板。默认开启；关掉后每次点击都不消耗，",
+                        "而空白样板一旦写成交换样板，就会作为真实配方留在世界里。")
                 .define("structure_card_consumes_items", STRUCTURE_CARD_CONSUMES_ITEMS_DEFAULT);
         WIRELESS_LINKS = builder
                 .comment("Wireless ME links: the link card, the level's rebuild pass and its chunk wake.",
@@ -198,7 +202,9 @@ public final class NeoECOPrototypeServerConfig {
                         "join that would leave the merged network with no channels at all is refused outright.",
                         "Turn this on and set the four numbers to your pack, or leave them: the defaults price a",
                         "full hub of eight links at 4 AE/t, what two of our L1 components idle at. Links recorded",
-                        "while it was on stay in the world's data and come back when it is switched on again.")
+                        "while it was on stay in the world's data and come back when it is switched on again.",
+                        "中文：无线 ME 链路总开关（连卡、所在世界的链路重建与区块唤醒）。本版默认关闭；",
+                        "打开之前先在下面配好每条链路的耗电、单台设备链路数、距离，以及能否跨维度。")
                 .define("wireless_links", WIRELESS_LINKS_DEFAULT);
         WIRELESS_MAX_LINKS_PER_DEVICE = builder
                 .comment("How many wireless edges one device may carry. Default 8. This is the structural",
@@ -209,18 +215,24 @@ public final class NeoECOPrototypeServerConfig {
                         "each device behind a link occupies one of them, so a hub at this cap exactly fills the",
                         "cheapest face it can stand on. On a network with no controller AE2's own ceiling is 8",
                         "channel-consuming nodes with the hub counted among them, so a controllerless hub",
-                        "reaches 7 links before that guard - not this number - refuses the 8th.")
+                        "reaches 7 links before that guard - not this number - refuses the 8th.",
+                        "中文：一台设备最多承载几条无线链路。默认 8：正好填满 AE2 最低频道模式下",
+                        "一个面的 8 个频道（每条链路后面那台设备占一个）。上限 32。")
                 .defineInRange("wireless_max_links_per_device", 8, 1, 32);
         WIRELESS_MAX_RANGE_BLOCKS = builder
                 .comment("How far apart two devices may be to join, in blocks, measured between the squares.",
                         "0 = no distance limit (what shipped so far). Applied when a link is made; existing",
                         "links are never broken by lowering this, because a silent teardown after the fact is",
-                        "worse than a refusal up front.")
+                        "worse than a refusal up front.",
+                        "中文：两台设备相距多少格以内才能连上，0 = 不限距离。只对新建链路生效，",
+                        "调小不会拆掉已经连好的链路。上限 100000。")
                 .defineInRange("wireless_max_range_blocks", 0, 0, 100000);
         WIRELESS_ALLOW_CROSS_DIMENSION = builder
                 .comment("Whether a link may join devices in different dimensions. Off by default - crossing",
                         "dimensions is the one thing no cable can do, so it is where a link stops being a free",
-                        "cable and becomes its own machine.")
+                        "cable and becomes its own machine.",
+                        "中文：无线链路是否允许跨维度。默认关闭；已经跨维度连上的链路在关掉后仍然保留，",
+                        "直到玩家自己解除。")
                 .define("wireless_allow_cross_dimension", false);
         WIRELESS_AE_PER_LINK_PER_TICK = builder
                 .comment("The energy price of one live link, in AE per tick, taken from the network the link's",
@@ -231,33 +243,43 @@ public final class NeoECOPrototypeServerConfig {
                         "used, divided by 128), so this is the price for the link rather than a second charge",
                         "for traffic. A network too short of power keeps its links and the log says so once:",
                         "AE2 drops the whole grid offline when the store runs dry, so the price binds without",
-                        "us tearing anything down.")
+                        "us tearing anything down.",
+                        "中文：每条在线链路每刻消耗的 AE，从链路自己那一端所在的网络扣。0 = 不收费。",
+                        "默认 0.5：八条链路满载是 4 AE/t，正好是我们两只 L1 组件的待机功耗。")
                 .defineInRange("wireless_ae_per_link_per_tick", 0.5D, 0.0D, 1024.0D);
         DERIVE_PROCESSOR_RECIPES_FROM_INSCRIBER = builder
                 .comment("Also accept processor recipes derived from AE2's inscriber (press-mode recipes, with",
                         "printed parts unfolded into the material inscribed into them).",
                         "This is what lets other content that adds inscriber recipes work with no data file.",
-                        "Default: true.")
+                        "Default: true.",
+                        "中文：是否也接受从 AE2 压印器配方推导出来的处理器配方（把压印好的零件还原成",
+                        "被压印的材料）。这样别的模组加进来的压印器配方不写数据文件也能用。默认开启。")
                 .define("derive_processor_recipes_from_inscriber", true);
         builder.push("l1_computation");
         L1_CPU_THREADS = builder
-                .comment("Computation threads per L1 threading core. Was 1 before this was configurable.")
+                .comment("Computation threads per L1 threading core. Was 1 before this was configurable.",
+                        "中文：每只 L1 线程核心提供的合成线程数。默认 2；已经放下的核心要拆掉重放，才会按新值计算。")
                 .defineInRange("cpu_threads", 2, 1, 1_024);
         L1_CPU_ACCELERATORS = builder
-                .comment("Co-processors per L1 parallel core, i.e. what the panel shows as 并行. Was 16.")
+                .comment("Co-processors per L1 parallel core, i.e. what the panel shows as 并行. Was 16.",
+                        "中文：每只 L1 并行核心提供的协处理器数，也就是面板上的“并行”。默认 24。")
                 .defineInRange("cpu_accelerators", 24, 1, 65_536);
         L1_CPU_TOTAL_BYTES = builder
-                .comment("Crafting storage bytes per L1 computation cell. Was 1 MiB (1048576).")
+                .comment("Crafting storage bytes per L1 computation cell. Was 1 MiB (1048576).",
+                        "中文：每只 L1 计算单元提供的合成存储字节数。默认 1572864（原来的 1 MiB 再 +50%）。")
                 .defineInRange("cpu_total_bytes", 1_572_864L, 1L, 1L << 40);
         ENERGIZED_CELL_TOTAL_BYTES = builder
                 .comment("Crafting storage bytes per energized computation cell (CE1R).",
-                        "Default 5242880 is the old 4 MiB plus 30%.")
+                        "Default 5242880 is the old 4 MiB plus 30%.",
+                        "中文：每只盈能计算单元（CE1R）提供的合成存储字节数。默认 5242880（4 MiB +30%）。")
                 .defineInRange("energized_cell_total_bytes", 5_242_880L, 1L, 1L << 40);
         builder.pop();
         DISABLED_PROCESSOR_RECIPES = builder
                 .comment("Processor outputs the assembler must refuse, e.g. [\"ae2:logic_processor\"].",
                         "Applies to the JSON recipes and the inscriber derivation alike, so removing a data",
-                        "file alone is not enough to disable a recipe the inscriber still provides.")
+                        "file alone is not enough to disable a recipe the inscriber still provides.",
+                        "中文：处理器装配室要拒绝的处理器输出，例如 [\"ae2:logic_processor\"]。",
+                        "JSON 配方和压印器推导一起生效，所以只删数据文件挡不住压印器那条路。")
                 .defineListAllowEmpty("disabled_processor_recipes",
                         List.of(), value -> value instanceof String id
                         && net.minecraft.resources.ResourceLocation.tryParse(id) != null);
@@ -267,7 +289,9 @@ public final class NeoECOPrototypeServerConfig {
                         "ore and its own biome modifier, so adding one entry only switches that ore on.",
                         "An empty list turns all three off. Moving an ore to a dimension it was not authored",
                         "for needs a datapack, because the host stone is chosen by the feature.",
-                        "Default: none, until the crystal family they lead to has a recipe.")
+                        "Default: none, until the crystal family they lead to has a recipe.",
+                        "中文：极寒晶矿可以生成的维度（写完整维度 ID）。每个维度有自己的矿与群系修饰器，",
+                        "加一条只开那一种。空列表 = 全部关闭。默认：空（等这一族水晶有配方再开）。")
                 .defineListAllowEmpty("dimensions",
                         () -> CRYOTHEUM_ORE_DIMENSIONS_DEFAULT,
                         value -> value instanceof String id
@@ -275,7 +299,9 @@ public final class NeoECOPrototypeServerConfig {
         CRYOTHEUM_ORE_FREEZE_TICKS = builder
                 .comment("Freezing ticks a player gains per broken cryotheum ore. Vanilla starts taking freeze",
                         "damage at 140 ticks in powder snow, so anything below that is the frostbite meter",
-                        "filling up, not damage. Zero disables the effect. Default: 60.")
+                        "filling up, not damage. Zero disables the effect. Default: 60.",
+                        "中文：每挖掉一块极寒晶矿获得的冰冻刻数。原版在细雪里 140 刻才开始掉血，",
+                        "更少只是让霜冻条涨一点。0 = 关闭。默认 60。")
                 .defineInRange("freeze_ticks", 60, 0, 600);
         builder.pop();
         builder.push("cryotheum_meteorite");
@@ -285,28 +311,35 @@ public final class NeoECOPrototypeServerConfig {
                         "and the buds that the veins would otherwise have no source from.",
                         "It is read while chunks generate, so already placed comets stay in the world and a",
                         "newly generated area simply has none. Default: false - the crystal family this leads to",
-                        "has no recipe yet, and a half-built discovery is worse than none.")
+                        "has no recipe yet, and a half-built discovery is worse than none.",
+                        "中文：末地漂浮陨石是否生成。它在区块生成时决定，所以已经放下的陨石会留在世界里，",
+                        "新生成的区域则没有。默认关闭。")
                 .define("enabled", CRYOTHEUM_METEORITE_ENABLED_DEFAULT);
         builder.pop();
         builder.push("superconductive_reactor");
         REACTOR_COIL_AE_PER_TICK = builder
                 .comment("AE per tick each coil of a formed superconductive reactor pays. A complete cube",
                         "holds 26 coils. Default 400, so the shipped cube pays 26 x 400 + 1000 = 11,400",
-                        "AE/t, against the 8,448 AE/t an L9 storage system idles at.")
+                        "AE/t, against the 8,448 AE/t an L9 storage system idles at.",
+                        "中文：成型的超导反应堆每根线圈每刻产出的 AE。一整堆有 26 根；默认 400，",
+                        "所以满堆是 26 × 400 + 1000 = 11400 AE/t，足够一台 L9 存储系统 8448 的待机。")
                 .defineInRange("coil_ae_per_tick", REACTOR_COIL_AE_PER_TICK_DEFAULT, 0.0D, 100_000.0D);
         REACTOR_CORE_AE_PER_TICK = builder
-                .comment("AE per tick the single core pays on top of the coils. Default 1000.")
+                .comment("AE per tick the single core pays on top of the coils. Default 1000.",
+                        "中文：反应堆核心在线圈之外每刻额外产出的 AE。默认 1000。")
                 .defineInRange("core_ae_per_tick", REACTOR_CORE_AE_PER_TICK_DEFAULT, 0.0D, 100_000.0D);
         REACTOR_STORM_MULTIPLIER = builder
                 .comment("Multiplier while the block above the cube can see the sky and the level is",
-                        "thundering. 1 turns the weather bonus off. Default 2.")
+                        "thundering. 1 turns the weather bonus off. Default 2.",
+                        "中文：反应堆上方能看见天空且正在雷雨时的产出倍率。1 = 关闭天气加成。默认 2。")
                 .defineInRange("storm_multiplier", 2.0D, 1.0D, 16.0D);
         builder.pop();
         builder.push("singularity_cell");
         SINGULARITY_CELL_TICKS_PER_BATCH = builder
                 .comment("How often the singularity cell makes a batch, in ticks. 600 = every 30 seconds.",
                         "Clamped to at least " + SINGULARITY_CELL_TICKS_PER_BATCH_MIN + " ticks.",
-                        "Default: 600.")
+                        "Default: 600.",
+                        "中文：奇点单元每隔多少刻产出一批。默认 600（30 秒），最短 60 刻（3 秒）。")
                 .defineInRange("ticks_per_batch", 600L, SINGULARITY_CELL_TICKS_PER_BATCH_MIN, 1L << 24);
         SINGULARITY_CELL_AMOUNT_PER_BATCH = builder
                 .comment("Singularities one batch is worth, and therefore how coarse the bank is: it jumps",
@@ -317,7 +350,8 @@ public final class NeoECOPrototypeServerConfig {
                         "Overflow is not a crash and not a wrap: once the bank reaches that same top it stops",
                         "growing, and because production is pinned there too, anything you draw afterwards",
                         "stays drawn for good.",
-                        "Default: 120.")
+                        "Default: 120.",
+                        "中文：每批产出多少奇点。默认 120。可以写到 long 的最大值；批次是跳变的，不是连续滴出来。")
                 .defineInRange("amount_per_batch", 120L, 1L, SINGULARITY_CELL_AMOUNT_PER_BATCH_MAX);
         builder.pop();
         builder.push("sky_stone_dust_cell");
@@ -326,11 +360,14 @@ public final class NeoECOPrototypeServerConfig {
                         "Its defaults are the singularity cell's (600 ticks and 120 per batch), and they are",
                         "separate entries on purpose: the two cells grow things four tiers apart in cost, so",
                         "tuning one should not move the other.",
-                        "Clamped to at least " + SINGULARITY_CELL_TICKS_PER_BATCH_MIN + " ticks.")
+                        "Clamped to at least " + SINGULARITY_CELL_TICKS_PER_BATCH_MIN + " ticks.",
+                        "中文：陨石粉单元每隔多少刻产出一批。默认 600（30 秒），最短 60 刻。",
+                        "和奇点单元分开配置：两只单元成本差四档，调一只不该带动另一只。")
                 .defineInRange("ticks_per_batch", 600L, SINGULARITY_CELL_TICKS_PER_BATCH_MIN, 1L << 24);
         SKY_STONE_DUST_CELL_AMOUNT_PER_BATCH = builder
                 .comment("Meteorite dust one batch is worth. Same arithmetic and the same ceiling as the",
-                        "singularity cell: the bank jumps by this number once per interval, it does not drip.")
+                        "singularity cell: the bank jumps by this number once per interval, it does not drip.",
+                        "中文：每批产出多少陨石粉。算法与上限都和奇点单元相同。默认 120。")
                 .defineInRange("amount_per_batch", 120L, 1L, SINGULARITY_CELL_AMOUNT_PER_BATCH_MAX);
         builder.pop();
         builder.push("machine_mind");
@@ -340,7 +377,9 @@ public final class NeoECOPrototypeServerConfig {
                         "machine without a face. It only ever saves: a machine short of coolant or with",
                         "nothing to do draws exactly the normal amount, so the 1-in-16 roll is a reward for",
                         "building well and never a tax. Zero turns the hidden bonus off entirely.",
-                        "Default: 0.10.")
+                        "Default: 0.10.",
+                        "中文：有表情的合成主机最多能省下的待机功耗比例。0.10 = 开心的机器只花原本的 90%。",
+                        "只会省电、不会费电（缺冷却液或没事可做时照常耗电）。0 = 关闭。上限 0.25。")
                 .defineInRange("idle_power_saving", 0.10D, 0.0D, 0.25D);
         builder.pop();
         builder.push("fumo_dolls");
@@ -350,7 +389,9 @@ public final class NeoECOPrototypeServerConfig {
                         "It is void-made, never drawn from the grid, and nothing is banked while there is",
                         "nothing to charge. Zero switches the charging off; the tooltip line is static text",
                         "either way, because a server config is not readable on a client.",
-                        "Default: 100.")
+                        "Default: 100.",
+                        "中文：穿戴中的 TedXenon 玩偶每刻为背包与盔甲栏里可充电的物品充多少 AE。",
+                        "电量凭空产生、不从电网抽；没东西可充时不存。0 = 关闭。默认 100。")
                 .defineInRange("charge_ae_per_tick", FUMO_CHARGE_AE_PER_TICK_DEFAULT, 0.0D, 1_000_000.0D);
         builder.pop();
         builder.push("migration_drive");
@@ -359,7 +400,10 @@ public final class NeoECOPrototypeServerConfig {
                         "Off by default: the drive is the whole price, and the parts it converts are what",
                         "that price buys. On, the click also hands the old kit back.",
                         "The machine's contents are not covered by this switch either way: a mounted cell",
-                        "stays in its drive and the patterns stay in their buses. Read on every click.")
+                        "stays in its drive and the patterns stay in their buses. Read on every click.",
+                        "中文：升格迁移驱动是否把换下的方块装进一只备份驱动返还。默认关闭：",
+                        "这张盘本身就是整台机器的价格，打开后点击才会同时把旧零件还给你。",
+                        "无论开关如何，机器里插着的存储矩阵与总线里的样板都会跟着走、不会丢。")
                 .define("refund_replaced_blocks", MIGRATION_DRIVE_REFUND_BLOCKS_DEFAULT);
         builder.pop();
         SPEC = builder.build();
