@@ -245,7 +245,11 @@ public final class WirelessLinks {
         if (dimension.isEmpty()) {
             return null;
         }
-        var location = ResourceLocation.parse(dimension);
+        // A corrupted save must drop the pair, not throw while the level attachment is being read.
+        var location = ResourceLocation.tryParse(dimension);
+        if (location == null) {
+            return null;
+        }
         return GlobalPos.of(ResourceKey.create(net.minecraft.core.registries.Registries.DIMENSION, location),
                 BlockPos.of(tag.getLong(TAG_POS)));
     }

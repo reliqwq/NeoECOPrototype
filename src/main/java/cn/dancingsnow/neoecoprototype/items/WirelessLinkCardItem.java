@@ -220,7 +220,12 @@ public class WirelessLinkCardItem extends Item {
         if (dimension.isEmpty()) {
             return null;
         }
-        return GlobalPos.of(ResourceKey.create(Registries.DIMENSION, ResourceLocation.parse(dimension)),
+        // The tooltip reads this on hover, so a corrupted mark has to answer "nothing" instead of throwing.
+        var location = ResourceLocation.tryParse(dimension);
+        if (location == null) {
+            return null;
+        }
+        return GlobalPos.of(ResourceKey.create(Registries.DIMENSION, location),
                 BlockPos.of(endpoint.getLong(TAG_POS)));
     }
 

@@ -70,9 +70,12 @@ import cn.dancingsnow.neoecoprototype.registration.ModRegistration;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.GlobalPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.contents.TranslatableContents;
 import net.minecraft.server.level.ServerLevel;
@@ -89,6 +92,7 @@ import net.minecraft.world.item.crafting.RecipeHolder;
 import net.minecraft.world.item.crafting.RecipeType;
 import net.minecraft.world.item.crafting.CraftingRecipe;
 import net.minecraft.world.item.crafting.Ingredient;
+import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.Block;
@@ -7413,6 +7417,46 @@ public final class NeoECOPrototypeGameTests {
         } finally {
             flag.set(false);
         }
+    }
+
+    /**
+     * The two places that decode a wireless endpoint both read strings out of saved NBT, so both have to
+     * answer "nothing remembered" for a value this game cannot parse. Before that, one hand-edited string
+     * took the level down while its attachment was being read, and the same string in a card crashed the
+     * tooltip of whoever hovered it. The expected answer is a dropped pair and an empty card, never a throw.
+     */
+    @GameTest(template = "empty", batch = "wireless_link_card", timeoutTicks = 100,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void unparsableWirelessEndpointsReadAsNoRecord(GameTestHelper helper) {
+        var level = (ServerLevel) helper.getLevel();
+        var end = new CompoundTag();
+        end.putString("dim", "not a dimension id");
+        end.putLong("pos", 0L);
+        var pair = new CompoundTag();
+        pair.put("a", end.copy());
+        pair.put("b", end.copy());
+        var links = new ListTag();
+        links.add(pair);
+        var tag = new CompoundTag();
+        tag.put("links", links);
+
+        var data = WirelessLinks.SERIALIZER.read(null, tag, level.registryAccess());
+        if (!data.links().isEmpty()) {
+            helper.fail("a pair with an unparsable dimension survived the read: " + data.links());
+            return;
+        }
+
+        var mark = new CompoundTag();
+        mark.put("linkCardEndpoint", end.copy());
+        var card = new ItemStack(ModRegistration.WIRELESS_LINK_CARD.get());
+        card.set(DataComponents.CUSTOM_DATA, CustomData.of(mark));
+        String read = cn.dancingsnow.neoecoprototype.items.WirelessLinkCardItem.balanceReport(level, card)
+                .getString();
+        if (read.matches(".*\\d.*")) {
+            helper.fail("a card holding an unparsable dimension still printed a network reading: " + read);
+            return;
+        }
+        helper.succeed();
     }
 
     /**
