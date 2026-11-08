@@ -68,7 +68,12 @@ public class InfiniteMatrixBuilder extends ItemBuilder {
         this.modelGenerator = this.defaultModelGenerator;
     }
 
-    @Info("绑定到指定 AEKey（高级用法，通常用 itemType/fluidType）")
+    /**
+     * Bind an arbitrary {@link AEKey}, including a type neither items nor fluids - Ars Nouveau's Source is
+     * the shape this door exists for. A bare id cannot build one of these, so the script hands in the key
+     * object itself; {@code itemType}/{@code fluidType} stay the ordinary way in.
+     */
+    @Info("绑定到任意 AEKey（高级用法：魔源这类非物品/流体键；需要自己提供键对象）")
     public InfiniteMatrixBuilder type(Supplier<AEKey> key) {
         this.record = key;
         return this;
@@ -143,8 +148,8 @@ public class InfiniteMatrixBuilder extends ItemBuilder {
     public Item createObject() {
         if (this.record == null) {
             throw new IllegalStateException(
-                    "Custom infinite storage matrix '%s' has no bound type: call itemType(...) or fluidType(...)."
-                            .formatted(this.id));
+                    "Custom infinite storage matrix '%s' has no bound type: call itemType(...),"
+                            + " fluidType(...) or type(AEKey).".formatted(this.id));
         }
         if (this.matrixSize != StorageMatrixDefinition.MatrixSize.INFINITE) {
             throw new IllegalStateException("Infinite storage matrices must use size('infinite')");

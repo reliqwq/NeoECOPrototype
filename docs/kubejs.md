@@ -225,6 +225,7 @@ StartupEvents.registry('item', event => {
 - `.fluidType('namespace:fluid')`：同上，只有无限档真的绑。
 - `.chemicalType('namespace:chemical')`：绑定一种 Mekanism 化学品，有限档也真的绑；需要 Mekanism 和 Applied Mekanistics，缺了脚本会收到这一句而不是找不到类。
 - `.type('item'/'fluid'/'chemical')`：设置矩阵声明类型；绑定方法会自动设置对应类型。传家族名（`pigmee`/`universal`/`quantum`/`small_bulk`/`infinite`/`other`）只换材质，不换容量 —— 容量一律用 `.size(...)`。
+- `.type(() => key)`：绑定**任意 AEKey**（高级用法），给魔源这类既不是物品也不是流体的键用。键对象要脚本自己提供（那个模组的 API / 它自己的键工厂），因为一个裸 id 没法让别的键类型知道怎么造；它**只对无限档和 `.grows(...)` 生效**，有限档会明确报错。物品/流体/化学品仍优先用 `itemType`/`fluidType`/`chemicalType`。
 - `.size('infinite'/'1k'/'4k'/'16k'/'64k'/'1m'/'4m')`：设置容量，档位名就是它字面的 2 的幂 —— `1k` = 1024、`4k` = 4096、`16k` = 16384、`64k` = 65536、`1m` = 1048576、`4m` = 4194304 字节。**注意这跟我们自己成品的那几只小仓不是一回事**：成品物品/流体/化学的 1K/16K/64K 比名字多 25%（1280 / 20480 / 81920），量子的 1M 比名字多 50%（1572864）—— 那是成品里唯一在 1M 上抬高的档位。要在脚本里做出和成品一样大小的仓，别用档位，直接写 `.bytes(1280)`；`.size(...)` 与 `.bytes(...)` 同时出现时以 `.bytes(...)` 为准。
 - `.bytes(n)`：改用自定义字节数，**它会顶掉先前的或之后的 `size(...)` 档位**（两种顺序都一样）；`size('infinite')` 与 `.bytes(...)` 同时出现会明确报错。
 - `.totalTypes(n)`：改类型数，默认 256（物品/流体）或 25（化学品）。
@@ -315,6 +316,12 @@ StartupEvents.registry('item', event => {
        .chemicalType('mekanism:hydrogen')
        .grows(1, 1200)
        .displayName('氢气自产矩阵')
+
+  // 非物品/流体键（例如魔源）：键对象由那个模组的 API 提供
+  event.create('source_grower', 'neoecoprototype:storage_matrix')
+       .type(() => sourceKey)
+       .grows(100, 200)
+       .displayName('魔源自产矩阵')
 })
 ```
 
@@ -323,7 +330,7 @@ StartupEvents.registry('item', event => {
 - 两个数都必须写、都必须为正；写 0 或负数当场报错，不做"缺省回配置"。
 - 产量与间隔是这只仓自己的数字，**不读服务端配置**：改配置只影响注册的那只奇点仓。
 - 脚本这条路只要求为正，没有配置那条 60 刻的地板；想要慢就直接写大间隔。
-- 内容用哪个媒介由绑定的 key 决定，任意 mod 的物品、流体、化学品都可以；化学品照旧要 Mekanism 与 Applied Mekanistics。
+- 内容用哪个媒介由绑定的 key 决定，任意 mod 的物品、流体、化学品都可以；魔源这类非物品/流体键用 `.type(() => key)` 绑（键对象由脚本提供）。化学品照旧要 Mekanism 与 Applied Mekanistics。
 - `perBatch` 的单位就是那个 key 自己的计量单位，AE2 终端怎么显示那个媒介，这里就按什么计。
 - 往它推任何东西都是 0，只出不进。
 - 插进驱动器、被网络问过库存才开始计时；**放在身上不算**（和奇点仓同一条规则）。
