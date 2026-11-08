@@ -152,6 +152,11 @@ public final class NeoECOPrototypeClient {
         // The second member of the same family wears the same tile: what tells them apart is what the drive
         // says they hold, not the icon.
         ECOCellModels.register(ModRegistration.SIMPLIFY_SKY_STONE_DUST_CELL.get(), cellModel("l1_singularity"));
+        // Same family, same tile; the source member is optional, so it registers only when arseng does.
+        if (ModRegistration.OPTIONAL_SOURCE_GROWING_CELL != null) {
+            ECOCellModels.register(ModRegistration.OPTIONAL_SOURCE_GROWING_CELL.get(),
+                    cellModel("l1_singularity"));
+        }
         if (ModRegistration.OPTIONAL_UNIVERSAL_CELL_1K != null) {
             ECOCellModels.register(ModRegistration.OPTIONAL_UNIVERSAL_CELL_1K.get(),
                     cellModel("l0_universal"));
@@ -191,6 +196,15 @@ public final class NeoECOPrototypeClient {
             ECOCellModels.register(ModRegistration.OPTIONAL_FE_CELL_1K.get(), cellModel("l0_fe_1k"));
             ECOCellModels.register(ModRegistration.OPTIONAL_FE_CELL_1M.get(), cellModel("l1_fe"));
             ECOCellModels.register(ModRegistration.OPTIONAL_FE_CELL_4M.get(), cellModel("l1r_fe"));
+        }
+        if (ModRegistration.OPTIONAL_SOURCE_CELL_1K != null) {
+            // Same geometry as the item ladder, with the type stripe read from cell_type_lower's last free
+            // rail (pixels y 12..15) so the source medium has its own colour without new artwork.
+            ECOCellModels.register(ModRegistration.OPTIONAL_SOURCE_CELL_1K.get(), cellModel("l0_source_1k"));
+            ECOCellModels.register(ModRegistration.OPTIONAL_SOURCE_CELL_16K.get(), cellModel("l0_source_16k"));
+            ECOCellModels.register(ModRegistration.OPTIONAL_SOURCE_CELL_64K.get(), cellModel("l0_source_64k"));
+            ECOCellModels.register(ModRegistration.OPTIONAL_SOURCE_CELL_1M.get(), cellModel("l1_source"));
+            ECOCellModels.register(ModRegistration.OPTIONAL_SOURCE_CELL_4M.get(), cellModel("l1r_source"));
         }
         if (ModList.get().isLoaded("kubejs")) {
             ResourceLocation infiniteItemCellModel = ResourceLocation.fromNamespaceAndPath(

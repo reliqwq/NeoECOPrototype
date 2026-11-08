@@ -1,0 +1,24 @@
+{
+  "neoforge:conditions": [
+    {
+      "type": "neoforge:mod_loaded",
+      "modid": "arseng"
+    },
+    {
+      "type": "neoforge:mod_loaded",
+      "modid": "ars_nouveau"
+    }
+  ],
+  "type": "ae2:storage_cell_disassembly",
+  "cell": "neoecoprototype:simplify_source_storage_cell_1k",
+  "cell_disassembly_items": [
+    {
+      "id": "neoecoprototype:simplify_source_storage_matrix_housing",
+      "count": 1
+    },
+    {
+      "id": "ae2:cell_component_1k",
+      "count": 1
+    }
+  ]
+}

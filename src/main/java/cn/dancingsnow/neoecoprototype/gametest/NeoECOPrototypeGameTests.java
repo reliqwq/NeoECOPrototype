@@ -708,6 +708,39 @@ public final class NeoECOPrototypeGameTests {
                 measured.add((String) rung[0]);
             }
         }
+        // Ars Nouveau's source rides arseng, and it is the one family with a single key: the pour test runs
+        // with no second key to open, so it proves the budget and the refusal of more of the one key it holds
+        // rather than the per-type opening. The expected numbers are the ladder's own, written out.
+        if (ModList.get().isLoaded("arseng")) {
+            var sourceKey = ArsEnergistiqueCellTestProbe.sourceKey();
+            var sourceType = ArsEnergistiqueCellTestProbe.sourceKeyType();
+            if (sourceKey == null || sourceType == null) {
+                helper.fail("arseng is loaded, yet its source key resolved to " + sourceKey + " of type "
+                        + sourceType + " - the five rows below would prove nothing");
+                return;
+            }
+            Object[][] sourceRungs = {
+                    {"source 1k", ModRegistration.OPTIONAL_SOURCE_CELL_1K, 1280L},
+                    {"source 16k", ModRegistration.OPTIONAL_SOURCE_CELL_16K, 20480L},
+                    {"source 64k", ModRegistration.OPTIONAL_SOURCE_CELL_64K, 81920L},
+                    {"source 1m", ModRegistration.OPTIONAL_SOURCE_CELL_1M, 1048576L},
+                    {"source 4m", ModRegistration.OPTIONAL_SOURCE_CELL_4M, 4194304L},
+            };
+            for (Object[] rung : sourceRungs) {
+                var supplier = (java.util.function.Supplier<? extends net.minecraft.world.item.Item>) rung[1];
+                if (supplier == null) {
+                    helper.fail("arseng is loaded, yet " + rung[0] + " was never registered - a missing rung"
+                            + " is not the same thing as a rung that was checked");
+                    return;
+                }
+                fillToBoundary(helper, supplier.get(), sourceType, sourceKey, null,
+                        (Long) rung[2], (String) rung[0]);
+                measured.add((String) rung[0]);
+            }
+        } else {
+            NeoECOPrototype.LOGGER.info("cell_capacity: the five source rungs were not read,"
+                    + " arseng is absent from this run");
+        }
         // The tables above are gated on optional mods, so "the ladder was swept" can only be answered from
         // what this run actually read. The ten ungated arms are the five rungs of each family we register
         // ourselves; if one of them stops existing the count says so, instead of the test quietly measuring
@@ -746,7 +779,13 @@ public final class NeoECOPrototypeGameTests {
                 cell.getTotalBytes(), cell.getUsedBytes());
     }
 
-    /** Fill one cell to its claimed byte budget with a single key, then ask for more than it can hold. */
+    /**
+     * Fill one cell to its claimed byte budget with a single key, then ask for more than it can hold.
+     *
+     * <p>{@code second} may be null for a medium that has only one key - arseng's source is a singleton, so
+     * there is no new type left to open; the closing ask is then made with the key the cell already holds,
+     * which still has to be refused.</p>
+     */
     private static void fillToBoundary(GameTestHelper helper, net.minecraft.world.item.Item cellItem,
                                        appeng.api.stacks.AEKeyType type, appeng.api.stacks.AEKey first,
                                        appeng.api.stacks.AEKey second, long expectedBytes, String label) {
@@ -793,7 +832,8 @@ public final class NeoECOPrototypeGameTests {
         // Full is full for the type already inside it, and for the next new type: a second key would have to
         // pay eco's per-type opening cost out of nothing, so both asks must come back empty.
         if (cell.insert(first, type.getAmountPerByte(), appeng.api.config.Actionable.MODULATE, null) != 0L
-                || cell.insert(second, ask, appeng.api.config.Actionable.MODULATE, null) != 0L) {
+                || (second != null
+                        && cell.insert(second, ask, appeng.api.config.Actionable.MODULATE, null) != 0L)) {
             helper.fail(label + " still accepts an insert once its " + expectedBytes
                     + " bytes are spent - either more of the key it holds, or a brand new opening");
         }
@@ -905,7 +945,8 @@ public final class NeoECOPrototypeGameTests {
                     var namespace = net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(item)
                             .getNamespace();
                     if (namespace.equals(NeoECOPrototype.MOD_ID) || namespace.equals("minecraft")
-                            || OBTAINABLE_WITHOUT_CRAFTING.containsKey(item)) {
+                            || OBTAINABLE_WITHOUT_CRAFTING.containsKey(
+                                    net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(item))) {
                         continue;
                     }
                     // Distinct items, not ingredient slots: one shaped recipe can ask for the same
@@ -1002,8 +1043,15 @@ public final class NeoECOPrototypeGameTests {
      * Items that legitimately have no crafting recipe, each with the way it is actually obtained.
      * Anything added here needs that reason checked, not guessed - an entry with a wrong reason is how
      * this guard stops meaning anything.
+     *
+     * <p>Keyed by id rather than by {@code Item} on purpose: an entry may name a mod we only run, never
+     * compile against, and the class that holds its items would then be a symbol this file cannot use.</p>
      */
-    private static final java.util.Map<Item, String> OBTAINABLE_WITHOUT_CRAFTING = java.util.Map.of();
+    private static final java.util.Map<ResourceLocation, String> OBTAINABLE_WITHOUT_CRAFTING =
+            java.util.Map.of(
+                    ResourceLocation.fromNamespaceAndPath("ars_nouveau", "alakarkinos_token"),
+                    "ars_nouveau's own guide: an Alakarkinos on the beach hands one over for a pottery"
+                            + " sherd, and no recipe in the jar produces it (checked 2026-11-08)");
 
     /**
      * Every recipe file we ship really reached the recipe manager.
@@ -4311,6 +4359,158 @@ public final class NeoECOPrototypeGameTests {
         return colour.getValue();
     }
 
+    /**
+     * The accessory-slot half of the dolls, with Curios present: every one of them is a curio the
+     * {@code head} slot accepts, a doll worn there adds no attribute modifiers (so no armour), and the
+     * effect tick still finds it with the helmet slot empty. All of Curios' classes live in
+     * {@link CurioDollTestProbe}; without the mod the test succeeds having asserted nothing, because the
+     * dolls are helmet-only in that pack and nothing here promises otherwise.
+     */
+    @GameTest(template = "empty", batch = "doll_curio", timeoutTicks = 100, required = false,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void dollsCanBeWornInTheHeadCurioSlotWithoutArmour(GameTestHelper helper) {
+        if (!net.neoforged.fml.ModList.get().isLoaded("curios")) {
+            helper.succeed();
+            return;
+        }
+        String problem = CurioDollTestProbe.firstProblem(helper.getLevel());
+        if (problem != null) {
+            helper.fail(problem);
+            return;
+        }
+        helper.succeed();
+    }
+
+    /**
+     * The L1 shelf colour, checked across the family in both directions: a storage matrix that holds a
+     * megabyte or more wears the L1 green, and every smaller rung of the same tag stays plain white, so
+     * the colour reads as capacity rather than as a second tier. The tag is the list on purpose - a new
+     * matrix must be classified - and the optional-mod cells (Mekanism, AppliedFlux, OmniCells, arseng,
+     * MegaCells) are marked {@code required: false}, so an absent mod is skipped rather than failed.
+     */
+    @GameTest(template = "empty", batch = "l1_name_colour", timeoutTicks = 100,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void onlyMegabyteMatricesAndTheAssemblyCardAreNamedInTheTierGreen(
+            GameTestHelper helper) {
+        var tagText = readResource("/data/neoecoprototype/tags/item/storage_matrices.json", helper);
+        if (tagText == null) {
+            return;
+        }
+        var zh = com.google.gson.JsonParser.parseString(
+                readResource("/assets/neoecoprototype/lang/zh_cn.json", helper)).getAsJsonObject();
+        var en = com.google.gson.JsonParser.parseString(
+                readResource("/assets/neoecoprototype/lang/en_us.json", helper)).getAsJsonObject();
+        int wanted = ModRegistration.NAME_THEME_TIER_L1 & 0xFFFFFF;
+        int named = 0;
+        int greens = 0;
+        int whites = 0;
+        for (var entry : com.google.gson.JsonParser.parseString(tagText).getAsJsonObject()
+                .getAsJsonArray("values")) {
+            var id = net.minecraft.resources.ResourceLocation.parse(
+                    entry.getAsJsonObject().get("id").getAsString());
+            boolean megabyte = matrixCapacity(id.getPath()) >= (1L << 20);
+            if (megabyte) {
+                named++;
+            }
+            if (!net.minecraft.core.registries.BuiltInRegistries.ITEM.containsKey(id)) {
+                continue;
+            }
+            var item = net.minecraft.core.registries.BuiltInRegistries.ITEM.get(id);
+            if (megabyte) {
+                greens++;
+                if (!nameWearsTierGreen(item, wanted, zh, en, helper)) {
+                    return;
+                }
+                continue;
+            }
+            whites++;
+            var stack = new net.minecraft.world.item.ItemStack(item);
+            if (stack.has(net.minecraft.core.component.DataComponents.ITEM_NAME)
+                    || stack.has(net.minecraft.core.component.DataComponents.CUSTOM_NAME)) {
+                helper.fail(id + " holds less than a megabyte but still wears a name colour, so the "
+                        + "green no longer marks capacity");
+                return;
+            }
+        }
+        // Fourteen is the tag's whole megabyte-and-up ladder - item, fluid, source, chemical and FE
+        // 1M/4M plus the four omni 1M cells. The count sits here so a rung added without a decision
+        // shows up as a number instead of passing quietly.
+        if (named != 14) {
+            helper.fail("the tag names " + named + " megabyte-and-up matrices, expected 14");
+            return;
+        }
+        // Without Mekanism and OmniCells only eight of those fourteen exist, and twenty-one of the
+        // twenty-eight smaller rungs do; both halves have to be exercised or this measured half a rule.
+        if (greens < 8) {
+            helper.fail("only " + greens + " megabyte-and-up matrices were in the game, so the green "
+                    + "half measured almost nothing");
+            return;
+        }
+        if (whites < 21) {
+            helper.fail("only " + whites + " smaller matrices were in the game, so the white half "
+                    + "measured almost nothing");
+            return;
+        }
+        if (!nameWearsTierGreen(ModRegistration.PROCESSOR_ASSEMBLY_WORKSTATION_CARD.get(), wanted, zh, en, helper)) {
+            return;
+        }
+        helper.succeed();
+    }
+
+    /**
+     * The capacity an id suffix names, in bytes: {@code _1k} is 1024, {@code _4m} is 4 MiB. The cells
+     * themselves hold 1.25x that for the L1 surcharge, so this only sorts rungs; -1 means no suffix.
+     */
+    private static long matrixCapacity(String path) {
+        var matcher = java.util.regex.Pattern.compile("_([0-9]+)([km])$").matcher(path);
+        if (!matcher.find()) {
+            return -1L;
+        }
+        long unit = matcher.group(2).equals("m") ? 1L << 20 : 1L << 10;
+        return Long.parseLong(matcher.group(1)) * unit;
+    }
+
+    /** One item's shelf name: ITEM_NAME, its own key, the L1 green, and a word in both languages. */
+    private static boolean nameWearsTierGreen(net.minecraft.world.item.Item item, int wanted,
+            com.google.gson.JsonObject zh, com.google.gson.JsonObject en, GameTestHelper helper) {
+        var id = net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(item);
+        var stack = new ItemStack(item);
+        if (stack.has(net.minecraft.core.component.DataComponents.CUSTOM_NAME)) {
+            helper.fail(id + " wears CUSTOM_NAME, so every stack reads as renamed and renders italic");
+            return false;
+        }
+        var name = stack.get(net.minecraft.core.component.DataComponents.ITEM_NAME);
+        if (name == null) {
+            helper.fail(id + " has no ITEM_NAME, so it shows plain white in an inventory");
+            return false;
+        }
+        if (!(name.getContents() instanceof net.minecraft.network.chat.contents.TranslatableContents contents)) {
+            helper.fail(id + "'s name is not a translation key, so it cannot follow the language");
+            return false;
+        }
+        if (!contents.getKey().equals(item.getDescriptionId())) {
+            helper.fail(id + " names " + contents.getKey() + ", expected its own " + item.getDescriptionId());
+            return false;
+        }
+        var colour = name.getStyle().getColor();
+        if (colour == null) {
+            helper.fail(id + " has no name colour, so it still reads white");
+            return false;
+        }
+        if ((colour.getValue() & 0xFFFFFF) != wanted) {
+            helper.fail(id + " is named in " + Integer.toHexString(colour.getValue() & 0xFFFFFF)
+                    + ", expected the L1 green " + Integer.toHexString(wanted));
+            return false;
+        }
+        for (var table : List.of(zh, en)) {
+            if (!table.has(contents.getKey()) || table.get(contents.getKey()).getAsString().isBlank()) {
+                helper.fail("a language file has no " + contents.getKey() + ", so the shelf shows the raw key");
+                return false;
+            }
+        }
+        return true;
+    }
+
     /** What an ItemStack is, in the short form a failure line needs. */
     private static String itemName(ItemStack stack) {
         return net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(stack.getItem())
@@ -4786,7 +4986,14 @@ public final class NeoECOPrototypeGameTests {
             java.util.Map.entry("storage_cell_l1_small_bulk_fluid", "0,3,6,6"),
             java.util.Map.entry("storage_cell_l1r_small_bulk_fluid", "0,3,6,6"),
             java.util.Map.entry("storage_cell_l1_small_bulk_item", "0,6,6,9"),
-            java.util.Map.entry("storage_cell_l1r_small_bulk_item", "0,6,6,9"));
+            java.util.Map.entry("storage_cell_l1r_small_bulk_item", "0,6,6,9"),
+            // Source is the fourth rail of cell_type_lower, the purple row drawn for it; every rung reads the
+            // same band because the medium has one key, and the rungs are told apart by the level band alone.
+            java.util.Map.entry("storage_cell_l0_source_1k", "0,12,6,15"),
+            java.util.Map.entry("storage_cell_l0_source_16k", "0,12,6,15"),
+            java.util.Map.entry("storage_cell_l0_source_64k", "0,12,6,15"),
+            java.util.Map.entry("storage_cell_l1_source", "0,12,6,15"),
+            java.util.Map.entry("storage_cell_l1r_source", "0,12,6,15"));
 
     /** The cell models that deliberately draw no type lamp at all, only the level bands. */
     private static final List<String> CELL_MODELS_WITHOUT_TYPE =
@@ -10774,7 +10981,160 @@ public final class NeoECOPrototypeGameTests {
             helper.fail("the flux row should wear eco's \"other\" icon, not borrow the item one");
             return;
         }
+        // Source is the one medium whose row is gated on an optional mod, so both sides have to hold: with
+        // arseng the row exists and routes by cell type and by key, without it neither eco's cell type nor our
+        // items may be left behind. Getting one half right is how a panel ends up with a row nobody can fill.
+        var sourceType = cn.dancingsnow.neoecoae.all.NERegistries.CELL_TYPE.get(
+                net.minecraft.resources.ResourceLocation.fromNamespaceAndPath("neoecoae", "source"));
+        if (ModList.get().isLoaded("arseng")) {
+            if (sourceType == null) {
+                helper.fail("arseng is loaded but eco registered no source cell type, so the source row can"
+                        + " never be drawn");
+                return;
+            }
+            // All seven are registered inside the one isLoaded("arseng") block in NeoECOPrototype; a member
+            // that slips out of it either ships without the medium (cells) or lists it in the creative tab
+            // while nothing can fill it (housing), so read the whole family rather than the first entry.
+            var absentMembers = new java.util.ArrayList<String>();
+            for (var member : java.util.Map.of(
+                    "housing", ModRegistration.OPTIONAL_SOURCE_CELL_HOUSING != null,
+                    "1k", ModRegistration.OPTIONAL_SOURCE_CELL_1K != null,
+                    "16k", ModRegistration.OPTIONAL_SOURCE_CELL_16K != null,
+                    "64k", ModRegistration.OPTIONAL_SOURCE_CELL_64K != null,
+                    "1m", ModRegistration.OPTIONAL_SOURCE_CELL_1M != null,
+                    "4m", ModRegistration.OPTIONAL_SOURCE_CELL_4M != null,
+                    "growing", ModRegistration.OPTIONAL_SOURCE_GROWING_CELL != null).entrySet()) {
+                if (!member.getValue()) {
+                    absentMembers.add(member.getKey());
+                }
+            }
+            if (!absentMembers.isEmpty()) {
+                helper.fail("arseng is loaded but these source members were never registered: "
+                        + absentMembers + " (the family is registered in one block in NeoECOPrototype)");
+                return;
+            }
+            if (SimplifyStorageHostBlockEntity.panelRowOf(sourceType, java.util.Set.of())
+                    != SimplifyStorageHostBlockEntity.ROW_SOURCE) {
+                helper.fail("eco's source cell type lands in row "
+                        + SimplifyStorageHostBlockEntity.panelRowOf(sourceType, java.util.Set.of())
+                        + " instead of the source row");
+                return;
+            }
+            var sourceKey = appeng.api.stacks.AEKeyTypes.get(
+                    net.minecraft.resources.ResourceLocation.fromNamespaceAndPath("arseng", "source"));
+            if (sourceKey == null) {
+                helper.fail("arseng's source key type is not in AE2's registry, so the key-type half below"
+                        + " would check nothing");
+                return;
+            }
+            // Both halves of the routing: the registered type, and a cell whose only claim is the key it holds.
+            if (SimplifyStorageHostBlockEntity.panelRowOf(sourceType, java.util.Set.of(sourceKey))
+                    != SimplifyStorageHostBlockEntity.ROW_SOURCE
+                    || SimplifyStorageHostBlockEntity.panelRowOf(item, java.util.Set.of(sourceKey))
+                            != SimplifyStorageHostBlockEntity.ROW_SOURCE) {
+                helper.fail("a cell holding arseng's source key is not routed to the source row");
+                return;
+            }
+            if (SimplifyStorageHostBlockEntity.panelKindOf(SimplifyStorageHostBlockEntity.ROW_SOURCE)
+                    != cn.dancingsnow.neoecoae.gui.storage.StorageHostUI.CellEntry.KIND_OTHER) {
+                helper.fail("the source row should wear eco's \"other\" icon, like the flux row");
+                return;
+            }
+            // The row is joined to a cell by the engine's own answer, so read it there rather than off our
+            // item class: a cell type that merely looks like the source type would otherwise pass.
+            var cell = cn.dancingsnow.neoecoae.api.storage.ECOStorageCells.getCellInventory(
+                    new ItemStack(ModRegistration.OPTIONAL_SOURCE_CELL_1K.get()),
+                    (appeng.api.storage.cells.ISaveProvider) null);
+            if (cell == null || !sourceType.equals(cell.getCellType())) {
+                helper.fail("our 1K source cell reports cell type "
+                        + (cell == null ? "none (no inventory)" : cell.getCellType().desc().getString())
+                        + " instead of eco's registered source type");
+                return;
+            }
+        } else {
+            if (sourceType != null) {
+                helper.fail("eco registered a source cell type without arseng, so the source row is drawn"
+                        + " over a medium nothing can fill");
+                return;
+            }
+            if (ModRegistration.OPTIONAL_SOURCE_CELL_HOUSING != null
+                    || ModRegistration.OPTIONAL_SOURCE_CELL_1K != null
+                    || ModRegistration.OPTIONAL_SOURCE_CELL_16K != null
+                    || ModRegistration.OPTIONAL_SOURCE_CELL_64K != null
+                    || ModRegistration.OPTIONAL_SOURCE_CELL_1M != null
+                    || ModRegistration.OPTIONAL_SOURCE_CELL_4M != null
+                    || ModRegistration.OPTIONAL_SOURCE_GROWING_CELL != null) {
+                helper.fail("some of our source family was registered without arseng, so it would reach"
+                        + " eco's source cell type at first use in a game that does not have it");
+                return;
+            }
+        }
         helper.succeed();
+    }
+
+    /**
+     * The table above says where a mounted cell <i>would</i> be counted; this reads the list the panel is
+     * actually drawn from, because those are two different facts. {@code createStorageTypeLines} decides
+     * which rows exist at all, and a medium whose line is never added routes perfectly and still never
+     * appears on screen - which no assertion over {@code panelRowOf} can see. The source row is the one
+     * that can go missing this way without anything else noticing, so both halves are read off a formed
+     * host: the drawn line (arseng present) and its absence (no line over a medium nothing can fill).
+     */
+    @GameTest(template = "l1_room", batch = "storage_panel_rows", timeoutTicks = 400,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void thePanelDrawsOneLinePerRowItCanFill(GameTestHelper helper) {
+        buildL1Room(helper, CARD_HOST,
+                ModRegistration.SIMPLIFY_STORAGE_CONTROLLER_BLOCK.get(),
+                ModRegistration.SIMPLIFY_STORAGE_INTERFACE_BLOCK.get(),
+                ModRegistration.SIMPLIFY_STORAGE_INTERFACE_BLOCK.get(),
+                host -> {
+                    if (!(host instanceof SimplifyStorageHostBlockEntity storageHost)) {
+                        helper.fail("the L1 storage controller is not our host block entity: " + host);
+                        return;
+                    }
+                    var lines = storageHost.createStoragePanelConfig(
+                            helper.makeMockPlayer(net.minecraft.world.level.GameType.SURVIVAL)).storageTypes();
+                    if (lines.isEmpty()) {
+                        helper.fail("a formed host drew no storage rows at all, so nothing below is measured");
+                        return;
+                    }
+                    var byIndex = new java.util.HashMap<Integer,
+                            cn.dancingsnow.neoecoae.api.storage.ECOCellType>();
+                    for (var line : lines) {
+                        var previous = byIndex.put(line.registryIndex(), line.type());
+                        if (previous != null) {
+                            helper.fail("two drawn rows share index " + line.registryIndex() + " ("
+                                    + previous.desc().getString() + " and " + line.type().desc().getString()
+                                    + "), so a cell joins the first and the second can never fill");
+                            return;
+                        }
+                    }
+                    if (!byIndex.containsKey(SimplifyStorageHostBlockEntity.ROW_ITEM)) {
+                        helper.fail("the drawn panel has no item row; rows present: " + byIndex.keySet());
+                        return;
+                    }
+                    var sourceType = cn.dancingsnow.neoecoae.all.NERegistries.CELL_TYPE.get(
+                            net.minecraft.resources.ResourceLocation.fromNamespaceAndPath(
+                                    "neoecoae", "source"));
+                    var drawnSource = byIndex.get(SimplifyStorageHostBlockEntity.ROW_SOURCE);
+                    if (ModList.get().isLoaded("arseng")) {
+                        if (sourceType == null) {
+                            helper.fail("arseng is loaded yet eco registered no source cell type");
+                            return;
+                        }
+                        if (!sourceType.equals(drawnSource)) {
+                            helper.fail("the panel draws source row " + (drawnSource == null ? "not at all"
+                                    : "over " + drawnSource.desc().getString())
+                                    + " instead of eco's registered source type");
+                            return;
+                        }
+                    } else if (drawnSource != null) {
+                        helper.fail("a source row is drawn while arseng is absent, so the panel lists a"
+                                + " medium nothing in this game can fill");
+                        return;
+                    }
+                    helper.succeed();
+                });
     }
 
     /**
@@ -10794,7 +11154,7 @@ public final class NeoECOPrototypeGameTests {
         media.add(cn.dancingsnow.neoecoprototype.items.SimplifyStorageCellItem.getMegaItemCellType());
         media.add(cn.dancingsnow.neoecoprototype.items.SimplifyStorageCellItem.getFluidCellType());
         for (var path : java.util.List.of("mekanism", "flux", "omni", "complex_omni", "quantum_omni",
-                "spent_nuclear_waste")) {
+                "spent_nuclear_waste", "source")) {
             var type = registry.get(
                     net.minecraft.resources.ResourceLocation.fromNamespaceAndPath("neoecoae", path));
             if (type != null) {
@@ -12792,6 +13152,128 @@ public final class NeoECOPrototypeGameTests {
         }
         if (dustCell.getCellType().equals(singularityCell.getCellType())) {
             helper.fail("both cells report the same eco cell type, so the panel and Jade cannot tell them apart");
+            return;
+        }
+        helper.succeed();
+    }
+
+    /**
+     * The family's third member grows Ars Nouveau source, on its own config pair, and stays out of every
+     * panel row like its two siblings.
+     *
+     * <p>The engine is shared, so what can go wrong here is exactly what a leftover static causes: a cell
+     * that pays the wrong key, reads another member's speed, or claims a cell type another member already
+     * owns. The content half goes through {@link ArsEnergistiqueCellTestProbe}, because the test bootstrap
+     * resolves every method on this class even in a run without arseng, and naming arseng's classes inside
+     * the method would stop the server from starting at all.</p>
+     */
+    @GameTest(template = "empty", batch = "source_growing_cell", timeoutTicks = 200,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void sourceGrowingCellPaysSourceOnItsOwnConfigPair(GameTestHelper helper) {
+        if (!ModList.get().isLoaded("arseng")) {
+            NeoECOPrototype.LOGGER.info("source_growing_cell: skipped, arseng is not installed");
+            helper.succeed();
+            return;
+        }
+        if (ModRegistration.OPTIONAL_SOURCE_GROWING_CELL == null) {
+            helper.fail("arseng is loaded but the source growing cell was never registered");
+            return;
+        }
+        var expected = ArsEnergistiqueCellTestProbe.sourceKey();
+        if (expected == null) {
+            helper.fail("arseng is loaded but its source key resolved to null");
+            return;
+        }
+        var sourceCell = (cn.dancingsnow.neoecoprototype.items.SimplifySingularityCellItem)
+                ModRegistration.OPTIONAL_SOURCE_GROWING_CELL.get();
+        if (!sourceCell.content().equals(expected)) {
+            helper.fail("the source growing cell pays " + sourceCell.content()
+                    + " instead of arseng's source key " + expected);
+            return;
+        }
+        var singularityCell = ModRegistration.SIMPLIFY_SINGULARITY_CELL.get();
+        if (sourceCell.growth().pays(singularityCell.content())
+                || singularityCell.growth().pays(sourceCell.content())) {
+            helper.fail("the source cell and the singularity cell pay each other's content");
+            return;
+        }
+
+        // Its own config pair, and only its own: the singularity cell's speed may not move with it.
+        var sourceAmount = cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig
+                .SOURCE_CELL_AMOUNT_PER_BATCH;
+        var sourceTicks = cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig
+                .SOURCE_CELL_TICKS_PER_BATCH;
+        var singAmount = cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig
+                .SINGULARITY_CELL_AMOUNT_PER_BATCH;
+        var singTicks = cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig
+                .SINGULARITY_CELL_TICKS_PER_BATCH;
+        long restoredAmount = sourceAmount.get();
+        long restoredTicks = sourceTicks.get();
+        try {
+            sourceAmount.set(7L);
+            sourceTicks.set(60L);
+            if (sourceCell.perBatch() != 7L || sourceCell.ticksPerBatch() != 60L) {
+                helper.fail("the source cell ignored its own config pair: it reports "
+                        + sourceCell.perBatch() + " per " + sourceCell.ticksPerBatch());
+                return;
+            }
+            if (singularityCell.perBatch() != singAmount.get()
+                    || singularityCell.ticksPerBatch() != singTicks.get()) {
+                helper.fail("moving the source_cell entries also moved the singularity cell to "
+                        + singularityCell.perBatch() + " per " + singularityCell.ticksPerBatch()
+                        + " - the two pairs are not independent");
+                return;
+            }
+            // Stamped at tick 1000 so "before the first batch" is a real boundary: batches count from the
+            // stamp, and a bank at 0 would fold in every batch since the world was made.
+            var fresh = new cn.dancingsnow.neoecoprototype.items.SimplifySingularityCellItem.Bank(1000L, 0L);
+            if (sourceCell.readyAt(fresh, 1059L) != 0L || sourceCell.readyAt(fresh, 1060L) != 7L
+                    || sourceCell.readyAt(fresh, 1120L) != 14L) {
+                helper.fail("the source cell's bank does not follow its own 7 per 60: 1059 -> "
+                        + sourceCell.readyAt(fresh, 1059L) + ", 1060 -> " + sourceCell.readyAt(fresh, 1060L)
+                        + ", 1120 -> " + sourceCell.readyAt(fresh, 1120L));
+                return;
+            }
+        } finally {
+            sourceAmount.set(restoredAmount);
+            sourceTicks.set(restoredTicks);
+        }
+
+        var itemKeys = java.util.Set.<appeng.api.stacks.AEKeyType>of(appeng.api.stacks.AEKeyType.items());
+        if (SimplifyStorageHostBlockEntity.panelRowOf(sourceCell.getCellType(), itemKeys)
+                != SimplifyStorageHostBlockEntity.ROW_NONE) {
+            helper.fail("the source growing cell landed in row "
+                    + SimplifyStorageHostBlockEntity.panelRowOf(sourceCell.getCellType(), itemKeys)
+                    + " instead of no row at all");
+            return;
+        }
+        if (sourceCell.getCellType()
+                .equals(cn.dancingsnow.neoecoprototype.items.SimplifySingularityCellItem.CELL_TYPE)
+                || sourceCell.getCellType()
+                        .equals(cn.dancingsnow.neoecoprototype.items.SimplifySingularityCellItem
+                                .SKY_STONE_DUST_CELL_TYPE)) {
+            helper.fail("the source growing cell reuses another member's cell type, so the panel and Jade"
+                    + " cannot tell them apart");
+            return;
+        }
+
+        // The engine has to answer the same key the item does, or a drive would list one stock and pay another.
+        var stack = new net.minecraft.world.item.ItemStack(sourceCell);
+        var inventory = ECOStorageCells.getCellInventory(stack, (ISaveProvider) null);
+        if (inventory == null || !sourceCell.getCellType().equals(inventory.getCellType())) {
+            helper.fail("the source growing cell's inventory reports cell type "
+                    + (inventory == null ? "none (no inventory)" : inventory.getCellType().desc().getString()));
+            return;
+        }
+        if (inventory.extract(singularityCell.content(), 1L, Actionable.SIMULATE, IActionSource.empty())
+                != 0L) {
+            helper.fail("the source growing cell handed out a singularity");
+            return;
+        }
+        if (inventory.insert(expected, 1000L, Actionable.MODULATE, IActionSource.empty()) != 0L
+                || inventory.isPreferredStorageFor(expected, IActionSource.empty())) {
+            helper.fail("the source growing cell accepted an insert, so the stock it hands out can be"
+                    + " overwritten by whatever the network routes into it");
             return;
         }
         helper.succeed();

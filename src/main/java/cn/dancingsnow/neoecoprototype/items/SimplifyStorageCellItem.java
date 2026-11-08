@@ -96,6 +96,19 @@ public class SimplifyStorageCellItem extends ECOStorageCellItem {
         this.totalTypes = totalTypes;
     }
 
+    /**
+     * The same cell for a medium whose key type lives in an optional mod: eco stores the supplier and only
+     * asks it when a stack actually reports its key type, so naming the foreign class inside that supplier
+     * does not resolve it at registration time.
+     */
+    public SimplifyStorageCellItem(Item.Properties properties, Supplier<AEKeyType> keyType,
+                                   Supplier<ECOCellType> cellType, long bytes, int bytesPerType, int totalTypes) {
+        super(properties, SimplifyTier.L1, keyType, cellType, bytes, bytesPerType, (double) bytes / (1L << 20));
+        this.bytes = bytes;
+        this.bytesPerType = bytesPerType;
+        this.totalTypes = totalTypes;
+    }
+
     @Override
     public long getBytes() {
         return bytes;

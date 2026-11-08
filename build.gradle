@@ -293,6 +293,18 @@ dependencies {
     // ModList.isLoaded("appflux") 里被引用，所以 compileOnly 就够；运行时那份在 run/mods。
     // 它自己硬依赖 glodium + guideme，容量口径是 flux_cell.amount（默认 1 byte = 1 Mi FE）。
     compileOnly files("libs/appflux-1.21-2.1.5-neoforge.jar") // AppliedFlux 1.21-2.1.5-neoforge
+    // 可选集成：Ars Nouveau 的魔源。真正提供 AE2 键的是 Ars Energistique（modId arseng，
+    // gripe._90.arseng.me.key.SourceKeyType.TYPE，键 id arseng:source），ars_nouveau 只是它的硬依赖。
+    // 我们只在 ArsEnergistiqueIntegration 里点 arseng 的类，而那个类只在 ModList.isLoaded("arseng")
+    // 的同一方法分支里被调用，所以 compileOnly 就够。运行时四颗都进 dev runtime，套件才看得见这一族。
+    compileOnly files("libs/arseng-2.1.1-beta.jar") // Ars Energistique 2.1.1-beta
+    runtimeOnly files("libs/arseng-2.1.1-beta.jar")
+    runtimeOnly files("libs/ars_nouveau-1.21.1-5.13.4.jar")
+    // 可选集成：Curios（首饰栏）。compileOnly 只用它的注册口与 SlotContext，代码只在
+    // ModList.isLoaded("curios") 的同一方法分支里被调用；运行时那份在 run/mods。
+    compileOnly files("libs/curios-neoforge-9.5.1+1.21.1.jar")
+    runtimeOnly files("libs/curios-neoforge-9.5.1+1.21.1.jar")
+    runtimeOnly files("libs/geckolib-neoforge-1.21.1-4.8.3.jar")
 
     compileOnly "org.projectlombok:lombok:1.18.34"
     annotationProcessor "org.projectlombok:lombok:1.18.34"

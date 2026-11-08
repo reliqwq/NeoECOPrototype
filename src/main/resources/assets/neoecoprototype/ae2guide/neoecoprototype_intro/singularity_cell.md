@@ -64,3 +64,11 @@ The same engine, the same tile and the same default pace (120 per 600 ticks) - i
 <RecipeFor id="neoecoprototype:simplify_sky_stone_dust_cell" />
 
 Its bill differs from the singularity cell's only in the last ingredient: infinite matrix housing + 64M ECO storage component + green crystal lattice + one sky stone dust. A disassembly recipe returns the same four.
+
+## The third member: source cell
+
+It needs Ars Énergistique (that mod supplies the source medium; Ars Nouveau is its own hard dependency). Same engine, same tile, same default pace - it grows **source** instead. It has its own config section, `source_cell`, with the same two keys and the same defaults.
+
+> This member is **only registered when Ars Énergistique is installed**, so this page carries no icon or recipe box for it: a tag that cannot resolve an item writes a line of red text onto the page. With Ars Énergistique installed it is in JEI.
+
+Its bill is not the component one: infinite matrix housing + kouooki's Fumo Doll + Alakarkinos token + source gem block, shapeless. A disassembly recipe returns the same four.

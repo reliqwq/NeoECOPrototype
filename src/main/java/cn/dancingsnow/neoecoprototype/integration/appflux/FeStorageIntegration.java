@@ -22,13 +22,16 @@ public final class FeStorageIntegration {
         ModRegistration.OPTIONAL_FE_CELL_HOUSING = items.register("simplify_fe_cell_housing",
                 () -> new Item(new Item.Properties()));
         ModRegistration.OPTIONAL_FE_CELL_1K = items.register("simplify_fe_storage_cell_1k",
-                () -> new SimplifyFeStorageCellItem(new Item.Properties().stacksTo(1),
+                () -> new SimplifyFeStorageCellItem(
+                        ModRegistration.matrixName("simplify_fe_storage_cell_1k", SimplifyFeStorageCellItem.BYTES_1K).stacksTo(1),
                         SimplifyFeStorageCellItem::getFluxCellType, SimplifyFeStorageCellItem.BYTES_1K));
         ModRegistration.OPTIONAL_FE_CELL_1M = items.register("simplify_fe_storage_cell_1m",
-                () -> new SimplifyFeStorageCellItem(new Item.Properties().stacksTo(1),
+                () -> new SimplifyFeStorageCellItem(
+                        ModRegistration.matrixName("simplify_fe_storage_cell_1m", SimplifyFeStorageCellItem.BYTES_1M).stacksTo(1),
                         SimplifyFeStorageCellItem::getFluxCellType, SimplifyFeStorageCellItem.BYTES_1M));
         ModRegistration.OPTIONAL_FE_CELL_4M = items.register("simplify_fe_storage_cell_4m",
-                () -> new SimplifyFeStorageCellItem(new Item.Properties().stacksTo(1),
+                () -> new SimplifyFeStorageCellItem(
+                        ModRegistration.matrixName("simplify_fe_storage_cell_4m", SimplifyFeStorageCellItem.BYTES_4M).stacksTo(1),
                         SimplifyFeStorageCellItem::getFluxCellType, SimplifyFeStorageCellItem.BYTES_4M));
     }
 

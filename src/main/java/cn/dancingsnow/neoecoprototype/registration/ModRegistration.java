@@ -181,6 +181,15 @@ public class ModRegistration {
     public static Supplier<? extends Item> OPTIONAL_FE_CELL_1K;
     public static Supplier<? extends Item> OPTIONAL_FE_CELL_1M;
     public static Supplier<? extends Item> OPTIONAL_FE_CELL_4M;
+    /** Assigned by ArsEnergistiqueIntegration only when arseng (Ars Energistique) is installed. */
+    public static Supplier<? extends Item> OPTIONAL_SOURCE_CELL_HOUSING;
+    public static Supplier<? extends Item> OPTIONAL_SOURCE_CELL_1K;
+    public static Supplier<? extends Item> OPTIONAL_SOURCE_CELL_16K;
+    public static Supplier<? extends Item> OPTIONAL_SOURCE_CELL_64K;
+    public static Supplier<? extends Item> OPTIONAL_SOURCE_CELL_1M;
+    public static Supplier<? extends Item> OPTIONAL_SOURCE_CELL_4M;
+    /** The self-growing source cell, assigned by ArsEnergistiqueIntegration on the same gate. */
+    public static Supplier<? extends Item> OPTIONAL_SOURCE_GROWING_CELL;
     public static final Supplier<Item> SIMPLIFY_QUANTUM_STORAGE_MATRIX_HOUSING =
             ITEMS.register("simplify_quantum_storage_matrix_housing", () -> new Item(new Item.Properties()));
     public static final Supplier<Item> SIMPLIFY_UNIVERSAL_STORAGE_MATRIX_HOUSING =
@@ -1060,7 +1069,7 @@ public class ModRegistration {
      */
     public static final Supplier<Item> PROCESSOR_ASSEMBLY_WORKSTATION_CARD =
             ITEMS.register("processor_assembly_workstation_card",
-                    () -> new Item(new Item.Properties().stacksTo(1)));
+                    () -> new Item(l1Name("processor_assembly_workstation_card").stacksTo(1)));
 
     /**
      * What a structure card hands over when the blocks it took out of a machine no longer fit in the
@@ -1134,7 +1143,8 @@ public class ModRegistration {
                     () -> new PigmeeStorageMatrixHousingItem(pigmeeHousingProperties()));
      public static final Supplier<SimplifyStorageCellItem> PIGMEE_STORAGE_CELL =
              ITEMS.register("pigmee_storage_cell",
-                     () -> storageCell(AEKeyType.items(), SimplifyStorageCellItem::getItemCellType,
+                     () -> storageCell("pigmee_storage_cell", AEKeyType.items(),
+                             SimplifyStorageCellItem::getItemCellType,
                              SimplifyStorageCellItem.BYTES_2K5, SimplifyStorageCellItem.BYTES_2K5_PER_TYPE));
 
     /**
@@ -1327,52 +1337,62 @@ public class ModRegistration {
 
      public static final Supplier<SimplifyStorageCellItem> SIMPLIFY_ITEM_CELL_1K =
              ITEMS.register("simplify_item_storage_cell_1k",
-                     () -> storageCell(AEKeyType.items(), SimplifyStorageCellItem::getItemCellType,
+                     () -> storageCell("simplify_item_storage_cell_1k", AEKeyType.items(),
+                             SimplifyStorageCellItem::getItemCellType,
                              SimplifyStorageCellItem.BYTES_1K, 1 << 2));
 
      public static final Supplier<SimplifyStorageCellItem> SIMPLIFY_ITEM_CELL_16K =
              ITEMS.register("simplify_item_storage_cell_16k",
-                     () -> storageCell(AEKeyType.items(), SimplifyStorageCellItem::getItemCellType,
+                     () -> storageCell("simplify_item_storage_cell_16k", AEKeyType.items(),
+                             SimplifyStorageCellItem::getItemCellType,
                              SimplifyStorageCellItem.BYTES_16K, 1 << 6));
 
      public static final Supplier<SimplifyStorageCellItem> SIMPLIFY_ITEM_CELL_64K =
             ITEMS.register("simplify_item_storage_cell_64k",
-                    () -> storageCell(AEKeyType.items(), SimplifyStorageCellItem::getItemCellType,
+                    () -> storageCell("simplify_item_storage_cell_64k", AEKeyType.items(),
+                            SimplifyStorageCellItem::getItemCellType,
                             SimplifyStorageCellItem.BYTES_64K, 1 << 8));
 
     public static final Supplier<SimplifyStorageCellItem> SIMPLIFY_ITEM_CELL_1M =
             ITEMS.register("simplify_item_storage_cell_1m",
-                    () -> storageCell(AEKeyType.items(), SimplifyStorageCellItem::getItemCellType,
+                    () -> storageCell("simplify_item_storage_cell_1m", AEKeyType.items(),
+                            SimplifyStorageCellItem::getItemCellType,
                             SimplifyStorageCellItem.BYTES_1M, 1 << 12));
 
     public static final Supplier<SimplifyStorageCellItem> SIMPLIFY_ITEM_CELL_4M =
             ITEMS.register("simplify_item_storage_cell_4m",
-                    () -> storageCell(AEKeyType.items(), SimplifyStorageCellItem::getItemCellType,
+                    () -> storageCell("simplify_item_storage_cell_4m", AEKeyType.items(),
+                            SimplifyStorageCellItem::getItemCellType,
                             SimplifyStorageCellItem.BYTES_4M, 1 << 14));
 
     public static final Supplier<SimplifyStorageCellItem> SIMPLIFY_FLUID_CELL_1K =
              ITEMS.register("simplify_fluid_storage_cell_1k",
-                     () -> storageCell(AEKeyType.fluids(), SimplifyStorageCellItem::getFluidCellType,
+                     () -> storageCell("simplify_fluid_storage_cell_1k", AEKeyType.fluids(),
+                             SimplifyStorageCellItem::getFluidCellType,
                              SimplifyStorageCellItem.BYTES_1K, 1 << 2));
 
      public static final Supplier<SimplifyStorageCellItem> SIMPLIFY_FLUID_CELL_16K =
              ITEMS.register("simplify_fluid_storage_cell_16k",
-                     () -> storageCell(AEKeyType.fluids(), SimplifyStorageCellItem::getFluidCellType,
+                     () -> storageCell("simplify_fluid_storage_cell_16k", AEKeyType.fluids(),
+                             SimplifyStorageCellItem::getFluidCellType,
                              SimplifyStorageCellItem.BYTES_16K, 1 << 6));
 
      public static final Supplier<SimplifyStorageCellItem> SIMPLIFY_FLUID_CELL_64K =
             ITEMS.register("simplify_fluid_storage_cell_64k",
-                    () -> storageCell(AEKeyType.fluids(), SimplifyStorageCellItem::getFluidCellType,
+                    () -> storageCell("simplify_fluid_storage_cell_64k", AEKeyType.fluids(),
+                            SimplifyStorageCellItem::getFluidCellType,
                             SimplifyStorageCellItem.BYTES_64K, 1 << 8));
 
     public static final Supplier<SimplifyStorageCellItem> SIMPLIFY_FLUID_CELL_1M =
             ITEMS.register("simplify_fluid_storage_cell_1m",
-                    () -> storageCell(AEKeyType.fluids(), SimplifyStorageCellItem::getFluidCellType,
+                    () -> storageCell("simplify_fluid_storage_cell_1m", AEKeyType.fluids(),
+                            SimplifyStorageCellItem::getFluidCellType,
                             SimplifyStorageCellItem.BYTES_1M, 1 << 12));
 
     public static final Supplier<SimplifyStorageCellItem> SIMPLIFY_FLUID_CELL_4M =
             ITEMS.register("simplify_fluid_storage_cell_4m",
-                    () -> storageCell(AEKeyType.fluids(), SimplifyStorageCellItem::getFluidCellType,
+                    () -> storageCell("simplify_fluid_storage_cell_4m", AEKeyType.fluids(),
+                            SimplifyStorageCellItem::getFluidCellType,
                             SimplifyStorageCellItem.BYTES_4M, 1 << 14));
 
     /**
@@ -1425,11 +1445,31 @@ public class ModRegistration {
                         .build());
     }
 
-    private static SimplifyStorageCellItem storageCell(
+    /**
+     * The L1 shelf colour: the workstation card and the megabyte-and-up matrix cells carry it on
+     * ITEM_NAME (never CUSTOM_NAME), in the same green the migration drive's L1 rung wears.
+     */
+    public static Item.Properties l1Name(String itemPath) {
+        return coloredItemName(itemPath, NAME_THEME_TIER_L1);
+    }
+
+    /**
+     * The colour a storage matrix wears: only the rungs that hold a megabyte or more carry the L1 green.
+     * The smaller rungs of the same ladder stay white, so the colour reads as capacity rather than as a
+     * second tier - 1K and 4M are both L1, and a half-coloured family would suggest otherwise.
+     */
+    public static Item.Properties matrixName(String itemPath, long bytes) {
+        return bytes >= SimplifyStorageCellItem.BYTES_1M
+                ? l1Name(itemPath)
+                : new Item.Properties();
+    }
+
+    /** One rung of the L1 storage-matrix ladder; the green follows its capacity, not the family. */
+    private static SimplifyStorageCellItem storageCell(String itemPath,
             AEKeyType keyType, Supplier<cn.dancingsnow.neoecoae.api.storage.ECOCellType> cellType,
             long bytes, int bytesPerType) {
         return new SimplifyStorageCellItem(
-                new Item.Properties().stacksTo(1), keyType, cellType, bytes, bytesPerType, 256);
+                matrixName(itemPath, bytes).stacksTo(1), keyType, cellType, bytes, bytesPerType, 256);
     }
 
     public static final Supplier<SimplifyComputationCellItem> SIMPLIFY_COMPUTATION_CELL_1M =
@@ -1891,6 +1931,15 @@ private static Supplier<BlockEntityType<SimplifyStorageVentBlockEntity>> registe
                              output.accept(OPTIONAL_FE_CELL_1M.get());
                              output.accept(OPTIONAL_FE_CELL_4M.get());
                              output.accept(OPTIONAL_FE_CELL_HOUSING.get());
+                         }
+                         if (OPTIONAL_SOURCE_CELL_1K != null) {
+                             output.accept(OPTIONAL_SOURCE_CELL_HOUSING.get());
+                             output.accept(OPTIONAL_SOURCE_CELL_1K.get());
+                             output.accept(OPTIONAL_SOURCE_CELL_16K.get());
+                             output.accept(OPTIONAL_SOURCE_CELL_64K.get());
+                             output.accept(OPTIONAL_SOURCE_CELL_1M.get());
+                             output.accept(OPTIONAL_SOURCE_CELL_4M.get());
+                             output.accept(OPTIONAL_SOURCE_GROWING_CELL.get());
                          }
                          if (OPTIONAL_BEYOND_STORAGE_CELL != null) {
                               output.accept(OPTIONAL_BEYOND_STORAGE_CELL.get());

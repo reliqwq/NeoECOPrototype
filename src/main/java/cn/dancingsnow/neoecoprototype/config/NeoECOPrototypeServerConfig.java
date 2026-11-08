@@ -123,6 +123,9 @@ public final class NeoECOPrototypeServerConfig {
     /** The same two figures for the meteorite-dust member, separately tunable. */
     public static final ModConfigSpec.LongValue SKY_STONE_DUST_CELL_TICKS_PER_BATCH;
     public static final ModConfigSpec.LongValue SKY_STONE_DUST_CELL_AMOUNT_PER_BATCH;
+    /** And for the source member (Ars Energistique): its own pair, same defaults. */
+    public static final ModConfigSpec.LongValue SOURCE_CELL_TICKS_PER_BATCH;
+    public static final ModConfigSpec.LongValue SOURCE_CELL_AMOUNT_PER_BATCH;
     /**
      * The ceiling on a single batch: the top of a long, so a pack may set any batch size it can write down
      * and the cell still cannot produce a number the arithmetic cannot hold. {@code bankOf} saturates at
@@ -324,6 +327,18 @@ public final class NeoECOPrototypeServerConfig {
                         "每批产出的陨石粉数量。默认 120 | 范围 1~Long.MAX。")
                 .defineInRange("amount_per_batch", 120L, 1L, SINGULARITY_CELL_AMOUNT_PER_BATCH_MAX);
         builder.pop();
+        builder.push("source_cell");
+        SOURCE_CELL_TICKS_PER_BATCH = builder
+                .comment("Ticks per batch for the source cell. Default: 600 | Range: 60~16777216.",
+                        "Note: independent from the singularity and meteorite-dust cells.",
+                        "魔源单元产出间隔（刻）。默认 600 | 范围 60~16777216。",
+                        "注：与奇点单元、陨石粉单元的配置相互独立。")
+                .defineInRange("ticks_per_batch", 600L, SINGULARITY_CELL_TICKS_PER_BATCH_MIN, 1L << 24);
+        SOURCE_CELL_AMOUNT_PER_BATCH = builder
+                .comment("Source per batch. Default: 120 | Range: 1~Long.MAX.",
+                        "每批产出的魔源数量。默认 120 | 范围 1~Long.MAX。")
+                .defineInRange("amount_per_batch", 120L, 1L, SINGULARITY_CELL_AMOUNT_PER_BATCH_MAX);
+        builder.pop();
         builder.push("machine_mind");
         MIND_IDLE_POWER_SAVING = builder
                 .comment("Fraction of idle draw the machine mind saves. Default: 0.1 | Range: 0~0.25. 0 = off.",
@@ -391,6 +406,17 @@ public final class NeoECOPrototypeServerConfig {
     public static long skyStoneDustCellAmountPerBatch() {
         return Math.min(SINGULARITY_CELL_AMOUNT_PER_BATCH_MAX,
                 Math.max(1L, SKY_STONE_DUST_CELL_AMOUNT_PER_BATCH.get()));
+    }
+
+    /** The source member's interval, on the same floor as the other two. */
+    public static long sourceCellTicksPerBatch() {
+        return Math.max(SINGULARITY_CELL_TICKS_PER_BATCH_MIN, SOURCE_CELL_TICKS_PER_BATCH.get());
+    }
+
+    /** The source member's batch size, on the same ceiling as the other two. */
+    public static long sourceCellAmountPerBatch() {
+        return Math.min(SINGULARITY_CELL_AMOUNT_PER_BATCH_MAX,
+                Math.max(1L, SOURCE_CELL_AMOUNT_PER_BATCH.get()));
     }
 
     /** Shared by the assembler and its JEI page so both agree on what is refused. */

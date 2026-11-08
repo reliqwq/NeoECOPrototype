@@ -56,6 +56,10 @@ public class NeoECOPrototype {
         if (ModList.get().isLoaded("beyonddimensions")) {
             BeyondIntegration.register(ModRegistration.ITEMS);
         }
+        if (ModList.get().isLoaded("arseng")) {
+            cn.dancingsnow.neoecoprototype.integration.arsenergistique.ArsEnergistiqueIntegration
+                    .register(ModRegistration.ITEMS);
+        }
         if (ModList.get().isLoaded("appflux")) {
             cn.dancingsnow.neoecoprototype.integration.appflux.FeStorageIntegration
                     .register(ModRegistration.ITEMS);
@@ -393,6 +397,13 @@ public class NeoECOPrototype {
         // asks for on AE2's own four.
         if (ModList.get().isLoaded("appflux")) {
             cn.dancingsnow.neoecoprototype.integration.appflux.FeStorageIntegration.registerUpgradeCards();
+        }
+        // Curios' head accessory slot (its Chinese name is 「首饰」): the six dolls register as a curio there
+        // and the head-slot tag carries them; a curio contributes no attribute modifiers, so a doll worn
+        // that way grants the same effects without the armour. All of it lives behind this check, so
+        // without Curios the dolls stay helmet-only.
+        if (ModList.get().isLoaded("curios")) {
+            cn.dancingsnow.neoecoprototype.integration.curios.CuriosDollSupport.register();
         }
         // AE2 的卡↔元件关联表决定：卡片 tooltip 的"可用于"清单、元件工作台升级槽放行
         // （查无登记即拒绝，界面标红"与单元格不兼容"）。按命名空间扫描以同时覆盖

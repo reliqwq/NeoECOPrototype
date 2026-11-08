@@ -100,6 +100,14 @@ public final class SimplifySingularityCellItem extends Item implements IBasicECO
             Component.translatable("eco_cell_type.neoecoprototype.sky_stone_dust"), TYPES, false);
 
     /**
+     * The source member's row. It is not eco's {@code neoecoae:source} type: that one belongs to the finite
+     * matrices and reports a bounded byte budget, while this cell has none. Only registered while arseng is
+     * present, like the item itself.
+     */
+    public static final ECOCellType SOURCE_CELL_TYPE = new ECOCellType(
+            Component.translatable("eco_cell_type.neoecoprototype.source"), TYPES, false);
+
+    /**
      * What a registered member of the family grows and which two config numbers it runs on.
      *
      * <p>Suppliers rather than values, because the config has to be read fresh every time (a cached
@@ -128,7 +136,9 @@ public final class SimplifySingularityCellItem extends Item implements IBasicECO
 
     /** Whether a panel row lookup is looking at any member of this family. */
     public static boolean isSelfGrowType(ECOCellType cellType) {
-        return CELL_TYPE.equals(cellType) || SKY_STONE_DUST_CELL_TYPE.equals(cellType);
+        return CELL_TYPE.equals(cellType)
+                || SKY_STONE_DUST_CELL_TYPE.equals(cellType)
+                || SOURCE_CELL_TYPE.equals(cellType);
     }
 
     /**

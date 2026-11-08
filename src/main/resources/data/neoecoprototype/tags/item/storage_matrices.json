@@ -58,6 +58,10 @@
       "required": false
     },
     {
+      "id": "neoecoprototype:simplify_source_growing_cell",
+      "required": false
+    },
+    {
       "id": "neoecoprototype:simplify_small_bulk_storage_cell",
       "required": false
     },
@@ -91,6 +95,26 @@
     },
     {
       "id": "neoecoprototype:simplify_fe_storage_cell_4m",
+      "required": false
+    },
+    {
+      "id": "neoecoprototype:simplify_source_storage_cell_1k",
+      "required": false
+    },
+    {
+      "id": "neoecoprototype:simplify_source_storage_cell_16k",
+      "required": false
+    },
+    {
+      "id": "neoecoprototype:simplify_source_storage_cell_64k",
+      "required": false
+    },
+    {
+      "id": "neoecoprototype:simplify_source_storage_cell_1m",
+      "required": false
+    },
+    {
+      "id": "neoecoprototype:simplify_source_storage_cell_4m",
       "required": false
     },
     {

@@ -167,6 +167,34 @@ versionRange = "*"
 ordering = "AFTER"
 side = "BOTH"
 
+# Ars Energistique (mod id arseng) carries the source medium: its AEKeyType (arseng:source) is what eco
+# registers its neoecoae:source cell type against, and our own L1 source matrices carry that same type.
+# The family is registered behind ModList.isLoaded("arseng"), so without the mod there is no item, recipe
+# or creative entry - the rest of the mod is unaffected. Open range for the same measured reason as
+# appflux above: an optional entry's range is enforced the moment the mod is present, and 2.1.1-beta is
+# the only build this integration has been measured against. ars_nouveau, curios and geckolib are its
+# own hard dependencies, not ours - curios has its own entry below because we use it directly.
+[[dependencies.neoecoprototype]]
+modId = "arseng"
+type = "optional"
+versionRange = "*"
+ordering = "AFTER"
+side = "BOTH"
+
+# Curios (accessory slots). Our six dolls register as a curio for the head slot ("首饰" is what Curios
+# calls that slot in Chinese), so they can be worn there as well as in the helmet slot. Worn as a curio
+# they grant no armour - the curio's attribute modifiers are empty - while everything else (night
+# vision, per-doll effects, the AE charging, the creeper scare) is read off the same items. The
+# registration lives in integration/curios/CuriosDollSupport and is only reached inside
+# ModList.isLoaded("curios"), so without the mod the dolls are helmet-only and nothing else changes.
+# Open range like the entries above: 9.5.1 is the only build measured, and presence is the real gate.
+[[dependencies.neoecoprototype]]
+modId = "curios"
+type = "optional"
+versionRange = "*"
+ordering = "AFTER"
+side = "BOTH"
+
 # Two viewer integrations, both behind ModList checks: Jade gets providers for our drives and hosts,
 # JEI and EMI get the multiblock and assembler recipe pages. eco 21.2.1 declares both as optional with
 # an open range, so an open range here is the same claim - the integration simply does not register

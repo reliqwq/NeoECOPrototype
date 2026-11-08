@@ -446,6 +446,8 @@ public class SimplifyStorageHostBlockEntity
     public static final int ROW_FLUX = 6;
     public static final int ROW_COMPLEX_UNIVERSAL = 7;
     public static final int ROW_SPENT_WASTE = 8;
+    /** Ars Nouveau's source, when arseng is present. Not a bulk family: eco registers one source type. */
+    public static final int ROW_SOURCE = 9;
     /** Not a row: a cell the panel must not count anywhere. */
     public static final int ROW_NONE = -1;
 
@@ -475,6 +477,12 @@ public class SimplifyStorageHostBlockEntity
         ECOCellType flux = getFluxCellType();
         if (flux != null) {
             lines.add(createStorageTypeLine(flux, ROW_FLUX));
+        }
+        // arseng supplies the source medium; eco registers the cell type only while it is present, so the
+        // row disappears together with the mod rather than showing an empty medium nobody can fill.
+        ECOCellType source = registeredCellType("source");
+        if (source != null) {
+            lines.add(createStorageTypeLine(source, ROW_SOURCE));
         }
         return lines;
     }
@@ -521,6 +529,17 @@ public class SimplifyStorageHostBlockEntity
         if (flux != null && flux.equals(cellType)) {
             return ROW_FLUX;
         }
+        // Source is matched by its cell type first and by the key it holds second: eco's own L4/L6/L9 source
+        // cells (and any other addon's) carry the same registered type, while a foreign cell that only holds
+        // arseng's key still belongs on this row. The row exists only when eco registered the type, so a
+        // cell is never routed to a row the panel is not drawing.
+        ECOCellType source = registeredCellType("source");
+        if (source != null
+                && (source.equals(cellType) || (keyTypes != null && keyTypes.stream().anyMatch(
+                        type -> "arseng".equals(type.getId().getNamespace())
+                                && "source".equals(type.getId().getPath()))))) {
+            return ROW_SOURCE;
+        }
         if (keyTypes != null) {
             if (keyTypes.contains(AEKeyType.fluids())) {
                 return ROW_FLUID;
@@ -540,7 +559,7 @@ public class SimplifyStorageHostBlockEntity
         return switch (row) {
             case ROW_FLUID -> StorageHostUI.CellEntry.KIND_FLUID;
             case ROW_CHEMICAL -> StorageHostUI.CellEntry.KIND_GAS;
-            case ROW_FLUX -> StorageHostUI.CellEntry.KIND_OTHER;
+            case ROW_FLUX, ROW_SOURCE -> StorageHostUI.CellEntry.KIND_OTHER;
             default -> StorageHostUI.CellEntry.KIND_ITEM;
         };
     }

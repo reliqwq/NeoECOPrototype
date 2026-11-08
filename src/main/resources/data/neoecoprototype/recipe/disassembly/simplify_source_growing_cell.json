@@ -1,0 +1,32 @@
+{
+  "neoforge:conditions": [
+    {
+      "type": "neoforge:mod_loaded",
+      "modid": "arseng"
+    },
+    {
+      "type": "neoforge:mod_loaded",
+      "modid": "ars_nouveau"
+    }
+  ],
+  "type": "ae2:storage_cell_disassembly",
+  "cell": "neoecoprototype:simplify_source_growing_cell",
+  "cell_disassembly_items": [
+    {
+      "id": "neoecoprototype:simplify_concrete_storage_matrix_housing",
+      "count": 1
+    },
+    {
+      "id": "neoecoprototype:fumo_doll_kouooki",
+      "count": 1
+    },
+    {
+      "id": "ars_nouveau:alakarkinos_token",
+      "count": 1
+    },
+    {
+      "id": "ars_nouveau:source_gem_block",
+      "count": 1
+    }
+  ]
+}

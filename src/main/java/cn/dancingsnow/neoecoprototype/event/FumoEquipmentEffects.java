@@ -10,6 +10,7 @@ import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.ModList;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.energy.IEnergyStorage;
@@ -23,6 +24,11 @@ import net.neoforged.neoforge.event.tick.PlayerTickEvent;
  *
  * <p>The creeper answer is the same rule a placed doll runs, and it lives in {@link PlushieScare}: the
  * wearer looks for creepers around itself rather than every creeper looking for a wearer.
+ *
+ * <p>With Curios present a doll may also sit in that mod's head accessory slot (「首饰」), which is read
+ * only when the helmet slot holds nothing wearable. The effects are the same either way; the armour is
+ * not, because a curio's attribute modifiers are empty - see
+ * {@link cn.dancingsnow.neoecoprototype.integration.curios.CuriosDollSupport}.
  */
 @EventBusSubscriber(modid = NeoECOPrototype.MOD_ID)
 public final class FumoEquipmentEffects {
@@ -69,8 +75,14 @@ public final class FumoEquipmentEffects {
     @SubscribeEvent
     public static void onPlayerTick(PlayerTickEvent.Post event) {
         if (!(event.getEntity() instanceof ServerPlayer player)) return;
-        ItemStack head = player.getItemBySlot(EquipmentSlot.HEAD);
-        FumoItem.DollStats stats = FumoItem.statsOf(head);
+        ItemStack worn = player.getItemBySlot(EquipmentSlot.HEAD);
+        FumoItem.DollStats stats = FumoItem.statsOf(worn);
+        if (stats == null && ModList.get().isLoaded("curios")) {
+            // The curio lookup parses nothing but the entity's attachment, but it is still work no player
+            // without a doll needs, so it only runs when the helmet slot came up empty.
+            worn = cn.dancingsnow.neoecoprototype.integration.curios.CuriosDollSupport.wornDoll(player);
+            stats = FumoItem.statsOf(worn);
+        }
         if (stats == null) return;
         // Before the effect hand-outs, which stop early: the scare belongs to the doll, not to whoever
         // wears the one that also heals.
@@ -83,7 +95,7 @@ public final class FumoEquipmentEffects {
             player.addEffect(new MobEffectInstance(MobEffects.NIGHT_VISION, EFFECT_TICKS,
                     0, true, false, false));
         }
-        for (FumoItem.DollEffect extra : FumoItem.extraEffects(head)) {
+        for (FumoItem.DollEffect extra : FumoItem.extraEffects(worn)) {
             MobEffectInstance held = player.getEffect(extra.effect());
             // Top up whatever is about to lapse, and never come down: where a potion or another source
             // already gives the wearer a better level, this leaves it alone.

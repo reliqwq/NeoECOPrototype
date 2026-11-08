@@ -15,7 +15,8 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 
 /**
- * The two self-growing matrices share one bill, and neither of them buys the end-game component.
+ * The self-growing family's bills, and the fact that each cell's crafting bill and its disassembly bill are
+ * the same four items.
  *
  * <p>Read off the data files rather than in-game because the two halves live in two different systems: the
  * crafting bill is a vanilla shapeless recipe, while what comes back when a cell is taken apart is an AE2
@@ -23,10 +24,14 @@ import org.junit.jupiter.api.Test;
  * forgetting the other is silent - a cell that costs three things and returns four - and no game test reads
  * both, so this is the place where the pair is compared.</p>
  *
- * <p>The 1.4.6 change is the component: {@code neoecoae:eco_infinite_cell_component} (whose own bill is 128
- * of the 256M components, 64 ingots, 64 processors and 64,000 mB of cryotheum solution) came out and
- * {@code neoecoae:eco_cell_component_64m} (3 of the 16M, 48 ingots, 16 processors, 1 crystal ingot) went in,
- * on both cells.</p>
+ * <p>The 1.4.6 change is the component of the first two members: {@code
+ * neoecoae:eco_infinite_cell_component} (whose own bill is 128 of the 256M components, 64 ingots, 64
+ * processors and 64,000 mB of cryotheum solution) came out and {@code neoecoae:eco_cell_component_64m} (3 of
+ * the 16M, 48 ingots, 16 processors, 1 crystal ingot) went in, on both cells.</p>
+ *
+ * <p>The source member is priced off that ladder on purpose: its four ingredients are the infinite housing,
+ * kouooki's doll, the treasure-crab token and a source gem block. What it still shares with the family is the
+ * rule asserted here - the disassembly bill is the crafting bill.</p>
  */
 final class SelfGrowingCellBillContractTest {
 
@@ -37,6 +42,9 @@ final class SelfGrowingCellBillContractTest {
     private static final String COMPONENT_INFINITE = "neoecoae:eco_infinite_cell_component";
     private static final String SINGULARITY = "ae2:singularity";
     private static final String SKY_STONE_DUST = "ae2:sky_dust";
+    private static final String KOOOKI_DOLL = "neoecoprototype:fumo_doll_kouooki";
+    private static final String ALAKARKINOS_TOKEN = "ars_nouveau:alakarkinos_token";
+    private static final String SOURCE_GEM_BLOCK = "ars_nouveau:source_gem_block";
 
     private static JsonObject read(Path file) throws Exception {
         try (Reader reader = Files.newBufferedReader(file)) {
@@ -81,7 +89,8 @@ final class SelfGrowingCellBillContractTest {
 
     @Test
     void takingAPartReturnsExactlyWhatItCost() throws Exception {
-        for (String cell : List.of("simplify_singularity_cell", "simplify_sky_stone_dust_cell")) {
+        for (String cell : List.of("simplify_singularity_cell", "simplify_sky_stone_dust_cell",
+                "simplify_source_growing_cell")) {
             var cost = craftingBill(read(ROOT.resolve(cell + ".json")));
             var back = disassemblyBill(read(ROOT.resolve("disassembly/" + cell + ".json")));
             assertEquals(sorted(cost), sorted(back),
@@ -95,6 +104,25 @@ final class SelfGrowingCellBillContractTest {
         var dust = craftingBill(read(ROOT.resolve("simplify_sky_stone_dust_cell.json")));
         assertEquals(List.of(HOUSING, COMPONENT_64M, LATTICE, SINGULARITY), singularity);
         assertEquals(List.of(HOUSING, COMPONENT_64M, LATTICE, SKY_STONE_DUST), dust);
+    }
+
+    /**
+     * The source member is not on the component ladder, and both of its ingredients that live in another mod
+     * are gated: without those conditions the file would fail to load on every install that lacks Ars
+     * Nouveau, which takes the whole recipe reload down with it rather than just hiding one item.
+     */
+    @Test
+    void theSourceCellBuysItsOwnFourPartsBehindItsModGate() throws Exception {
+        var recipe = read(ROOT.resolve("simplify_source_growing_cell.json"));
+        assertEquals(List.of(HOUSING, KOOOKI_DOLL, ALAKARKINOS_TOKEN, SOURCE_GEM_BLOCK),
+                craftingBill(recipe));
+        var conditions = recipe.getAsJsonArray("neoforge:conditions");
+        List<String> mods = new ArrayList<>();
+        for (var element : conditions) {
+            mods.add(element.getAsJsonObject().get("modid").getAsString());
+        }
+        assertEquals(List.of("arseng", "ars_nouveau"), mods,
+                "the source cell names ars_nouveau items, so both mods are conditions");
     }
 
     private static List<String> sorted(List<String> ids) {
