@@ -152,6 +152,15 @@ public final class NeoECOPrototypeServerConfig {
     public static final ModConfigSpec.DoubleValue FUMO_CHARGE_AE_PER_TICK;
 
     /**
+     * Whether a migration drive hands the blocks it replaced back as one backup drive. Off by default: the
+     * drive is the whole price, and the L1 parts it converts are what that price buys, so returning them as
+     * well would refund the machine and sell the next tier at the same time. What the machine holds is not
+     * part of this - a mounted cell and stored patterns always move with it.
+     */
+    public static final boolean MIGRATION_DRIVE_REFUND_BLOCKS_DEFAULT = false;
+    public static final ModConfigSpec.BooleanValue MIGRATION_DRIVE_REFUND_BLOCKS;
+
+    /**
      * Reads a key the way a client that has no server-side copy of this addon must.
      *
      * <p>{@code get()} throws {@code IllegalStateException: Cannot get config value before config is loaded}
@@ -343,6 +352,15 @@ public final class NeoECOPrototypeServerConfig {
                         "either way, because a server config is not readable on a client.",
                         "Default: 100.")
                 .defineInRange("charge_ae_per_tick", FUMO_CHARGE_AE_PER_TICK_DEFAULT, 0.0D, 1_000_000.0D);
+        builder.pop();
+        builder.push("migration_drive");
+        MIGRATION_DRIVE_REFUND_BLOCKS = builder
+                .comment("Whether a migration drive packs the blocks it replaces into one backup drive.",
+                        "Off by default: the drive is the whole price, and the parts it converts are what",
+                        "that price buys. On, the click also hands the old kit back.",
+                        "The machine's contents are not covered by this switch either way: a mounted cell",
+                        "stays in its drive and the patterns stay in their buses. Read on every click.")
+                .define("refund_replaced_blocks", MIGRATION_DRIVE_REFUND_BLOCKS_DEFAULT);
         builder.pop();
         SPEC = builder.build();
     }

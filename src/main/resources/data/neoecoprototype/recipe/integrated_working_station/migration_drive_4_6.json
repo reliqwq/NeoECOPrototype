@@ -1,0 +1,26 @@
+{
+  "type": "neoecoae:integrated_working_station",
+  "energy": 160000,
+  "inputItems": [
+    {
+      "count": 1,
+      "item": "neoecoprototype:migration_drive_empty"
+    },
+    {
+      "count": 4,
+      "item": "neoecoae:computation_parallel_core_l6"
+    },
+    {
+      "count": 4,
+      "item": "neoecoae:crafting_parallel_core_l6"
+    },
+    {
+      "count": 11,
+      "item": "neoecoae:eco_cell_component_64m"
+    }
+  ],
+  "itemOutput": {
+    "count": 1,
+    "id": "neoecoprototype:migration_drive_4_6"
+  }
+}

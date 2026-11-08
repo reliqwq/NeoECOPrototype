@@ -4,6 +4,7 @@ import cn.dancingsnow.neoecoae.all.NEMultiBlocks;
 import cn.dancingsnow.neoecoae.api.ECOTier;
 import cn.dancingsnow.neoecoae.multiblock.definition.MultiBlockDefinition;
 import cn.dancingsnow.neoecoprototype.blockentity.crafting.SimplifyCraftingSystemBlockEntity;
+import cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig;
 import cn.dancingsnow.neoecoprototype.multiblock.definition.SimplifyComputationDefinition;
 import cn.dancingsnow.neoecoprototype.multiblock.definition.SimplifyCraftingDefinition;
 import cn.dancingsnow.neoecoprototype.multiblock.definition.SimplifyStorageDefinition;
@@ -19,10 +20,12 @@ import org.jetbrains.annotations.Nullable;
 /**
  * A disk that moves one finished machine up the tier ladder in place.
  *
- * <p>Two choices make these different from the card that grows a machine along its edge, and both were
- * called by the person who asked for the feature: the disk asks nothing of the inventory, and it hands back
- * every block it replaces. So the disk's own recipe is the whole price, and the player's old parts end up
- * in their pocket rather than inside the new machine's walls where they would silently vanish.</p>
+ * <p>Two choices make these different from the card that grows a machine along its edge: the disk asks
+ * nothing of the inventory, and whether the blocks it replaces come back is a server switch - off by
+ * default, see {@link NeoECOPrototypeServerConfig#MIGRATION_DRIVE_REFUND_BLOCKS}. So the disk's own recipe
+ * is the whole price, and with the switch on the player's old parts end up in their pocket rather than
+ * inside the new machine's walls where they would silently vanish. The carry below never asks that switch:
+ * a mounted cell and the patterns in a bus move with the machine whether the old blocks come back or not.</p>
  *
  * <p>What does move with the machine is what is mounted in it - the storage matrix in a drive, the patterns
  * in a bus - see {@link #carriedContent}. The one thing that does not is the interface, whose slots eco only
@@ -159,7 +162,10 @@ public final class SimplifyMigrationDriveItem extends SimplifyStructureExpansion
 
     @Override
     protected boolean refundsReplacedBlocks() {
-        return true;
+        // A pack choice, read live so an edit needs no restart. Through current(): a client holding this
+        // item may be joined to a server that never sent the addon's SERVER config.
+        return NeoECOPrototypeServerConfig.current(
+                NeoECOPrototypeServerConfig.MIGRATION_DRIVE_REFUND_BLOCKS);
     }
 
     @Override

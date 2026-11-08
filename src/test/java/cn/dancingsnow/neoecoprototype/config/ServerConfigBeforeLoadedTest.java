@@ -62,6 +62,23 @@ class ServerConfigBeforeLoadedTest {
     }
 
     /**
+     * The migration-drive refund switch ships in the state the design asks for: the blocks a swap replaces
+     * are not handed back (the disk is the whole price). It is read through {@code current(...)} so a client
+     * that never received the server's copy still answers that number instead of throwing.
+     */
+    @Test
+    void theMigrationDriveRefundSwitchShipsOff() {
+        assertFalse(NeoECOPrototypeServerConfig.MIGRATION_DRIVE_REFUND_BLOCKS_DEFAULT,
+                "the refund ships off: a disk is the whole price of the rung it buys");
+        assertFalse(NeoECOPrototypeServerConfig.MIGRATION_DRIVE_REFUND_BLOCKS.getDefault(),
+                "the refund key's own default has to match the constant the pack ships with");
+        assertEquals(NeoECOPrototypeServerConfig.MIGRATION_DRIVE_REFUND_BLOCKS.getDefault(),
+                NeoECOPrototypeServerConfig.current(
+                        NeoECOPrototypeServerConfig.MIGRATION_DRIVE_REFUND_BLOCKS),
+                "an unloaded SERVER config has to answer the shipped refund default, not throw");
+    }
+
+    /**
      * The textual half of the fix: a client-reachable file must not read a raw value. Scanning the source
      * rather than the bytecode because the property is "which file is this line in", and the read is legal
      * the moment the enclosing method takes a ServerLevel.

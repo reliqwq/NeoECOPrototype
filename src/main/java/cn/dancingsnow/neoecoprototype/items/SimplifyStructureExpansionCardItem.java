@@ -236,7 +236,12 @@ public class SimplifyStructureExpansionCardItem extends Item {
      * Whether the blocks a free tier swap takes out come back to the player as items. The rung cards let
      * them go: their price is the card, and the parts they convert are what that card stands for. The
      * migration drive prices its voucher at the whole kit instead, so it asks nothing of the inventory and
-     * hands every replaced block back - the player's L1 parts have to end up somewhere they can use.
+     * leaves this one to the server config ({@code migration_drive.refund_replaced_blocks}, off by default)
+     * - answering it is also what decides whether a click leaves a backup drive at all.
+     *
+     * <p>What the machine holds is deliberately outside this answer: {@link #swapInPlace} rescues and returns
+     * the mounted cells and stored patterns whichever way this says, because a switched-off refund must not
+     * turn a tier change into a way to delete them.</p>
      */
     protected boolean refundsReplacedBlocks() {
         return false;
@@ -522,19 +527,23 @@ public class SimplifyStructureExpansionCardItem extends Item {
      * this card reached our own L1 rooms that set is every cell in the machine - casings, drives with a
      * matrix mounted in them, buses with patterns in them - not just the tier-bearing parts, so
      * {@link #rescueContents} takes the contents out before the block goes and {@link #returnContents} puts
-     * them back after it. The blocks themselves go onto the click's list and leave in one backup drive,
-     * because a disk costs a disk and not the inventory - and the empty shell the disk comes back as is that
-     * same bag, whose tile is the darkened drive and whose right-click turns it back.</p>
+     * them back after it. That carry runs unconditionally; only the blocks themselves depend on
+     * {@link #refundsReplacedBlocks()}. When they do come back they go onto the click's list and leave in one
+     * backup drive, because a disk costs a disk and not the inventory - and the empty shell the disk comes
+     * back as is that same bag, whose tile is the darkened drive and whose right-click turns it back. With
+     * the refund off there is no bag at all, and the shell is handed over directly.</p>
      */
     private void swapInPlace(ServerLevel level, BlockPos pos, BlockState anchor, Classified swap,
                              ServerPlayer player, net.minecraft.world.InteractionHand hand,
                              MultiBlockDefinition current, MultiBlockDefinition target, Owed owed) {
         BlockEntity previous = level.getBlockEntity(pos);
-        Map<BlockPos, List<ItemStack>> contents = new LinkedHashMap<>();
+        // What a position holds goes with it, always: the cell mounted in a drive, the patterns in a bus.
+        // This is not part of the block refund and must not be gated by it - the switch that stops the
+        // blocks from coming back would otherwise quietly turn a swap into a way to delete a player's
+        // mounted matrix and stored patterns along with the cells they stood in.
+        Map<BlockPos, List<ItemStack>> contents = rescueContents(swap.moved(), level, pos);
         List<ItemStack> pending = new ArrayList<>();
         if (refundsReplacedBlocks()) {
-            // Whatever a position holds goes with it: the cell mounted in a drive, the patterns in a bus.
-            contents = rescueContents(swap.moved(), level, pos);
             var refundPositions = positionsOf(swap.moved());
             refundPositions.add(pos);
             pending = takeOut(level, player, refundPositions);

@@ -558,12 +558,11 @@ public class ModRegistration {
     /**
      * The ladder, one disk per rung, plus the disk that comes back out and the one that skips to the top.
      * The four paid disks differ only in which rung they cover - {@link SimplifyMigrationDriveItem.Rung} -
-     * and the creative one is not "creative mode only": it is the disk that jumps any rung straight to
-     * L9 and simply has no recipe yet, so nothing can reach it in survival.
+     * and the creative one is not "creative mode only": it is the disk that jumps any rung straight to L9,
+     * made in the integrated working station out of the other three.
      *
-     * <p>All five are in the creative tab; none of them is in any recipe, so there is still no survival route
-     * while their recipes are unwritten. They stack because they are spent on use, unlike the expansion
-     * card.</p>
+     * <p>All five are in the creative tab. The four recipes are the survival route. They stack because they
+     * are spent on use, unlike the expansion card.</p>
      */
     public static final Supplier<SimplifyMigrationDriveItem> MIGRATION_DRIVE_1_4 =
             ITEMS.register("migration_drive_1_4",
@@ -1911,8 +1910,9 @@ private static Supplier<BlockEntityType<SimplifyStorageVentBlockEntity>> registe
                         // go, and it never carries a recipe.
                         output.accept(BACKUP_DRIVE.get());
                         // The whole ladder, next to the card it replaces: the four usable disks and the spent
-                        // shell, so a tester can hold both ends of a rung at once. None of the five has a
-                        // recipe, so this is a creative-mode route, not a survival one.
+                        // shell, so a tester can hold both ends of a rung at once. The four recipes are the
+                        // survival route and a server switch can take them away, so the tab entry stays either
+                        // way.
                         output.accept(MIGRATION_DRIVE_1_4.get());
                         output.accept(MIGRATION_DRIVE_4_6.get());
                         output.accept(MIGRATION_DRIVE_6_9.get());

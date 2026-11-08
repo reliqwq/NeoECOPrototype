@@ -13764,6 +13764,9 @@ public final class NeoECOPrototypeGameTests {
                     var player = cardPlayer(helper);
                     player.setShiftKeyDown(true);
                     player.getInventory().clearContent();
+                    // The refund is off here on purpose: the carry is not part of it, and this is the run
+                    // that proves a swap on a default-configured server still keeps the mounted patterns.
+                    NeoECOPrototypeServerConfig.MIGRATION_DRIVE_REFUND_BLOCKS.set(false);
 
                     var busPositions = new java.util.ArrayList<BlockPos>();
                     for (var entry : machineSnapshot(helper).entrySet()) {
@@ -13881,6 +13884,8 @@ public final class NeoECOPrototypeGameTests {
                         return;
                     }
 
+                    // The shipped default is off; this guard is the refund path itself, so it asks for it.
+                    NeoECOPrototypeServerConfig.MIGRATION_DRIVE_REFUND_BLOCKS.set(true);
                     var disk = ModRegistration.MIGRATION_DRIVE_1_4.get();
                     // Mount a filled cell into one drive before the click: this whole feature exists so
                     // that a player's mounted contents survive it, and giveBack destroys the block without
@@ -13981,6 +13986,7 @@ public final class NeoECOPrototypeGameTests {
                         helper.fail("the swap took or invented parts from outside our own pack: " + strays);
                         return;
                     }
+                    NeoECOPrototypeServerConfig.MIGRATION_DRIVE_REFUND_BLOCKS.set(false);
                     helper.succeed();
                 });
     }
@@ -14088,6 +14094,8 @@ public final class NeoECOPrototypeGameTests {
                         return;
                     }
 
+                    // The shipped default is off; this guard is the refund path itself, so it asks for it.
+                    NeoECOPrototypeServerConfig.MIGRATION_DRIVE_REFUND_BLOCKS.set(true);
                     var disk = ModRegistration.MIGRATION_DRIVE_CREATIVE.get();
                     player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(disk, 1));
                     useCard(helper, player, disk);
@@ -14138,6 +14146,7 @@ public final class NeoECOPrototypeGameTests {
                     }
                     NeoECOPrototype.LOGGER.info("creative jump verified: host on L9, formed, "
                             + drivesBefore + " drives refunded, nothing billed");
+                    NeoECOPrototypeServerConfig.MIGRATION_DRIVE_REFUND_BLOCKS.set(false);
                     helper.succeed();
                 });
     }
@@ -14172,6 +14181,8 @@ public final class NeoECOPrototypeGameTests {
                         return;
                     }
 
+                    // The shipped default is off; this guard is the refund path itself, so it asks for it.
+                    NeoECOPrototypeServerConfig.MIGRATION_DRIVE_REFUND_BLOCKS.set(true);
                     var disk = ModRegistration.MIGRATION_DRIVE_6_9.get();
                     player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(disk, 1));
                     useCard(helper, player, disk);
@@ -14220,6 +14231,7 @@ public final class NeoECOPrototypeGameTests {
                     }
                     NeoECOPrototype.LOGGER.info("L6->L9 swap verified: host on L9, formed,"
                             + " " + l6CellsBefore + " l6 cells refunded, " + l9Cells + " l9 cells standing");
+                    NeoECOPrototypeServerConfig.MIGRATION_DRIVE_REFUND_BLOCKS.set(false);
                     helper.succeed();
                 });
     }
@@ -14245,6 +14257,8 @@ public final class NeoECOPrototypeGameTests {
                     var player = cardPlayer(helper);
                     player.setShiftKeyDown(true);
                     player.getInventory().clearContent();
+                    // The shipped default is off; this guard is the refund path itself, so it asks for it.
+                    NeoECOPrototypeServerConfig.MIGRATION_DRIVE_REFUND_BLOCKS.set(true);
                     var wrong = ModRegistration.MIGRATION_DRIVE_6_9.get();
                     var right = ModRegistration.MIGRATION_DRIVE_4_6.get();
 
@@ -14335,6 +14349,7 @@ public final class NeoECOPrototypeGameTests {
                                 + " tier-bearing blocks never changed");
                         return;
                     }
+                    NeoECOPrototypeServerConfig.MIGRATION_DRIVE_REFUND_BLOCKS.set(false);
                     NeoECOPrototype.LOGGER.info("free swap verified: host on L6, formed, inventory empty"
                             + ", energy_cell_l6 standing=" + l6Cells);
                 });
@@ -15290,6 +15305,8 @@ public final class NeoECOPrototypeGameTests {
                 host -> {
                     var level = helper.getLevel();
                     var anchor = helper.absolutePos(CARD_HOST);
+                    // The shipped default is off; this guard is the bag itself, so it asks for it.
+                    NeoECOPrototypeServerConfig.MIGRATION_DRIVE_REFUND_BLOCKS.set(true);
                     var disk = ModRegistration.MIGRATION_DRIVE_1_4.get();
                     var ourHostBlock = ModRegistration.SIMPLIFY_STORAGE_CONTROLLER_BLOCK.get();
                     var player = cardPlayer(helper);
@@ -15400,6 +15417,7 @@ public final class NeoECOPrototypeGameTests {
                         helper.fail(kinds + " kinds in one bag means the refund was not merged per block");
                         return;
                     }
+                    NeoECOPrototypeServerConfig.MIGRATION_DRIVE_REFUND_BLOCKS.set(false);
                 });
     }
 
@@ -15423,6 +15441,8 @@ public final class NeoECOPrototypeGameTests {
                 host -> {
                     var level = helper.getLevel();
                     var anchor = helper.absolutePos(CARD_HOST);
+                    // The shipped default is off; this guard is the bag itself, so it asks for it.
+                    NeoECOPrototypeServerConfig.MIGRATION_DRIVE_REFUND_BLOCKS.set(true);
                     int drivesBefore = 0;
                     for (var state : machineSnapshot(helper).values()) {
                         if (state.getBlock() == ModRegistration.SIMPLIFY_DRIVE_BLOCK.get()) {
@@ -15528,6 +15548,7 @@ public final class NeoECOPrototypeGameTests {
                                 + drivesBefore + " stood before the click");
                         return;
                     }
+                    NeoECOPrototypeServerConfig.MIGRATION_DRIVE_REFUND_BLOCKS.set(false);
                 });
     }
 
@@ -15615,6 +15636,8 @@ public final class NeoECOPrototypeGameTests {
                 host -> {
                     var level = helper.getLevel();
                     var anchor = helper.absolutePos(CARD_HOST);
+                    // The shipped default is off; this guard is the bag itself, so it asks for it.
+                    NeoECOPrototypeServerConfig.MIGRATION_DRIVE_REFUND_BLOCKS.set(true);
                     int drivesBefore = 0;
                     for (var state : machineSnapshot(helper).values()) {
                         if (state.getBlock() == ModRegistration.SIMPLIFY_DRIVE_BLOCK.get()) {
@@ -15683,6 +15706,112 @@ public final class NeoECOPrototypeGameTests {
                     if (stillHeld != 1) {
                         helper.fail("creative consumed the disk (" + stillHeld + " left), which is the one"
                                 + " thing creative should not do to a player's own item");
+                        return;
+                    }
+                    NeoECOPrototypeServerConfig.MIGRATION_DRIVE_REFUND_BLOCKS.set(false);
+                });
+    }
+
+    /**
+     * The shipped default, end to end: the blocks a swap replaces are not handed back. What must not vanish
+     * with them is what a position held - the mounted cell stays in the drive it was in - because the carry
+     * is not part of the refund. And the disk's own promise still holds: the empty shell comes back as a
+     * plain stack, not as the bag this switch just turned off.
+     */
+    @GameTest(template = "l1_room", batch = "migration_drive_no_refund", timeoutTicks = 600,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void aSwapWithoutTheRefundKeepsTheMountedCellAndPaysTheShell(GameTestHelper helper) {
+        buildRoomToMaxLength(helper, CARD_HOST,
+                ModRegistration.SIMPLIFY_STORAGE_CONTROLLER_BLOCK.get(),
+                ModRegistration.SIMPLIFY_STORAGE_INTERFACE_BLOCK.get(),
+                host -> {
+                    var level = helper.getLevel();
+                    var anchor = helper.absolutePos(CARD_HOST);
+                    var player = cardPlayer(helper);
+                    player.setShiftKeyDown(true);
+                    player.getInventory().clearContent();
+                    NeoECOPrototypeServerConfig.MIGRATION_DRIVE_REFUND_BLOCKS.set(false);
+                    if (!(host instanceof cn.dancingsnow.neoecoprototype.blockentity.storage
+                            .SimplifyStorageHostBlockEntity storageHost)
+                            || storageHost.getCluster() == null
+                            || storageHost.getCluster().getDrives().isEmpty()) {
+                        helper.fail("the fixture room has no drive to mount a cell in, so the carry check"
+                                + " below measures nothing");
+                        return;
+                    }
+                    var drives = storageHost.getCluster().getDrives();
+                    var mountedPos = drives.get(0).getBlockPos();
+                    var cell = ModRegistration.SIMPLIFY_ITEM_CELL_1M.get();
+                    drives.get(0).setCellStack(new ItemStack(cell));
+                    int cellBefore = everywhere(helper, player, cell);
+                    if (cellBefore != 1) {
+                        helper.fail("the fixture mounted " + cellBefore + " cells, expected 1, so the"
+                                + " conservation count below starts from the wrong number");
+                        return;
+                    }
+
+                    var disk = ModRegistration.MIGRATION_DRIVE_1_4.get();
+                    player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(disk, 1));
+                    useCard(helper, player, disk);
+
+                    if (level.getBlockState(anchor).getBlock()
+                            != cn.dancingsnow.neoecoae.all.NEBlocks.STORAGE_SYSTEM_L4.get()) {
+                        helper.fail("the disk left the host on " + name(level.getBlockState(anchor).getBlock())
+                                + " instead of storage_system_l4, so this run is not a refund-off swap");
+                        return;
+                    }
+                    if (!(level.getBlockEntity(anchor) instanceof MultiBlockBuildController.Host fresh)
+                            || !fresh.isFormed()) {
+                        helper.fail("the room is on eco's L4 host but not formed");
+                        return;
+                    }
+                    if (bagCount(player) != 0) {
+                        helper.fail("the refund switch is off and the click still left " + bagCount(player)
+                                + " backup drive(s), so the switch does not reach this path");
+                        return;
+                    }
+                    var back = carried(player);
+                    if (back.getOrDefault(disk, 0) != 0) {
+                        helper.fail("the disk was not consumed: still " + back.get(disk) + " in hand");
+                        return;
+                    }
+                    if (back.size() != 1
+                            || back.getOrDefault(ModRegistration.MIGRATION_DRIVE_EMPTY.get(), 0) != 1) {
+                        helper.fail("a refund-off swap left " + back + " instead of exactly one empty"
+                                + " migration drive: either the shell was lost or something was refunded");
+                        return;
+                    }
+                    int cellAfter = everywhere(helper, player, cell);
+                    if (cellAfter != cellBefore) {
+                        helper.fail("the swap left " + cellAfter + " mounted cells where the room held "
+                                + cellBefore + ": turning the refund off must not delete contents");
+                        return;
+                    }
+                    var mounted = level.getBlockEntity(mountedPos)
+                            instanceof cn.dancingsnow.neoecoae.util.ICellHost driveHost
+                            ? driveHost.getCellStack() : ItemStack.EMPTY;
+                    if (mounted == null || !mounted.is(cell)) {
+                        helper.fail("the cell at " + mountedPos + " is standing in neither its drive nor"
+                                + " anywhere this check can see");
+                        return;
+                    }
+                    int spilled = 0;
+                    var plot = helper.absolutePos(BlockPos.ZERO);
+                    for (var entity : level.getEntitiesOfClass(
+                            net.minecraft.world.entity.item.ItemEntity.class,
+                            new net.minecraft.world.phys.AABB(plot.getX(), plot.getY() - 2, plot.getZ(),
+                                    plot.getX() + L1_ROOM_SIZE, plot.getY() + L1_ROOM_SIZE,
+                                    plot.getZ() + L1_ROOM_SIZE))) {
+                        if (entity.getItem().is(ModRegistration.BACKUP_DRIVE.get())
+                                || entity.getItem().is(ModRegistration.SIMPLIFY_DRIVE_ITEM.get())) {
+                            spilled++;
+                        }
+                    }
+                    NeoECOPrototype.LOGGER.info("refund-off swap: host on L4, {} bag(s), hand holds {},"
+                            + " cell conserved, {} refund drop(s)", bagCount(player), itemName(
+                                    player.getItemInHand(InteractionHand.MAIN_HAND)), spilled);
+                    if (spilled != 0) {
+                        helper.fail(spilled + " refund pieces were dropped on the floor with the switch off");
                         return;
                     }
                 });
@@ -16117,6 +16246,134 @@ public final class NeoECOPrototypeGameTests {
                 fs -> fs.is(net.minecraft.world.level.material.Fluids.WATER))) {
             helper.fail("the recipe's input fluid tag no longer names water: "
                     + java.util.Arrays.toString(inputFluids));
+            return;
+        }
+        helper.succeed();
+    }
+
+    /**
+     * Every rung drive has one workstation recipe, and the numbers in it are the ones the design asks for.
+     *
+     * <p>These files are the only survival route to the drives, so a refused file does not show up as a
+     * balance question - the item simply stops existing. The reading is taken three ways: eco's decoder
+     * (the aggregate the machine's recipe list is built from), the recipe manager (the instance the machine
+     * actually matches against), and the machine's own gate, which has to say yes to the exact bill and no
+     * when one piece is missing. The gate is the half a count of 11 only survives if it is really read - a
+     * recipe that quietly dropped to 1 would still load and still list.</p>
+     */
+    @GameTest(template = "empty", batch = "migration_drive_recipes", timeoutTicks = 200,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void migrationDrivesHaveTheirWorkstationRecipes(GameTestHelper helper) {
+        var level = helper.getLevel();
+        java.util.function.Function<String, Item> ecoItem = name ->
+                BuiltInRegistries.ITEM.get(ResourceLocation.fromNamespaceAndPath("neoecoae", name));
+        record Rung(String file, Item drive, int energy, String computation, String crafting,
+                    String component) {
+        }
+        var rungs = java.util.List.of(
+                new Rung("migration_drive_1_4", ModRegistration.MIGRATION_DRIVE_1_4.get(), 16000,
+                        "computation_parallel_core_l4", "crafting_parallel_core_l4",
+                        "eco_cell_component_16m"),
+                new Rung("migration_drive_4_6", ModRegistration.MIGRATION_DRIVE_4_6.get(), 160000,
+                        "computation_parallel_core_l6", "crafting_parallel_core_l6",
+                        "eco_cell_component_64m"),
+                new Rung("migration_drive_6_9", ModRegistration.MIGRATION_DRIVE_6_9.get(), 640000,
+                        "computation_parallel_core_l9", "crafting_parallel_core_l9",
+                        "eco_cell_component_256m"));
+        var empty = ModRegistration.MIGRATION_DRIVE_EMPTY.get();
+        for (var rung : rungs) {
+            var core = ecoItem.apply(rung.computation());
+            var craftCore = ecoItem.apply(rung.crafting());
+            var component = ecoItem.apply(rung.component());
+            if (core == Items.AIR || craftCore == Items.AIR || component == Items.AIR) {
+                helper.fail("one of the eco ingredients the " + rung.file() + " recipe names is not in the"
+                        + " item registry: " + rung.computation() + "=" + core + ", " + rung.crafting() + "="
+                        + craftCore + ", " + rung.component() + "=" + component);
+                return;
+            }
+            var id = NeoECOPrototype.id("integrated_working_station/" + rung.file());
+            if (cn.dancingsnow.neoecoae.recipe.LargeWorkstationRecipes.getById(level, id) == null) {
+                helper.fail("eco's recipe decoder refused " + id + ", so the " + rung.file()
+                        + " drive has no survival route at all");
+                return;
+            }
+            var holder = level.getRecipeManager().byKey(id);
+            if (holder.isEmpty() || !(holder.get().value()
+                    instanceof cn.dancingsnow.neoecoae.recipe.IntegratedWorkingStationRecipe recipe)) {
+                helper.fail("no neoecoae:integrated_working_station recipe is loaded under " + id
+                        + ", so the file that names this drive is not the file the machine reads");
+                return;
+            }
+            var expected = new java.util.TreeMap<String, Integer>();
+            expected.put(BuiltInRegistries.ITEM.getKey(empty).toString(), 1);
+            expected.put(BuiltInRegistries.ITEM.getKey(core).toString(), 4);
+            expected.put(BuiltInRegistries.ITEM.getKey(craftCore).toString(), 4);
+            expected.put(BuiltInRegistries.ITEM.getKey(component).toString(), 11);
+            var bill = new java.util.TreeMap<String, Integer>();
+            for (var sized : recipe.inputItems()) {
+                var choices = sized.ingredient().getItems();
+                bill.put(choices.length == 1
+                                ? BuiltInRegistries.ITEM.getKey(choices[0].getItem()).toString()
+                                : "<tag of " + choices.length + " item(s)>",
+                        sized.count());
+            }
+            if (!bill.equals(expected) || recipe.energy() != rung.energy()
+                    || !recipe.itemOutput().is(rung.drive())) {
+                helper.fail("the " + rung.file() + " recipe reads back as " + bill + " / " + recipe.energy()
+                        + " AE -> " + recipe.itemOutput() + " instead of " + expected + " / " + rung.energy()
+                        + " AE -> " + new ItemStack(rung.drive()));
+                return;
+            }
+            var full = new cn.dancingsnow.neoecoae.recipe.IntegratedWorkingStationRecipe.Input(
+                    java.util.List.of(new ItemStack(empty), new ItemStack(core, 4),
+                            new ItemStack(craftCore, 4), new ItemStack(component, 11)),
+                    net.neoforged.neoforge.fluids.FluidStack.EMPTY);
+            var oneShort = new cn.dancingsnow.neoecoae.recipe.IntegratedWorkingStationRecipe.Input(
+                    java.util.List.of(new ItemStack(empty), new ItemStack(core, 4),
+                            new ItemStack(craftCore, 4), new ItemStack(component, 10)),
+                    net.neoforged.neoforge.fluids.FluidStack.EMPTY);
+            boolean exact = recipe.matches(full, level);
+            boolean shortBill = recipe.matches(oneShort, level);
+            NeoECOPrototype.LOGGER.info("drive recipe {}: {} AE, bill = {}, exact accepted = {}, one component"
+                    + " short accepted = {}", id, recipe.energy(), bill, exact, shortBill);
+            if (!exact || shortBill) {
+                helper.fail("the workstation does not read the " + rung.file() + " bill as " + bill
+                        + ": exact = " + exact + ", one component short = " + shortBill);
+                return;
+            }
+        }
+        // The three rungs combine into the one disk that skips the ladder.
+        var combineId = NeoECOPrototype.id("integrated_working_station/migration_drive_creative");
+        var combine = level.getRecipeManager().byKey(combineId);
+        if (combine.isEmpty() || !(combine.get().value()
+                instanceof cn.dancingsnow.neoecoae.recipe.IntegratedWorkingStationRecipe recipe)) {
+            helper.fail("no workstation recipe loads under " + combineId
+                    + ", so the three rung drives have nowhere to combine");
+            return;
+        }
+        var drives = java.util.List.of(ModRegistration.MIGRATION_DRIVE_1_4.get(),
+                ModRegistration.MIGRATION_DRIVE_4_6.get(), ModRegistration.MIGRATION_DRIVE_6_9.get());
+        var exactStacks = new java.util.ArrayList<ItemStack>();
+        var shortStacks = new java.util.ArrayList<ItemStack>();
+        for (int i = 0; i < drives.size(); i++) {
+            exactStacks.add(new ItemStack(drives.get(i)));
+            if (i > 0) {
+                shortStacks.add(new ItemStack(drives.get(i)));
+            }
+        }
+        var exactInput = new cn.dancingsnow.neoecoae.recipe.IntegratedWorkingStationRecipe.Input(
+                exactStacks, net.neoforged.neoforge.fluids.FluidStack.EMPTY);
+        var shortInput = new cn.dancingsnow.neoecoae.recipe.IntegratedWorkingStationRecipe.Input(
+                shortStacks, net.neoforged.neoforge.fluids.FluidStack.EMPTY);
+        boolean combineExact = recipe.matches(exactInput, level);
+        boolean combineShort = recipe.matches(shortInput, level);
+        NeoECOPrototype.LOGGER.info("combine recipe {}: {} AE, exact = {}, one drive short = {}",
+                combineId, recipe.energy(), combineExact, combineShort);
+        if (!recipe.itemOutput().is(ModRegistration.MIGRATION_DRIVE_CREATIVE.get())
+                || recipe.energy() != 816000 || !combineExact || combineShort) {
+            helper.fail("the combine recipe reads back as " + recipe.energy() + " AE -> "
+                    + recipe.itemOutput() + ", exact = " + combineExact + ", one drive short = " + combineShort
+                    + ": it has to take the three rung drives and nothing less");
             return;
         }
         helper.succeed();
