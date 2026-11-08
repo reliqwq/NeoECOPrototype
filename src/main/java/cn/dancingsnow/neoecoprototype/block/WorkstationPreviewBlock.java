@@ -16,6 +16,9 @@ public class WorkstationPreviewBlock extends Block {
 
     public WorkstationPreviewBlock(Properties properties) {
         super(properties);
+        // A BooleanProperty's first value is true, which is also the default state a freshly placed
+        // block carries; the body is the exception here, and the guide scene pins it in its NBT.
+        registerDefaultState(defaultBlockState().setValue(BODY, false));
     }
 
     @Override
