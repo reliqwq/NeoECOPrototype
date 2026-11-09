@@ -240,6 +240,10 @@ public final class MusicRecorderUI {
             this.play = play;
             this.pause = pause;
             setAllowHitTest(false);
+            // Without a box of its own Taffy sizes this wrapper to zero and the absolute glyphs inside
+            // it land offset from the plate; fill the button so they sit where the skip glyph sits.
+            layout(layout -> layout.positionType(TaffyPosition.ABSOLUTE)
+                    .left(0).top(0).width(BUTTON_SIZE).height(BUTTON_SIZE));
             addChild(play);
             addChild(pause);
             setValue(paused);

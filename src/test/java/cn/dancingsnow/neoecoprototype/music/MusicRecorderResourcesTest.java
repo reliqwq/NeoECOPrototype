@@ -159,6 +159,9 @@ final class MusicRecorderResourcesTest {
                 "the pause icon is not bound server to client; it would keep the face it opened with");
         assertTrue(ui.contains("play.setDisplay(paused)") && ui.contains("pause.setDisplay(!paused)"),
                 "the pause icon no longer swaps between the pause and play faces");
+        assertTrue(ui.contains("left(0).top(0).width(BUTTON_SIZE).height(BUTTON_SIZE)"),
+                "the pause glyph wrapper has no box of its own; Taffy would size it to zero and draw the"
+                        + " pause/play face offset from the plate");
         String entities = Files.readString(SOURCES.resolve("blockentity/music/MusicRecorderBlockEntity.java"));
         assertTrue(entities.contains("tickServer(Level level) {\n        if (paused) {"),
                 "the recorder ticks while paused; pausing has to stop the run");
