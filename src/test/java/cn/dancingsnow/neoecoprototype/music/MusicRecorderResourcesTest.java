@@ -29,10 +29,17 @@ final class MusicRecorderResourcesTest {
     @Test
     void thePanelAndTheBlockFaceAreDrawn() throws Exception {
         BufferedImage panel = image(ASSETS.resolve("textures/gui/music_recorder.png"));
-        assertEquals(168, panel.getWidth(), "the recorder panel is " + panel.getWidth() + " px wide; the"
-                + " layout and the twelve input cells were placed against a 168-wide texture");
-        assertEquals(170, panel.getHeight(), "the recorder panel is 170 px tall; the player inventory half"
-                + " is copied from the dissociator panel at that height");
+        assertEquals(176, panel.getWidth(), "the recorder panel is " + panel.getWidth() + " px wide;"
+                + " MusicRecorderUI draws the title, the four-column slot block, the data cell and the two"
+                + " buttons against a 176-wide texture");
+        assertEquals(204, panel.getHeight(), "the recorder panel is " + panel.getHeight() + " px tall;"
+                + " MusicRecorderUI places the player inventory half, copied from the dissociator panel,"
+                + " at that height");
+        BufferedImage buttons = image(ASSETS.resolve("textures/gui/music_recorder_buttons.png"));
+        assertEquals(48, buttons.getWidth(), "the button atlas is " + buttons.getWidth()
+                + " px wide; the code samples three 16 px plates and three 16 px glyph cells from it");
+        assertEquals(32, buttons.getHeight(), "the button atlas is " + buttons.getHeight()
+                + " px tall; row 0 is the plate states and row 1 the glyphs");
         BufferedImage face = image(ASSETS.resolve("textures/block/music_recorder.png"));
         assertEquals(16, face.getWidth(), "the block face is not 16 px wide");
         assertEquals(16, face.getHeight(), "the block face is not 16 px tall");
@@ -121,6 +128,9 @@ final class MusicRecorderResourcesTest {
                     "gui.neoecoprototype.music_recorder_data_slot",
                     "gui.neoecoprototype.music_recorder_idle",
                     "gui.neoecoprototype.music_recorder_now_playing",
+                    "gui.neoecoprototype.music_recorder_paused",
+                    "gui.neoecoprototype.music_recorder_pause",
+                    "gui.neoecoprototype.music_recorder_skip",
                     "jei.neoecoprototype.music_data.info",
                     "key.neoecoprototype.music_data")) {
                 JsonElement value = json.get(key);
@@ -128,6 +138,35 @@ final class MusicRecorderResourcesTest {
                 assertTrue(!value.getAsString().isBlank(), key + " is blank in " + lang);
             }
         }
+    }
+
+    /**
+     * The two buttons are wired to the block entity and the pause icon follows the server state. There is
+     * no suite face for a click and no suite face for a texture swap, so both channels are pinned here: a
+     * button without its handler, or a pause state that is read from the client's own block entity, would
+     * look right and do nothing.
+     */
+    @Test
+    void thePauseAndSkipButtonsReachTheServer() throws Exception {
+        String ui = Files.readString(SOURCES.resolve("blockentity/music/MusicRecorderUI.java"));
+        assertTrue(ui.contains("setOnServerClick"),
+                "the buttons no longer use the server-click channel; a local click would never reach the"
+                        + " block entity that owns the run");
+        assertTrue(ui.contains("host::togglePaused"), "the pause button does not call togglePaused");
+        assertTrue(ui.contains("host::skipCurrentSong"),
+                "the skip button does not call skipCurrentSong");
+        assertTrue(ui.contains("boolS2C(host::isPaused)"),
+                "the pause icon is not bound server to client; it would keep the face it opened with");
+        assertTrue(ui.contains("play.setDisplay(paused)") && ui.contains("pause.setDisplay(!paused)"),
+                "the pause icon no longer swaps between the pause and play faces");
+        String entities = Files.readString(SOURCES.resolve("blockentity/music/MusicRecorderBlockEntity.java"));
+        assertTrue(entities.contains("tickServer(Level level) {\n        if (paused) {"),
+                "the recorder ticks while paused; pausing has to stop the run");
+        assertTrue(entities.contains("skipped.contains(id)"),
+                "the recorder does not filter skipped songs, so a skip would only postpone the song");
+        assertTrue(entities.contains("tag.putBoolean(PAUSED_TAG, paused)")
+                        && entities.contains("paused = tag.getBoolean(PAUSED_TAG)"),
+                "the pause flag is not persisted; a reload would silently start recording again");
     }
 
     /**

@@ -23015,6 +23015,219 @@ public final class NeoECOPrototypeGameTests {
         helper.succeed();
     }
 
+    /**
+     * Pausing stops the audio and pays nothing, and the panel says so; resuming starts the same song again
+     * from the beginning, because the vanilla jukebox cannot seek. The flag survives a save, so a paused
+     * machine stays paused across a reload.
+     */
+    @GameTest(template = "empty", batch = "music_recorder", timeoutTicks = 100,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void recorderPausesWithoutPayingAndResumesFromTheStart(GameTestHelper helper) {
+        var pos = new BlockPos(0, 0, 0);
+        helper.setBlock(pos, ModRegistration.MUSIC_RECORDER_BLOCK.get());
+        if (!(helper.getBlockEntity(pos) instanceof MusicRecorderBlockEntity recorder)) {
+            helper.fail("the recorder block has no MusicRecorderBlockEntity");
+            return;
+        }
+        var level = helper.getLevel();
+        var absolute = helper.absolutePos(pos);
+        var state = helper.getBlockState(pos);
+        var record = new ItemStack(Items.MUSIC_DISC_11);
+        var song = net.minecraft.world.item.JukeboxSong.fromStack(level.registryAccess(), record)
+                .orElse(null);
+        if (song == null) {
+            helper.fail("music_disc_11 names no jukebox song, so a pause cannot be driven");
+            return;
+        }
+        var songId = song.unwrapKey().map(key -> key.location()).orElse(null);
+        int length = song.value().lengthInTicks();
+        recorder.getDiscInventory().insertItem(0, record.copy(), false);
+        recorder.getDataDiscInventory().insertItem(0,
+                new ItemStack(ModRegistration.MUSIC_DATA_DISC_ITEM.get()), false);
+        for (int tick = 0; tick < 5; tick++) {
+            MusicRecorderBlockEntity.serverTick(level, absolute, state, recorder);
+        }
+        if (recorder.progressFraction() <= 0.0F) {
+            helper.fail("the song never started, so pausing it proves nothing");
+            return;
+        }
+
+        recorder.togglePaused();
+        var pausedLine = Component.translatable("gui.neoecoprototype.music_recorder_paused");
+        if (!recorder.isPaused() || !recorder.currentSongLine().equals(pausedLine)) {
+            helper.fail("pausing is not on the panel: paused=" + recorder.isPaused()
+                    + " line=" + recorder.currentSongLine());
+            return;
+        }
+        if (recorder.progressFraction() != 0.0F) {
+            helper.fail("the song kept running after pause, at " + recorder.progressFraction());
+            return;
+        }
+        if (!MusicDataDiscItem.playlistOf(recorder.getDataDiscInventory()
+                .getStackInSlot(MusicRecorderBlockEntity.DATA_SLOT)).isEmpty()) {
+            helper.fail("pausing paid the disc for the song it cut short");
+            return;
+        }
+
+        var tag = new CompoundTag();
+        recorder.saveAdditional(tag, level.registryAccess());
+        var restored = new MusicRecorderBlockEntity(ModRegistration.MUSIC_RECORDER_BE.get(),
+                absolute, state);
+        restored.loadTag(tag, level.registryAccess());
+        if (!restored.isPaused()) {
+            helper.fail("the pause flag did not survive a save, so a reload would restart the run");
+            return;
+        }
+
+        for (int tick = 0; tick < 40; tick++) {
+            MusicRecorderBlockEntity.serverTick(level, absolute, state, recorder);
+        }
+        if (recorder.progressFraction() != 0.0F || !MusicDataDiscItem.playlistOf(
+                recorder.getDataDiscInventory().getStackInSlot(MusicRecorderBlockEntity.DATA_SLOT))
+                .isEmpty()) {
+            helper.fail("the recorder started a song while it was paused");
+            return;
+        }
+
+        recorder.togglePaused();
+        // The tick that starts a song reports no progress yet; it only advances on the next one.
+        boolean resumed = false;
+        for (int tick = 0; tick < 5 && !resumed; tick++) {
+            MusicRecorderBlockEntity.serverTick(level, absolute, state, recorder);
+            resumed = recorder.progressFraction() > 0.0F;
+        }
+        if (recorder.isPaused() || !resumed) {
+            helper.fail("resuming did not start the song again from the beginning, paused="
+                    + recorder.isPaused() + " progress=" + recorder.progressFraction());
+            return;
+        }
+        for (int tick = 0; tick <= length + 40; tick++) {
+            MusicRecorderBlockEntity.serverTick(level, absolute, state, recorder);
+            if (!MusicDataDiscItem.playlistOf(recorder.getDataDiscInventory()
+                    .getStackInSlot(MusicRecorderBlockEntity.DATA_SLOT)).isEmpty()) {
+                break;
+            }
+        }
+        var carried = MusicDataDiscItem.playlistOf(
+                recorder.getDataDiscInventory().getStackInSlot(MusicRecorderBlockEntity.DATA_SLOT));
+        if (carried.songCount() != 1 || !carried.songs().get(0).song().equals(songId)
+                || carried.songs().get(0).ticks() != length) {
+            helper.fail("the resumed song has to join once as " + songId + " of " + length
+                    + " ticks, got " + carried);
+            return;
+        }
+        helper.setBlock(pos, Blocks.AIR);
+        helper.succeed();
+    }
+
+    /**
+     * Skipping drops the song being heard and keeps it out of the run: the next song starts and only that
+     * one is written. Touching a slot clears the list, so the skipped disc is tried again after the player
+     * changes something - a skip is "not right now", not a verdict on the disc.
+     */
+    @GameTest(template = "empty", batch = "music_recorder", timeoutTicks = 200,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void recorderSkipsTheSongItIsHearingAndRemembersIt(GameTestHelper helper) {
+        var pos = new BlockPos(0, 0, 0);
+        helper.setBlock(pos, ModRegistration.MUSIC_RECORDER_BLOCK.get());
+        if (!(helper.getBlockEntity(pos) instanceof MusicRecorderBlockEntity recorder)) {
+            helper.fail("the recorder block has no MusicRecorderBlockEntity");
+            return;
+        }
+        var level = helper.getLevel();
+        var absolute = helper.absolutePos(pos);
+        var state = helper.getBlockState(pos);
+        var firstRecord = new ItemStack(Items.MUSIC_DISC_11);
+        var secondRecord = new ItemStack(Items.MUSIC_DISC_CAT);
+        var first = net.minecraft.world.item.JukeboxSong.fromStack(level.registryAccess(), firstRecord)
+                .orElse(null);
+        var second = net.minecraft.world.item.JukeboxSong.fromStack(level.registryAccess(), secondRecord)
+                .orElse(null);
+        if (first == null || second == null) {
+            helper.fail("the two test records do not both name a jukebox song");
+            return;
+        }
+        var firstId = first.unwrapKey().map(key -> key.location()).orElse(null);
+        var secondId = second.unwrapKey().map(key -> key.location()).orElse(null);
+        int secondLength = second.value().lengthInTicks();
+        recorder.getDiscInventory().insertItem(0, firstRecord.copy(), false);
+        recorder.getDiscInventory().insertItem(1, secondRecord.copy(), false);
+        recorder.getDataDiscInventory().insertItem(0,
+                new ItemStack(ModRegistration.MUSIC_DATA_DISC_ITEM.get()), false);
+
+        boolean started = false;
+        for (int tick = 0; tick < 5 && !started; tick++) {
+            MusicRecorderBlockEntity.serverTick(level, absolute, state, recorder);
+            started = recorder.progressFraction() > 0.0F;
+        }
+        if (!started) {
+            helper.fail("the first song never started, so skipping it proves nothing");
+            return;
+        }
+        recorder.skipCurrentSong();
+        if (recorder.progressFraction() != 0.0F) {
+            helper.fail("the skipped song kept running");
+            return;
+        }
+        if (!MusicDataDiscItem.playlistOf(recorder.getDataDiscInventory()
+                .getStackInSlot(MusicRecorderBlockEntity.DATA_SLOT)).isEmpty()) {
+            helper.fail("skipping paid the disc for the song it dropped");
+            return;
+        }
+
+        boolean movedOn = false;
+        for (int tick = 0; tick < 5 && !movedOn; tick++) {
+            MusicRecorderBlockEntity.serverTick(level, absolute, state, recorder);
+            movedOn = recorder.progressFraction() > 0.0F;
+        }
+        if (!movedOn) {
+            helper.fail("nothing started after the skip; the run has to move on to the next disc");
+            return;
+        }
+        var secondLine = Component.translatable("gui.neoecoprototype.music_recorder_now_playing",
+                second.value().description());
+        if (!recorder.currentSongLine().equals(secondLine)) {
+            helper.fail("the skip did not move on to the second disc, the panel says "
+                    + recorder.currentSongLine());
+            return;
+        }
+        for (int tick = 0; tick <= secondLength + 40; tick++) {
+            MusicRecorderBlockEntity.serverTick(level, absolute, state, recorder);
+            if (!MusicDataDiscItem.playlistOf(recorder.getDataDiscInventory()
+                    .getStackInSlot(MusicRecorderBlockEntity.DATA_SLOT)).isEmpty()) {
+                break;
+            }
+        }
+        var carried = MusicDataDiscItem.playlistOf(
+                recorder.getDataDiscInventory().getStackInSlot(MusicRecorderBlockEntity.DATA_SLOT));
+        if (carried.songCount() != 1 || !carried.songs().get(0).song().equals(secondId)) {
+            helper.fail("only the second song was played through, so the disc has to hold " + secondId
+                    + " alone, got " + carried);
+            return;
+        }
+        for (int tick = 0; tick < 40; tick++) {
+            MusicRecorderBlockEntity.serverTick(level, absolute, state, recorder);
+        }
+        if (recorder.progressFraction() != 0.0F) {
+            helper.fail("the skipped song started again on its own");
+            return;
+        }
+
+        recorder.getDiscInventory().insertItem(2, new ItemStack(Items.MUSIC_DISC_BLOCKS), false);
+        boolean retried = false;
+        for (int tick = 0; tick < 5 && !retried; tick++) {
+            MusicRecorderBlockEntity.serverTick(level, absolute, state, recorder);
+            retried = recorder.progressFraction() > 0.0F;
+        }
+        if (!retried) {
+            helper.fail("touching the slots did not clear the skip list, so " + firstId
+                    + " can never be tried again");
+            return;
+        }
+        helper.setBlock(pos, Blocks.AIR);
+        helper.succeed();
+    }
+
     /** Records and the data disc are inventory, not decoration: breaking the block has to hand them back. */
     @GameTest(template = "empty", batch = "music_recorder", timeoutTicks = 60,
             templateNamespace = NeoECOPrototype.MOD_ID)

@@ -23,8 +23,10 @@ import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * The machine that fills a data disc. It is the acoustic half of the music key: the jukebox spends a
@@ -39,6 +41,10 @@ import java.util.Optional;
  * <p>The input discs are never consumed; the same disc can be recorded onto any number of data discs. The
  * data disc is capped by {@link MusicPlaylist#MAX_SONGS}, and songs are deduplicated by their jukebox song
  * id, so feeding the same song in twice (or from two discs) records it once.
+ *
+ * <p>Pause and skip both stop the audio and write nothing. Pausing keeps the run suspended until it is
+ * resumed; skipping also keeps that song out of the rest of the run, and touching any slot clears the skip
+ * list so the discs get a fresh try.
  */
 public final class MusicRecorderBlockEntity extends AEBaseBlockEntity implements InternalInventoryHost {
 
@@ -48,6 +54,7 @@ public final class MusicRecorderBlockEntity extends AEBaseBlockEntity implements
 
     private static final String DISCS_TAG = "music_recorder_discs";
     private static final String DATA_TAG = "music_recorder_data_disc";
+    private static final String PAUSED_TAG = "music_recorder_paused";
 
     private final AppEngInternalInventory discs = new AppEngInternalInventory(
             this, DISC_SLOTS, 1, new PlayableDiscFilter());
@@ -63,6 +70,13 @@ public final class MusicRecorderBlockEntity extends AEBaseBlockEntity implements
     private ItemStack playingDisc = ItemStack.EMPTY;
     private ItemStack playingDataDisc = ItemStack.EMPTY;
 
+    private boolean paused;
+    /**
+     * Songs the player skipped this session. Not persisted and not part of the playlist: a skip is "not
+     * this one right now", and touching any slot clears the whole set so a fresh stack can be tried again.
+     */
+    private final Set<ResourceLocation> skipped = new HashSet<>();
+
     public MusicRecorderBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state) {
         super(type, pos, state);
     }
@@ -76,6 +90,9 @@ public final class MusicRecorderBlockEntity extends AEBaseBlockEntity implements
     // ==================== the recording run ====================
 
     private void tickServer(Level level) {
+        if (paused) {
+            return;
+        }
         if (playingSlot >= 0) {
             continueSong(level);
             return;
@@ -118,7 +135,7 @@ public final class MusicRecorderBlockEntity extends AEBaseBlockEntity implements
             }
             Holder<JukeboxSong> song = found.get();
             ResourceLocation id = song.unwrapKey().map(ResourceKey::location).orElse(null);
-            if (id == null || contains(playlist, id)) {
+            if (id == null || contains(playlist, id) || skipped.contains(id)) {
                 continue;
             }
             playingSlot = slot;
@@ -161,8 +178,11 @@ public final class MusicRecorderBlockEntity extends AEBaseBlockEntity implements
         playingDataDisc = ItemStack.EMPTY;
     }
 
-    /** The line above the cells: which song the room is hearing, or that nothing is playing. */
+    /** The line above the cells: which song the room is hearing, or that nothing is running. */
     public Component currentSongLine() {
+        if (paused) {
+            return Component.translatable("gui.neoecoprototype.music_recorder_paused");
+        }
         if (playingSlot < 0 || playingName == null) {
             return Component.translatable("gui.neoecoprototype.music_recorder_idle");
         }
@@ -188,6 +208,45 @@ public final class MusicRecorderBlockEntity extends AEBaseBlockEntity implements
         return dataDisc;
     }
 
+    public boolean isPaused() {
+        return paused;
+    }
+
+    /**
+     * Stops or resumes the run. Pausing drops the song being heard without writing it, because the vanilla
+     * jukebox cannot seek; resuming starts that song again from the beginning on the next tick.
+     */
+    public void togglePaused() {
+        paused = !paused;
+        if (paused && playingSlot >= 0) {
+            Level level = getLevel();
+            if (level != null) {
+                abort(level);
+            } else {
+                clearPlaying();
+            }
+        }
+        setChanged();
+    }
+
+    /** Drops the song being heard and keeps it out of this run. A skip records nothing, like any abort. */
+    public void skipCurrentSong() {
+        if (playingSlot < 0) {
+            return;
+        }
+        ResourceLocation skippedSong = playingSong;
+        Level level = getLevel();
+        if (level != null) {
+            abort(level);
+        } else {
+            clearPlaying();
+        }
+        if (skippedSong != null) {
+            skipped.add(skippedSong);
+        }
+        setChanged();
+    }
+
     /** How far the song being recorded has got, 0..1, for the groove on the panel. */
     public float progressFraction() {
         if (playingSlot < 0 || playingTicks <= 0) {
@@ -198,6 +257,8 @@ public final class MusicRecorderBlockEntity extends AEBaseBlockEntity implements
 
     @Override
     public void saveChangedInventory(AppEngInternalInventory inventory) {
+        // A skipped song was skipped from a particular stack; once the slots change, it deserves a retry.
+        skipped.clear();
         setChanged();
     }
 
@@ -213,6 +274,7 @@ public final class MusicRecorderBlockEntity extends AEBaseBlockEntity implements
         super.saveAdditional(tag, registries);
         discs.writeToNBT(tag, DISCS_TAG, registries);
         dataDisc.writeToNBT(tag, DATA_TAG, registries);
+        tag.putBoolean(PAUSED_TAG, paused);
     }
 
     @Override
@@ -220,9 +282,11 @@ public final class MusicRecorderBlockEntity extends AEBaseBlockEntity implements
         super.loadTag(tag, registries);
         discs.readFromNBT(tag, DISCS_TAG, registries);
         dataDisc.readFromNBT(tag, DATA_TAG, registries);
+        paused = tag.getBoolean(PAUSED_TAG);
         // A song in flight is not persisted: the disc on the spindle was never finished, so nothing
         // about it is owed to the data disc after a reload.
         clearPlaying();
+        skipped.clear();
     }
 
     /** The loot table drops the block; the thirteen stacks inside it come from here. */

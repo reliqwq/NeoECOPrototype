@@ -349,5 +349,8 @@
   "gui.neoecoprototype.music_recorder_data_slot": "数据唱片",
   "gui.neoecoprototype.music_recorder_idle": "空闲",
   "gui.neoecoprototype.music_recorder_now_playing": "正在播放：%s",
+  "gui.neoecoprototype.music_recorder_paused": "已暂停",
+  "gui.neoecoprototype.music_recorder_pause": "暂停 / 继续",
+  "gui.neoecoprototype.music_recorder_skip": "跳过此曲",
   "jei.neoecoprototype.music_data.info": "音乐数据由音乐录制机录入：放入最多 12 张唱片，每首完整播放的歌曲都会写进数据唱片。把数据唱片放进 ME 唱片机即可为 ME 网络提供音乐，也可以在数据重组器里把 20 音乐转化为 1 数据流。"
 }
