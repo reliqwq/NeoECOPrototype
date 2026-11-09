@@ -119,12 +119,37 @@ final class MusicRecorderResourcesTest {
             JsonObject json = json(ASSETS.resolve("lang/" + lang + ".json"));
             for (String key : List.of("block.neoecoprototype.music_recorder",
                     "gui.neoecoprototype.music_recorder_data_slot",
+                    "gui.neoecoprototype.music_recorder_idle",
+                    "gui.neoecoprototype.music_recorder_now_playing",
                     "jei.neoecoprototype.music_data.info",
                     "key.neoecoprototype.music_data")) {
                 JsonElement value = json.get(key);
                 assertNotNull(value, key + " is missing from " + lang);
                 assertTrue(!value.getAsString().isBlank(), key + " is blank in " + lang);
             }
+        }
+    }
+
+    /**
+     * The panel names the song it is playing. GameTest never opens the panel, so the binding itself is
+     * pinned here: drop it and the room hears a song the panel never names, with nothing going red.
+     */
+    @Test
+    void thePanelNamesTheSongItIsPlaying() throws Exception {
+        String ui = Files.readString(SOURCES.resolve("blockentity/music/MusicRecorderUI.java"));
+        assertTrue(ui.contains("componentS2C(host::currentSongLine)"),
+                "the panel no longer binds the song line server to client; the top strip would stay on"
+                        + " whatever text it opened with");
+        String be = Files.readString(SOURCES.resolve("blockentity/music/MusicRecorderBlockEntity.java"));
+        assertTrue(be.contains("playingName = song.value().description()"),
+                "the recorder stopped taking the song's own display name; the line would have to show a"
+                        + " raw song id");
+        for (String lang : List.of("en_us", "zh_cn")) {
+            JsonObject json = json(ASSETS.resolve("lang/" + lang + ".json"));
+            assertTrue(json.get("gui.neoecoprototype.music_recorder_now_playing").getAsString()
+                            .contains("%s"),
+                    "the now-playing line in " + lang + " has no %s slot, so the song name would be"
+                            + " dropped from the sentence");
         }
     }
 

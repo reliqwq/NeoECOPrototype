@@ -22929,6 +22929,92 @@ public final class NeoECOPrototypeGameTests {
         helper.succeed();
     }
 
+    /**
+     * The positive half of the recording contract: a song that plays to its end joins the data disc with
+     * exactly the length the registry froze for it, and neither disc is consumed. The panel line names the
+     * song while it plays and goes back to idle afterwards. The play is driven tick by tick here because
+     * waiting seventy real seconds would make the suite slower than the machine.
+     */
+    @GameTest(template = "empty", batch = "music_recorder", timeoutTicks = 60,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void recorderWritesTheWholeSongAndKeepsBothDiscs(GameTestHelper helper) {
+        var pos = new BlockPos(0, 0, 0);
+        helper.setBlock(pos, ModRegistration.MUSIC_RECORDER_BLOCK.get());
+        if (!(helper.getBlockEntity(pos) instanceof MusicRecorderBlockEntity recorder)) {
+            helper.fail("the recorder block has no MusicRecorderBlockEntity");
+            return;
+        }
+        var level = helper.getLevel();
+        var absolute = helper.absolutePos(pos);
+        var state = helper.getBlockState(pos);
+        var record = new ItemStack(Items.MUSIC_DISC_11);
+        var song = net.minecraft.world.item.JukeboxSong.fromStack(level.registryAccess(), record)
+                .orElse(null);
+        if (song == null) {
+            helper.fail("music_disc_11 names no jukebox song, so a whole play cannot be driven");
+            return;
+        }
+        var songId = song.unwrapKey().map(key -> key.location()).orElse(null);
+        int length = song.value().lengthInTicks();
+        recorder.getDiscInventory().insertItem(0, record.copy(), false);
+        recorder.getDataDiscInventory().insertItem(0,
+                new ItemStack(ModRegistration.MUSIC_DATA_DISC_ITEM.get()), false);
+        var idleLine = Component.translatable("gui.neoecoprototype.music_recorder_idle");
+        if (!recorder.currentSongLine().equals(idleLine)) {
+            helper.fail("the song line is not idle before anything plays: " + recorder.currentSongLine());
+            return;
+        }
+        boolean sawProgress = false;
+        Component playingLine = null;
+        for (int tick = 0; tick <= length + 40; tick++) {
+            MusicRecorderBlockEntity.serverTick(level, absolute, state, recorder);
+            if (recorder.progressFraction() > 0.0F) {
+                sawProgress = true;
+                playingLine = recorder.currentSongLine();
+            }
+            if (!MusicDataDiscItem.playlistOf(recorder.getDataDiscInventory()
+                    .getStackInSlot(MusicRecorderBlockEntity.DATA_SLOT)).isEmpty()) {
+                break;
+            }
+        }
+        if (!sawProgress) {
+            helper.fail("the groove never moved during a whole play");
+            return;
+        }
+        var expectedLine = Component.translatable("gui.neoecoprototype.music_recorder_now_playing",
+                song.value().description());
+        if (playingLine == null || !playingLine.equals(expectedLine)) {
+            helper.fail("the panel never named the song it was playing, got " + playingLine);
+            return;
+        }
+        var carried = MusicDataDiscItem.playlistOf(
+                recorder.getDataDiscInventory().getStackInSlot(MusicRecorderBlockEntity.DATA_SLOT));
+        if (carried.songCount() != 1 || !carried.songs().get(0).song().equals(songId)
+                || carried.songs().get(0).ticks() != length) {
+            helper.fail("a song played through has to join the disc as " + songId + " of " + length
+                    + " ticks, got " + carried);
+            return;
+        }
+        if (!recorder.getDiscInventory().getStackInSlot(0).is(Items.MUSIC_DISC_11)
+                || recorder.getDataDiscInventory().getStackInSlot(MusicRecorderBlockEntity.DATA_SLOT)
+                        .isEmpty()) {
+            helper.fail("recording consumed a disc; both the record and the data disc have to stay");
+            return;
+        }
+        MusicRecorderBlockEntity.serverTick(level, absolute, state, recorder);
+        if (recorder.progressFraction() != 0.0F) {
+            helper.fail("the only record left is already on the disc, so nothing should start again");
+            return;
+        }
+        if (!recorder.currentSongLine().equals(idleLine)) {
+            helper.fail("the song line still names a song after everything stopped: "
+                    + recorder.currentSongLine());
+            return;
+        }
+        helper.setBlock(pos, Blocks.AIR);
+        helper.succeed();
+    }
+
     /** Records and the data disc are inventory, not decoration: breaking the block has to hand them back. */
     @GameTest(template = "empty", batch = "music_recorder", timeoutTicks = 60,
             templateNamespace = NeoECOPrototype.MOD_ID)

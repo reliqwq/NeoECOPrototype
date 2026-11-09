@@ -11,6 +11,7 @@ import net.minecraft.core.Holder;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
@@ -56,6 +57,7 @@ public final class MusicRecorderBlockEntity extends AEBaseBlockEntity implements
 
     private int playingSlot = -1;
     private ResourceLocation playingSong;
+    private Component playingName;
     private int playingTicks;
     /** What the two involved stacks looked like when the song started, so an outside edit can abort it. */
     private ItemStack playingDisc = ItemStack.EMPTY;
@@ -121,6 +123,7 @@ public final class MusicRecorderBlockEntity extends AEBaseBlockEntity implements
             }
             playingSlot = slot;
             playingSong = id;
+            playingName = song.value().description();
             playingTicks = song.value().lengthInTicks();
             playingDisc = stack.copy();
             playingDataDisc = target.copy();
@@ -152,9 +155,18 @@ public final class MusicRecorderBlockEntity extends AEBaseBlockEntity implements
     private void clearPlaying() {
         playingSlot = -1;
         playingSong = null;
+        playingName = null;
         playingTicks = 0;
         playingDisc = ItemStack.EMPTY;
         playingDataDisc = ItemStack.EMPTY;
+    }
+
+    /** The line above the cells: which song the room is hearing, or that nothing is playing. */
+    public Component currentSongLine() {
+        if (playingSlot < 0 || playingName == null) {
+            return Component.translatable("gui.neoecoprototype.music_recorder_idle");
+        }
+        return Component.translatable("gui.neoecoprototype.music_recorder_now_playing", playingName);
     }
 
     private static boolean contains(MusicPlaylist playlist, ResourceLocation song) {

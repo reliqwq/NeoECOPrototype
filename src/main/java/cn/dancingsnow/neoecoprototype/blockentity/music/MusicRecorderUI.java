@@ -13,6 +13,7 @@ import com.lowdragmc.lowdraglib2.gui.ui.UI;
 import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
 import com.lowdragmc.lowdraglib2.gui.ui.data.TextWrap;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.ItemSlot;
+import com.lowdragmc.lowdraglib2.gui.ui.elements.Label;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.TextElement;
 import com.lowdragmc.lowdraglib2.gui.ui.event.HoverTooltips;
 import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvents;
@@ -28,12 +29,13 @@ import javax.annotation.Nullable;
 import java.util.List;
 
 /**
- * The recorder's panel: twelve input discs on the left, one data disc on the right, and a groove that
- * fills while the song currently being copied plays. Art is drawn at the same 168x170, with the same
- * cells and player inventory as the dissociator panel, so the two machines read as one family.
+ * The recorder's panel: a line naming the song the room is hearing, twelve input discs on the left, one
+ * data disc on the right, and a groove that fills while that song plays. Art is drawn at the same
+ * 168x170, with the same cells and player inventory as the dissociator panel, so the two machines read
+ * as one family.
  *
- * <p>Only the progress binding travels server to client; the slots use the inventories themselves, so a
- * client cannot write anything the filters would refuse.
+ * <p>Only the progress and the song line travel server to client; the slots use the inventories
+ * themselves, so a client cannot write anything the filters would refuse.
  */
 public final class MusicRecorderUI {
 
@@ -41,6 +43,12 @@ public final class MusicRecorderUI {
             NeoECOPrototype.id("textures/gui/music_recorder.png");
     private static final int WIDTH = 168;
     private static final int HEIGHT = 170;
+
+    /** The song line sits in the empty strip above the cells; long names roll on hover. */
+    private static final int SONG_X = 7;
+    private static final int SONG_Y = 2;
+    private static final int SONG_WIDTH = 154;
+    private static final int SONG_HEIGHT = 9;
 
     /** The twelve input cells: six columns, two rows, 18x18 with a one-pixel inner padding. */
     private static final int INPUT_X = 7;
@@ -93,6 +101,15 @@ public final class MusicRecorderUI {
                                 List.of(Component.translatable(
                                         "gui.neoecoprototype.music_recorder_data_slot")),
                                 null, null, null)));
+
+        Label songLine = new Label();
+        songLine.setText(host.currentSongLine());
+        songLine.textStyle(textStyle -> textStyle.textWrap(TextWrap.HOVER_ROLL)
+                .textShadow(false).textColor(0x403e53));
+        songLine.bind(DataBindingBuilder.componentS2C(host::currentSongLine).build());
+        songLine.layout(layout -> layout.positionType(TaffyPosition.ABSOLUTE)
+                .left(SONG_X).top(SONG_Y).width(SONG_WIDTH).height(SONG_HEIGHT));
+        root.addChild(songLine);
 
         root.addChild(new TextElement()
                 .setText("container.inventory", true)
