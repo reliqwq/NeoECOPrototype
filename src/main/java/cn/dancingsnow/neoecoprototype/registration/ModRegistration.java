@@ -1881,9 +1881,9 @@ private static Supplier<BlockEntityType<SimplifyStorageVentBlockEntity>> registe
                         // wireless_link_card.json - that recipe block is kept in _removed_sources/.
                         output.accept(SIMPLIFY_STORAGE_CASING_ITEM.get());
                          output.accept(SIMPLIFY_GREEN_ALUMINUM_CASING_ITEM.get());
-                        // The whole cryotheum family is out of the tab: it generates nowhere by default and
-                        // no recipe names a grette or a neoecoprototype cryotheum id. The items stay
-                        // registered so existing worlds keep their blocks.
+                        // The cryotheum ore family stays out of the tab: it generates nowhere by default
+                        // and no recipe names one of its ids. The blocks stay registered so existing
+                        // worlds keep them.
                         output.accept(SIMPLIFY_STORAGE_INTERFACE_ITEM.get());
                         output.accept(SIMPLIFY_STORAGE_NETWORK_INTERFACE_ITEM.get());
                         output.accept(SIMPLIFY_STORAGE_VENT_ITEM.get());
@@ -2046,6 +2046,20 @@ private static Supplier<BlockEntityType<SimplifyStorageVentBlockEntity>> registe
                         // is what the crafting loop between four bottles and one bucket needs.
                         output.accept(CRYOTHEUM_ICE_CREAM_BLOCK_ITEM.get());
                         output.accept(CRYOTHEUM_ICE_CREAM_BUCKET.get());
+                        // The grette family became visible on 2026-11-09, once its textures stopped moving.
+                        // All eleven in one run so the chain reads in order: the two products, the block they
+                        // build up, the buds and cluster, then the four conditions of budding rock.
+                        output.accept(GRETTE_CRYSTAL.get());
+                        output.accept(GRETTE_CRYSTAL_DUST.get());
+                        output.accept(GRETTE_CRYSTAL_BLOCK_ITEM.get());
+                        output.accept(SMALL_GRETTE_BUD_ITEM.get());
+                        output.accept(MEDIUM_GRETTE_BUD_ITEM.get());
+                        output.accept(LARGE_GRETTE_BUD_ITEM.get());
+                        output.accept(GRETTE_CLUSTER_ITEM.get());
+                        output.accept(FLAWLESS_BUDDING_GRETTE_ITEM.get());
+                        output.accept(FLAWED_BUDDING_GRETTE_ITEM.get());
+                        output.accept(CHIPPED_BUDDING_GRETTE_ITEM.get());
+                        output.accept(DAMAGED_BUDDING_GRETTE_ITEM.get());
                     })
                     .build());
 

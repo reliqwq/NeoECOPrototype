@@ -5410,6 +5410,13 @@ public final class NeoECOPrototypeGameTests {
             "migration_drive_1_4", "migration_drive_4_6", "migration_drive_6_9",
             "migration_drive_empty", "migration_drive_creative");
 
+    /** The grette family in the order the tab lists it: two products, their block, then the growing rungs. */
+    private static final List<String> GRETTE_FAMILY = List.of(
+            "grette_crystal", "grette_crystal_dust", "grette_crystal_block",
+            "small_grette_bud", "medium_grette_bud", "large_grette_bud", "grette_cluster",
+            "flawless_budding_grette", "flawed_budding_grette", "chipped_budding_grette",
+            "damaged_budding_grette");
+
     /**
      * Every drive that is registered has to have its own model, its own texture behind that model's layer0,
      * and a name in both lang files. All five are in the creative tab and none has a recipe yet, which is the
@@ -5535,7 +5542,10 @@ public final class NeoECOPrototypeGameTests {
             helper.fail("the drive is missing from the tab, so this reader cannot see membership at all");
             return;
         }
-        if (inTab.test(ModRegistration.FLAWLESS_BUDDING_GRETTE_ITEM.get())) {
+        // The cryotheum ore is the withheld family that most resembles an ordinary block, and its own
+        // comment in the tab says it stays out; the grette family used to serve here until 2026-11-09,
+        // when it went into the tab.
+        if (inTab.test(ModRegistration.CRYOTHEUM_ORE_ITEM.get())) {
             helper.fail("the outsider control is inside the tab, so the membership test is not the tab");
             return;
         }
@@ -5546,6 +5556,42 @@ public final class NeoECOPrototypeGameTests {
                 helper.fail(path + " is not in the creative tab (" + contents.size() + " stacks scanned)");
                 return;
             }
+        }
+        helper.succeed();
+    }
+
+    /**
+     * The grette family went into the creative tab on 2026-11-09, once its textures stopped moving. All
+     * eleven are asserted together because they are read as one chain: a missing rung leaves the four
+     * conditions of budding rock growing into something the player cannot pick up.
+     */
+    @GameTest(template = "empty", templateNamespace = NeoECOPrototype.MOD_ID, batch = "grette_creative_tab")
+    public static void gretteFamilyIsInCreativeTab(GameTestHelper helper) {
+        var tab = ModRegistration.SIMPLIFY_TAB.get();
+        tab.buildContents(new net.minecraft.world.item.CreativeModeTab.ItemDisplayParameters(
+                net.minecraft.world.flag.FeatureFlags.DEFAULT_FLAGS, true, helper.getLevel().registryAccess()));
+        var contents = tab.getDisplayItems();
+        java.util.function.Predicate<Item> inTab =
+                item -> contents.stream().anyMatch(stack -> stack.getItem() == item);
+        if (contents.isEmpty() || !inTab.test(ModRegistration.SIMPLIFY_DRIVE_ITEM.get())) {
+            helper.fail("the tab generator returned nothing usable (" + contents.size()
+                    + " stacks), so membership proves nothing");
+            return;
+        }
+        if (inTab.test(ModRegistration.METEORITE_CORE_ITEM.get())) {
+            helper.fail("the withheld dissociator family turned up in the tab, so this is not the tab");
+            return;
+        }
+        var missing = new java.util.ArrayList<String>();
+        for (String path : GRETTE_FAMILY) {
+            var item = BuiltInRegistries.ITEM.get(
+                    ResourceLocation.fromNamespaceAndPath(NeoECOPrototype.MOD_ID, path));
+            if (!inTab.test(item)) missing.add(path);
+        }
+        if (!missing.isEmpty()) {
+            helper.fail("grette entries missing from the creative tab: " + missing
+                    + " (" + contents.size() + " stacks scanned)");
+            return;
         }
         helper.succeed();
     }
