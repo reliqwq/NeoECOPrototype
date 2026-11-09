@@ -65,6 +65,14 @@ public class SimplifyStorageInterfaceBlockEntity extends ECOMachineInterfaceBloc
         if (controller == null || cluster == null || isDriveProviderOnThisGrid(cluster)) {
             return;
         }
+        // In INPUT / OUTPUT mode the cells are the transfer's source; mounting them here as well would put
+        // them back on the grid the transfer writes into, which is the self-loop the drive gate prevents.
+        if (controller.isStorageInterfaceTransferMode()) {
+            for (SimplifyDriveBlockEntity drive : cluster.getDrives()) {
+                drive.setMounted(false);
+            }
+            return;
+        }
         for (SimplifyDriveBlockEntity drive : cluster.getDrives()) {
             IECOStorageCell cell = drive.getCellInventory();
             ItemStack cellStack = drive.getCellStack();
@@ -132,6 +140,33 @@ public class SimplifyStorageInterfaceBlockEntity extends ECOMachineInterfaceBloc
     private void requestStorageProviderUpdate() {
         if (level != null && !level.isClientSide && !isServerStopping()) {
             SimplifyGridFacade.requestStorageUpdate(getMainNode());
+        }
+    }
+
+    /**
+     * eco calls its controller from here ({@code ECOStorageSystemBlockEntity#onStorageInterfaceModeChanged}), and
+     * that controller re-announces every drive's mount. Our cluster is not eco's {@code NEStorageCluster}, so
+     * that callback is skipped: without this override the drives would keep whatever mounts they had when the
+     * mode changed, and OUTPUT would insert back into the very cells it is reading.
+     */
+    @Override
+    public void setStorageInterfaceMode(cn.dancingsnow.neoecoae.storage.ECOStorageInterfaceMode mode) {
+        boolean wasTransferMode = isStorageTransferMode();
+        super.setStorageInterfaceMode(mode);
+        if (level == null || level.isClientSide || wasTransferMode == isStorageTransferMode()) {
+            return;
+        }
+        requestStorageProviderUpdate();
+        SimplifyStorageCluster cluster = getCluster();
+        if (cluster == null) {
+            return;
+        }
+        SimplifyStorageHostBlockEntity controller = cluster.getController();
+        if (controller != null) {
+            SimplifyGridFacade.requestStorageUpdate(controller.getMainNode());
+        }
+        for (SimplifyDriveBlockEntity drive : cluster.getDrives()) {
+            SimplifyGridFacade.requestStorageUpdate(drive.getMainNode());
         }
     }
 

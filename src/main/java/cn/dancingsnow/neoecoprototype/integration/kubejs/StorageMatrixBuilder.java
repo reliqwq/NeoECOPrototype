@@ -28,7 +28,7 @@ public final class StorageMatrixBuilder extends ItemBuilder {
     private StorageMatrixDefinition.MatrixSize size = StorageMatrixDefinition.MatrixSize.INFINITE;
     private Supplier<AEKey> key;
     /**
-     * True when the key came from {@link #type(Supplier)} rather than a typed binder. Only the unbounded
+     * True when the key came from {@link #keyType(Supplier)} rather than a typed binder. Only the unbounded
      * family can answer for one key; a finite matrix stores a whole medium and has no slot for it.
      */
     private boolean arbitraryKey;
@@ -108,6 +108,13 @@ public final class StorageMatrixBuilder extends ItemBuilder {
         } catch (IllegalArgumentException ignored) {
             // Not a storage kind; fall through and treat it as a family material.
         }
+        if ("Function".equals(value)) {
+            // Rhino answers a JS arrow function handed to this overload with its text form, "Function",
+            // rather than converting it to the Supplier overload - so a script that copied the old
+            // `.type(() => key)` example lands here. Name the door that does work.
+            throw new IllegalStateException("Matrix '" + id + "': a JS function cannot travel through"
+                    + " type(...) - bind an arbitrary AEKey with keyType(() => key) instead");
+        }
         this.material = MatrixMaterials.parse(value);
         return this;
     }
@@ -117,9 +124,13 @@ public final class StorageMatrixBuilder extends ItemBuilder {
      * Source - by handing in the key itself. A bare id cannot name one of these: only that key's own type
      * knows how to build the object, which is why this is the advanced door and the typed binders stay.
      * Only the unbounded family can hold a single key, so this is rejected on a finite size.
+     *
+     * <p>The name is deliberately not another {@code type(...)}: Rhino resolves a JS arrow function passed
+     * there to the {@link #type(String)} overload (it reads as the text "Function"), so a function never
+     * reached this signature. A method name with only one signature is what makes the SAM conversion fire.
      */
-    @Info("绑定任意 AEKey（高级用法：魔源这类非物品/流体键）；只对 infinite 或 grows(...) 生效，需要自己提供键对象")
-    public StorageMatrixBuilder type(Supplier<AEKey> key) {
+    @Info("绑定任意 AEKey（高级用法：魔源这类非物品/流体键），写成 keyType(() => key)；只对 infinite 或 grows(...) 生效，需要自己提供键对象")
+    public StorageMatrixBuilder keyType(Supplier<AEKey> key) {
         this.key = () -> {
             AEKey resolved = key.get();
             if (resolved == null) {
@@ -131,6 +142,11 @@ public final class StorageMatrixBuilder extends ItemBuilder {
         };
         this.arbitraryKey = true;
         return this;
+    }
+
+    /** Kept for Java callers; scripts must use {@link #keyType(Supplier)} for the reason stated there. */
+    public StorageMatrixBuilder type(Supplier<AEKey> key) {
+        return keyType(key);
     }
 
     @Info("绑定一个物品（只有 infinite 档真的绑；有限矩阵按媒介通用，见本文下方说明）")
@@ -275,7 +291,8 @@ public final class StorageMatrixBuilder extends ItemBuilder {
         }
         if (type != StorageMatrixDefinition.MatrixType.CHEMICAL && key == null) {
             throw new IllegalStateException(
-                    "Matrix '%s' requires itemType(...), fluidType(...) or type(AEKey).".formatted(id));
+                    "Matrix '%s' requires itemType(...), fluidType(...), chemicalType(...) or keyType(() => key)."
+                            .formatted(id));
         }
         if (arbitraryKey && size != StorageMatrixDefinition.MatrixSize.INFINITE) {
             // The finite path is a per-medium budget: it would silently store the whole medium while the
@@ -314,7 +331,8 @@ public final class StorageMatrixBuilder extends ItemBuilder {
             // that is the list the in-drive model pass reads, and a script-made item is only reachable there.
             if (key == null) {
                 throw new IllegalStateException("Growing matrix '" + id
-                        + "' must bind what it grows with itemType(...), fluidType(...) or chemicalType(...)");
+                        + "' must bind what it grows with itemType(...), fluidType(...), chemicalType(...)"
+                        + " or keyType(() => key)");
             }
             if (material == MatrixMaterials.Kind.UNIVERSAL || material == MatrixMaterials.Kind.QUANTUM) {
                 throw new IllegalStateException("Growing matrix '" + id

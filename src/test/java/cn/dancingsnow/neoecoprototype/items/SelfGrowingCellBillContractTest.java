@@ -16,22 +16,24 @@ import org.junit.jupiter.api.Test;
 
 /**
  * The self-growing family's bills, and the fact that each cell's crafting bill and its disassembly bill are
- * the same four items.
+ * the same items.
  *
  * <p>Read off the data files rather than in-game because the two halves live in two different systems: the
- * crafting bill is a vanilla shapeless recipe, while what comes back when a cell is taken apart is an AE2
- * {@code storage_cell_disassembly} file that the game never cross-checks against it. Repricing one side and
- * forgetting the other is silent - a cell that costs three things and returns four - and no game test reads
- * both, so this is the place where the pair is compared.</p>
+ * crafting bill is a recipe file (vanilla shapeless, or Ars Nouveau's enchanting apparatus for the source
+ * member), while what comes back when a cell is taken apart is an AE2 {@code storage_cell_disassembly} file
+ * that the game never cross-checks against it. Repricing one side and forgetting the other is silent - a
+ * cell that costs three things and returns four - and no game test reads both, so this is the place where
+ * the pair is compared.</p>
  *
  * <p>The 1.4.6 change is the component of the first two members: {@code
  * neoecoae:eco_infinite_cell_component} (whose own bill is 128 of the 256M components, 64 ingots, 64
  * processors and 64,000 mB of cryotheum solution) came out and {@code neoecoae:eco_cell_component_64m} (3 of
  * the 16M, 48 ingots, 16 processors, 1 crystal ingot) went in, on both cells.</p>
  *
- * <p>The source member is priced off that ladder on purpose: its four ingredients are the infinite housing,
- * kouooki's doll, the treasure-crab token and a source gem block. What it still shares with the family is the
- * rule asserted here - the disassembly bill is the crafting bill.</p>
+ * <p>The source member is priced off that ladder on purpose: the infinite housing is the reagent and the
+ * seven pedestal items are kouooki's doll, the treasure-crab token, a source gem block, a magebloom seed and
+ * water, fire and earth essence. What it still shares with the family is the rule asserted here - the
+ * disassembly bill is the crafting bill.</p>
  */
 final class SelfGrowingCellBillContractTest {
 
@@ -45,6 +47,11 @@ final class SelfGrowingCellBillContractTest {
     private static final String KOOOKI_DOLL = "neoecoprototype:fumo_doll_kouooki";
     private static final String ALAKARKINOS_TOKEN = "ars_nouveau:alakarkinos_token";
     private static final String SOURCE_GEM_BLOCK = "ars_nouveau:source_gem_block";
+    /** The seed is the crop block item; {@code ars_nouveau:magebloom} is the flower the crop grows into. */
+    private static final String MAGEBLOOM_SEED = "ars_nouveau:magebloom_crop";
+    private static final String WATER_ESSENCE = "ars_nouveau:water_essence";
+    private static final String FIRE_ESSENCE = "ars_nouveau:fire_essence";
+    private static final String EARTH_ESSENCE = "ars_nouveau:earth_essence";
 
     private static JsonObject read(Path file) throws Exception {
         try (Reader reader = Files.newBufferedReader(file)) {
@@ -52,16 +59,31 @@ final class SelfGrowingCellBillContractTest {
         }
     }
 
-    /** What a shapeless crafting bill names, in the order the file writes it. */
+    /**
+     * What a cell costs, in the order its file writes it - the reagent first for the apparatus, since it is
+     * the one piece the player must supply before the pedestals can fire.
+     */
     private static List<String> craftingBill(JsonObject recipe) {
-        assertEquals("minecraft:crafting_shapeless", recipe.get("type").getAsString(),
-                "a self-growing matrix is crafted shapelessly");
+        String type = recipe.get("type").getAsString();
+        if ("ars_nouveau:enchanting_apparatus".equals(type)) {
+            List<String> ids = new ArrayList<>();
+            ids.add(ingredientId(recipe.getAsJsonObject("reagent")));
+            for (var element : recipe.getAsJsonArray("pedestalItems")) {
+                ids.add(ingredientId(element.getAsJsonObject()));
+            }
+            return ids;
+        }
+        assertEquals("minecraft:crafting_shapeless", type,
+                "a self-growing matrix is crafted shapelessly or in Ars Nouveau's enchanting apparatus");
         List<String> ids = new ArrayList<>();
         for (var element : recipe.getAsJsonArray("ingredients")) {
-            var entry = element.getAsJsonObject();
-            ids.add(entry.has("item") ? entry.get("item").getAsString() : "tag:" + entry.get("tag").getAsString());
+            ids.add(ingredientId(element.getAsJsonObject()));
         }
         return ids;
+    }
+
+    private static String ingredientId(JsonObject entry) {
+        return entry.has("item") ? entry.get("item").getAsString() : "tag:" + entry.get("tag").getAsString();
     }
 
     /** What AE2 hands back when the cell is taken apart. */
@@ -107,15 +129,23 @@ final class SelfGrowingCellBillContractTest {
     }
 
     /**
-     * The source member is not on the component ladder, and both of its ingredients that live in another mod
-     * are gated: without those conditions the file would fail to load on every install that lacks Ars
-     * Nouveau, which takes the whole recipe reload down with it rather than just hiding one item.
+     * The source member is not on the component ladder, and every one of its parts but the housing lives in
+     * another mod, so the file is gated: without those conditions it would fail to load on every install
+     * that lacks Ars Nouveau, which takes the whole recipe reload down with it rather than just hiding one
+     * item.
      */
     @Test
-    void theSourceCellBuysItsOwnFourPartsBehindItsModGate() throws Exception {
+    void theSourceCellIsBuiltInTheApparatusBehindItsModGate() throws Exception {
         var recipe = read(ROOT.resolve("simplify_source_growing_cell.json"));
-        assertEquals(List.of(HOUSING, KOOOKI_DOLL, ALAKARKINOS_TOKEN, SOURCE_GEM_BLOCK),
+        assertEquals("ars_nouveau:enchanting_apparatus", recipe.get("type").getAsString(),
+                "the source cell is built in Ars Nouveau's enchanting apparatus");
+        assertEquals(
+                List.of(HOUSING, KOOOKI_DOLL, ALAKARKINOS_TOKEN, SOURCE_GEM_BLOCK, MAGEBLOOM_SEED,
+                        WATER_ESSENCE, FIRE_ESSENCE, EARTH_ESSENCE),
                 craftingBill(recipe));
+        assertTrue(recipe.getAsJsonArray("pedestalItems").size() <= 8,
+                "the apparatus has eight pedestals; this recipe asks for more: "
+                        + recipe.getAsJsonArray("pedestalItems"));
         var conditions = recipe.getAsJsonArray("neoforge:conditions");
         List<String> mods = new ArrayList<>();
         for (var element : conditions) {

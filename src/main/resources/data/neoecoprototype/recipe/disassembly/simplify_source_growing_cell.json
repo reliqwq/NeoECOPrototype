@@ -27,6 +27,22 @@
     {
       "id": "ars_nouveau:source_gem_block",
       "count": 1
+    },
+    {
+      "id": "ars_nouveau:magebloom_crop",
+      "count": 1
+    },
+    {
+      "id": "ars_nouveau:water_essence",
+      "count": 1
+    },
+    {
+      "id": "ars_nouveau:fire_essence",
+      "count": 1
+    },
+    {
+      "id": "ars_nouveau:earth_essence",
+      "count": 1
     }
   ]
 }

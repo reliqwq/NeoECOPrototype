@@ -21,6 +21,7 @@ import appeng.api.storage.cells.ISaveProvider;
 import appeng.api.upgrades.Upgrades;
 import appeng.api.util.AEColor;
 import appeng.blockentity.crafting.CraftingBlockEntity;
+import appeng.blockentity.storage.DriveBlockEntity;
 import appeng.crafting.pattern.AECraftingPattern;
 import appeng.core.definitions.AEBlocks;
 import appeng.core.definitions.AEItems;
@@ -36,6 +37,7 @@ import cn.dancingsnow.neoecoae.api.storage.ECOStorageCells;
 import cn.dancingsnow.neoecoae.crafting.display.terminal.ExactAmountSource;
 import cn.dancingsnow.neoecoae.gui.GuiTitleProvider;
 import cn.dancingsnow.neoecoae.recipe.IntegratedWorkingStationRecipe;
+import cn.dancingsnow.neoecoae.storage.ECOStorageInterfaceMode;
 import cn.dancingsnow.neoecoae.multiblock.cluster.NEComputationCluster;
 import cn.dancingsnow.neoecoae.multiblock.definition.MultiBlockDefinition;
 import cn.dancingsnow.neoecoae.multiblock.placement.MultiBlockPlacementPlan;
@@ -51,6 +53,7 @@ import cn.dancingsnow.neoecoprototype.block.storage.SimplifyStorageControllerBlo
 import cn.dancingsnow.neoecoprototype.blockentity.crafting.SimplifySuperconductiveInterfaceBlockEntity;
 import cn.dancingsnow.neoecoprototype.blockentity.reactor.SimplifyReactorControllerBlockEntity;
 import cn.dancingsnow.neoecoprototype.blockentity.storage.SimplifyEnergyCellBlockEntity;
+import cn.dancingsnow.neoecoprototype.blockentity.storage.SimplifyStorageInterfaceBlockEntity;
 import cn.dancingsnow.neoecoprototype.blockentity.storage.SimplifyStorageHostBlockEntity;
 import cn.dancingsnow.neoecoprototype.blockentity.trinity.SimplifyTrinityComputationModuleBlockEntity;
 import cn.dancingsnow.neoecoprototype.blockentity.trinity.SimplifyTrinityControllerBlockEntity;
@@ -9496,6 +9499,226 @@ public final class NeoECOPrototypeGameTests {
                                 + "; only simplify_storage_network_interface should set it");
                     }
                 });
+    }
+
+    /**
+     * The INPUT / OUTPUT buttons on the 通讯接口, measured instead of assumed.
+     *
+     * <p>eco moves contents for those buttons out of its own storage controller's tick
+     * ({@code ECOStorageSystemBlockEntity#tick} asks {@code ECOStorageInterfaceTransfer}), and the L1 host is
+     * not that block entity, so the button used to persist a field nothing read. Each case here stands an
+     * AE2 drive on the interface's grid - the same {@code IStorageProvider} mount a storage bus onto a
+     * subnetwork gives the transfer, without that bus's own include/exclude toggle - and moves one cell's
+     * worth of diamonds. STORAGE is the control: same wiring, same cell and same wait, nothing may move and
+     * the drive must stay mounted.</p>
+     */
+    @GameTest(template = "l1_room", batch = "storage_iface_transfer", timeoutTicks = 400,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void storageInterfaceOutputDrainsTheCellsOntoItsGrid(GameTestHelper helper) {
+        assertStorageInterfaceTransfer(helper, ECOStorageInterfaceMode.OUTPUT);
+    }
+
+    @GameTest(template = "l1_room", batch = "storage_iface_transfer", timeoutTicks = 400,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void storageInterfaceInputPullsTheGridIntoTheCells(GameTestHelper helper) {
+        assertStorageInterfaceTransfer(helper, ECOStorageInterfaceMode.INPUT);
+    }
+
+    @GameTest(template = "l1_room", batch = "storage_iface_transfer", timeoutTicks = 400,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void storageModeMovesNothingAndKeepsTheDriveMounted(GameTestHelper helper) {
+        assertStorageInterfaceTransfer(helper, ECOStorageInterfaceMode.STORAGE);
+    }
+
+    private static void assertStorageInterfaceTransfer(GameTestHelper helper,
+                                                       ECOStorageInterfaceMode mode) {
+        buildRoomKept(helper, CARD_HOST,
+                ModRegistration.SIMPLIFY_STORAGE_CONTROLLER_BLOCK.get(),
+                ModRegistration.SIMPLIFY_STORAGE_INTERFACE_BLOCK.get(),
+                ModRegistration.SIMPLIFY_STORAGE_NETWORK_INTERFACE_BLOCK.get(),
+                false, (host, finish) -> {
+                    if (!(host instanceof SimplifyStorageHostBlockEntity storageHost)) {
+                        finish.run();
+                        helper.fail("the L1 storage controller is not our host block entity: " + host);
+                        return;
+                    }
+                    var cluster = storageHost.getCluster();
+                    var iface = cluster == null ? null : cluster.getTheInterface();
+                    if (iface == null) {
+                        finish.run();
+                        helper.fail("the built room gave us no 通讯接口 to switch modes on");
+                        return;
+                    }
+                    var l1Drive = cluster.getDrives().stream()
+                            .filter(candidate -> !candidate.hasCell())
+                            .findFirst().orElse(null);
+                    if (l1Drive == null) {
+                        finish.run();
+                        helper.fail("every drive in the built room already holds a cell");
+                        return;
+                    }
+                    BlockPos ifaceRel = iface.getBlockPos()
+                            .subtract(helper.absolutePos(BlockPos.ZERO));
+                    var wiring = wireStorageInterfaceToAnAe2Drive(helper, ifaceRel);
+                    if (wiring == null) {
+                        finish.run();
+                        helper.fail("no face of the interface at " + at(ifaceRel)
+                                + " had room for a cable, an AE2 drive and a power cell");
+                        return;
+                    }
+                    Runnable leave = () -> {
+                        helper.setBlock(wiring.cable(), Blocks.AIR);
+                        helper.setBlock(wiring.drive(), Blocks.AIR);
+                        helper.setBlock(wiring.power(), Blocks.AIR);
+                        finish.run();
+                    };
+
+                    var ae2DriveBe = helper.getLevel().getBlockEntity(helper.absolutePos(wiring.drive()));
+                    if (!(ae2DriveBe instanceof DriveBlockEntity ae2Drive)) {
+                        leave.run();
+                        helper.fail("the AE2 drive at " + at(wiring.drive()) + " has no block entity");
+                        return;
+                    }
+                    ae2Drive.getInternalInventory()
+                            .setItemDirect(0, new ItemStack(AEItems.ITEM_CELL_1K.asItem()));
+                    // A fresh drive fills invBySlot from onReady(), not from the insert, so its slot answers
+                    // null on the placing tick; wait for the mount before asking it for the cell.
+                    waitUntil(helper, 40,
+                            () -> ae2Drive.getCellInventory(0) != null,
+                            () -> "the AE2 drive never mounted its own 1k cell: slot="
+                                    + ae2Drive.getInternalInventory().getStackInSlot(0),
+                            () -> {
+                                var ae2Cell = ae2Drive.getCellInventory(0);
+                                // A stone through the grid proves the drive mounted onto this very
+                                // interface's grid; without that, a later "nothing moved" would be
+                                // measuring the wiring, not the mode.
+                                AEKey stone = AEItemKey.of(Items.STONE);
+                                ae2Cell.insert(stone, 1L, Actionable.MODULATE,
+                                        IActionSource.ofMachine(ae2Drive));
+                                waitUntil(helper, 20,
+                                        () -> gridAmount(iface, stone) >= 1L,
+                                        () -> "the AE2 drive never mounted onto the interface's grid: drive="
+                                                + nodeGrid(helper, wiring.drive())
+                                                + " interface=" + nodeGrid(helper, ifaceRel),
+                                        () -> {
+                                            gridTake(iface, stone, 1L);
+                                            runStorageTransferCase(helper, mode, iface, l1Drive,
+                                                    ae2Cell, leave);
+                                        });
+                            });
+                });
+    }
+
+    private static void runStorageTransferCase(GameTestHelper helper, ECOStorageInterfaceMode mode,
+                                               SimplifyStorageInterfaceBlockEntity iface,
+                                               cn.dancingsnow.neoecoprototype.blockentity.storage
+                                                       .SimplifyDriveBlockEntity l1Drive,
+                                               appeng.api.storage.MEStorage ae2Cell,
+                                               Runnable leave) {
+        if (!l1Drive.insertCell(new ItemStack(ModRegistration.SIMPLIFY_ITEM_CELL_1K.get()))) {
+            leave.run();
+            helper.fail("the L1 drive refused an item cell, so there would be no source to move");
+            return;
+        }
+        var l1Cell = l1Drive.getCellInventory();
+        if (l1Cell == null) {
+            leave.run();
+            helper.fail("the L1 drive took the cell but eco's factory returned no inventory");
+            return;
+        }
+        AEKey diamond = AEItemKey.of(Items.DIAMOND);
+        var seedTarget = mode == ECOStorageInterfaceMode.INPUT ? ae2Cell : l1Cell;
+        long seeded = seedTarget.insert(diamond, 64L, Actionable.MODULATE,
+                IActionSource.ofMachine(l1Drive));
+        if (seeded != 64L) {
+            leave.run();
+            helper.fail("the seed insert only stored " + seeded + " of 64 diamonds");
+            return;
+        }
+        if (mode != ECOStorageInterfaceMode.STORAGE) {
+            iface.setStorageInterfaceMode(mode);
+        }
+        boolean expectsMove = mode != ECOStorageInterfaceMode.STORAGE;
+        boolean expectsL1 = mode != ECOStorageInterfaceMode.OUTPUT;
+        waitUntil(helper, 20,
+                () -> storedIn(l1Cell, diamond) == (expectsL1 ? 64L : 0L)
+                        && storedIn(ae2Cell, diamond) == (expectsL1 ? 0L : 64L)
+                        && l1Drive.isMounted() != expectsMove,
+                () -> mode + " left " + storedIn(l1Cell, diamond) + " diamonds in the L1 cell and "
+                        + storedIn(ae2Cell, diamond) + " in the grid drive, mounted="
+                        + l1Drive.isMounted() + "; expected " + (expectsL1 ? 64 : 0) + " / "
+                        + (expectsL1 ? 0 : 64) + " with mounted=" + !expectsMove,
+                () -> {
+                    leave.run();
+                    helper.succeed();
+                });
+    }
+
+    /** An AE2 drive on the interface's grid: cable, drive and power, all in free template cells. */
+    private record TransferWiring(BlockPos cable, BlockPos drive, BlockPos power) { }
+
+    /**
+     * Wires an AE2 drive onto one free face of the interface: a glass cable in that face's cell, the drive
+     * one further out (facing away, because an AE2 drive does not connect through its front) and a creative
+     * energy cell beside the cable, since {@code ECOIOPortTransfer} inserts through
+     * {@code StorageHelper.poweredInsert}. Returns null when no face of the machine leaves the room.
+     */
+    private static TransferWiring wireStorageInterfaceToAnAe2Drive(GameTestHelper helper,
+                                                                   BlockPos interfaceRel) {
+        var player = helper.makeMockPlayer(GameType.CREATIVE);
+        for (Direction side : Direction.values()) {
+            BlockPos cable = interfaceRel.relative(side);
+            BlockPos drive = cable.relative(side);
+            if (!freeTemplateCell(helper, cable) || !freeTemplateCell(helper, drive)) {
+                continue;
+            }
+            BlockPos power = null;
+            for (Direction around : Direction.values()) {
+                if (around == side || around == side.getOpposite()) {
+                    continue;
+                }
+                BlockPos candidate = cable.relative(around);
+                if (freeTemplateCell(helper, candidate)) {
+                    power = candidate;
+                    break;
+                }
+            }
+            if (power == null) {
+                continue;
+            }
+            if (!placeCableAgainst(helper, player, interfaceRel, side)) {
+                continue;
+            }
+            BlockState driveState = AEBlocks.DRIVE.block().defaultBlockState();
+            if (driveState.hasProperty(BlockStateProperties.FACING)) {
+                driveState = driveState.setValue(BlockStateProperties.FACING, side);
+            }
+            helper.getLevel().setBlockAndUpdate(helper.absolutePos(drive), driveState);
+            helper.setBlock(power, AEBlocks.CREATIVE_ENERGY_CELL.block());
+            return new TransferWiring(cable, drive, power);
+        }
+        return null;
+    }
+
+    private static long storedIn(appeng.api.storage.MEStorage storage, AEKey key) {
+        return storage.extract(key, 64L, Actionable.SIMULATE, IActionSource.empty());
+    }
+
+    private static long gridAmount(SimplifyStorageInterfaceBlockEntity iface, AEKey key) {
+        var grid = iface.getMainNode().getGrid();
+        if (grid == null) {
+            return -1L;
+        }
+        return grid.getStorageService().getInventory()
+                .extract(key, 64L, Actionable.SIMULATE, IActionSource.ofMachine(iface));
+    }
+
+    private static void gridTake(SimplifyStorageInterfaceBlockEntity iface, AEKey key, long amount) {
+        var grid = iface.getMainNode().getGrid();
+        if (grid != null) {
+            grid.getStorageService().getInventory()
+                    .extract(key, amount, Actionable.MODULATE, IActionSource.ofMachine(iface));
+        }
     }
 
     @GameTest(template = "l1_room", batch = "crafting_comm_plain", timeoutTicks = 200,

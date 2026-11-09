@@ -345,7 +345,10 @@ public class SimplifyDriveBlockEntity extends NEBlockEntity<SimplifyStorageClust
         SimplifyStorageCluster cluster = getCluster();
         SimplifyStorageHostBlockEntity controller = cluster == null ? null : cluster.getController();
         IECOStorageCell cell = getCellInventory();
-        if (controller != null && cell != null && isAcceptedByL1Host()) {
+        // Same gate as eco's own drive: while the interface is in INPUT / OUTPUT mode the cells are the
+        // transfer's source, so they must leave this grid - otherwise OUTPUT would insert back into them.
+        if (controller != null && !controller.isStorageInterfaceTransferMode()
+                && cell != null && isAcceptedByL1Host()) {
             // The host's number is the baseline and the cell carries its own offset; eco's helper adds them
             // with integer saturation, which is also where the "marked bulk sits one above" rule lives.
             storageMounts.mount(cell, cn.dancingsnow.neoecoae.gui.storage.StoragePriority.mountPriority(
@@ -356,6 +359,16 @@ public class SimplifyDriveBlockEntity extends NEBlockEntity<SimplifyStorageClust
         }
         setMounted(false);
         updateCellState();
+    }
+
+    /**
+     * The cell this drive contributes to the host, or {@code null} when the host would refuse it. Used by the
+     * interface transfer, which must see exactly the cells the mount path would see.
+     */
+    @Nullable
+    public IECOStorageCell getAcceptedCellInventory() {
+        IECOStorageCell cell = getCellInventory();
+        return cell != null && isAcceptedByL1Host() ? cell : null;
     }
 
     /** L1-native cells, the L1 small-bulk cells, and explicit server whitelist entries may mount. */

@@ -107,6 +107,11 @@ public class SimplifyStorageHostBlockEntity
             new cn.dancingsnow.neoecoae.api.storage.ECOStorageCellPriorities(
                     this::getConfigurableCellDrives,
                     player -> level != null && player.level() == level && isFormed() && canPlayerInteract(player));
+    /**
+     * eco runs its interface transfer out of its own controller's tick, which our host is not; see
+     * {@link SimplifyStorageInterfaceTransfer}.
+     */
+    private final SimplifyStorageInterfaceTransfer interfaceTransfer = new SimplifyStorageInterfaceTransfer(this);
     private boolean mirrored;
     private boolean communicationInterface;
 
@@ -158,10 +163,43 @@ public class SimplifyStorageHostBlockEntity
     public static void tick(Level level, BlockPos pos, BlockState state, SimplifyStorageHostBlockEntity host) {
         boolean wasBuilding = host.isBuildInProgress();
         host.buildController.tick(level);
+        if (level instanceof ServerLevel) {
+            host.tickInterfaceTransfer();
+        }
         if (wasBuilding && !host.isBuildInProgress() && level instanceof ServerLevel) {
             LOGGER.info("L1 auto-build finished @{} formed={} length={} mirrored={}",
                     pos, host.isFormed(), host.getSelectedBuildLength(), host.isMirrorBuild());
         }
+    }
+
+    /**
+     * One transfer step per tick while the interface is in INPUT / OUTPUT mode, and the interface's readout is
+     * the number handed back - including the zero that every other mode reports, exactly as eco's controller
+     * tick records it.
+     */
+    private void tickInterfaceTransfer() {
+        SimplifyStorageCluster cluster = getCluster();
+        SimplifyStorageInterfaceBlockEntity iface = cluster == null ? null : cluster.getTheInterface();
+        if (iface == null) {
+            return;
+        }
+        long moved = interfaceTransfer.transferContents(iface);
+        iface.recordStorageInterfaceTransfer(moved);
+        if (moved > 0) {
+            setChanged();
+            markForUpdate();
+        }
+    }
+
+    /**
+     * Whether the interface is currently moving contents in or out. Drives unmount their cells while this is
+     * true, mirroring eco's own drive: the cells are the transfer's source and must not sit on the same grid
+     * the transfer writes into.
+     */
+    public boolean isStorageInterfaceTransferMode() {
+        SimplifyStorageCluster cluster = getCluster();
+        SimplifyStorageInterfaceBlockEntity iface = cluster == null ? null : cluster.getTheInterface();
+        return isFormed() && iface != null && iface.isStorageTransferMode();
     }
 
     public SimplifyTier getTier() {
