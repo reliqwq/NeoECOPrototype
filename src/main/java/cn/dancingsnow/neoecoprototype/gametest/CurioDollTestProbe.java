@@ -81,7 +81,8 @@ final class CurioDollTestProbe {
         }
 
         // "No armour in the accessory slot" is exactly this multimap being empty - Curios reads modifiers
-        // from here and never from the item's vanilla attribute_modifiers component.
+        // from here and never from the item's vanilla attribute_modifiers component. TedXenon carries no
+        // mana, so for her the map has to stay empty even when Ars Nouveau is installed.
         var curioModifiers = CuriosApi.getAttributeModifiers(headSlot, NeoECOPrototype.id("curio_test"), doll);
         if (!curioModifiers.isEmpty()) {
             return "worn as a curio the doll contributes " + curioModifiers
@@ -92,6 +93,21 @@ final class CurioDollTestProbe {
         if (doll.getItem().getDefaultAttributeModifiers(doll).modifiers().isEmpty()) {
             return "the helmet path carries no attribute modifiers either, so the emptiness above proves"
                     + " nothing";
+        }
+
+        // kouooki is the one doll with mana, and the accessory slot is a second grant path that has to
+        // agree with the helmet one. Both sides come from FumoItem.manaGrants, so with Ars Nouveau absent
+        // the expected list and this map are both empty - the no-mod shape is asserted here, not skipped.
+        ItemStack mage = new ItemStack(ModRegistration.FUMO_DOLL_KOOOKI_ITEM.get());
+        List<FumoItem.AttributeGrant> expectedMana = FumoItem.manaGrants(mage);
+        var curioMana = CuriosApi.getAttributeModifiers(headSlot, NeoECOPrototype.id("curio_mana"), mage);
+        if (curioMana.size() != expectedMana.size()) {
+            return "kouooki worn as a curio contributes " + curioMana + ", expected exactly " + expectedMana;
+        }
+        for (FumoItem.AttributeGrant grant : expectedMana) {
+            if (!curioMana.get(grant.attribute()).contains(grant.modifier())) {
+                return "kouooki worn as a curio contributes " + curioMana + ", missing " + grant.modifier();
+            }
         }
 
         ICuriosItemHandler inventory = CuriosApi.getCuriosInventory(player).orElse(null);

@@ -183,9 +183,10 @@ side = "BOTH"
 
 # Curios (accessory slots). Our six dolls register as a curio for the head slot ("首饰" is what Curios
 # calls that slot in Chinese), so they can be worn there as well as in the helmet slot. Worn as a curio
-# they grant no armour - the curio's attribute modifiers are empty - while everything else (night
-# vision, per-doll effects, the AE charging, the creeper scare) is read off the same items. The
-# registration lives in integration/curios/CuriosDollSupport and is only reached inside
+# they grant no armour - Curios reads its own attribute map, and the only thing we hand it is kouooki's
+# mana (v +2 regen / +6 max mana), which resolves to nothing unless Ars Nouveau is installed - while
+# everything else (night vision, per-doll effects, the AE charging, the creeper scare) is read off the
+# same items. The registration lives in integration/curios/CuriosDollSupport and is only reached inside
 # ModList.isLoaded("curios"), so without the mod the dolls are helmet-only and nothing else changes.
 # Open range like the entries above: 9.5.1 is the only build measured, and presence is the real gate.
 [[dependencies.neoecoprototype]]

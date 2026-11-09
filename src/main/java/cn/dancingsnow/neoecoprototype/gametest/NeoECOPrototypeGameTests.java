@@ -854,6 +854,13 @@ public final class NeoECOPrototypeGameTests {
     @GameTest(template = "empty", batch = "small_bulk_migration", timeoutTicks = 100,
             templateNamespace = NeoECOPrototype.MOD_ID)
     public static void longBulkContentsMoveIntoTheStandardComponent(GameTestHelper helper) {
+        // The small-bulk family only registers with MegaCells (it needs eco's mega_item cell type), so
+        // there is no cell to migrate into when that mod is absent - not a failure of this move.
+        if (!ModList.get().isLoaded("megacells")) {
+            NeoECOPrototype.LOGGER.info("small bulk migration: megacells absent, nothing to migrate");
+            helper.succeed();
+            return;
+        }
         var stack = new ItemStack(ModRegistration.SIMPLIFY_SMALL_BULK_CELL.get());
         var entry = new net.minecraft.nbt.CompoundTag();
         entry.putString("item", "minecraft:stone");
@@ -1054,7 +1061,12 @@ public final class NeoECOPrototypeGameTests {
             java.util.Map.of(
                     ResourceLocation.fromNamespaceAndPath("ars_nouveau", "alakarkinos_token"),
                     "ars_nouveau's own guide: an Alakarkinos on the beach hands one over for a pottery"
-                            + " sherd, and no recipe in the jar produces it (checked 2026-11-08)");
+                            + " sherd, and no recipe in the jar produces it (checked 2026-11-08)",
+                    ResourceLocation.fromNamespaceAndPath("ae2", "singularity"),
+                    "AE2's matter condenser emits it when the block is set to singularity output; that"
+                            + " output is a block-entity mode, not a RecipeManager recipe, so this ruler"
+                            + " only saw it while Advanced AE happened to ship a reaction recipe"
+                            + " (checked 2026-11-09 on ae2 19.2.17)");
 
     /**
      * Every recipe file we ship really reached the recipe manager.
@@ -4363,6 +4375,90 @@ public final class NeoECOPrototypeGameTests {
     }
 
     /**
+     * kouooki's mana bonus, in both halves of the optional-dependency question at once. The two attributes
+     * belong to Ars Nouveau and are found by id, so this asserts the shape of the pack it runs in: with the
+     * mod, the doll reports exactly its armour plus two mana lines at 2 and 6; without it, the registry has
+     * no such ids, the grants come back empty and the doll still reports exactly its armour - no exception,
+     * and no line promising mana the pack cannot use. The five dolls without a bonus are checked in both
+     * shapes, so a second doll growing mana by accident cannot pass either.
+     */
+    @GameTest(template = "empty", batch = "doll_mana", timeoutTicks = 100,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void dollsCarryManaOnlyWhenArsNouveauIsInstalled(GameTestHelper helper) {
+        ResourceLocation regenId =
+                ResourceLocation.fromNamespaceAndPath("ars_nouveau", "ars_nouveau.perk.mana_regen");
+        ResourceLocation maxManaId =
+                ResourceLocation.fromNamespaceAndPath("ars_nouveau", "ars_nouveau.perk.max_mana");
+        boolean arsLoaded = ModList.get().isLoaded("ars_nouveau");
+        boolean regenFound = BuiltInRegistries.ATTRIBUTE.containsKey(regenId);
+        boolean maxManaFound = BuiltInRegistries.ATTRIBUTE.containsKey(maxManaId);
+        if (regenFound != arsLoaded || maxManaFound != arsLoaded) {
+            helper.fail("ars_nouveau loaded = " + arsLoaded + " but the registry has mana_regen=" + regenFound
+                    + " max_mana=" + maxManaFound + ", so the doll cannot agree with the pack it runs on");
+            return;
+        }
+        record DollMana(java.util.function.Supplier<? extends Item> doll, String path,
+                        double regen, double maxMana) {
+        }
+        List<DollMana> dolls = List.of(
+                new DollMana(ModRegistration.FUMO_DOLL_RELIQWQ_ITEM, "fumo_doll_reliqwq", 0.0D, 0.0D),
+                new DollMana(ModRegistration.FUMO_DOLL_YANG120_ITEM, "fumo_doll_yang120", 0.0D, 0.0D),
+                new DollMana(ModRegistration.FUMO_DOLL_YANG120_CPU_ITEM, "fumo_doll_yang120_cpu", 0.0D, 0.0D),
+                new DollMana(ModRegistration.FUMO_DOLL_YANG120_GIANT_ITEM, "fumo_doll_yang120_giant",
+                        0.0D, 0.0D),
+                new DollMana(ModRegistration.FUMO_DOLL_KOOOKI_ITEM, "fumo_doll_kouooki", 2.0D, 6.0D),
+                new DollMana(ModRegistration.FUMO_DOLL_TEDXENON_ITEM, "fumo_doll_tedxenon", 0.0D, 0.0D));
+        for (DollMana doll : dolls) {
+            ItemStack stack = new ItemStack(doll.doll().get());
+            boolean carriesMana = doll.regen() != 0.0D || doll.maxMana() != 0.0D;
+            int manaLines = arsLoaded && carriesMana ? 2 : 0;
+            var grants = cn.dancingsnow.neoecoprototype.item.decoration.FumoItem.manaGrants(stack);
+            if (grants.size() != manaLines) {
+                helper.fail(doll.path() + " resolves " + grants.size() + " mana grants, expected " + manaLines
+                        + " (ars_nouveau loaded = " + arsLoaded + ")");
+                return;
+            }
+            var entries = stack.getAttributeModifiers().modifiers();
+            if (entries.size() != 2 + manaLines) {
+                helper.fail(doll.path() + " carries " + entries.size() + " attribute modifiers, expected "
+                        + (2 + manaLines) + ": " + entries);
+                return;
+            }
+            for (var entry : entries) {
+                if (entry.slot() != net.minecraft.world.entity.EquipmentSlotGroup.HEAD) {
+                    helper.fail(doll.path() + " applies a modifier in slot " + entry.slot()
+                            + ", expected the head slot");
+                    return;
+                }
+            }
+            for (var grant : grants) {
+                boolean regen = grant.attribute().is(regenId);
+                if (!regen && !grant.attribute().is(maxManaId)) {
+                    helper.fail(doll.path() + " grants an unexpected attribute " + grant.attribute());
+                    return;
+                }
+                double expected = regen ? doll.regen() : doll.maxMana();
+                String name = regen ? "mana_regen" : "max_mana";
+                if (grant.modifier().amount() != expected || grant.modifier().operation()
+                        != net.minecraft.world.entity.ai.attributes.AttributeModifier.Operation.ADD_VALUE) {
+                    helper.fail(doll.path() + " grants " + name + " " + grant.modifier() + ", expected +"
+                            + expected + " add_value");
+                    return;
+                }
+                if (entries.stream().noneMatch(entry -> entry.attribute().is(grant.attribute())
+                        && entry.modifier().equals(grant.modifier()))) {
+                    helper.fail(doll.path() + " resolves " + name
+                            + " but its helmet attribute component does not carry it");
+                    return;
+                }
+            }
+        }
+        NeoECOPrototype.LOGGER.info("doll mana: ars_nouveau loaded = {}, kouooki hands out {}", arsLoaded,
+                arsLoaded ? "+2 mana regen / +6 max mana" : "nothing (both attribute ids are absent)");
+        helper.succeed();
+    }
+
+    /**
      * The accessory-slot half of the dolls, with Curios present: every one of them is a curio the
      * {@code head} slot accepts, a doll worn there adds no attribute modifiers (so no armour), and the
      * effect tick still finds it with the helmet slot empty. All of Curios' classes live in
@@ -4442,16 +4538,53 @@ public final class NeoECOPrototypeGameTests {
             helper.fail("the tag names " + named + " megabyte-and-up matrices, expected 14");
             return;
         }
-        // Without Mekanism and OmniCells only eight of those fourteen exist, and twenty-one of the
-        // twenty-eight smaller rungs do; both halves have to be exercised or this measured half a rule.
-        if (greens < 8) {
-            helper.fail("only " + greens + " megabyte-and-up matrices were in the game, so the green "
-                    + "half measured almost nothing");
+        // How many rungs exist depends on which optional mods are installed, so both halves are checked
+        // against that sum rather than a number read off a dev machine that had everything. The base is
+        // our own item/fluid ladder (1M+4M green, 1K/16K/64K white) plus concrete, pigmee, singularity
+        // and sky-stone-dust; each optional family adds the rungs its own integration registers.
+        boolean mekanism = ModList.get().isLoaded("mekanism");
+        boolean appmek = ModList.get().isLoaded("appmek");
+        boolean omni = ModList.get().isLoaded("ae2omnicells");
+        boolean megacells = ModList.get().isLoaded("megacells");
+        int optionalGreens = 0;
+        int optionalWhites = 0;
+        if (ModList.get().isLoaded("appflux")) {
+            optionalGreens += 2;   // FE 1M / 4M
+            optionalWhites += 1;   // FE 1K
+        }
+        if (ModList.get().isLoaded("arseng")) {
+            optionalGreens += 2;   // source 1M / 4M
+            optionalWhites += 4;   // source 1K/16K/64K plus the growing cell
+        }
+        if (mekanism && appmek) {
+            optionalGreens += 2;   // chemical 1M / 4M
+            optionalWhites += 3;   // chemical 1K/16K/64K
+        }
+        if (omni) {
+            optionalGreens += 3;   // universal / complex universal / quantum 1M
+            optionalWhites += 3;   // their 1K rungs
+            if (mekanism && appmek) {
+                optionalGreens += 1; // spent nuclear waste 1M
+                optionalWhites += 1; // spent nuclear waste 1K
+            }
+        }
+        if (megacells) {
+            optionalWhites += 4;   // small bulk item / fluid, base and expanded
+            if (mekanism && appmek) {
+                optionalWhites += 2; // small bulk chemical, base and expanded
+            }
+        }
+        int expectedGreens = 4 + optionalGreens;
+        int expectedWhites = 10 + optionalWhites;
+        if (greens != expectedGreens) {
+            helper.fail("this pack registers " + greens + " megabyte-and-up matrices, expected "
+                    + expectedGreens + " once the installed optional mods are counted - an absent family"
+                    + " or a rung that lost its green would show up as this number");
             return;
         }
-        if (whites < 21) {
-            helper.fail("only " + whites + " smaller matrices were in the game, so the white half "
-                    + "measured almost nothing");
+        if (whites != expectedWhites) {
+            helper.fail("this pack registers " + whites + " smaller matrices, expected "
+                    + expectedWhites + " once the installed optional mods are counted");
             return;
         }
         if (!nameWearsTierGreen(ModRegistration.PROCESSOR_ASSEMBLY_WORKSTATION_CARD.get(), wanted, zh, en, helper)) {
@@ -11476,6 +11609,14 @@ public final class NeoECOPrototypeGameTests {
     @GameTest(template = "empty", batch = "storage_panel_rows", timeoutTicks = 100,
             templateNamespace = NeoECOPrototype.MOD_ID)
     public static void bulkCellsCountInTheRowTheyAreDrawnIn(GameTestHelper helper) {
+        // eco registers the mega_* cell types inside its own MEGA Cells integration, so without that mod
+        // there is no bulk row to route - the plain item/fluid checks below would still pass but the
+        // subject of this guard is absent. Say so instead of reading a missing type as a regression.
+        if (!ModList.get().isLoaded("megacells")) {
+            NeoECOPrototype.LOGGER.info("storage panel rows: megacells absent, the bulk-routing half is skipped");
+            helper.succeed();
+            return;
+        }
         var registry = cn.dancingsnow.neoecoae.all.NERegistries.CELL_TYPE;
         var fluid = cn.dancingsnow.neoecoprototype.items.SimplifyStorageCellItem.getFluidCellType();
         var megaFluid = registry.get(
@@ -13870,7 +14011,9 @@ public final class NeoECOPrototypeGameTests {
                                 + " refused; the slot reads " + cellHost.getCellStack());
                         return;
                     }
-                    var second = new ItemStack(ModRegistration.SIMPLIFY_SMALL_BULK_CELL.get());
+                    // Any second cell works here; the 1K ladder rung is always registered, while the
+                    // small-bulk family needs MegaCells and would null out this contract check.
+                    var second = new ItemStack(ModRegistration.SIMPLIFY_ITEM_CELL_1K.get());
                     cellHost.setCellStack(second);
                     if (cellHost.getCellStack() == null
                             || cellHost.getCellStack().getItem() != second.getItem()) {

@@ -2,10 +2,18 @@ package cn.dancingsnow.neoecoprototype.integration.curios;
 
 import cn.dancingsnow.neoecoprototype.item.decoration.FumoItem;
 import cn.dancingsnow.neoecoprototype.registration.ModRegistration;
+import com.google.common.collect.HashMultimap;
+import com.google.common.collect.ImmutableMultimap;
+import com.google.common.collect.Multimap;
+import net.minecraft.core.Holder;
 import net.minecraft.core.NonNullList;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.ai.attributes.Attribute;
+import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.item.ItemStack;
 import top.theillusivec4.curios.api.CuriosApi;
+import top.theillusivec4.curios.api.SlotContext;
 import top.theillusivec4.curios.api.type.capability.ICurioItem;
 import top.theillusivec4.curios.api.type.inventory.ICurioStacksHandler;
 import top.theillusivec4.curios.api.type.inventory.IDynamicStackHandler;
@@ -22,11 +30,13 @@ import java.util.function.Supplier;
  * is what the slot's {@code curios:tag} validator reads - the capability alone only says "this item is
  * wearable somewhere".
  *
- * <p>Worn as a curio a doll grants no armour. That is the interface default, not an omission: Curios reads
- * attribute modifiers from {@link ICurioItem#getAttributeModifiers}, whose default is an empty multimap,
- * and it never looks at the item's vanilla {@code attribute_modifiers} component. Everything else - night
- * vision, the per-doll effects, the charging, the creeper scare - comes from the same item and is granted
- * by {@link cn.dancingsnow.neoecoprototype.event.FumoEquipmentEffects}, which treats the curio as a
+ * <p>Worn as a curio a doll grants no armour. That is deliberate: Curios reads attribute modifiers from
+ * {@link ICurioItem#getAttributeModifiers}, whose default is an empty multimap, and it never looks at the
+ * item's vanilla {@code attribute_modifiers} component. The one thing a doll does hand over here is the
+ * mana it is authored to grant ({@link FumoItem#manaGrants}), which is empty unless both the doll and Ars
+ * Nouveau are present. Everything else - night vision, the per-doll effects, the charging, the creeper
+ * scare - comes from the same item and is granted by
+ * {@link cn.dancingsnow.neoecoprototype.event.FumoEquipmentEffects}, which treats the curio as a
  * fallback when the helmet slot is empty.
  *
  * <p>This class is only touched inside {@code ModList.isLoaded("curios")}: its own class load pulls in the
@@ -77,10 +87,26 @@ public final class CuriosDollSupport {
     }
 
     /**
-     * The curio identity itself. No method is overridden: the defaults already say what a doll needs - it can
-     * be equipped from use, it can be unequipped, and it contributes no attribute modifiers.
+     * The curio identity itself. Only the attribute hook is overridden: the defaults already say the rest
+     * - the doll can be equipped from use, it can be unequipped, and off the head it contributes no armour.
+     * The mana a doll carries is the one thing that has to be handed to Curios explicitly; without Ars
+     * Nouveau {@link FumoItem#manaGrants} answers empty and this returns Curios' own default.
      */
     private enum DollCurio implements ICurioItem {
-        INSTANCE
+        INSTANCE;
+
+        @Override
+        public Multimap<Holder<Attribute>, AttributeModifier> getAttributeModifiers(
+                SlotContext slotContext, ResourceLocation id, ItemStack stack) {
+            List<FumoItem.AttributeGrant> grants = FumoItem.manaGrants(stack);
+            if (grants.isEmpty()) {
+                return ImmutableMultimap.of();
+            }
+            Multimap<Holder<Attribute>, AttributeModifier> modifiers = HashMultimap.create();
+            for (FumoItem.AttributeGrant grant : grants) {
+                modifiers.put(grant.attribute(), grant.modifier());
+            }
+            return modifiers;
+        }
     }
 }

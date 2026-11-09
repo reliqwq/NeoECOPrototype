@@ -1219,7 +1219,19 @@ public class ModRegistration {
     /** A doll's worn stats: its own armour, then whatever effects it hands out on top of the night vision. */
     private static FumoItem.DollStats dollStats(float armor, float toughness,
             FumoItem.DollEffect... extra) {
-        return new FumoItem.DollStats(armor, toughness, java.util.List.of(extra), 0.0D);
+        return new FumoItem.DollStats(armor, toughness, java.util.List.of(extra), 0.0D,
+                FumoItem.ManaBonus.NONE);
+    }
+
+    /**
+     * A doll that also hands out Ars Nouveau mana. The two numbers are attribute amounts - added to the
+     * wearer's mana regeneration and maximum mana - and they only land when Ars Nouveau is installed,
+     * because {@link FumoItem#manaGrants} looks the attributes up by id instead of naming their classes.
+     */
+    private static FumoItem.DollStats manaDollStats(float armor, float toughness,
+            double manaRegen, double maxMana, FumoItem.DollEffect... extra) {
+        return new FumoItem.DollStats(armor, toughness, java.util.List.of(extra), 0.0D,
+                new FumoItem.ManaBonus(manaRegen, maxMana));
     }
 
     /**
@@ -1230,7 +1242,7 @@ public class ModRegistration {
     private static FumoItem.DollStats chargingDollStats(float armor, float toughness,
             FumoItem.DollEffect... extra) {
         return new FumoItem.DollStats(armor, toughness, java.util.List.of(extra),
-                NeoECOPrototypeServerConfig.FUMO_CHARGE_AE_PER_TICK_DEFAULT);
+                NeoECOPrototypeServerConfig.FUMO_CHARGE_AE_PER_TICK_DEFAULT, FumoItem.ManaBonus.NONE);
     }
 
     /** One effect at one level - amplifier 0 is the first level, as everywhere else in vanilla. */
@@ -1292,9 +1304,15 @@ public class ModRegistration {
                     dollStats(4.0F, 2.0F)));
     public static final Supplier<NamedDollBlock> FUMO_DOLL_KOOOKI_BLOCK =
             BLOCKS.register("fumo_doll_kouooki", () -> new NamedDollBlock(dollProperties()));
+    /**
+     * The mage's doll: +2 mana regeneration and +6 maximum mana, both Ars Nouveau attributes. The pair is
+     * the whole of her difference - no other doll carries a bonus, and with Ars Nouveau absent the numbers
+     * resolve to nothing at all, which is why she can stay an ordinary doll in the same creative tab.
+     */
     public static final Supplier<FumoItem> FUMO_DOLL_KOOOKI_ITEM =
             ITEMS.register("fumo_doll_kouooki", () -> new FumoItem(FUMO_DOLL_KOOOKI_BLOCK.get(),
-                    coloredName(FUMO_DOLL_KOOOKI_BLOCK, NAME_THEME_GREEN).stacksTo(16), dollStats(1.0F, 5.0F)));
+                    coloredName(FUMO_DOLL_KOOOKI_BLOCK, NAME_THEME_GREEN).stacksTo(16),
+                    manaDollStats(1.0F, 5.0F, 2.0D, 6.0D)));
     public static final Supplier<NamedDollBlock> FUMO_DOLL_TEDXENON_BLOCK =
             BLOCKS.register("fumo_doll_tedxenon", () -> new NamedDollBlock(dollProperties()));
     public static final Supplier<FumoItem> FUMO_DOLL_TEDXENON_ITEM =

@@ -27,7 +27,7 @@ import net.neoforged.neoforge.event.tick.PlayerTickEvent;
  *
  * <p>With Curios present a doll may also sit in that mod's head accessory slot (「首饰」), which is read
  * only when the helmet slot holds nothing wearable. The effects are the same either way; the armour is
- * not, because a curio's attribute modifiers are empty - see
+ * not, and the mana a doll carries is the one attribute the accessory slot does grant - see
  * {@link cn.dancingsnow.neoecoprototype.integration.curios.CuriosDollSupport}.
  */
 @EventBusSubscriber(modid = NeoECOPrototype.MOD_ID)
