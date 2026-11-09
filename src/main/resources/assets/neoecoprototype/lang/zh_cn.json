@@ -337,5 +337,15 @@
   "advancement.neoecoprototype.powered_interface.description": "获得一个供能接口或盈能超导接口，以取代原始的水晶谐振发电机。",
   "advancement.neoecoprototype.migration_drive.title": "一步登顶",
   "advancement.neoecoprototype.migration_drive.description": "拿到一个升格驱动。安全又高效。",
-  "chemical.neoecoprototype.milk": "牛奶"
+  "chemical.neoecoprototype.milk": "牛奶",
+  "key_type.neoecoprototype.music": "音乐",
+  "key.neoecoprototype.music_data": "音乐数据",
+  "block.neoecoprototype.music_jukebox": "ME 唱片机",
+  "item.neoecoprototype.music_data_disc": "音乐数据唱片",
+  "tooltip.neoecoprototype.music_data_disc_empty": "空白——尚未录入唱片",
+  "tooltip.neoecoprototype.music_data_disc_songs": "已录入：%s 首",
+  "tooltip.neoecoprototype.music_data_disc_remaining": "剩余时长：%s",
+  "block.neoecoprototype.music_recorder": "音乐录制机",
+  "gui.neoecoprototype.music_recorder_data_slot": "数据唱片",
+  "jei.neoecoprototype.music_data.info": "音乐数据由音乐录制机录入：放入最多 12 张唱片，每首完整播放的歌曲都会写进数据唱片。把数据唱片放进 ME 唱片机即可为 ME 网络提供音乐，也可以在数据重组器里把 20 音乐转化为 1 数据流。"
 }

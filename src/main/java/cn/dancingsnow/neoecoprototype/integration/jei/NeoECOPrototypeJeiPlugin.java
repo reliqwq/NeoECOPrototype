@@ -3,11 +3,13 @@ package cn.dancingsnow.neoecoprototype.integration.jei;
 import cn.dancingsnow.neoecoae.integration.jei.NeoECOAEJeiPlugin;
 import cn.dancingsnow.neoecoprototype.NeoECOPrototype;
 import cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig;
+import cn.dancingsnow.neoecoprototype.integration.dataenergistics.MusicKey;
 import cn.dancingsnow.neoecoprototype.recipe.ProcessorAssemblerRecipe;
 import cn.dancingsnow.neoecoprototype.recipe.ProcessorAssemblerRecipes;
 import cn.dancingsnow.neoecoprototype.registration.ModRegistration;
 import mezz.jei.api.IModPlugin;
 import mezz.jei.api.JeiPlugin;
+import mezz.jei.api.registration.IModIngredientRegistration;
 import mezz.jei.api.registration.IRecipeCatalystRegistration;
 import mezz.jei.api.registration.IRecipeCategoryRegistration;
 import mezz.jei.api.registration.IRecipeRegistration;
@@ -16,6 +18,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.RecipeHolder;
+import net.neoforged.fml.ModList;
 
 import java.util.List;
 
@@ -41,6 +44,27 @@ public final class NeoECOPrototypeJeiPlugin implements IModPlugin {
         registration.addRecipeCategories(new ProcessorAssemblerCategory(registration.getJeiHelpers().getGuiHelper()));
     }
 
+    /**
+     * Music data only exists while Data Energistics does: our key type is published through its registry,
+     * and every recipe that names the key is its own. Registering the ingredient without it would only put
+     * an unobtainable entry in JEI's search list.
+     *
+     * <p>The converter half teaches ae2jeiintegration's generic-stack bridge about the key, which is what
+     * makes Data Energistics' reassembler page draw our icon instead of an iconless wrapped stack. Both
+     * halves name optional mods and are therefore only touched behind their {@code ModList} checks.
+     */
+    @Override
+    public void registerIngredients(IModIngredientRegistration registration) {
+        if (!ModList.get().isLoaded("data_energistics")) {
+            return;
+        }
+        MusicDataIngredient.register(registration);
+        if (ModList.get().isLoaded("ae2jeiintegration")) {
+            tamaized.ae2jeiintegration.api.integrations.jei.IngredientConverters.register(
+                    new MusicDataIngredientConverter());
+        }
+    }
+
     @Override
     public void registerRecipes(IRecipeRegistration registration) {
         // Our three L1 structures, into eco's own category, by category object rather than by name:
@@ -56,6 +80,10 @@ public final class NeoECOPrototypeJeiPlugin implements IModPlugin {
                 new cn.dancingsnow.neoecoae.integration.xei.multiblock.MultiBlockInfoWrapper(
                         cn.dancingsnow.neoecoprototype.multiblock.definition.SimplifyCraftingDefinition.L1)));
         var level = net.minecraft.client.Minecraft.getInstance().level;
+        if (ModList.get().isLoaded("data_energistics")) {
+            registration.addIngredientInfo(MusicKey.INSTANCE, MusicDataIngredient.TYPE,
+                    Component.translatable("jei.neoecoprototype.music_data.info"));
+        }
         if (level == null) {
             return;
         }

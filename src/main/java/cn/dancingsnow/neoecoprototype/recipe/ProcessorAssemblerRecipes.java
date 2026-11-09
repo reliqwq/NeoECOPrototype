@@ -19,6 +19,7 @@ import org.jetbrains.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -39,14 +40,21 @@ public final class ProcessorAssemblerRecipes {
     public static List<ProcessorAssemblerRecipe> derived(Level level, List<ProcessorAssemblerRecipe> existing) {
         var inscriber = level.getRecipeManager().getAllRecipesFor(AERecipeTypes.INSCRIBER);
 
-        // printed part -> the material inscribed into it
+        // printed part -> the material inscribed into it. Only a one-for-one inscribe recipe can be
+        // unfolded into a material slot; a bulk recipe (several parts from one input) has no whole-number
+        // cost, and an output with two such sources has no single material to pick.
         Map<Item, Ingredient> inscribedFrom = new HashMap<>();
+        Set<Item> ambiguous = new HashSet<>();
         for (var holder : inscriber) {
             InscriberRecipe recipe = holder.value();
             if (recipe.getProcessType() != InscriberProcessType.INSCRIBE) continue;
             ItemStack result = recipe.getResultItem();
-            if (!result.isEmpty()) inscribedFrom.put(result.getItem(), recipe.getMiddleInput());
+            if (result.isEmpty() || result.getCount() != 1) continue;
+            if (inscribedFrom.putIfAbsent(result.getItem(), recipe.getMiddleInput()) != null) {
+                ambiguous.add(result.getItem());
+            }
         }
+        ambiguous.forEach(inscribedFrom::remove);
 
         Set<String> covered = existing.stream().map(ProcessorAssemblerRecipes::signature)
                 .collect(java.util.stream.Collectors.toSet());

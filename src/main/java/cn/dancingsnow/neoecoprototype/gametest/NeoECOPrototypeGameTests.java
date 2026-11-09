@@ -48,9 +48,12 @@ import cn.dancingsnow.neoecoprototype.api.SimplifyCraftingTier;
 import cn.dancingsnow.neoecoprototype.api.SimplifyTier;
 import cn.dancingsnow.neoecoprototype.block.computation.SimplifyComputationSystemBlock;
 import cn.dancingsnow.neoecoprototype.block.crafting.SimplifyCraftingSystemBlock;
+import cn.dancingsnow.neoecoprototype.block.music.MusicJukeboxBlock;
 import cn.dancingsnow.neoecoprototype.block.reactor.SimplifyReactorFrameBlock;
 import cn.dancingsnow.neoecoprototype.block.storage.SimplifyStorageControllerBlock;
 import cn.dancingsnow.neoecoprototype.blockentity.crafting.SimplifySuperconductiveInterfaceBlockEntity;
+import cn.dancingsnow.neoecoprototype.blockentity.music.MusicJukeboxBlockEntity;
+import cn.dancingsnow.neoecoprototype.blockentity.music.MusicRecorderBlockEntity;
 import cn.dancingsnow.neoecoprototype.blockentity.reactor.SimplifyReactorControllerBlockEntity;
 import cn.dancingsnow.neoecoprototype.blockentity.storage.SimplifyEnergyCellBlockEntity;
 import cn.dancingsnow.neoecoprototype.blockentity.storage.SimplifyStorageInterfaceBlockEntity;
@@ -64,6 +67,8 @@ import cn.dancingsnow.neoecoprototype.event.WirelessLinks;
 import cn.dancingsnow.neoecoprototype.integration.ae2.OversizeInterfaceLogic;
 import cn.dancingsnow.neoecoprototype.integration.ae2.SimplifyGridFacade;
 import cn.dancingsnow.neoecoprototype.items.AllItemsCreativeCellItem;
+import cn.dancingsnow.neoecoprototype.items.MusicDataDiscItem;
+import cn.dancingsnow.neoecoprototype.items.MusicPlaylist;
 import cn.dancingsnow.neoecoprototype.items.PatternGeneratorItem;
 import cn.dancingsnow.neoecoprototype.items.SimplifyMigrationDriveItem;
 import cn.dancingsnow.neoecoprototype.items.SimplifySmallBulkStorageCellItem;
@@ -2784,19 +2789,17 @@ public final class NeoECOPrototypeGameTests {
             return;
         }
         var chest = new ItemStack(Items.CHEST);
-        net.minecraft.world.item.crafting.RecipeHolder<net.minecraft.world.item.crafting.CraftingRecipe> holder = null;
-        for (var candidate : helper.getLevel().getRecipeManager()
-                .getAllRecipesFor(net.minecraft.world.item.crafting.RecipeType.CRAFTING)) {
-            if (ItemStack.isSameItemSameComponents(candidate.value().getResultItem(
-                    helper.getLevel().registryAccess()), chest)) {
-                holder = candidate;
-                break;
-            }
-        }
-        if (holder == null) {
-            helper.fail("no vanilla crafting recipe yields a chest, so this cannot build a real pattern");
+        // By id, not "the first recipe that yields a chest": other mods add one-input shortcuts
+        // (ars_nouveau:archwood_to_chest) that are not whole-grid patterns AE2 can encode, and which one
+        // comes first depends on how many data packs are installed.
+        var key = net.minecraft.resources.ResourceLocation.withDefaultNamespace("chest");
+        var found = helper.getLevel().getRecipeManager().byKey(key);
+        if (found.isEmpty()
+                || !(found.get().value() instanceof net.minecraft.world.item.crafting.CraftingRecipe recipe)) {
+            helper.fail("no vanilla crafting recipe " + key + " to build a real pattern from");
             return;
         }
+        var holder = new net.minecraft.world.item.crafting.RecipeHolder<>(key, recipe);
         var used = new ItemStack[holder.value().getIngredients().size()];
         for (int i = 0; i < used.length; i++) {
             var ingredient = holder.value().getIngredients().get(i);
@@ -2805,7 +2808,9 @@ public final class NeoECOPrototypeGameTests {
         var encoded = PatternDetailsHelper.encodeCraftingPattern(holder, used, chest, false, false);
         IPatternDetails pattern = PatternDetailsHelper.decodePattern(encoded, helper.getLevel());
         if (!(pattern instanceof appeng.blockentity.crafting.IMolecularAssemblerSupportedPattern)) {
-            helper.fail("the test pattern is not one AE2's assembler would accept, so this proves nothing");
+            helper.fail("the test pattern is not one AE2's assembler would accept, so this proves nothing: "
+                    + "recipe=" + holder.id() + " slots=" + used.length + " encoded=" + encoded
+                    + " decoded=" + (pattern == null ? "null" : pattern.getClass().getName()));
             return;
         }
         var slots = pattern.getInputs();
@@ -22424,6 +22429,569 @@ public final class NeoECOPrototypeGameTests {
         }
         helper.fail(mismatches + " strut flags disagree with the world; first: " + first);
         return false;
+    }
+
+    /**
+     * Music data must show up as Data Energistics' fourth data type - appended after its three built-ins,
+     * never in their place. The order is read from the same list the mod's own panels walk, so a plugin
+     * type that registered but lost its slot would fail here.
+     */
+    @GameTest(template = "empty", batch = "music_data", timeoutTicks = 100, required = false,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void musicDataIsTheFourthDataEnergisticsType(GameTestHelper helper) {
+        if (!ModList.get().isLoaded("data_energistics")) {
+            helper.succeed();
+            return;
+        }
+        var ids = DataEnergisticsTestProbe.keyTypeIds();
+        int index = ids.indexOf("neoecoprototype:music");
+        if (index != 3) {
+            helper.fail("our music type sits at index " + index + " of " + ids
+                    + "; Data Energistics has three built-in types and ours has to be appended as the fourth");
+            return;
+        }
+        helper.succeed();
+    }
+
+    /**
+     * A disc is worth its own song length in ticks, so these are the numbers a recording freezes onto the
+     * data disc. Every vanilla disc is written out because a wrong number here is silent: the disc still
+     * plays, it just runs out early or late.
+     */
+    @GameTest(template = "empty", batch = "music_data", timeoutTicks = 100, required = false,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void vanillaJukeboxSongsReportTheirRecordedLengths(GameTestHelper helper) {
+        Object[][] discs = {
+                {"music_disc_11", Items.MUSIC_DISC_11, 1420L},
+                {"music_disc_13", Items.MUSIC_DISC_13, 3560L},
+                {"music_disc_5", Items.MUSIC_DISC_5, 3560L},
+                {"music_disc_blocks", Items.MUSIC_DISC_BLOCKS, 6900L},
+                {"music_disc_cat", Items.MUSIC_DISC_CAT, 3700L},
+                {"music_disc_chirp", Items.MUSIC_DISC_CHIRP, 3700L},
+                {"music_disc_creator", Items.MUSIC_DISC_CREATOR, 3520L},
+                {"music_disc_creator_music_box", Items.MUSIC_DISC_CREATOR_MUSIC_BOX, 1460L},
+                {"music_disc_far", Items.MUSIC_DISC_FAR, 3480L},
+                {"music_disc_mall", Items.MUSIC_DISC_MALL, 3940L},
+                {"music_disc_mellohi", Items.MUSIC_DISC_MELLOHI, 1920L},
+                {"music_disc_otherside", Items.MUSIC_DISC_OTHERSIDE, 3900L},
+                {"music_disc_pigstep", Items.MUSIC_DISC_PIGSTEP, 2980L},
+                {"music_disc_precipice", Items.MUSIC_DISC_PRECIPICE, 5980L},
+                {"music_disc_relic", Items.MUSIC_DISC_RELIC, 4360L},
+                {"music_disc_stal", Items.MUSIC_DISC_STAL, 3000L},
+                {"music_disc_strad", Items.MUSIC_DISC_STRAD, 3760L},
+                {"music_disc_wait", Items.MUSIC_DISC_WAIT, 4760L},
+                {"music_disc_ward", Items.MUSIC_DISC_WARD, 5020L},
+        };
+        var registries = helper.getLevel().registryAccess();
+        int scanned = 0;
+        for (Object[] disc : discs) {
+            long expected = (Long) disc[2];
+            long actual = net.minecraft.world.item.JukeboxSong
+                    .fromStack(registries, new ItemStack((net.minecraft.world.item.Item) disc[1]))
+                    .map(song -> (long) song.value().lengthInTicks())
+                    .orElse(0L);
+            if (actual != expected) {
+                helper.fail(disc[0] + " should hold " + expected + " ticks of music, but the"
+                        + " jukebox song length reads " + actual);
+                return;
+            }
+            scanned++;
+        }
+        if (scanned != 19) {
+            helper.fail("scanned " + scanned + " discs, but vanilla has 19 jukebox songs - the list above"
+                    + " and the ones the game actually carries have drifted apart");
+            return;
+        }
+        long notADisc = net.minecraft.world.item.JukeboxSong
+                .fromStack(registries, new ItemStack(Items.DIAMOND))
+                .map(song -> (long) song.value().lengthInTicks())
+                .orElse(0L);
+        if (notADisc != 0) {
+            helper.fail("a diamond is not a disc, yet it would be worth " + notADisc + " ticks");
+            return;
+        }
+        helper.succeed();
+    }
+
+    /**
+     * Music has exactly one way out and no way in except the jukebox: the exchange recipe is the only
+     * consumer, and no recipe mints music. Two doors here would mean a disc could become data twice.
+     */
+    @GameTest(template = "empty", batch = "music_data", timeoutTicks = 100, required = false,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void musicHasExactlyOneOutgoingConversion(GameTestHelper helper) {
+        if (!ModList.get().isLoaded("data_energistics")) {
+            helper.succeed();
+            return;
+        }
+        var recipes = helper.getLevel().getRecipeManager();
+        int minted = DataEnergisticsTestProbe.recipesEmittingMusic(recipes);
+        if (minted != 0) {
+            helper.fail(minted + " reassembler recipes turn something into music data; the jukebox is the"
+                    + " only door a disc is allowed to come in through");
+            return;
+        }
+        var consuming = DataEnergisticsTestProbe.musicConsumingRecipes(recipes);
+        if (consuming.size() != 1) {
+            helper.fail("found " + consuming.size() + " recipes that consume music data; the"
+                    + " music-to-data-flow exchange has to be the only one");
+            return;
+        }
+        long[] exchange = consuming.get(0);
+        if (exchange[0] != 20 || exchange[1] != 1 || exchange[2] != 20) {
+            helper.fail("the music-to-data-flow recipe is " + exchange[0] + " in -> " + exchange[1]
+                    + " out in " + exchange[2] + " ticks; the rate is 20 ticks per data flow and the"
+                    + " operation should take 20 ticks");
+            return;
+        }
+        helper.succeed();
+    }
+
+    /**
+     * One slot, data discs only, and a disc that goes in comes back out - never two copies of it. The
+     * filter is read through the same inventory the block entity exposes to the rest of the game, so a
+     * hopper would hit the same rule the player's click does.
+     */
+    @GameTest(template = "empty", batch = "music_jukebox", timeoutTicks = 100,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void jukeboxTakesOnlyDataDiscsAndNeverCopiesThem(GameTestHelper helper) {
+        var pos = new BlockPos(0, 0, 0);
+        helper.setBlock(pos, ModRegistration.MUSIC_JUKEBOX_BLOCK.get());
+        if (!(helper.getBlockEntity(pos) instanceof MusicJukeboxBlockEntity jukebox)) {
+            helper.fail("the jukebox block has no MusicJukeboxBlockEntity");
+            return;
+        }
+        var slot = jukebox.getInternalInventory();
+        var refused = slot.insertItem(MusicJukeboxBlockEntity.DISC_SLOT, new ItemStack(Items.STONE), false);
+        if (refused.getCount() != 1 || !slot.getStackInSlot(MusicJukeboxBlockEntity.DISC_SLOT).isEmpty()) {
+            helper.fail("the disc slot accepted a stone; nothing but a data disc may be fed to the machine");
+            return;
+        }
+
+        var player = helper.makeMockPlayer(GameType.SURVIVAL);
+        var first = discOf("minecraft:cat", 60, 0L);
+        first.setCount(2);
+        player.setItemInHand(InteractionHand.MAIN_HAND, first);
+        helper.useBlock(pos, player);
+        var held = player.getItemInHand(InteractionHand.MAIN_HAND);
+        if (held.getCount() != 1
+                || !slot.getStackInSlot(MusicJukeboxBlockEntity.DISC_SLOT)
+                .is(ModRegistration.MUSIC_DATA_DISC_ITEM.get())) {
+            helper.fail("inserting a disc should consume exactly one from the hand and put one on the"
+                    + " spindle; the hand holds " + held.getCount() + " and the slot holds "
+                    + slot.getStackInSlot(MusicJukeboxBlockEntity.DISC_SLOT).getCount());
+            return;
+        }
+        if (!helper.getBlockState(pos).getValue(MusicJukeboxBlock.HAS_RECORD)) {
+            helper.fail("a disc on the spindle did not flip HAS_RECORD, so the model cannot show it");
+            return;
+        }
+
+        var second = discOf("minecraft:cat", 30, 0L);
+        // Read the expected playlist before the click: the click consumes the stack, and an empty stack
+        // answers an empty playlist whatever its components say.
+        var expected = MusicDataDiscItem.playlistOf(second);
+        player.setItemInHand(InteractionHand.MAIN_HAND, second);
+        helper.useBlock(pos, player);
+        var onSpindle = MusicDataDiscItem.playlistOf(
+                slot.getStackInSlot(MusicJukeboxBlockEntity.DISC_SLOT));
+        if (!onSpindle.equals(expected)) {
+            helper.fail("a second disc did not replace the first on the spindle; spindle reads "
+                    + onSpindle + " and the second disc was " + expected + " while the hand holds "
+                    + player.getItemInHand(InteractionHand.MAIN_HAND));
+            return;
+        }
+
+        player.setItemInHand(InteractionHand.MAIN_HAND, ItemStack.EMPTY);
+        helper.useBlock(pos, player);
+        if (!slot.getStackInSlot(MusicJukeboxBlockEntity.DISC_SLOT).isEmpty()) {
+            helper.fail("an empty-handed click left the disc on the spindle");
+            return;
+        }
+        if (helper.getBlockState(pos).getValue(MusicJukeboxBlock.HAS_RECORD)) {
+            helper.fail("HAS_RECORD stayed true with nothing on the spindle");
+            return;
+        }
+        var drops = musicDiscsNear(helper, pos);
+        if (drops.size() != 2) {
+            helper.fail("two discs went in and " + drops.size() + " came back out; the machine has to move"
+                    + " discs, never mint them");
+            return;
+        }
+        discardDropsNear(helper, pos);
+        helper.setBlock(pos, Blocks.AIR);
+        helper.succeed();
+    }
+
+    /**
+     * The ticks that leave the disc are exactly the ticks the network took. A grid with nothing that
+     * accepts music pauses the song and leaves the cursor at zero; the moment a store appears, playback
+     * resumes from that cursor and the store holds as much as the disc gave up. Both ends of the transfer
+     * are read here because either one alone can lie: a disc that advances with no storage is free
+     * listening, and a store that fills without the cursor moving is a dupe.
+     */
+    @GameTest(template = "empty", batch = "music_jukebox", timeoutTicks = 400, required = false,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void jukeboxSpendsTheDiscOnlyWhenTheNetworkTakesTheTicks(GameTestHelper helper) {
+        if (!ModList.get().isLoaded("data_energistics")) {
+            helper.succeed();
+            return;
+        }
+        var pos = new BlockPos(0, 0, 0);
+        var depotPos = pos.north();
+        helper.setBlock(pos.east(), AEBlocks.CREATIVE_ENERGY_CELL.block());
+        helper.setBlock(pos, ModRegistration.MUSIC_JUKEBOX_BLOCK.get());
+        if (!(helper.getBlockEntity(pos) instanceof MusicJukeboxBlockEntity jukebox)) {
+            helper.fail("the jukebox block has no MusicJukeboxBlockEntity");
+            return;
+        }
+        var player = helper.makeMockPlayer(GameType.SURVIVAL);
+        // Let the node join the grid before a disc goes on, or the first ticks only measure the "no grid
+        // yet" path: with a live grid and nowhere to put music the run has to start, hit its first
+        // twenty-tick delivery, be refused and stop there.
+        helper.runAfterDelay(5, () -> {
+            player.setItemInHand(InteractionHand.MAIN_HAND, discOf("minecraft:cat", 60, 0L));
+            helper.useBlock(pos, player);
+            if (!jukebox.getInternalInventory().getStackInSlot(MusicJukeboxBlockEntity.DISC_SLOT)
+                    .is(ModRegistration.MUSIC_DATA_DISC_ITEM.get())) {
+                helper.fail("the disc never went onto the spindle");
+                return;
+            }
+            // Long enough for the song to start, hit the first twenty-tick delivery and be refused.
+            helper.runAfterDelay(60, () -> {
+                long credited = storedOnTheDisc(jukebox);
+                if (credited != 0L) {
+                    helper.fail("with nowhere to put music the disc was already credited "
+                            + credited + " ticks");
+                    return;
+                }
+                if (!DataEnergisticsTestProbe.placeDigitalStorageDepot(helper, depotPos)) {
+                    helper.fail("could not place Data Energistics' digital storage depot at "
+                            + at(depotPos));
+                    return;
+                }
+                // The machine asks a full grid again every twenty ticks, then needs the disc's whole sixty
+                // ticks to play before the last batch goes in.
+                waitUntil(helper, 12,
+                        () -> DataEnergisticsTestProbe.storedMusic(helper, depotPos) == 60L
+                                && storedOnTheDisc(jukebox) == 60L,
+                        () -> "after a depot appeared the network holds "
+                                + DataEnergisticsTestProbe.storedMusic(helper, depotPos)
+                                + " ticks while the disc gave up " + storedOnTheDisc(jukebox) + " of 60",
+                        () -> {
+                            player.setItemInHand(InteractionHand.MAIN_HAND, ItemStack.EMPTY);
+                            helper.useBlock(pos, player);
+                            if (!jukebox.getInternalInventory()
+                                    .getStackInSlot(MusicJukeboxBlockEntity.DISC_SLOT).isEmpty()) {
+                                helper.fail("ejecting a spent disc left it on the spindle");
+                                return;
+                            }
+                            helper.runAfterDelay(40, () -> {
+                                long stored = DataEnergisticsTestProbe.storedMusic(helper, depotPos);
+                                if (stored != 60L) {
+                                    helper.fail("the network gained ticks after the disc came out: "
+                                            + stored);
+                                    return;
+                                }
+                                discardDropsNear(helper, pos);
+                                helper.setBlock(pos, Blocks.AIR);
+                                helper.setBlock(pos.east(), Blocks.AIR);
+                                helper.setBlock(depotPos, Blocks.AIR);
+                                helper.succeed();
+                            });
+                        });
+            });
+        });
+    }
+
+    /**
+     * The playlist arithmetic the jukebox's cursor depends on: a recording session stops at twelve songs,
+     * the cursor is clamped to what the songs are worth, and a disc pulled out mid-song resumes at the
+     * song the cursor is inside with that song's unpaid tail - the numbers, not the block, carry that.
+     */
+    @GameTest(template = "empty", batch = "music_jukebox", timeoutTicks = 60,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void musicPlaylistClampsToTwelveSongsAndFindsTheResumePoint(GameTestHelper helper) {
+        var songs = new ArrayList<MusicPlaylist.Song>();
+        for (int i = 0; i < 13; i++) {
+            songs.add(new MusicPlaylist.Song(ResourceLocation.parse("minecraft:cat"), 10));
+        }
+        var playlist = new MusicPlaylist(songs, 0L);
+        if (playlist.songCount() != MusicPlaylist.MAX_SONGS) {
+            helper.fail("thirteen songs went in and " + playlist.songCount() + " stayed; a recording"
+                    + " session is capped at " + MusicPlaylist.MAX_SONGS);
+            return;
+        }
+        if (playlist.totalTicks() != 120L) {
+            helper.fail("twelve ten-tick songs should be worth 120 ticks, got " + playlist.totalTicks());
+            return;
+        }
+        if (playlist.withPlayed(-5L).playedTicks() != 0L || playlist.withPlayed(999L).playedTicks() != 120L) {
+            helper.fail("the cursor clamps to [0, 120], got " + playlist.withPlayed(-5L).playedTicks()
+                    + " and " + playlist.withPlayed(999L).playedTicks());
+            return;
+        }
+        if (playlist.startOf(0) != 0L || playlist.startOf(3) != 30L || playlist.startOf(12) != 120L) {
+            helper.fail("song starts are wrong: 0 -> " + playlist.startOf(0) + ", 3 -> "
+                    + playlist.startOf(3) + ", 12 -> " + playlist.startOf(12));
+            return;
+        }
+        if (playlist.indexAt(0L) != 0 || playlist.indexAt(9L) != 0 || playlist.indexAt(10L) != 1
+                || playlist.indexAt(119L) != 11 || playlist.indexAt(120L) != -1) {
+            helper.fail("the cursor lands in the wrong song: 0 -> " + playlist.indexAt(0L)
+                    + ", 9 -> " + playlist.indexAt(9L) + ", 10 -> " + playlist.indexAt(10L)
+                    + ", 119 -> " + playlist.indexAt(119L) + ", 120 -> " + playlist.indexAt(120L));
+            return;
+        }
+        var resumed = playlist.withPlayed(25L);
+        int index = resumed.indexAt(resumed.playedTicks());
+        long skip = resumed.playedTicks() - resumed.startOf(index);
+        if (index != 2 || skip != 5L) {
+            helper.fail("a disc ejected at tick 25 has to resume inside song " + 2 + " with " + 5
+                    + " unpaid ticks of that song, got song " + index + " with " + skip);
+            return;
+        }
+        if (new MusicPlaylist.Song(ResourceLocation.parse("minecraft:cat"), -3).ticks() != 0) {
+            helper.fail("a negative song length has to clamp to zero");
+            return;
+        }
+        helper.succeed();
+    }
+
+    /** The disc, its songs and its cursor have to survive a save and load; the unpaid tail must not. */
+    @GameTest(template = "empty", batch = "music_jukebox", timeoutTicks = 60,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void jukeboxKeepsTheDiscAndItsCursorAcrossASaveLoad(GameTestHelper helper) {
+        var pos = new BlockPos(0, 0, 0);
+        helper.setBlock(pos, ModRegistration.MUSIC_JUKEBOX_BLOCK.get());
+        if (!(helper.getBlockEntity(pos) instanceof MusicJukeboxBlockEntity original)) {
+            helper.fail("the jukebox block has no MusicJukeboxBlockEntity");
+            return;
+        }
+        var disc = discOf("minecraft:cat", 60, 25L);
+        original.getInternalInventory().setItemDirect(MusicJukeboxBlockEntity.DISC_SLOT, disc);
+        var registries = helper.getLevel().registryAccess();
+        var saved = original.saveWithoutMetadata(registries);
+
+        var loaded = ModRegistration.MUSIC_JUKEBOX_BE.get()
+                .create(helper.absolutePos(pos), helper.getBlockState(pos));
+        loaded.loadWithComponents(saved, registries);
+        var restored = loaded.getInternalInventory().getStackInSlot(MusicJukeboxBlockEntity.DISC_SLOT);
+        if (!restored.is(ModRegistration.MUSIC_DATA_DISC_ITEM.get())) {
+            helper.fail("the saved jukebox came back with " + BuiltInRegistries.ITEM.getKey(restored.getItem())
+                    + " on the spindle instead of a data disc");
+            return;
+        }
+        if (!MusicDataDiscItem.playlistOf(restored).equals(MusicDataDiscItem.playlistOf(disc))) {
+            helper.fail("the disc came back with " + MusicDataDiscItem.playlistOf(restored)
+                    + " instead of " + MusicDataDiscItem.playlistOf(disc));
+            return;
+        }
+        helper.setBlock(pos, Blocks.AIR);
+        helper.succeed();
+    }
+
+    /**
+     * The recorder has two kinds of cell and they must not mix: playable discs go into the twelve input
+     * cells, and only a data disc goes onto the one output cell. The filters live on the inventories
+     * themselves, so a hopper and the player's click hit the same rule.
+     */
+    @GameTest(template = "empty", batch = "music_recorder", timeoutTicks = 60,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void recorderSeparatesPlayableDiscsFromTheDataDisc(GameTestHelper helper) {
+        var pos = new BlockPos(0, 0, 0);
+        helper.setBlock(pos, ModRegistration.MUSIC_RECORDER_BLOCK.get());
+        if (!(helper.getBlockEntity(pos) instanceof MusicRecorderBlockEntity recorder)) {
+            helper.fail("the recorder block has no MusicRecorderBlockEntity");
+            return;
+        }
+        var discs = recorder.getDiscInventory();
+        var data = recorder.getDataDiscInventory();
+
+        var stoneLeft = discs.insertItem(0, new ItemStack(Items.STONE), false);
+        var dataIntoInput = discs.insertItem(0, discOf("minecraft:cat", 60, 0L), false);
+        var recordIntoOutput = data.insertItem(0, new ItemStack(Items.MUSIC_DISC_CAT), false);
+        if (stoneLeft.getCount() != 1 || dataIntoInput.getCount() != 1
+                || recordIntoOutput.getCount() != 1
+                || !discs.getStackInSlot(0).isEmpty() || !data.getStackInSlot(0).isEmpty()) {
+            helper.fail("the cells are not separated: a stone and a data disc went into the input"
+                    + " cells and a plain record went onto the output cell");
+            return;
+        }
+        var recordLeft = discs.insertItem(0, new ItemStack(Items.MUSIC_DISC_CAT), false);
+        var dataLeft = data.insertItem(0, discOf("minecraft:cat", 60, 0L), false);
+        if (!recordLeft.isEmpty() || !dataLeft.isEmpty()) {
+            helper.fail("a plain record and a data disc were both refused by the cells they belong in");
+            return;
+        }
+        helper.setBlock(pos, Blocks.AIR);
+        helper.succeed();
+    }
+
+    /**
+     * A disc starts playing as soon as a data disc is on the output cell, and the song is only written
+     * when it has played through: the progress groove moves while the playlist stays empty, so a half
+     * song cannot be paid for. Breaking the machine mid-song must also pay nothing.
+     */
+    @GameTest(template = "empty", batch = "music_recorder", timeoutTicks = 100,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void recorderPlaysWhileRecordingAndPaysOnlyForAWholeSong(GameTestHelper helper) {
+        var pos = new BlockPos(0, 0, 0);
+        helper.setBlock(pos, ModRegistration.MUSIC_RECORDER_BLOCK.get());
+        if (!(helper.getBlockEntity(pos) instanceof MusicRecorderBlockEntity recorder)) {
+            helper.fail("the recorder block has no MusicRecorderBlockEntity");
+            return;
+        }
+        var dataDisc = new ItemStack(ModRegistration.MUSIC_DATA_DISC_ITEM.get());
+        recorder.getDiscInventory().insertItem(0, new ItemStack(Items.MUSIC_DISC_11), false);
+        recorder.getDataDiscInventory().insertItem(0, dataDisc, false);
+        var level = helper.getLevel();
+        var absolute = helper.absolutePos(pos);
+        var state = helper.getBlockState(pos);
+        for (int tick = 0; tick < 5; tick++) {
+            MusicRecorderBlockEntity.serverTick(level, absolute, state, recorder);
+        }
+        if (recorder.progressFraction() <= 0.0F) {
+            helper.fail("the disc never started playing, so nothing would ever be recorded");
+            return;
+        }
+        var carried = MusicDataDiscItem.playlistOf(
+                recorder.getDataDiscInventory().getStackInSlot(MusicRecorderBlockEntity.DATA_SLOT));
+        if (!carried.isEmpty()) {
+            helper.fail("a song was written after five ticks; only a song played through may be recorded,"
+                    + " but the disc already holds " + carried);
+            return;
+        }
+        recorder.getDiscInventory().setItemDirect(0, ItemStack.EMPTY);
+        MusicRecorderBlockEntity.serverTick(level, absolute, state, recorder);
+        var afterEject = MusicDataDiscItem.playlistOf(
+                recorder.getDataDiscInventory().getStackInSlot(MusicRecorderBlockEntity.DATA_SLOT));
+        if (!afterEject.isEmpty()) {
+            helper.fail("pulling the record out mid-song still paid the disc: " + afterEject);
+            return;
+        }
+        if (recorder.progressFraction() != 0.0F) {
+            helper.fail("the machine is still playing after the record was pulled out");
+            return;
+        }
+        helper.setBlock(pos, Blocks.AIR);
+        helper.succeed();
+    }
+
+    /**
+     * A data disc never records the same song twice, and a full disc (twelve songs) never starts another.
+     * Both are read by looking at whether a song starts at all: the recorder leaves the input records in
+     * place, so a refusal has to show up as standing still, not as a missing item.
+     */
+    @GameTest(template = "empty", batch = "music_recorder", timeoutTicks = 100,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void recorderSkipsKnownSongsAndStopsAtTwelve(GameTestHelper helper) {
+        var pos = new BlockPos(0, 0, 0);
+        helper.setBlock(pos, ModRegistration.MUSIC_RECORDER_BLOCK.get());
+        if (!(helper.getBlockEntity(pos) instanceof MusicRecorderBlockEntity recorder)) {
+            helper.fail("the recorder block has no MusicRecorderBlockEntity");
+            return;
+        }
+        var level = helper.getLevel();
+        var absolute = helper.absolutePos(pos);
+        var state = helper.getBlockState(pos);
+        var record = new ItemStack(Items.MUSIC_DISC_11);
+        var songId = net.minecraft.world.item.JukeboxSong.fromStack(level.registryAccess(), record)
+                .flatMap(song -> song.unwrapKey().map(key -> key.location()))
+                .orElse(null);
+        if (songId == null) {
+            helper.fail("music_disc_11 names no jukebox song, so the duplicate check cannot be tested");
+            return;
+        }
+        recorder.getDiscInventory().insertItem(0, record.copy(), false);
+        var alreadyRecorded = discOf(songId.toString(), 1420, 0L);
+        recorder.getDataDiscInventory().insertItem(0, alreadyRecorded, false);
+        MusicRecorderBlockEntity.serverTick(level, absolute, state, recorder);
+        if (recorder.progressFraction() != 0.0F) {
+            helper.fail("the recorder started a song the data disc already carries");
+            return;
+        }
+
+        var songs = new ArrayList<MusicPlaylist.Song>();
+        for (int index = 0; index < MusicPlaylist.MAX_SONGS; index++) {
+            songs.add(new MusicPlaylist.Song(ResourceLocation.parse("neoecoprototype:test_" + index), 20));
+        }
+        var full = new ItemStack(ModRegistration.MUSIC_DATA_DISC_ITEM.get());
+        MusicDataDiscItem.setPlaylist(full, new MusicPlaylist(songs, 0L));
+        recorder.getDataDiscInventory().setItemDirect(MusicRecorderBlockEntity.DATA_SLOT, full);
+        MusicRecorderBlockEntity.serverTick(level, absolute, state, recorder);
+        if (recorder.progressFraction() != 0.0F) {
+            helper.fail("the recorder started a song on a disc that already holds "
+                    + MusicPlaylist.MAX_SONGS + " of them");
+            return;
+        }
+        helper.setBlock(pos, Blocks.AIR);
+        helper.succeed();
+    }
+
+    /** Records and the data disc are inventory, not decoration: breaking the block has to hand them back. */
+    @GameTest(template = "empty", batch = "music_recorder", timeoutTicks = 60,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void recorderDropsEveryCellWhenBroken(GameTestHelper helper) {
+        var pos = new BlockPos(0, 0, 0);
+        helper.setBlock(pos, ModRegistration.MUSIC_RECORDER_BLOCK.get());
+        if (!(helper.getBlockEntity(pos) instanceof MusicRecorderBlockEntity recorder)) {
+            helper.fail("the recorder block has no MusicRecorderBlockEntity");
+            return;
+        }
+        recorder.getDiscInventory().insertItem(0, new ItemStack(Items.MUSIC_DISC_11), false);
+        recorder.getDiscInventory().insertItem(1, new ItemStack(Items.MUSIC_DISC_CAT), false);
+        recorder.getDataDiscInventory().insertItem(0, discOf("minecraft:cat", 60, 0L), false);
+        var drops = new ArrayList<ItemStack>();
+        recorder.addAdditionalDrops(helper.getLevel(), helper.absolutePos(pos), drops);
+        int records = 0;
+        int dataDiscs = 0;
+        for (var drop : drops) {
+            if (drop.is(ModRegistration.MUSIC_DATA_DISC_ITEM.get())) {
+                dataDiscs++;
+            } else if (drop.is(Items.MUSIC_DISC_11) || drop.is(Items.MUSIC_DISC_CAT)) {
+                records++;
+            }
+        }
+        if (records != 2 || dataDiscs != 1) {
+            helper.fail("breaking the recorder returned " + records + " records and " + dataDiscs
+                    + " data discs; two and one went in");
+            return;
+        }
+        helper.setBlock(pos, Blocks.AIR);
+        helper.succeed();
+    }
+
+    /** A disc whose frozen playlist holds one song of {@code ticks} ticks with the cursor already at
+     *  {@code played}; the song id has to exist in the datapack registry or the jukebox cannot start it. */
+    private static ItemStack discOf(String song, int ticks, long played) {
+        var stack = new ItemStack(ModRegistration.MUSIC_DATA_DISC_ITEM.get());
+        MusicDataDiscItem.setPlaylist(stack, new MusicPlaylist(
+                List.of(new MusicPlaylist.Song(ResourceLocation.parse(song), ticks)), played));
+        return stack;
+    }
+
+    private static long storedOnTheDisc(MusicJukeboxBlockEntity jukebox) {
+        return MusicDataDiscItem.playlistOf(
+                jukebox.getInternalInventory().getStackInSlot(MusicJukeboxBlockEntity.DISC_SLOT))
+                .playedTicks();
+    }
+
+    private static List<ItemStack> musicDiscsNear(GameTestHelper helper, BlockPos pos) {
+        var found = new ArrayList<ItemStack>();
+        for (var drop : helper.getLevel().getEntitiesOfClass(ItemEntity.class,
+                new net.minecraft.world.phys.AABB(helper.absolutePos(pos)).inflate(4.0))) {
+            if (drop.getItem().is(ModRegistration.MUSIC_DATA_DISC_ITEM.get())) {
+                found.add(drop.getItem().copy());
+            }
+        }
+        return found;
+    }
+
+    private static void discardDropsNear(GameTestHelper helper, BlockPos pos) {
+        helper.getLevel().getEntitiesOfClass(ItemEntity.class,
+                        new net.minecraft.world.phys.AABB(helper.absolutePos(pos)).inflate(4.0))
+                .forEach(ItemEntity::discard);
     }
 
     /** Fails with the position and what is actually there, and answers whether it matched. */

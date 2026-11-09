@@ -275,6 +275,9 @@ public class NeoECOPrototype {
         // The reactor pays the grid through this node, so leaving the controller out of this list is the
         // same bug: a cell standing against the cube finds no host and the machine's rate reaches nobody.
         registerNodeHost(event, ModRegistration.REACTOR_CONTROLLER_BE.get());
+        // The jukebox pays the grid through its node too; without this line it sits alone in a grid of one
+        // node and the music it plays reaches no store at all.
+        registerNodeHost(event, ModRegistration.MUSIC_JUKEBOX_BE.get());
         event.registerBlockEntity(Capabilities.EnergyStorage.BLOCK,
                 ModRegistration.METEORITE_DISSOCIATOR_BE.get(),
                 (blockEntity, side) -> blockEntity.getEnergyStorage());

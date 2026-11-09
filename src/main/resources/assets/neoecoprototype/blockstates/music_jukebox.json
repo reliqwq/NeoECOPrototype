@@ -1,0 +1,10 @@
+{
+  "variants": {
+    "has_record=false": {
+      "model": "neoecoprototype:block/music_jukebox"
+    },
+    "has_record=true": {
+      "model": "neoecoprototype:block/music_jukebox_with_record"
+    }
+  }
+}

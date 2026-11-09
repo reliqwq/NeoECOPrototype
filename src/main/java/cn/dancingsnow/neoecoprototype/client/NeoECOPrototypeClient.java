@@ -213,6 +213,11 @@ public final class NeoECOPrototypeClient {
             // Script-created finite matrices are plain storage-cell items, so they are registered here.
             InfiniteMatrixClientModels.registerScriptedCellModels();
         }
+        if (ModList.get().isLoaded("data_energistics")) {
+            // The key type itself is only installed by our data_energistics entrypoint, so a renderer
+            // registered without it would be a table entry nothing can ever look up.
+            cn.dancingsnow.neoecoprototype.client.key.MusicKeyRenderer.register();
+        }
         ECOCellModels.runDeferredRegistration();
 
         // TedXenon's split, by cell item rather than by drive: the CE1 array shows the cell_l1 face and

@@ -1,0 +1,23 @@
+{
+  "neoforge:conditions": [
+    {
+      "type": "neoforge:mod_loaded",
+      "modid": "data_energistics"
+    }
+  ],
+  "type": "data_energistics:data_reassembler",
+  "inputs": {
+    "resource": {
+      "key_type": "neoecoprototype:music",
+      "amount": 20
+    }
+  },
+  "outputs": {
+    "resource": {
+      "key_type": "data_energistics:digitalization",
+      "resource": "data_energistics:data_flow",
+      "amount": 1
+    }
+  },
+  "duration": 20
+}

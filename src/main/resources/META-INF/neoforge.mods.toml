@@ -231,3 +231,16 @@ type = "optional"
 versionRange = "*"
 ordering = "NONE"
 side = "BOTH"
+
+# Data Energistics (mod id data_energistics) is where the music key lives. The key type is not registered
+# by us at load time: Data Energistics discovers plugins through its own @DataEnergisticsEntrypoint
+# annotation on ModList scan data, so our class only runs when that mod is present, and the whole family
+# (key type, digital supply adapter, reassembler recipes) is simply absent otherwise. Nothing here needs
+# the mod to load first, so ordering stays NONE. Open range for the same measured reason as appflux above:
+# 3.4.0 is the only build this integration has been measured against, and presence is the real gate.
+[[dependencies.neoecoprototype]]
+modId = "data_energistics"
+type = "optional"
+versionRange = "*"
+ordering = "NONE"
+side = "BOTH"

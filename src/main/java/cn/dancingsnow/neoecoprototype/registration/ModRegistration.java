@@ -216,6 +216,17 @@ public class ModRegistration {
                     .persistent(cn.dancingsnow.neoecoprototype.items.SimplifySingularityCellItem.Bank.CODEC)
                     .networkSynchronized(cn.dancingsnow.neoecoprototype.items.SimplifySingularityCellItem.Bank.STREAM_CODEC)
                     .build());
+    /**
+     * A data disc's songs and how far into them the network has been paid. One component rather than three
+     * fields, because the whole thing has to travel with the stack: it is read in a jukebox, in a chest, in
+     * a tooltip, and by a pack script that built the disc without ever placing it.
+     */
+    public static final Supplier<DataComponentType<cn.dancingsnow.neoecoprototype.items.MusicPlaylist>>
+            MUSIC_DATA_PLAYLIST = DATA_COMPONENTS.register("music_data_playlist",
+            () -> DataComponentType.<cn.dancingsnow.neoecoprototype.items.MusicPlaylist>builder()
+                    .persistent(cn.dancingsnow.neoecoprototype.items.MusicPlaylist.CODEC)
+                    .networkSynchronized(cn.dancingsnow.neoecoprototype.items.MusicPlaylist.STREAM_CODEC)
+                    .build());
     public static final DeferredRegister<RecipeType<?>> RECIPE_TYPES =
             DeferredRegister.create(Registries.RECIPE_TYPE, NeoECOPrototype.MOD_ID);
     /** The ore feature the cryotheum worldgen JSONs name; it is the config gate, not the shape. */
@@ -618,6 +629,37 @@ public class ModRegistration {
             () -> new cn.dancingsnow.neoecoprototype.block.dissociation.MeteoriteDissociatorBlock(AE2_MACHINE_PROPS));
     public static final Supplier<BlockItem> METEORITE_DISSOCIATOR_ITEM = ITEMS.register("meteorite_dissociator",
             () -> new BlockItem(METEORITE_DISSOCIATOR_BLOCK.get(), new Item.Properties()));
+
+    // ============================ 音乐数据（唱片机与数据唱片） ============================
+
+    /**
+     * The carrier that holds a recorded playlist. Not a cell: it has no storage handler and nothing can
+     * mount it, so the only way it pays the network is being played.
+     */
+    public static final Supplier<cn.dancingsnow.neoecoprototype.items.MusicDataDiscItem> MUSIC_DATA_DISC_ITEM =
+            ITEMS.register("music_data_disc",
+                    () -> new cn.dancingsnow.neoecoprototype.items.MusicDataDiscItem(
+                            new Item.Properties().stacksTo(1)));
+
+    /**
+     * The machine that plays it. It joins the ME grid and feeds the music key; there is no screen, only the
+     * spindle and the eject.
+     */
+    public static final Supplier<cn.dancingsnow.neoecoprototype.block.music.MusicJukeboxBlock>
+            MUSIC_JUKEBOX_BLOCK = BLOCKS.register("music_jukebox",
+            () -> new cn.dancingsnow.neoecoprototype.block.music.MusicJukeboxBlock(AE2_MACHINE_PROPS));
+    public static final Supplier<BlockItem> MUSIC_JUKEBOX_ITEM = ITEMS.register("music_jukebox",
+            () -> new BlockItem(MUSIC_JUKEBOX_BLOCK.get(), new Item.Properties()));
+
+    /**
+     * The machine that fills a data disc. It plays records locally while copying them, so recording and
+     * listening are the same act; the finished disc is what the jukebox spends.
+     */
+    public static final Supplier<cn.dancingsnow.neoecoprototype.block.music.MusicRecorderBlock>
+            MUSIC_RECORDER_BLOCK = BLOCKS.register("music_recorder",
+            () -> new cn.dancingsnow.neoecoprototype.block.music.MusicRecorderBlock(AE2_MACHINE_PROPS));
+    public static final Supplier<BlockItem> MUSIC_RECORDER_ITEM = ITEMS.register("music_recorder",
+            () -> new BlockItem(MUSIC_RECORDER_BLOCK.get(), new Item.Properties()));
 
     public static final Supplier<net.neoforged.neoforge.fluids.FluidType> DISSOLUTION_SOLUTION_TYPE =
             FLUID_TYPES.register("dissolution_solution",
@@ -1712,6 +1754,30 @@ private static Supplier<BlockEntityType<SimplifyStorageVentBlockEntity>> registe
                                 .MeteoriteDissociatorBlockEntity(METEORITE_DISSOCIATOR_BE.get(), pos, state),
                         METEORITE_DISSOCIATOR_BLOCK.get()).build(null));
     }
+
+    public static final Supplier<BlockEntityType<cn.dancingsnow.neoecoprototype.blockentity.music.MusicJukeboxBlockEntity>>
+            MUSIC_JUKEBOX_BE = registerMusicJukeboxBe();
+
+    private static Supplier<BlockEntityType<cn.dancingsnow.neoecoprototype.blockentity.music.MusicJukeboxBlockEntity>>
+    registerMusicJukeboxBe() {
+        return (Supplier) BLOCK_ENTITIES.register("music_jukebox",
+                () -> BlockEntityType.Builder.of(
+                        (pos, state) -> new cn.dancingsnow.neoecoprototype.blockentity.music
+                                .MusicJukeboxBlockEntity(MUSIC_JUKEBOX_BE.get(), pos, state),
+                        MUSIC_JUKEBOX_BLOCK.get()).build(null));
+    }
+
+    public static final Supplier<BlockEntityType<cn.dancingsnow.neoecoprototype.blockentity.music.MusicRecorderBlockEntity>>
+            MUSIC_RECORDER_BE = registerMusicRecorderBe();
+
+    private static Supplier<BlockEntityType<cn.dancingsnow.neoecoprototype.blockentity.music.MusicRecorderBlockEntity>>
+    registerMusicRecorderBe() {
+        return (Supplier) BLOCK_ENTITIES.register("music_recorder",
+                () -> BlockEntityType.Builder.of(
+                        (pos, state) -> new cn.dancingsnow.neoecoprototype.blockentity.music
+                                .MusicRecorderBlockEntity(MUSIC_RECORDER_BE.get(), pos, state),
+                        MUSIC_RECORDER_BLOCK.get()).build(null));
+    }
      private static Supplier<BlockEntityType<SimplifyPoweredMEInterfaceBlockEntity>> registerPoweredMEInterfaceBe() {
          return (Supplier) BLOCK_ENTITIES.register("simplify_powered_me_interface", () -> BlockEntityType.Builder.of((pos, state) -> new SimplifyPoweredMEInterfaceBlockEntity(SIMPLIFY_POWERED_ME_INTERFACE_BE.get(), pos, state), SIMPLIFY_POWERED_ME_INTERFACE_BLOCK.get()).build(null));
      }
@@ -2029,6 +2095,12 @@ private static Supplier<BlockEntityType<SimplifyStorageVentBlockEntity>> registe
                         output.accept(ENERGIZED_COMPUTATION_CELL_4M.get());
                          output.accept(SIMPLIFY_CRAFTING_SYSTEM_ITEM.get());
                          output.accept(SIMPLIFY_STONECUTTING_ASSEMBLER_ITEM.get());
+                        // The music family is visible from its first release: the recorder writes whole
+                        // songs onto a blank disc, and the jukebox is the player's only way to hear a
+                        // recorded disc and feed the network.
+                        output.accept(MUSIC_JUKEBOX_ITEM.get());
+                        output.accept(MUSIC_RECORDER_ITEM.get());
+                        output.accept(MUSIC_DATA_DISC_ITEM.get());
                         // The dissociator family is registered but withheld: it has no survival recipe, its
                         // input comes from the comet, and the comet generates nowhere by default. Keeping the
                         // four items out of the tab is the whole hiding - registrations, models, the
@@ -2167,6 +2239,16 @@ private static Supplier<BlockEntityType<SimplifyStorageVentBlockEntity>> registe
                 cn.dancingsnow.neoecoprototype.blockentity.dissociation.MeteoriteDissociatorBlockEntity.class,
                 METEORITE_DISSOCIATOR_BE.get(), null,
                 cn.dancingsnow.neoecoprototype.blockentity.dissociation.MeteoriteDissociatorBlockEntity::serverTick);
+        ((AEBaseEntityBlock<cn.dancingsnow.neoecoprototype.blockentity.music.MusicJukeboxBlockEntity>)
+                MUSIC_JUKEBOX_BLOCK.get()).setBlockEntity(
+                cn.dancingsnow.neoecoprototype.blockentity.music.MusicJukeboxBlockEntity.class,
+                MUSIC_JUKEBOX_BE.get(), null,
+                cn.dancingsnow.neoecoprototype.blockentity.music.MusicJukeboxBlockEntity::serverTick);
+        ((AEBaseEntityBlock<cn.dancingsnow.neoecoprototype.blockentity.music.MusicRecorderBlockEntity>)
+                MUSIC_RECORDER_BLOCK.get()).setBlockEntity(
+                cn.dancingsnow.neoecoprototype.blockentity.music.MusicRecorderBlockEntity.class,
+                MUSIC_RECORDER_BE.get(), null,
+                cn.dancingsnow.neoecoprototype.blockentity.music.MusicRecorderBlockEntity::serverTick);
         asEntityBlock(SIMPLIFY_PATTERN_PROVIDER_BLOCK).setBlockEntity(SimplifyPatternProviderBlockEntity.class, SIMPLIFY_PATTERN_PROVIDER_BE.get(), null, null);
          asEntityBlock(SIMPLIFY_POWERED_ME_INTERFACE_BLOCK).setBlockEntity(SimplifyPoweredMEInterfaceBlockEntity.class, SIMPLIFY_POWERED_ME_INTERFACE_BE.get(), null, null);
          asEntityBlock(SUPERCONDUCTIVE_INTERFACE_BLOCK).setBlockEntity(SimplifySuperconductiveInterfaceBlockEntity.class, SUPERCONDUCTIVE_INTERFACE_BE.get(), null, null);
@@ -2241,6 +2323,10 @@ private static Supplier<BlockEntityType<SimplifyStorageVentBlockEntity>> registe
         AEBaseBlockEntity.registerBlockEntityItem(SIMPLIFY_STONECUTTING_ASSEMBLER_BE.get(), SIMPLIFY_STONECUTTING_ASSEMBLER_ITEM.get().asItem());
         AEBaseBlockEntity.registerBlockEntityItem(METEORITE_DISSOCIATOR_BE.get(),
                 METEORITE_DISSOCIATOR_ITEM.get().asItem());
+        AEBaseBlockEntity.registerBlockEntityItem(MUSIC_JUKEBOX_BE.get(),
+                MUSIC_JUKEBOX_ITEM.get().asItem());
+        AEBaseBlockEntity.registerBlockEntityItem(MUSIC_RECORDER_BE.get(),
+                MUSIC_RECORDER_ITEM.get().asItem());
         AEBaseBlockEntity.registerBlockEntityItem(SIMPLIFY_PATTERN_PROVIDER_BE.get(), SIMPLIFY_PATTERN_PROVIDER_ITEM.get().asItem());
          AEBaseBlockEntity.registerBlockEntityItem(SIMPLIFY_POWERED_ME_INTERFACE_BE.get(), SIMPLIFY_POWERED_ME_INTERFACE_ITEM.get().asItem());
          AEBaseBlockEntity.registerBlockEntityItem(SUPERCONDUCTIVE_INTERFACE_BE.get(), SUPERCONDUCTIVE_INTERFACE_ITEM.get().asItem());

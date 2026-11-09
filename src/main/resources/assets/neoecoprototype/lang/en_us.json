@@ -337,5 +337,15 @@
   "advancement.neoecoprototype.powered_interface.description": "Obtain a powered or superconductive interface, in place of the crude quartz resonance generator.",
   "advancement.neoecoprototype.migration_drive.title": "Straight to the top",
   "advancement.neoecoprototype.migration_drive.description": "Obtain a migration drive. Safe and efficient.",
-  "chemical.neoecoprototype.milk": "Milk"
+  "chemical.neoecoprototype.milk": "Milk",
+  "key_type.neoecoprototype.music": "Music",
+  "key.neoecoprototype.music_data": "Music Data",
+  "block.neoecoprototype.music_jukebox": "ME Jukebox",
+  "item.neoecoprototype.music_data_disc": "Music Data Disc",
+  "tooltip.neoecoprototype.music_data_disc_empty": "Blank - no songs recorded",
+  "tooltip.neoecoprototype.music_data_disc_songs": "Songs: %s",
+  "tooltip.neoecoprototype.music_data_disc_remaining": "Remaining: %s",
+  "block.neoecoprototype.music_recorder": "Music Recorder",
+  "gui.neoecoprototype.music_recorder_data_slot": "Data disc",
+  "jei.neoecoprototype.music_data.info": "Music data is recorded by the Music Recorder: load up to 12 discs, and each song that plays through is written into a data disc. Play that disc in an ME Jukebox to feed music into the ME network, or turn 20 music into 1 data flow in a Data Reassembler."
 }

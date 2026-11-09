@@ -1,0 +1,12 @@
+{
+  "parent": "minecraft:block/cube",
+  "textures": {
+    "particle": "neoecoprototype:block/music_jukebox_side",
+    "down": "neoecoprototype:block/music_jukebox_side",
+    "up": "neoecoprototype:block/music_jukebox_top",
+    "north": "neoecoprototype:block/music_jukebox_side",
+    "south": "neoecoprototype:block/music_jukebox_side",
+    "east": "neoecoprototype:block/music_jukebox_side",
+    "west": "neoecoprototype:block/music_jukebox_side"
+  }
+}
