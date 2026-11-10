@@ -1,5 +1,7 @@
 package cn.dancingsnow.neoecoprototype.block.music;
 
+import appeng.api.orientation.IOrientationStrategy;
+import appeng.api.orientation.OrientationStrategies;
 import appeng.block.AEBaseEntityBlock;
 import cn.dancingsnow.neoecoprototype.blockentity.music.MusicRecorderBlockEntity;
 import cn.dancingsnow.neoecoprototype.blockentity.music.MusicRecorderUI;
@@ -23,6 +25,11 @@ public final class MusicRecorderBlock extends AEBaseEntityBlock<MusicRecorderBlo
 
     public MusicRecorderBlock(Properties properties) {
         super(properties);
+    }
+
+    @Override
+    public IOrientationStrategy getOrientationStrategy() {
+        return OrientationStrategies.horizontalFacing();
     }
 
     @Override

@@ -23261,6 +23261,46 @@ public final class NeoECOPrototypeGameTests {
         helper.succeed();
     }
 
+    /**
+     * The front has to be a real facing: both machines register a horizontal facing property and hand
+     * placement to AE2's horizontal strategy, so the face with the display (recorder) or the disc slot
+     * (jukebox) is the one the player looks at. The blockstate and model rotate per facing in the
+     * resource guard; this is the runtime half - without the property the model has nothing to switch on
+     * and every side would show the front.
+     */
+    @GameTest(template = "empty", batch = "music_faces", timeoutTicks = 20,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void musicMachinesTurnToThePlayerWhoPlacedThem(GameTestHelper helper) {
+        for (var block : List.of(ModRegistration.MUSIC_RECORDER_BLOCK.get(),
+                ModRegistration.MUSIC_JUKEBOX_BLOCK.get())) {
+            if (!block.getOrientationStrategy().getProperties()
+                    .contains(BlockStateProperties.HORIZONTAL_FACING)) {
+                helper.fail(block.getDescriptionId() + " has no horizontal facing, so its front sits on"
+                        + " the same side whichever way it is placed");
+                return;
+            }
+            if (block.getStateDefinition().getProperty("facing") == null) {
+                helper.fail(block.getDescriptionId() + " never registered the facing state, so the model"
+                        + " has no property to switch on");
+                return;
+            }
+            if (block.defaultBlockState().getValue(BlockStateProperties.HORIZONTAL_FACING)
+                    != Direction.NORTH) {
+                helper.fail(block.getDescriptionId() + " does not default to facing north");
+                return;
+            }
+        }
+        var pos = new BlockPos(0, 0, 0);
+        helper.setBlock(pos, ModRegistration.MUSIC_RECORDER_BLOCK.get());
+        if (!helper.getBlockState(pos).hasProperty(BlockStateProperties.HORIZONTAL_FACING)) {
+            helper.fail("the placed recorder carries no facing; the blockstate would fall back to a"
+                    + " single all-sides face");
+            return;
+        }
+        helper.setBlock(pos, Blocks.AIR);
+        helper.succeed();
+    }
+
     /** A disc whose frozen playlist holds one song of {@code ticks} ticks with the cursor already at
      *  {@code played}; the song id has to exist in the datapack registry or the jukebox cannot start it. */
     private static ItemStack discOf(String song, int ticks, long played) {

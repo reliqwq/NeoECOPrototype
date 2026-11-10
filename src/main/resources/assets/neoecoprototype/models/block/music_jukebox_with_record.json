@@ -1,12 +1,12 @@
 {
   "parent": "minecraft:block/cube",
   "textures": {
-    "particle": "neoecoprototype:block/music_jukebox_side",
-    "down": "neoecoprototype:block/music_jukebox_side",
+    "particle": "neoecoprototype:block/music_jukebox_front",
+    "north": "neoecoprototype:block/music_jukebox_front",
+    "east": "ae2:block/generics/side",
+    "south": "ae2:block/generics/back",
+    "west": "ae2:block/generics/side",
     "up": "neoecoprototype:block/music_jukebox_top_with_record",
-    "north": "neoecoprototype:block/music_jukebox_side",
-    "south": "neoecoprototype:block/music_jukebox_side",
-    "east": "neoecoprototype:block/music_jukebox_side",
-    "west": "neoecoprototype:block/music_jukebox_side"
+    "down": "ae2:block/generics/bottom"
   }
 }

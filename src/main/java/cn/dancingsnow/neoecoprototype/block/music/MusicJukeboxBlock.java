@@ -1,5 +1,7 @@
 package cn.dancingsnow.neoecoprototype.block.music;
 
+import appeng.api.orientation.IOrientationStrategy;
+import appeng.api.orientation.OrientationStrategies;
 import appeng.block.AEBaseEntityBlock;
 import cn.dancingsnow.neoecoprototype.blockentity.music.MusicJukeboxBlockEntity;
 import cn.dancingsnow.neoecoprototype.items.MusicDataDiscItem;
@@ -35,6 +37,11 @@ public final class MusicJukeboxBlock extends AEBaseEntityBlock<MusicJukeboxBlock
     public MusicJukeboxBlock(Properties properties) {
         super(properties);
         registerDefaultState(defaultBlockState().setValue(HAS_RECORD, false));
+    }
+
+    @Override
+    public IOrientationStrategy getOrientationStrategy() {
+        return OrientationStrategies.horizontalFacing();
     }
 
     @Override

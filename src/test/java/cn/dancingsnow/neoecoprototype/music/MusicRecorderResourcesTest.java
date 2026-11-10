@@ -26,6 +26,17 @@ final class MusicRecorderResourcesTest {
     private static final Path DATA = Path.of("src/main/resources/data/neoecoprototype");
     private static final Path SOURCES = Path.of("src/main/java/cn/dancingsnow/neoecoprototype");
 
+    private static final List<String> OUR_FACES = List.of("music_recorder_front", "music_jukebox_front",
+            "music_jukebox_top", "music_jukebox_top_with_record");
+
+    /** AE2's own casing ramp: the only greys the machines may be built from. */
+    private static final List<Integer> AE_CASING = List.of(
+            0xF2F2F2, 0xE8E8EA, 0xDEDFE3, 0xD5D6DC, 0xCBCCD4, 0xBFC1CD,
+            0xB3B6C6, 0x9A9FB4, 0x878FA5, 0x787E97, 0x4D4D67, 0x413F54);
+
+    /** The cyan the music family is keyed on, shared with the music key icon and the disc item. */
+    private static final List<Integer> MUSIC_ACCENT = List.of(0x009295, 0x79F2D3, 0x05625D, 0x052A32);
+
     @Test
     void thePanelAndTheBlockFaceAreDrawn() throws Exception {
         BufferedImage panel = image(ASSETS.resolve("textures/gui/music_recorder.png"));
@@ -40,27 +51,25 @@ final class MusicRecorderResourcesTest {
                 + " px wide; the code samples three 16 px plates and three 16 px glyph cells from it");
         assertEquals(32, buttons.getHeight(), "the button atlas is " + buttons.getHeight()
                 + " px tall; row 0 is the plate states and row 1 the glyphs");
-        BufferedImage face = image(ASSETS.resolve("textures/block/music_recorder.png"));
-        assertEquals(16, face.getWidth(), "the block face is not 16 px wide");
-        assertEquals(16, face.getHeight(), "the block face is not 16 px tall");
+        for (String face : OUR_FACES) {
+            BufferedImage art = image(ASSETS.resolve("textures/block/" + face + ".png"));
+            assertEquals(16, art.getWidth(), face + " is " + art.getWidth() + " px wide");
+            assertEquals(16, art.getHeight(), face + " is " + art.getHeight() + " px tall");
+        }
     }
 
     @Test
     void theBlockstateModelAndLootTableNameTheSameBlock() throws Exception {
-        JsonObject blockstate = json(ASSETS.resolve("blockstates/music_recorder.json"));
-        JsonObject variants = blockstate.getAsJsonObject("variants");
-        assertTrue(variants.has(""), "the recorder block has properties but no empty variant; it has no"
-                + " blockstate properties at all, so the only legal key is \"\"");
-        assertEquals("neoecoprototype:block/music_recorder",
-                variants.getAsJsonObject("").get("model").getAsString(),
-                "the recorder's variant points somewhere other than its own block model");
+        assertFacings("music_recorder", 4);
+        assertFacings("music_jukebox", 8);
 
         JsonObject model = json(ASSETS.resolve("models/block/music_recorder.json"));
-        assertEquals("minecraft:block/cube_all", model.get("parent").getAsString(),
-                "the recorder is a plain cube; a different parent needs a matching model file");
-        assertEquals("neoecoprototype:block/music_recorder",
-                model.getAsJsonObject("textures").get("all").getAsString(),
-                "the block model does not name the block face texture that was just checked");
+        assertEquals("minecraft:block/cube", model.get("parent").getAsString(),
+                "the recorder is no longer a six-faced cube; the casing on its sides and back needs a"
+                        + " per-face model");
+        assertEquals("neoecoprototype:block/music_recorder_front",
+                model.getAsJsonObject("textures").get("north").getAsString(),
+                "the recorder's front is not the front texture that was just checked");
 
         JsonObject item = json(ASSETS.resolve("models/item/music_recorder.json"));
         assertEquals("neoecoprototype:block/music_recorder", item.get("parent").getAsString(),
@@ -71,6 +80,71 @@ final class MusicRecorderResourcesTest {
                 .getAsJsonArray("entries").get(0).getAsJsonObject().get("name").getAsString();
         assertEquals("neoecoprototype:music_recorder", dropped,
                 "breaking the recorder drops " + dropped + " instead of the machine");
+    }
+
+    /**
+     * The machines have to read as AE devices, not as dark boxes: a light casing on both sides, the back
+     * and the bottom, borrowed straight from AE2's own generic textures instead of redrawn, with only the
+     * front (and the jukebox's platter) drawn by us. The art those two replaced was one dark six-colour
+     * ramp repeated on every face - that is what made them look foreign next to eco's machines, and
+     * nothing in the suite can see a texture, so the rule is pinned here.
+     */
+    @Test
+    void theMachinesAreAECasingWithAFaceOfTheirOwn() throws Exception {
+        record Machine(String model, String front, String top) {
+        }
+        for (Machine machine : List.of(
+                new Machine("music_recorder", "music_recorder_front", "ae2:block/generics/top"),
+                new Machine("music_jukebox", "music_jukebox_front", "music_jukebox_top"),
+                new Machine("music_jukebox_with_record", "music_jukebox_front",
+                        "music_jukebox_top_with_record"))) {
+            JsonObject textures = json(ASSETS.resolve("models/block/" + machine.model() + ".json"))
+                    .getAsJsonObject("textures");
+            String top = machine.top().startsWith("ae2:")
+                    ? machine.top() : "neoecoprototype:block/" + machine.top();
+            assertEquals("neoecoprototype:block/" + machine.front(),
+                    textures.get("north").getAsString(),
+                    machine.model() + " no longer puts its own face on the front");
+            assertEquals("ae2:block/generics/side", textures.get("east").getAsString(),
+                    machine.model() + " draws its own side; the casing has to come from AE2, a hand-drawn"
+                            + " side is how the family drifts back out of the AE look");
+            assertEquals(textures.get("east").getAsString(), textures.get("west").getAsString(),
+                    machine.model() + " has two different sides; the casing is symmetric");
+            assertEquals("ae2:block/generics/back", textures.get("south").getAsString(),
+                    machine.model() + " no longer uses AE2's back casing");
+            assertEquals("ae2:block/generics/bottom", textures.get("down").getAsString(),
+                    machine.model() + " no longer uses AE2's bottom casing");
+            assertEquals(top, textures.get("up").getAsString(),
+                    machine.model() + " lost its top face");
+            assertTrue(!textures.get("north").getAsString().equals(textures.get("up").getAsString()),
+                    machine.model() + " repeats one texture on the front and the top; the faces are"
+                            + " supposed to tell you which side you are looking at");
+        }
+        for (String face : OUR_FACES) {
+            BufferedImage art = image(ASSETS.resolve("textures/block/" + face + ".png"));
+            for (int y = 0; y < 16; y++) {
+                for (int x = 0; x < 16; x++) {
+                    int rgb = art.getRGB(x, y) & 0xFFFFFF;
+                    if (!AE_CASING.contains(rgb) && !MUSIC_ACCENT.contains(rgb)) {
+                        throw new AssertionError(face + " has " + String.format("#%06X", rgb) + " at "
+                                + x + "," + y + "; every colour on our own faces has to come from the AE"
+                                + " casing ramp or the cyan music accent, otherwise the dark ramp that made"
+                                + " these machines look non-AE is back");
+                    }
+                }
+            }
+            for (int x = 0; x < 16; x++) {
+                assertTrue(luminance(art.getRGB(x, 0)) >= 0.85F,
+                        face + " has a dark pixel on its top edge at x=" + x + "; the bezel has to be the"
+                                + " light AE casing, that is the visual signature of an AE device");
+            }
+            for (int y = 0; y < 15; y++) {
+                assertTrue(luminance(art.getRGB(0, y)) >= 0.85F,
+                        face + " has a dark pixel on its left edge at y=" + y);
+                assertTrue(luminance(art.getRGB(15, y)) >= 0.85F,
+                        face + " has a dark pixel on its right edge at y=" + y);
+            }
+        }
     }
 
     @Test
@@ -193,6 +267,37 @@ final class MusicRecorderResourcesTest {
                     "the now-playing line in " + lang + " has no %s slot, so the song name would be"
                             + " dropped from the sentence");
         }
+    }
+
+    /**
+     * Every horizontal facing needs its own variant, turned 90 degrees per quarter: the model's front is
+     * its north face, so a missing variant would leave the machine's face on the wrong side - and a
+     * variant that does not rotate would put the same face on every side of a facing block.
+     */
+    private static void assertFacings(String block, int expectedVariants) throws Exception {
+        JsonObject variants = json(ASSETS.resolve("blockstates/" + block + ".json"))
+                .getAsJsonObject("variants");
+        assertEquals(expectedVariants, variants.size(), block + " has " + variants.size()
+                + " variants; four horizontal facings (times has_record for the jukebox) each need one");
+        String[] directions = {"north", "east", "south", "west"};
+        for (int index = 0; index < directions.length; index++) {
+            for (String record : expectedVariants == 8 ? List.of("false", "true") : List.of("")) {
+                String key = record.isEmpty() ? "facing=" + directions[index]
+                        : "facing=" + directions[index] + ",has_record=" + record;
+                assertTrue(variants.has(key), block + " has no variant " + key + ", so the machine"
+                        + " would fall back to a model that does not know which way it faces");
+                JsonElement turn = variants.getAsJsonObject(key).get("y");
+                assertEquals(90 * index, turn == null ? 0 : turn.getAsInt(),
+                        block + " at " + key + " does not turn the model a quarter per facing");
+            }
+        }
+    }
+
+    private static float luminance(int argb) {
+        int red = (argb >> 16) & 0xFF;
+        int green = (argb >> 8) & 0xFF;
+        int blue = argb & 0xFF;
+        return (0.299F * red + 0.587F * green + 0.114F * blue) / 255.0F;
     }
 
     private static BufferedImage image(Path path) throws Exception {

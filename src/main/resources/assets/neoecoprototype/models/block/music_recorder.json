@@ -1,6 +1,12 @@
 {
-  "parent": "minecraft:block/cube_all",
+  "parent": "minecraft:block/cube",
   "textures": {
-    "all": "neoecoprototype:block/music_recorder"
+    "particle": "neoecoprototype:block/music_recorder_front",
+    "north": "neoecoprototype:block/music_recorder_front",
+    "east": "ae2:block/generics/side",
+    "south": "ae2:block/generics/back",
+    "west": "ae2:block/generics/side",
+    "up": "ae2:block/generics/top",
+    "down": "ae2:block/generics/bottom"
   }
 }
