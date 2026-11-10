@@ -64,9 +64,12 @@ public class SimplifyReactorControllerBlockEntity extends AENetworkedBlockEntity
 
     // ============================ passive generator ============================
 
+    // Suppression is AE2's choice of which generator to run, not a statement about this machine: it
+    // compares these rates to re-pick, so answering 0 while suppressed would strand the grid on a weaker
+    // generator. An unformed reactor really does produce nothing, and that half stays.
     @Override
     public double getRate() {
-        if (suppressed || !formed) {
+        if (!formed) {
             return 0.0D;
         }
         double rate = NeoECOPrototypeServerConfig.reactorCoreAePerTick()

@@ -2,6 +2,7 @@ package cn.dancingsnow.neoecoprototype.blockentity.energy;
 
 import appeng.api.config.Actionable;
 import appeng.api.ids.AEComponents;
+import appeng.api.networking.events.GridPowerStorageStateChanged;
 import appeng.blockentity.grid.AENetworkedPoweredBlockEntity;
 import appeng.util.SettingsFrom;
 import cn.dancingsnow.neoecoprototype.block.energy.EnergizedEnergyCellBlock;
@@ -33,6 +34,17 @@ public class EnergizedEnergyCellBlockEntity extends AENetworkedPoweredBlockEntit
     @Override
     public appeng.api.inventories.InternalInventory getInternalInventory() {
         return appeng.api.inventories.InternalInventory.empty();
+    }
+
+    /**
+     * AE2's energy service drops a storage out of its provider set when a draw leaves it dry, and out of its
+     * requester set when an injection fills it; a storage only returns through this event. The parent's hook
+     * is empty because its machine subclasses are not public storage, so without this override a battery
+     * recharges exactly until its first full drain and then sits dead in the grid forever.
+     */
+    @Override
+    protected void emitPowerStateEvent(GridPowerStorageStateChanged.PowerEventType type) {
+        getMainNode().ifPresent((grid, node) -> grid.postEvent(new GridPowerStorageStateChanged(this, type)));
     }
 
     /**

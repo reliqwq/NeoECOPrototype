@@ -5,6 +5,7 @@ import appeng.api.parts.IPartItem;
 import appeng.helpers.InterfaceLogic;
 import appeng.menu.MenuOpener;
 import appeng.menu.locator.MenuHostLocator;
+import cn.dancingsnow.neoecoprototype.blockentity.crafting.SimplifyPoweredMEInterfaceBlockEntity;
 import cn.dancingsnow.neoecoprototype.registration.ModRegistration;
 import appeng.parts.PartModel;
 import appeng.parts.misc.InterfacePart;
@@ -43,9 +44,11 @@ public class PoweredInterfacePart extends InterfacePart implements IPassiveEnerg
         MenuOpener.returnTo(ModRegistration.L1_POWERED_INTERFACE_MENU.get(), player, subMenu.getLocator());
     }
 
+    /** Suppressed or not, this is what the part would produce: AE2 compares these rates to re-pick
+     *  its generator, so answering 0 while suppressed would strand the network on the weaker one. */
     @Override
     public double getRate() {
-        return suppressed ? 0.0D : 200.0D;
+        return SimplifyPoweredMEInterfaceBlockEntity.GENERATION_RATE;
     }
 
     @Override

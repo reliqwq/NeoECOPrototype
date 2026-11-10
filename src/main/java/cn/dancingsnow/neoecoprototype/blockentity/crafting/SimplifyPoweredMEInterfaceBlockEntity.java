@@ -45,9 +45,11 @@ public class SimplifyPoweredMEInterfaceBlockEntity extends InterfaceBlockEntity
         MenuOpener.returnTo(ModRegistration.L1_POWERED_INTERFACE_MENU.get(), player, subMenu.getLocator());
     }
 
+    /** Suppressed or not, this is what the interface would produce: AE2 compares these rates to re-pick
+     *  its generator, so answering 0 while suppressed would strand the network on the weaker one. */
     @Override
     public double getRate() {
-        return suppressed ? 0.0D : GENERATION_RATE;
+        return GENERATION_RATE;
     }
 
     @Override

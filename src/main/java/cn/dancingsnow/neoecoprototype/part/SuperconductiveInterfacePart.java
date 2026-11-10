@@ -49,11 +49,11 @@ public class SuperconductiveInterfacePart extends InterfacePart implements IPass
         MenuOpener.returnTo(ModRegistration.SUPERCONDUCTIVE_INTERFACE_MENU.get(), player, subMenu.getLocator());
     }
 
+    /** Suppressed or not, this is what the part would produce: AE2 compares these rates to re-pick
+     *  its generator, so answering 0 while suppressed would strand the network on the weaker one. */
     @Override
     public double getRate() {
-        return suppressed
-                ? 0.0D
-                : SimplifySuperconductiveInterfaceBlockEntity.GENERATION_RATE;
+        return SimplifySuperconductiveInterfaceBlockEntity.GENERATION_RATE;
     }
 
     @Override

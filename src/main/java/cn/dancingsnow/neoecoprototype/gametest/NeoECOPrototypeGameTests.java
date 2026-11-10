@@ -51,6 +51,7 @@ import cn.dancingsnow.neoecoprototype.block.crafting.SimplifyCraftingSystemBlock
 import cn.dancingsnow.neoecoprototype.block.music.MusicJukeboxBlock;
 import cn.dancingsnow.neoecoprototype.block.reactor.SimplifyReactorFrameBlock;
 import cn.dancingsnow.neoecoprototype.block.storage.SimplifyStorageControllerBlock;
+import cn.dancingsnow.neoecoprototype.blockentity.crafting.SimplifyPoweredMEInterfaceBlockEntity;
 import cn.dancingsnow.neoecoprototype.blockentity.crafting.SimplifySuperconductiveInterfaceBlockEntity;
 import cn.dancingsnow.neoecoprototype.blockentity.music.MusicJukeboxBlockEntity;
 import cn.dancingsnow.neoecoprototype.blockentity.music.MusicRecorderBlockEntity;
@@ -6053,6 +6054,116 @@ public final class NeoECOPrototypeGameTests {
         var generator = node == null ? null : node.getService(IPassiveEnergyGenerator.class);
         return generator != null
                 && generator.getRate() == SimplifySuperconductiveInterfaceBlockEntity.GENERATION_RATE;
+    }
+
+    /**
+     * AE2 runs exactly one passive generator per grid and suppresses the rest, then re-picks every tick by
+     * comparing {@code getRate()}. AE2's own generator answers its configured rate whatever the suppression
+     * flag says (CrystalResonanceGeneratorBlockEntity), so a machine that answers 0 while suppressed can
+     * never win the slot back: the network stays on whichever generator was picked first. That is the
+     * "connecting a second machine made the grid produce less" report - a subsystem host joining the grid is
+     * a grid merge, and a merge re-picks. So the number a suppressed generator quotes has to be the one it
+     * would produce, and the flag has to be the only thing that stops it.
+     */
+    @GameTest(template = "empty", batch = "generator_rate_while_suppressed", timeoutTicks = 300,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void suppressedGeneratorStillPricesWhatItWouldProduce(GameTestHelper helper) {
+        var level = helper.getLevel();
+        var weakAt = helper.absolutePos(new BlockPos(0, 1, 0));
+        var strongAt = weakAt.east();
+        level.setBlockAndUpdate(weakAt,
+                ModRegistration.SIMPLIFY_POWERED_ME_INTERFACE_BLOCK.get().defaultBlockState());
+        level.setBlockAndUpdate(strongAt,
+                ModRegistration.SUPERCONDUCTIVE_INTERFACE_BLOCK.get().defaultBlockState());
+
+        if (!(level.getBlockEntity(weakAt) instanceof SimplifyPoweredMEInterfaceBlockEntity weak)
+                || !(level.getBlockEntity(strongAt)
+                instanceof SimplifySuperconductiveInterfaceBlockEntity strong)) {
+            helper.fail("neither interface came up as its own block entity, so there is no generator to "
+                    + "price here");
+            return;
+        }
+        var weakGen = (IPassiveEnergyGenerator) weak;
+        var strongGen = (IPassiveEnergyGenerator) strong;
+        waitUntil(helper, 20,
+                () -> weakGen.isSuppressed() && !strongGen.isSuppressed(),
+                () -> "AE2 never left the 200 AE/t interface suppressed while the 4000 AE/t one ran: "
+                        + "weakSuppressed=" + weakGen.isSuppressed()
+                        + " strongSuppressed=" + strongGen.isSuppressed()
+                        + ", so this probe has no suppressed generator to price",
+                () -> {
+                    if (weakGen.getRate() != SimplifyPoweredMEInterfaceBlockEntity.GENERATION_RATE) {
+                        helper.fail("the suppressed interface priced itself at " + weakGen.getRate()
+                                + " AE/t instead of " + SimplifyPoweredMEInterfaceBlockEntity.GENERATION_RATE
+                                + ": AE2 compares these numbers to re-pick, so a 0 here means this generator "
+                                + "can never take the slot back and the network keeps producing less than "
+                                + "it owns");
+                        return;
+                    }
+                    if (strongGen.getRate() != SimplifySuperconductiveInterfaceBlockEntity.GENERATION_RATE) {
+                        helper.fail("the running interface priced itself at " + strongGen.getRate()
+                                + " AE/t, expected "
+                                + SimplifySuperconductiveInterfaceBlockEntity.GENERATION_RATE);
+                        return;
+                    }
+                    helper.succeed();
+                });
+    }
+
+    /**
+     * The reactor is the one generator whose rate is computed, so both halves matter: an unformed shell
+     * really does produce nothing, while a formed one that AE2 has suppressed still has to quote what it
+     * would make. Answering 0 for the second case is the same stranding as on the interfaces, and the
+     * reactor is the strongest generator in the mod, so it is the one a grid most often needs back.
+     */
+    @GameTest(template = "l1_room", batch = "generator_rate_while_suppressed", timeoutTicks = 600,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void formedReactorPricesItsRateWhileSuppressed(GameTestHelper helper) {
+        var controllerPos = new BlockPos(8, 8, 4);
+        var controller = placeReactorController(helper, controllerPos);
+        if (controller == null) {
+            return;
+        }
+        var level = (ServerLevel) helper.getLevel();
+        var plan = new MultiBlockBuildController(controller).createLocalPreviewPlan();
+        if (plan == null || plan.getMissingBlocks().isEmpty()) {
+            helper.fail("the reactor controller produced no build plan to stand up");
+            return;
+        }
+        for (var planned : plan.getMissingBlocks()) {
+            level.setBlockAndUpdate(planned.worldPos(), planned.targetState());
+        }
+        var expected = expectedReactorRate();
+        if (expected <= 0D) {
+            helper.fail("the reactor's configured rate reads " + expected
+                    + " AE/t, so a suppressed answer of 0 would prove nothing here");
+            return;
+        }
+        waitUntil(helper, 10,
+                controller::isFormed,
+                () -> "the complete shell never formed, so there is no rate to quote",
+                () -> {
+                    if (Math.abs(controller.getRate() - expected) > 1.0E-9D) {
+                        helper.fail("the formed reactor generates " + controller.getRate()
+                                + " AE/t, expected " + expected);
+                        return;
+                    }
+                    controller.setSuppressed(true);
+                    if (Math.abs(controller.getRate() - expected) > 1.0E-9D) {
+                        helper.fail("the formed reactor quoted " + controller.getRate()
+                                + " AE/t while suppressed instead of " + expected
+                                + ": AE2 ranks generators by this number, so 0 strands the grid on a"
+                                + " weaker machine");
+                        return;
+                    }
+                    controller.setSuppressed(false);
+                    if (Math.abs(controller.getRate() - expected) > 1.0E-9D) {
+                        helper.fail("unsuppressing the reactor changed its answer to "
+                                + controller.getRate() + ", so the rate and the flag are not separate");
+                        return;
+                    }
+                    helper.succeed();
+                });
     }
 
     /** Side length of the {@code l1_room} template: the smallest cube that holds a minimum L1 build. */
@@ -17893,6 +18004,70 @@ public final class NeoECOPrototypeGameTests {
             if (ceiling < expected) {
                 helper.fail("grid ceiling is " + ceiling + ", expected at least " + expected
                         + " (16G + 256G) - the batteries were never announced to the energy service");
+                return;
+            }
+            helper.succeed();
+        });
+    }
+
+    /**
+     * A public storage has to announce when it can provide or receive again. AE2's energy service drops a
+     * storage out of its requester set as soon as it is full, and out of its provider set as soon as a draw
+     * leaves it short; only {@code GridPowerStorageStateChanged} puts it back. The parent hook of our
+     * battery is empty, so before this was fixed a full cell could never be charged again and a drained one
+     * could never be drawn from - the reported "energized cell keeps the network out of power".
+     */
+    @GameTest(template = "empty", batch = "energized_cell_recharge", timeoutTicks = 200)
+    public static void energizedCellComesBackAfterBeingDrained(GameTestHelper helper) {
+        var level = helper.getLevel();
+        var pos = helper.absolutePos(new BlockPos(0, 1, 0));
+        level.setBlockAndUpdate(pos,
+                ModRegistration.ENERGIZED_ENERGY_CELL_16G_BLOCK.get().defaultBlockState());
+        helper.runAfterDelay(10, () -> {
+            if (!(level.getBlockEntity(pos) instanceof cn.dancingsnow.neoecoprototype.blockentity.energy
+                    .EnergizedEnergyCellBlockEntity cell)) {
+                helper.fail("the placed block is not the battery");
+                return;
+            }
+            var grid = cell.getMainNode().getGrid();
+            if (grid == null) {
+                helper.fail("the battery has no grid 10 ticks after placement");
+                return;
+            }
+            var energy = (appeng.me.service.EnergyService) grid.getEnergyService();
+            double capacity = cell.getAEMaxPower();
+            // The provider/requester layer is where a storage is evicted, so drive it directly; the grid's
+            // own inject/extract only wrap this with a loop over connected services. Saturating everything
+            // first leaves every requester in place, because a full storage returns the offered amount
+            // instead of accepting all of it.
+            energy.injectProviderPower(capacity * 3.0, Actionable.MODULATE);
+            cell.extractAEPower(capacity, Actionable.MODULATE, appeng.api.config.PowerMultiplier.ONE);
+            // Now ours is the only storage that can take power, so absorbing the whole offer removes it
+            // from the requester set - the eviction that used to be permanent.
+            double refill = energy.injectProviderPower(capacity, Actionable.MODULATE);
+            if (refill != 0.0) {
+                helper.fail("the emptied battery did not take a full buffer back: " + refill + " AE of "
+                        + capacity + " came back, battery has " + cell.getAECurrentPower()
+                        + " and the grid reports " + energy.getStoredPower());
+                return;
+            }
+            // A draw larger than the buffer leaves it dry and removes it from the provider set.
+            energy.extractProviderPower(capacity * 2.0, Actionable.MODULATE);
+            if (cell.getAECurrentPower() > 0.0) {
+                helper.fail("the overdraw left " + cell.getAECurrentPower() + " AE in the battery");
+                return;
+            }
+            double unabsorbed = energy.injectProviderPower(1_000_000.0, Actionable.MODULATE);
+            if (unabsorbed != 0.0 || cell.getAECurrentPower() <= 0.0) {
+                helper.fail("after one full drain the grid can no longer charge the battery (" + unabsorbed
+                        + " AE of the offered 1M came back) - no GridPowerStorageStateChanged reached the"
+                        + " energy service");
+                return;
+            }
+            // And the charge it just took must be visible to the grid again, not trapped in the block.
+            double drawn = energy.extractProviderPower(1_000_000.0, Actionable.MODULATE);
+            if (drawn < 1_000_000.0) {
+                helper.fail("the battery charged but the grid can only draw " + drawn + " AE back out");
                 return;
             }
             helper.succeed();
