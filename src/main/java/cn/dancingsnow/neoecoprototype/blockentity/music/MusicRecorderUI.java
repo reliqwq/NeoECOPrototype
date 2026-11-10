@@ -32,8 +32,8 @@ import java.util.List;
 
 /**
  * The recorder's panel: a titled AE machine face with the song line under it, twelve input discs in a
- * four-by-three block, one data disc beside them, a pause and a skip button, a groove that fills while a
- * song plays, and the player inventory.
+ * four-by-three block, one data disc beside them, an arrow that fills between the two, a pause and a skip
+ * button, a groove that fills while a song plays, and the player inventory.
  *
  * <p>The panel is drawn at 176x204; the bottom half (label, three rows, hotbar) is the dissociator's
  * player-inventory block, so the two machines read as one family.
@@ -81,6 +81,24 @@ public final class MusicRecorderUI {
     private static final int BUTTON_SIZE = 16;
     private static final int GLYPH_INSET = 3;
     private static final int GLYPH_SIZE = 10;
+
+    /**
+     * The arrow the art paints between the input block and the data cell. Its shaft is two pixels tall
+     * at local y 4, twenty-six pixels long, and the head is the five-wide triangle after it.
+     */
+    private static final int ARROW_X = 82;
+    private static final int ARROW_Y = 54;
+    private static final int ARROW_WIDTH = 31;
+    private static final int ARROW_HEIGHT = 10;
+    private static final int ARROW_SHAFT_TOP = 4;
+    private static final int ARROW_SHAFT_HEIGHT = 2;
+    private static final int ARROW_SHAFT_LENGTH = 26;
+    private static final int FLOW_DASH_PITCH = 6;
+    private static final int FLOW_DASH_LENGTH = 3;
+    private static final int FLOW_TICKS_PER_PIXEL = 2;
+    private static final int FLOW_TRACK = 0xFF_00_92_95;
+    private static final int FLOW_DASH = 0xFF_79_F2_D3;
+    private static final int FLOW_HEAD = 0xFF_39_D6_BC;
 
     /** The progress groove, filled left to right. The art draws a one-pixel frame around this area. */
     private static final int PROGRESS_X = 8;
@@ -161,6 +179,14 @@ public final class MusicRecorderUI {
             root.addChild(slot(new Slot(playerInventory, column, 0, 0),
                     INVENTORY_X + column * 18, INVENTORY_Y + 58));
         }
+
+        // The arrow's sweep and the groove below it read the same song progress, so one full sweep always
+        // ends on the tick the block entity writes one song onto the data disc.
+        root.addChild(new ArrowFlow()
+                .bind(DataBindingBuilder.floatValS2C(() -> host.progressFraction()).build())
+                .layout(layout -> layout.positionType(TaffyPosition.ABSOLUTE)
+                        .left(ARROW_X).top(ARROW_Y)
+                        .width(ARROW_WIDTH).height(ARROW_HEIGHT)));
 
         root.addChild(new ProgressBar()
                 .bind(DataBindingBuilder.floatValS2C(() -> host.progressFraction()).build())
@@ -260,6 +286,64 @@ public final class MusicRecorderUI {
             play.setDisplay(paused);
             pause.setDisplay(!paused);
             return this;
+        }
+    }
+
+    /**
+     * The arrow between the cells and the data disc. Its shaft fills with the song's own progress, so one
+     * full sweep lands exactly when the block entity writes one song onto the data disc, and the dashes
+     * inside the filled part march toward the disc so a long song still looks like it is being copied.
+     * Nothing is drawn while no song runs: the art's dark arrow is the idle face.
+     */
+    private static final class ArrowFlow extends UIElement implements IBindable<Float> {
+        private float value;
+
+        @Override
+        public IDataSource<Float> setValue(@Nullable Float newValue) {
+            this.value = newValue == null ? 0.0F : Mth.clamp(newValue, 0.0F, 1.0F);
+            return this;
+        }
+
+        @Override
+        public Float getValue() {
+            return value;
+        }
+
+        @Override
+        public void drawContents(GUIContext guiContext) {
+            if (value <= 0.0F) {
+                return;
+            }
+            int x = Mth.floor(getPositionX());
+            int top = Mth.floor(getPositionY());
+            int shaftY = top + ARROW_SHAFT_TOP;
+            int filled = Mth.floor(ARROW_SHAFT_LENGTH * value);
+            guiContext.graphics.fill(x, shaftY, x + filled, shaftY + ARROW_SHAFT_HEIGHT, FLOW_TRACK);
+
+            int phase = Mth.floor(gameTicks(guiContext) / FLOW_TICKS_PER_PIXEL) % FLOW_DASH_PITCH;
+            for (int start = -phase; start < filled; start += FLOW_DASH_PITCH) {
+                int from = Math.max(0, start);
+                int to = Math.min(filled, start + FLOW_DASH_LENGTH);
+                if (to > from) {
+                    guiContext.graphics.fill(x + from, shaftY, x + to, shaftY + ARROW_SHAFT_HEIGHT,
+                            FLOW_DASH);
+                }
+            }
+
+            // The head is the "recording" lamp: lit while a song runs, dark when the machine stands.
+            for (int row = 0; row < ARROW_HEIGHT; row++) {
+                int width = row <= (ARROW_HEIGHT - 1) / 2 ? row + 1 : ARROW_HEIGHT - row;
+                int left = x + ARROW_SHAFT_LENGTH;
+                guiContext.graphics.fill(left, top + row, left + width, top + row + 1, FLOW_HEAD);
+            }
+        }
+
+        /** Dashes ride the game clock, so every panel marches at the same pace whatever the frame rate. */
+        private static float gameTicks(GUIContext guiContext) {
+            if (guiContext.mc == null || guiContext.mc.level == null) {
+                return 0.0F;
+            }
+            return guiContext.mc.level.getGameTime() + guiContext.partialTick;
         }
     }
 

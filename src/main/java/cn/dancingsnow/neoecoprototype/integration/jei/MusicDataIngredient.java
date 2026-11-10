@@ -82,7 +82,7 @@ public final class MusicDataIngredient {
     private static final class Renderer implements IIngredientRenderer<MusicKey> {
         @Override
         public void render(GuiGraphics graphics, MusicKey key) {
-            graphics.blit(MusicKeyRenderer.icon(), 0, 0, 0, 0, 16, 16);
+            MusicKeyRenderer.blit(graphics, 0, 0);
         }
 
         @Override

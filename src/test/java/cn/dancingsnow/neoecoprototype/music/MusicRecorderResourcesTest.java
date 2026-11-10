@@ -177,8 +177,9 @@ final class MusicRecorderResourcesTest {
         String ingredient = Files.readString(SOURCES.resolve("integration/jei/MusicDataIngredient.java"));
         assertTrue(ingredient.contains("IIngredientType<MusicKey>"),
                 "MusicDataIngredient no longer declares an ingredient type, so JEI has nothing to draw");
-        assertTrue(ingredient.contains("MusicKeyRenderer.icon()"),
-                "the JEI renderer stopped sharing the terminal icon; the key would wear two different faces");
+        assertTrue(ingredient.contains("MusicKeyRenderer.blit("),
+                "the JEI renderer stopped sharing the terminal's icon draw; the key would wear two"
+                        + " different faces");
         String converter = Files.readString(
                 SOURCES.resolve("integration/jei/MusicDataIngredientConverter.java"));
         assertTrue(converter.contains("implements IngredientConverter<MusicKey>"),
@@ -270,6 +271,70 @@ final class MusicRecorderResourcesTest {
     }
 
     /**
+     * Both GUI paths draw the key with the long blit overload. The icon is a standalone 16x16 png and the
+     * short overload normalises against a 256px atlas, so it samples one transparent texel - the key then
+     * shows up as an empty slot in the terminal and in JEI with nothing going red.
+     */
+    @Test
+    void theKeyIconIsSampledAtItsOwnSize() throws Exception {
+        String renderer = Files.readString(SOURCES.resolve("client/key/MusicKeyRenderer.java"));
+        assertTrue(renderer.contains("0.0F, 0.0F, 16, 16, 16, 16"),
+                "the key icon is blitted without naming its 16x16 texture size; the short overload"
+                        + " assumes a 256px atlas and samples only the top-left texel, so the key draws blank");
+        String jei = Files.readString(SOURCES.resolve("integration/jei/MusicDataIngredient.java"));
+        assertTrue(jei.contains("MusicKeyRenderer.blit(graphics, 0, 0)"),
+                "the JEI renderer stopped sharing the terminal's blit, so the two views can drift apart");
+        BufferedImage icon = image(ASSETS.resolve("textures/item/music_data.png"));
+        assertEquals(16, icon.getWidth(), "the key icon is " + icon.getWidth() + " px wide");
+        assertEquals(16, icon.getHeight(), "the key icon is " + icon.getHeight() + " px tall");
+    }
+
+    /**
+     * The arrow between the cells and the data disc is the recording clock, and it has no suite face:
+     * GameTest never opens a panel and never renders. Its fill is bound to the song's own progress, so one
+     * full sweep lands on the tick one song is written onto the data disc; a missing element, a box that
+     * drifted off the painted arrow, or a fill on some other clock would look plausible and record wrong.
+     */
+    @Test
+    void theArrowFillsWithTheSongItIsRecording() throws Exception {
+        BufferedImage panel = image(ASSETS.resolve("textures/gui/music_recorder.png"));
+        int minX = Integer.MAX_VALUE;
+        int maxX = -1;
+        int minY = Integer.MAX_VALUE;
+        int maxY = -1;
+        for (int y = 40; y < 90; y++) {
+            for (int x = 78; x < 120; x++) {
+                if (luminance(panel.getRGB(x, y)) >= 0.4F) {
+                    continue;
+                }
+                minX = Math.min(minX, x);
+                maxX = Math.max(maxX, x);
+                minY = Math.min(minY, y);
+                maxY = Math.max(maxY, y);
+            }
+        }
+        assertEquals("82,54,112,63", minX + "," + minY + "," + maxX + "," + maxY,
+                "the arrow the panel paints moved, so the animation box in MusicRecorderUI no longer sits"
+                        + " on it");
+
+        String ui = Files.readString(SOURCES.resolve("blockentity/music/MusicRecorderUI.java"));
+        for (String box : List.of("ARROW_X = 82", "ARROW_Y = 54", "ARROW_WIDTH = 31",
+                "ARROW_HEIGHT = 10", "ARROW_SHAFT_TOP = 4", "ARROW_SHAFT_HEIGHT = 2")) {
+            assertTrue(ui.contains(box), "the arrow animation no longer declares " + box
+                    + ", so its fill would paint somewhere other than the arrow");
+        }
+        assertTrue(ui.contains("new ArrowFlow()"), "the panel builds no animated arrow at all");
+        assertEquals(2, occurrences(ui, "floatValS2C(() -> host.progressFraction())"),
+                "the arrow and the groove no longer both read the song progress; the arrow would run on"
+                        + " a clock of its own and finish without a song being written");
+        assertTrue(ui.contains("ARROW_SHAFT_LENGTH * value"),
+                "the arrow's fill stopped following the song progress, so a sweep would end without a"
+                        + " song being written");
+        assertTrue(ui.contains("if (value <= 0.0F)"),
+                "the arrow paints while no song runs; the face would claim a recording that is not there");
+    }
+
+    /**
      * Every horizontal facing needs its own variant, turned 90 degrees per quarter: the model's front is
      * its north face, so a missing variant would leave the machine's face on the wrong side - and a
      * variant that does not rotate would put the same face on every side of a facing block.
@@ -291,6 +356,14 @@ final class MusicRecorderResourcesTest {
                         block + " at " + key + " does not turn the model a quarter per facing");
             }
         }
+    }
+
+    private static int occurrences(String text, String needle) {
+        int count = 0;
+        for (int at = text.indexOf(needle); at >= 0; at = text.indexOf(needle, at + needle.length())) {
+            count++;
+        }
+        return count;
     }
 
     private static float luminance(int argb) {

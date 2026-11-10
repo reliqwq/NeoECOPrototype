@@ -27,6 +27,15 @@ public final class MusicKeyRenderer implements AEKeyRenderHandler<MusicKey> {
     private MusicKeyRenderer() {
     }
 
+    /**
+     * Draws the icon at a GUI corner. The texture is a standalone 16x16 png, not a slice of a 256px
+     * atlas, so the sample size has to be named - the short {@code blit} overload assumes 256 and shows
+     * the single top-left texel, which is transparent.
+     */
+    public static void blit(GuiGraphics graphics, int x, int y) {
+        graphics.blit(ICON, x, y, 0, 0.0F, 0.0F, 16, 16, 16, 16);
+    }
+
     /** Called once from client setup, and only while Data Energistics is present. */
     public static void register() {
         if (AEKeyRendering.get(MusicKeyType.TYPE) == null) {
@@ -34,14 +43,9 @@ public final class MusicKeyRenderer implements AEKeyRenderHandler<MusicKey> {
         }
     }
 
-    /** The one icon this key is drawn with, shared with JEI so the two views cannot drift apart. */
-    public static ResourceLocation icon() {
-        return ICON;
-    }
-
     @Override
     public void drawInGui(Minecraft minecraft, GuiGraphics guiGraphics, int x, int y, MusicKey key) {
-        guiGraphics.blit(ICON, x, y, 0, 0, 16, 16);
+        blit(guiGraphics, x, y);
     }
 
     @Override
