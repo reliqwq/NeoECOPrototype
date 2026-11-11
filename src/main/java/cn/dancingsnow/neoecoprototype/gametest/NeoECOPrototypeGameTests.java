@@ -12750,9 +12750,16 @@ public final class NeoECOPrototypeGameTests {
                     return;
                 }
                 int opaque = 0;
+                var greens = new java.util.TreeSet<Integer>();
                 for (int y = 0; y < side; y++) {
                     for (int x = 0; x < side; x++) {
-                        if ((image.getRGB(x, y) >>> 24) != 0) opaque++;
+                        int argb = image.getRGB(x, y);
+                        if ((argb >>> 24) == 0) continue;
+                        opaque++;
+                        int r = (argb >> 16) & 255;
+                        int g = (argb >> 8) & 255;
+                        int b = argb & 255;
+                        if (g - r >= 50 && g - b >= 30) greens.add(argb & 0xFFFFFF);
                     }
                 }
                 if (opaque == 0) {
@@ -12760,7 +12767,22 @@ public final class NeoECOPrototypeGameTests {
                             + " though both the file and the path are right");
                     return;
                 }
-                panelArt.put(art.toString(), side + "x" + side + " opaque=" + opaque);
+                // The panel sprites are eco's OTHER column with only the accents repainted, and the accents
+                // go onto the same pair the controller sheets use: #61D389 and its #ACF26F highlight. Pin
+                // the set rather than "some green", so a third tone or a green that is not ours fails here
+                // instead of on the panel.
+                var strayGreens = new java.util.TreeSet<>(greens);
+                strayGreens.remove(0x61D389);
+                strayGreens.remove(0xACF26F);
+                if (greens.isEmpty() || !strayGreens.isEmpty()) {
+                    helper.fail(art + " carries " + (greens.isEmpty() ? "no green at all"
+                            : greens + " (foreign " + strayGreens + ")") + " instead of exactly our tier's"
+                            + " #61D389 and its #ACF26F highlight, so the module's panel would show a"
+                            + " colour that is not ours");
+                    return;
+                }
+                panelArt.put(art.toString(), side + "x" + side + " opaque=" + opaque
+                        + " greens=" + greens.size());
             } catch (java.io.IOException e) {
                 helper.fail("could not read " + art + ": " + e);
                 return;
