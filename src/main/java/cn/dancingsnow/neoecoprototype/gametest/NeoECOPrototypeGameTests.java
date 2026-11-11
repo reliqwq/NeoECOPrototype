@@ -12793,12 +12793,21 @@ public final class NeoECOPrototypeGameTests {
                     text = new String(stream.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
                 }
                 var json = com.google.gson.JsonParser.parseString(text).getAsJsonObject();
-                if (!"block/block".equals(json.get("parent").getAsString())) {
-                    helper.fail(model + " has parent " + json.get("parent").getAsString() + " instead of"
-                            + " block/block, which is the only parent an addon may use here");
+                var parent = json.get("parent");
+                if (parent == null || !parent.isJsonPrimitive()
+                        || !"block/block".equals(parent.getAsString())) {
+                    helper.fail(model + " has parent " + parent + " instead of block/block, which is the only"
+                            + " parent an addon may use here");
                     return;
                 }
-                var textures = json.getAsJsonObject("textures");
+                var texturesElement = json.get("textures");
+                if (texturesElement == null || !texturesElement.isJsonObject()) {
+                    helper.fail(model + " carries " + texturesElement + " where the model's textures object"
+                            + " belongs, so there are no textures to read and the controller would draw"
+                            + " without ours");
+                    return;
+                }
+                var textures = texturesElement.getAsJsonObject();
                 for (var entry : textures.entrySet()) {
                     var value = entry.getValue().getAsString();
                     if (!value.startsWith(NeoECOPrototype.MOD_ID + ":")) {
@@ -12808,7 +12817,13 @@ public final class NeoECOPrototypeGameTests {
                     }
                     appearanceTextures.add(value);
                 }
-                modelLights.put(model.toString(), textures.get("light").getAsString());
+                var light = textures.get("light");
+                if (light == null || !light.isJsonPrimitive()) {
+                    helper.fail(model + " names " + light + " as its light texture, so the idle/working"
+                            + " comparison has nothing to compare and the two states could share one sheet");
+                    return;
+                }
+                modelLights.put(model.toString(), light.getAsString());
             } catch (java.io.IOException e) {
                 helper.fail("could not read " + modelPath + ": " + e);
                 return;
