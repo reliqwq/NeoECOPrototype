@@ -7672,6 +7672,43 @@ public final class NeoECOPrototypeGameTests {
     }
 
     /**
+     * The saving is a one-way door, and this is the arithmetic that makes it one: whatever the mood, a
+     * host with a face never draws more than the same host without one. The wiring guard on the host can
+     * only ever see the branch it happened to roll - one host in sixteen has a face - so this is the
+     * deterministic half, and it is the half that answers "is the discount why my network loses power".
+     */
+    @GameTest(template = "empty", batch = "machine_mood", timeoutTicks = 100,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void theMindDiscountNeverCostsMoreThanNotHavingOne(GameTestHelper helper) {
+        double saving = 0.10D;
+        for (int percent = 0; percent <= 100; percent++) {
+            for (boolean busy : new boolean[]{false, true}) {
+                for (boolean formed : new boolean[]{false, true}) {
+                    double factor = cn.dancingsnow.neoecoprototype.api.MachineMood.idlePowerFactor(
+                            true, percent / 100.0D, busy, formed, saving);
+                    if (factor > 1.0D) {
+                        helper.fail("a mind at " + percent + "% coolant, busy=" + busy + ", formed="
+                                + formed + " multiplies the idle draw by " + factor
+                                + ", so the mood costs power");
+                        return;
+                    }
+                    if (formed && factor < 1.0D - saving - 1.0E-9D) {
+                        helper.fail("the discount ran past its configured " + saving + " at " + percent
+                                + "% coolant: factor=" + factor);
+                        return;
+                    }
+                }
+            }
+        }
+        if (cn.dancingsnow.neoecoprototype.api.MachineMood.idlePowerFactor(
+                false, 1.0D, true, true, saving) != 1.0D) {
+            helper.fail("a host without a face is getting a discount, so the roll is not the gate");
+            return;
+        }
+        helper.succeed();
+    }
+
+    /**
      * The wiring: whatever the host's own situation turns out to be, the number that reaches the grid node
      * must be the baseline times what {@code MachineMood} says for those same inputs. This passes for a
      * host with a face and for one without, and fails if the two ever disagree.
@@ -7680,51 +7717,349 @@ public final class NeoECOPrototypeGameTests {
             templateNamespace = NeoECOPrototype.MOD_ID)
     public static void craftedHostIdlePowerMatchesItsOwnMood(GameTestHelper helper) {
         var controllerPos = new BlockPos(6, 3, 6);
-        buildL1Room(helper, controllerPos, ModRegistration.SIMPLIFY_CRAFTING_SYSTEM_BLOCK.get(),
+        // buildRoomKept, not buildL1Room: the latter tears the machine down and calls succeed() as soon
+        // as this callback returns, and GameTestInfo.tick ignores everything scheduled after that - so a
+        // guard whose assertions all sit in a delayed body would pass without ever reading anything.
+        buildRoomKept(helper, controllerPos, ModRegistration.SIMPLIFY_CRAFTING_SYSTEM_BLOCK.get(),
                 ModRegistration.SIMPLIFY_CRAFTING_INTERFACE_BLOCK.get(),
-                ModRegistration.SIMPLIFY_CRAFTING_INTERFACE_BLOCK.get(), host -> {
+                ModRegistration.SIMPLIFY_CRAFTING_INTERFACE_BLOCK.get(), false, (host, finish) -> {
                     if (!(host instanceof cn.dancingsnow.neoecoprototype.blockentity.crafting
                             .SimplifyCraftingSystemBlockEntity f1)) {
+                        finish.run();
                         helper.fail("the F1 host is not our block entity: " + host.getClass());
                         return;
                     }
                     // One mood sample, then read what actually reached the node.
                     helper.runAfterDelay(25, () -> {
-                        int capacity = f1.getDisplayedCoolantCapacity();
-                        double coolant = capacity > 0
-                                ? (double) f1.getDisplayedCoolantAmount() / capacity : 0.0D;
-                        double expected = cn.dancingsnow.neoecoprototype.api.SimplifyPowerProfile.L1
-                                .craftingControllerIdlePower()
-                                * cn.dancingsnow.neoecoprototype.api.MachineMood.idlePowerFactor(
-                                f1.hasMind(), coolant, f1.getRunningThreadCount() > 0, f1.isFormed(),
-                                cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig
-                                        .MIND_IDLE_POWER_SAVING.get());
-                        double actual = f1.getMainNode().getNode().getIdlePowerUsage();
-                        if (Math.abs(actual - expected) > 1.0E-6D) {
-                            helper.fail("the grid node carries an idle draw of " + actual
-                                    + " AE but the host's own situation says " + expected + " (mind="
-                                    + f1.hasMind() + " coolant=" + coolant + " busy="
-                                    + (f1.getRunningThreadCount() > 0) + ")");
-                            return;
+                        try {
+                            int capacity = f1.getDisplayedCoolantCapacity();
+                            double coolant = capacity > 0
+                                    ? (double) f1.getDisplayedCoolantAmount() / capacity : 0.0D;
+                            double expected = cn.dancingsnow.neoecoprototype.api.SimplifyPowerProfile.L1
+                                    .craftingControllerIdlePower()
+                                    * cn.dancingsnow.neoecoprototype.api.MachineMood.idlePowerFactor(
+                                    f1.hasMind(), coolant, f1.getRunningThreadCount() > 0, f1.isFormed(),
+                                    cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig
+                                            .MIND_IDLE_POWER_SAVING.get());
+                            double actual = f1.getMainNode().getNode().getIdlePowerUsage();
+                            if (Math.abs(actual - expected) > 1.0E-6D) {
+                                helper.fail("the grid node carries an idle draw of " + actual
+                                        + " AE but the host's own situation says " + expected + " (mind="
+                                        + f1.hasMind() + " coolant=" + coolant + " busy="
+                                        + (f1.getRunningThreadCount() > 0) + ")");
+                                return;
+                            }
+                            if (actual <= 0.0D) {
+                                helper.fail("the host published an idle draw of " + actual
+                                        + " AE, so it is free to run and the mood is not the interesting"
+                                        + " part here");
+                                return;
+                            }
+                            // The gate on the visible half: no face, no band, whatever the coolant says.
+                            int tier = helper.getLevel().getBlockState(f1.getBlockPos())
+                                    .getValue(cn.dancingsnow.neoecoprototype.block.crafting
+                                            .SimplifyCraftingSystemBlock.MIND_TIER);
+                            if (!f1.hasMind() && tier != 0) {
+                                helper.fail("a host without a mind is showing face band " + tier
+                                        + ", so the discount and the face are not gated together");
+                                return;
+                            }
+                            helper.succeed();
+                        } finally {
+                            finish.run();
                         }
-                        if (actual <= 0.0D) {
-                            helper.fail("the host published an idle draw of " + actual
-                                    + " AE, so it is free to run and the mood is not the interesting"
-                                    + " part here");
-                            return;
-                        }
-                        // The gate on the visible half: no face, no band, whatever the coolant says.
-                        int tier = helper.getLevel().getBlockState(f1.getBlockPos())
-                                .getValue(cn.dancingsnow.neoecoprototype.block.crafting
-                                        .SimplifyCraftingSystemBlock.MIND_TIER);
-                        if (!f1.hasMind() && tier != 0) {
-                            helper.fail("a host without a mind is showing face band " + tier
-                                    + ", so the discount and the face are not gated together");
-                            return;
-                        }
-                        helper.succeed();
                     });
                 });
+    }
+
+    /**
+     * The report this guards: a network that charges fine starts losing generation once the crafting
+     * host is built into it. AE2 pays a grid from exactly one passive generator, so this fixture stands
+     * the 4000 AE/t superconductive interface and an energy cell on the host's own network first, then
+     * forms F1 from the build plan and reads AE2's own numbers: the interface must still be the
+     * unsuppressed generator at its full rate, and the cell must keep taking most of what it generates.
+     * The machine's idle draw is logged rather than bounded - that number, not generation, is what a
+     * player sees change when the host joins, and a guard that hid it would answer the wrong question.
+     */
+    @GameTest(template = "l1_room", batch = "f1_network_power", timeoutTicks = 600,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void formingTheCraftingHostLeavesTheNetsGeneratorAlone(GameTestHelper helper) {
+        var controllerPos = new BlockPos(6, 3, 6);
+        var interfacePos = new BlockPos(6, 3, 5);
+        var cellPos = new BlockPos(6, 3, 4);
+        var hostBlock = ModRegistration.SIMPLIFY_CRAFTING_SYSTEM_BLOCK.get();
+        var level = (ServerLevel) helper.getLevel();
+        var controllerAt = helper.absolutePos(controllerPos);
+        var interfaceAt = helper.absolutePos(interfacePos);
+        var cellAt = helper.absolutePos(cellPos);
+        helper.setBlock(controllerPos, hostBlock);
+        // The plan is read before the fixtures go down, so "beside the host" is a measured free spot
+        // rather than a guess about which way the authored layout points.
+        helper.runAfterDelay(5, () -> {
+            if (!(helper.getLevel().getBlockEntity(controllerAt)
+                    instanceof MultiBlockBuildController.Host host)) {
+                helper.fail("the crafting host has no one-click builder at " + controllerAt);
+                return;
+            }
+            host.setSelectedBuildLength(host.getMinBuildLength());
+            var plan = new MultiBlockBuildController(host).createLocalPreviewPlan();
+            if (plan == null || plan.getAllBlocks().isEmpty()) {
+                helper.fail("the builder produced no placement plan for the crafting host");
+                return;
+            }
+            for (var planned : plan.getAllBlocks()) {
+                if (planned.worldPos().equals(interfaceAt) || planned.worldPos().equals(cellAt)) {
+                    helper.fail("the plan puts a block at " + planned.worldPos()
+                            + ", which is where this fixture stands the generator or the cell");
+                    return;
+                }
+            }
+            helper.setBlock(interfacePos, ModRegistration.SUPERCONDUCTIVE_INTERFACE_BLOCK.get());
+            helper.setBlock(cellPos, energyCellBlock());
+            buildRoomKept(helper, controllerPos, hostBlock,
+                    ModRegistration.SIMPLIFY_CRAFTING_INTERFACE_BLOCK.get(),
+                    ModRegistration.SIMPLIFY_CRAFTING_INTERFACE_BLOCK.get(), false, (formed, finish) -> {
+                        if (!(helper.getLevel().getBlockEntity(interfaceAt) instanceof
+                                cn.dancingsnow.neoecoprototype.blockentity.crafting
+                                        .SimplifySuperconductiveInterfaceBlockEntity generator)) {
+                            finish.run();
+                            helper.fail("the build plan overwrote the interface standing beside the host");
+                            return;
+                        }
+                        var dimension = level.dimension();
+                        waitUntil(helper, 20,
+                                () -> oneNetwork(level, GlobalPos.of(dimension, controllerAt),
+                                        GlobalPos.of(dimension, interfaceAt))
+                                        && cellStored(level, cellAt) >= 0.0D,
+                                () -> "the interface and the formed host never became one network: "
+                                        + nodeSummary(level, GlobalPos.of(dimension, controllerAt))
+                                        + " " + nodeSummary(level, GlobalPos.of(dimension, interfaceAt))
+                                        + " cell=" + cellStored(level, cellAt),
+                                () -> {
+                                    double before = cellStored(level, cellAt);
+                                    helper.runAfterDelay(20, () -> {
+                                        try {
+                                            double after = cellStored(level, cellAt);
+                                            var node = networkNode(level,
+                                                    GlobalPos.of(dimension, controllerAt));
+                                            var grid = node == null ? null : node.getGrid();
+                                            var energy = grid == null ? null : grid.getService(
+                                                    appeng.api.networking.energy.IEnergyService.class);
+                                            if (energy == null) {
+                                                helper.fail("the formed host's grid has no energy service");
+                                                return;
+                                            }
+                                            double idle = 0.0D;
+                                            int nodes = 0;
+                                            for (var gridNode : grid.getNodes()) {
+                                                idle += gridNode.getIdlePowerUsage();
+                                                nodes++;
+                                            }
+                                            NeoECOPrototype.LOGGER.info(
+                                                    "f1 network power: nodes={} idle={} channels={} cell {}"
+                                                            + " -> {} in 20t, avgInjection={} avgUsage={}"
+                                                            + " generatorRate={} suppressed={}",
+                                                    nodes, idle, energy.getChannelPowerUsage(), before,
+                                                    after, energy.getAvgPowerInjection(),
+                                                    energy.getAvgPowerUsage(), generator.getRate(),
+                                                    generator.isSuppressed());
+                                            if (generator.isSuppressed()) {
+                                                helper.fail("the superconductive interface is suppressed"
+                                                        + " after the host formed, so the grid is being"
+                                                        + " paid by a weaker generator");
+                                                return;
+                                            }
+                                            if (Math.abs(generator.getRate()
+                                                    - cn.dancingsnow.neoecoprototype.blockentity.crafting
+                                                    .SimplifySuperconductiveInterfaceBlockEntity
+                                                    .GENERATION_RATE) > 1.0E-9D) {
+                                                helper.fail("the generator that feeds this network now"
+                                                        + " answers " + generator.getRate()
+                                                        + " AE/t instead of its own rate");
+                                                return;
+                                            }
+                                            if (after - before < generator.getRate() * 20.0D * 0.5D) {
+                                                helper.fail("the cell took " + (after - before)
+                                                        + " AE over 20 ticks while the network's generator"
+                                                        + " is delivering " + generator.getRate()
+                                                        + " AE/t, so the host is eating the generation:"
+                                                        + " idle=" + idle + " channels="
+                                                        + energy.getChannelPowerUsage());
+                                                return;
+                                            }
+                                            helper.succeed();
+                                        } finally {
+                                            finish.run();
+                                        }
+                                    });
+                                });
+                    });
+        });
+    }
+
+    /**
+     * The same report as {@link #formingTheCraftingHostLeavesTheNetsGeneratorAlone}, for the computation
+     * host. C1 is eco's own {@code ECOComputationSystemBlockEntity} carrying our tier, and the addon's
+     * mood/idle discount exists only on the crafting host, so this measures what a player actually sees
+     * rather than re-arguing the code: the 4000 AE/t generator must still be the grid's unsuppressed
+     * source at its full rate, and the cell must keep taking most of what it makes. The formed
+     * machine's own idle draw is logged, because that number - not generation - is what moves when a
+     * host joins: AE2 never lowers a generator's rate for idle draw, it extracts idle separately.
+     */
+    @GameTest(template = "l1_room", batch = "c1_network_power", timeoutTicks = 600,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void formingTheComputationHostLeavesTheNetsGeneratorAlone(GameTestHelper helper) {
+        var controllerPos = new BlockPos(13, 3, 4);
+        var hostBlock = ModRegistration.SIMPLIFY_COMPUTATION_SYSTEM_BLOCK.get();
+        var level = (ServerLevel) helper.getLevel();
+        var controllerAt = helper.absolutePos(controllerPos);
+        helper.setBlock(controllerPos, hostBlock);
+        // Same as the F1 fixture: the plan is read first, so the generator and the cell go on a side
+        // the authored layout actually leaves free. Both cells touch the controller, which is what
+        // joins them to its grid, and standing them inside the plan would let the build overwrite them.
+        helper.runAfterDelay(5, () -> {
+            if (!(helper.getLevel().getBlockEntity(controllerAt)
+                    instanceof ECOComputationSystemBlockEntity controller)) {
+                helper.fail("the computation host has no block entity at " + controllerAt);
+                return;
+            }
+            var plan = new MultiBlockBuildController(controller).createLocalPreviewPlan();
+            if (plan == null || plan.getAllBlocks().isEmpty()) {
+                helper.fail("the builder produced no placement plan for the computation host");
+                return;
+            }
+            var planned = new java.util.HashSet<BlockPos>();
+            for (var plannedBlock : plan.getAllBlocks()) {
+                planned.add(plannedBlock.worldPos());
+            }
+            BlockPos interfacePos = null;
+            BlockPos cellPos = null;
+            for (var side : Direction.Plane.HORIZONTAL) {
+                var candidate = controllerPos.relative(side);
+                var beyond = candidate.relative(side);
+                if (!freeTemplateCell(helper, candidate) || !freeTemplateCell(helper, beyond)) {
+                    continue;
+                }
+                if (planned.contains(helper.absolutePos(candidate))
+                        || planned.contains(helper.absolutePos(beyond))) {
+                    continue;
+                }
+                interfacePos = candidate;
+                cellPos = beyond;
+                break;
+            }
+            if (interfacePos == null) {
+                helper.fail("the computation host's plan leaves no free side beside the controller, so"
+                        + " this fixture has nowhere to stand the generator and the cell");
+                return;
+            }
+            var interfaceAt = helper.absolutePos(interfacePos);
+            var cellAt = helper.absolutePos(cellPos);
+            helper.setBlock(interfacePos, ModRegistration.SUPERCONDUCTIVE_INTERFACE_BLOCK.get());
+            helper.setBlock(cellPos, energyCellBlock());
+            buildComputationStructureKept(helper, controllerPos,
+                    ModRegistration.SIMPLIFY_COMPUTATION_THREADING_CORE_BLOCK.get(),
+                    ModRegistration.SIMPLIFY_COMPUTATION_THREADING_CORE_BLOCK.get(), 0, false, 1,
+                    (formed, finish) -> {
+                        if (!formed.isFormed()) {
+                            finish.run();
+                            helper.fail("the L1 computation machine did not form, so there is no host"
+                                    + " to measure: " + helper.getLevel()
+                                    .getBlockState(helper.absolutePos(controllerPos)));
+                            return;
+                        }
+                        if (!(helper.getLevel().getBlockEntity(interfaceAt) instanceof
+                                SimplifySuperconductiveInterfaceBlockEntity generator)) {
+                            finish.run();
+                            helper.fail("the build plan overwrote the interface standing beside the"
+                                    + " computation host");
+                            return;
+                        }
+                        var dimension = level.dimension();
+                        waitUntil(helper, 20,
+                                () -> oneNetwork(level, GlobalPos.of(dimension, controllerAt),
+                                        GlobalPos.of(dimension, interfaceAt))
+                                        && cellStored(level, cellAt) >= 0.0D,
+                                () -> "the interface and the formed computation host never became one"
+                                        + " network: "
+                                        + nodeSummary(level, GlobalPos.of(dimension, controllerAt))
+                                        + " " + nodeSummary(level, GlobalPos.of(dimension, interfaceAt))
+                                        + " cell=" + cellStored(level, cellAt),
+                                () -> {
+                                    double before = cellStored(level, cellAt);
+                                    helper.runAfterDelay(20, () -> {
+                                        try {
+                                            double after = cellStored(level, cellAt);
+                                            var node = networkNode(level,
+                                                    GlobalPos.of(dimension, controllerAt));
+                                            var grid = node == null ? null : node.getGrid();
+                                            var energy = grid == null ? null : grid.getService(
+                                                    appeng.api.networking.energy.IEnergyService.class);
+                                            if (energy == null) {
+                                                helper.fail("the formed host's grid has no energy service");
+                                                return;
+                                            }
+                                            double idle = 0.0D;
+                                            double hostIdle = -1.0D;
+                                            int nodes = 0;
+                                            StringBuilder breakdown = new StringBuilder();
+                                            for (var gridNode : grid.getNodes()) {
+                                                double nodeIdle = gridNode.getIdlePowerUsage();
+                                                idle += nodeIdle;
+                                                nodes++;
+                                                if (gridNode.getOwner() == formed) {
+                                                    hostIdle = nodeIdle;
+                                                }
+                                                if (nodeIdle > 0.0D && gridNode.getOwner() instanceof
+                                                        net.minecraft.world.level.block.entity.BlockEntity
+                                                                owner) {
+                                                    breakdown.append(' ')
+                                                            .append(owner.getClass().getSimpleName())
+                                                            .append('=').append(nodeIdle);
+                                                }
+                                            }
+                                            NeoECOPrototype.LOGGER.info(
+                                                    "c1 network power: nodes={} idle={} hostIdle={}"
+                                                            + " tier={} channels={} cell {} -> {} in 20t,"
+                                                            + " avgInjection={} avgUsage={} generatorRate={}"
+                                                            + " suppressed={} idleBy={}",
+                                                    nodes, idle, hostIdle,
+                                                    formed.getTier(),
+                                                    energy.getChannelPowerUsage(), before,
+                                                    after, energy.getAvgPowerInjection(),
+                                                    energy.getAvgPowerUsage(), generator.getRate(),
+                                                    generator.isSuppressed(), breakdown.toString().trim());
+                                            if (generator.isSuppressed()) {
+                                                helper.fail("the superconductive interface is suppressed"
+                                                        + " after the computation host formed, so the grid"
+                                                        + " is being paid by a weaker generator");
+                                                return;
+                                            }
+                                            if (Math.abs(generator.getRate()
+                                                    - SimplifySuperconductiveInterfaceBlockEntity
+                                                    .GENERATION_RATE) > 1.0E-9D) {
+                                                helper.fail("the generator that feeds this network now"
+                                                        + " answers " + generator.getRate()
+                                                        + " AE/t instead of its own rate");
+                                                return;
+                                            }
+                                            if (after - before < generator.getRate() * 20.0D * 0.5D) {
+                                                helper.fail("the cell took " + (after - before)
+                                                        + " AE over 20 ticks while the network's generator"
+                                                        + " is delivering " + generator.getRate()
+                                                        + " AE/t, so the host is eating the generation:"
+                                                        + " idle=" + idle + " hostIdle=" + hostIdle
+                                                        + " channels=" + energy.getChannelPowerUsage());
+                                                return;
+                                            }
+                                            helper.succeed();
+                                        } finally {
+                                            finish.run();
+                                        }
+                                    });
+                                });
+                    });
+        });
     }
 
     /**
@@ -18075,6 +18410,75 @@ public final class NeoECOPrototypeGameTests {
     }
 
     /**
+     * A storage with room must not be left out of the energy service's requester set. AE2's
+     * {@code injectProviderPower} drops a storage whenever it cannot absorb the whole offer, even if it
+     * just took part of it and still has room (offsets 74-89: {@code remainder > 0 && MODULATE ->
+     * iterator.remove()}), and putting it back is left to {@code GridPowerStorageStateChanged.RECEIVE_POWER}
+     * on an isReceiving false-&gt;true transition. The reported "attaching the computation host stops the
+     * network from generating" is that state with a battery that has room but nobody left to charge:
+     * 200 simulated offers of 214,748,364,700 AE were refused while the cell showed 4.5M of free buffer.
+     *
+     * <p>{@code EnergyService#removeNode} is the public way to write that state without relying on how
+     * often AE2 happens to evict: the node stays on the grid, the buffer stays empty, the requester set
+     * forgets it. The first simulated offer is the canary that the state is still the pre-fix one; the
+     * second asserts the repair on the simulated face, because the stuck grid never sends a modulating
+     * offer (the FE side asks what fits, is told nothing, and stops there).</p>
+     */
+    @GameTest(template = "empty", batch = "energy_requester_readd", timeoutTicks = 200)
+    public static void aStorageWithRoomIsPutBackAfterARefusedOffer(GameTestHelper helper) {
+        var level = helper.getLevel();
+        var pos = helper.absolutePos(new BlockPos(0, 1, 0));
+        level.setBlockAndUpdate(pos,
+                ModRegistration.ENERGIZED_ENERGY_CELL_16G_BLOCK.get().defaultBlockState());
+        helper.runAfterDelay(10, () -> {
+            if (!(level.getBlockEntity(pos) instanceof cn.dancingsnow.neoecoprototype.blockentity.energy
+                    .EnergizedEnergyCellBlockEntity cell)) {
+                helper.fail("the placed block is not the battery");
+                return;
+            }
+            var grid = cell.getMainNode().getGrid();
+            if (grid == null) {
+                helper.fail("the battery has no grid 10 ticks after placement");
+                return;
+            }
+            var energy = (appeng.me.service.EnergyService) grid.getEnergyService();
+            double capacity = cell.getAEMaxPower();
+            var node = cell.getMainNode().getNode();
+            energy.removeNode(node);
+            try {
+                double primed = energy.injectProviderPower(1_000_000.0, Actionable.SIMULATE);
+                if (primed != 1_000_000.0) {
+                    helper.fail("the removed battery still took " + (1_000_000.0 - primed) + " AE of a 1M"
+                            + " simulated offer, so this no longer reproduces the evicted state - re-measure"
+                            + " injectProviderPower before trusting the assertions below");
+                    return;
+                }
+                double stillRefused = energy.injectProviderPower(1_000_000.0, Actionable.SIMULATE);
+                if (stillRefused != 0.0) {
+                    helper.fail("a second simulated offer of 1M still came back " + stillRefused + " AE with "
+                            + (capacity - cell.getAECurrentPower()) + " AE of room in the battery - nothing put"
+                            + " the storage back into the requester set");
+                    return;
+                }
+                double before = cell.getAECurrentPower();
+                double unabsorbed = energy.injectProviderPower(1_000_000.0, Actionable.MODULATE);
+                if (unabsorbed != 0.0 || cell.getAECurrentPower() - before < 999_999.0) {
+                    helper.fail("the repaired requester set does not charge the battery: " + unabsorbed
+                            + " AE of 1M came back and the buffer moved by "
+                            + (cell.getAECurrentPower() - before));
+                    return;
+                }
+                helper.succeed();
+            } finally {
+                // removeNode also takes the node out of the grid's 25-AE-per-node buffer, and a node that
+                // stays on the grid while that count is short makes Grid.remove throw when the world
+                // unloads. Put it back whichever way this test ends.
+                energy.addNode(node, null);
+            }
+        });
+    }
+
+    /**
      * The panel's drop path has to spend the held cell. It used to copy the stack the client claimed into
      * the drive and leave the hand alone, which made every drop a duplication - and it trusted that claim,
      * so a client could hand over a stack it was not actually holding. eco reads the server-side carried
@@ -23473,6 +23877,78 @@ public final class NeoECOPrototypeGameTests {
             return;
         }
         helper.setBlock(pos, Blocks.AIR);
+        helper.succeed();
+    }
+
+    /**
+     * The music family is withheld while its Data Energistics half is unfinished: out of the tab, no recipe,
+     * and the red "not implemented" line on all three items. Three faces are read here rather than one,
+     * because the ways a withholding leaks are different: a recipe file re-added under another name (the
+     * scan is by result, not by id), a tab entry uncommented, and a shipped item losing its red line because
+     * the withheld list was edited in one place only. This runs with or without Data Energistics installed -
+     * it names no key and no optional class. The registrations are pinned by the rest of the music suite,
+     * which still places, ticks and breaks both machines.
+     */
+    @GameTest(template = "empty", batch = "music_family_hidden", timeoutTicks = 200,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void musicFamilyStaysWithheld(GameTestHelper helper) {
+        var level = helper.getLevel();
+        var withheld = List.of(ModRegistration.MUSIC_JUKEBOX_ITEM.get(),
+                ModRegistration.MUSIC_RECORDER_ITEM.get(),
+                ModRegistration.MUSIC_DATA_DISC_ITEM.get());
+
+        var tab = ModRegistration.SIMPLIFY_TAB.get();
+        tab.buildContents(new net.minecraft.world.item.CreativeModeTab.ItemDisplayParameters(
+                net.minecraft.world.flag.FeatureFlags.DEFAULT_FLAGS, true, level.registryAccess()));
+        var contents = tab.getDisplayItems();
+        java.util.function.Predicate<Item> inTab =
+                item -> contents.stream().anyMatch(stack -> stack.getItem() == item);
+        if (contents.isEmpty() || !inTab.test(ModRegistration.SIMPLIFY_DRIVE_ITEM.get())) {
+            helper.fail("the tab generator returned nothing usable (" + contents.size()
+                    + " stacks), so absence from it proves nothing");
+            return;
+        }
+        for (var item : withheld) {
+            if (inTab.test(item)) {
+                helper.fail(BuiltInRegistries.ITEM.getKey(item) + " is back in the creative tab while the"
+                        + " music family is withheld");
+                return;
+            }
+        }
+
+        int recipes = 0;
+        for (var holder : level.getRecipeManager().getRecipes()) {
+            recipes++;
+            var result = holder.value().getResultItem(level.registryAccess());
+            for (var item : withheld) {
+                if (result.is(item)) {
+                    helper.fail("the music family is withheld but " + holder.id() + " still crafts "
+                            + BuiltInRegistries.ITEM.getKey(item));
+                    return;
+                }
+            }
+        }
+        if (recipes == 0) {
+            helper.fail("the recipe manager handed back nothing, so the result scan measured nothing");
+            return;
+        }
+
+        for (var item : withheld) {
+            if (!cn.dancingsnow.neoecoprototype.tooltip.SimplifyTooltipHandler.isNotImplemented(
+                    new ItemStack(item))) {
+                helper.fail("the withheld " + BuiltInRegistries.ITEM.getKey(item)
+                        + " lost its red not-implemented line, so a /give'd one reads like finished content");
+                return;
+            }
+        }
+        var shipped = new ItemStack(ModRegistration.SIMPLIFY_STONECUTTING_ASSEMBLER_ITEM.get());
+        if (cn.dancingsnow.neoecoprototype.tooltip.SimplifyTooltipHandler.isNotImplemented(shipped)) {
+            helper.fail("the withheld list caught the processor assembler, which players are meant to be"
+                    + " able to build");
+            return;
+        }
+        NeoECOPrototype.LOGGER.info("music family withheld: {} tab stacks, {} recipes scanned, none of the"
+                + " three items craftable or listed, all three carry the red line", contents.size(), recipes);
         helper.succeed();
     }
 
