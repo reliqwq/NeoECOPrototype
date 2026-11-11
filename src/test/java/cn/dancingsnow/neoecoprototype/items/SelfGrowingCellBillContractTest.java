@@ -31,9 +31,11 @@ import org.junit.jupiter.api.Test;
  * the 16M, 48 ingots, 16 processors, 1 crystal ingot) went in, on both cells.</p>
  *
  * <p>The source member is priced off that ladder on purpose: the infinite housing is the reagent and the
- * seven pedestal items are kouooki's doll, the treasure-crab token, a source gem block, a magebloom seed and
- * water, fire and earth essence. What it still shares with the family is the rule asserted here - the
- * disassembly bill is the crafting bill.</p>
+ * seven pedestal items are an energized superconductive ingot, the treasure-crab token, a source gem block,
+ * a magebloom seed and water, fire and earth essence. What it still shares with the family is the rule
+ * asserted here - the disassembly bill is the crafting bill. The ingot took kouooki's doll out of this bill
+ * on 2026-11-11: a doll you stumble onto is an easter egg, and an easter egg inside a required recipe turns
+ * a crossover feature into a chore whose first step is an item the pack never explains.</p>
  */
 final class SelfGrowingCellBillContractTest {
 
@@ -44,6 +46,7 @@ final class SelfGrowingCellBillContractTest {
     private static final String COMPONENT_INFINITE = "neoecoae:eco_infinite_cell_component";
     private static final String SINGULARITY = "ae2:singularity";
     private static final String SKY_STONE_DUST = "ae2:sky_dust";
+    private static final String SUPERCONDUCTIVE_INGOT = "neoecoae:energized_superconductive_ingot";
     private static final String KOOOKI_DOLL = "neoecoprototype:fumo_doll_kouooki";
     private static final String ALAKARKINOS_TOKEN = "ars_nouveau:alakarkinos_token";
     private static final String SOURCE_GEM_BLOCK = "ars_nouveau:source_gem_block";
@@ -139,8 +142,10 @@ final class SelfGrowingCellBillContractTest {
         var recipe = read(ROOT.resolve("simplify_source_growing_cell.json"));
         assertEquals("ars_nouveau:enchanting_apparatus", recipe.get("type").getAsString(),
                 "the source cell is built in Ars Nouveau's enchanting apparatus");
+        assertFalse(craftingBill(recipe).contains(KOOOKI_DOLL),
+                "an easter egg cannot be allowed back into a required bill: " + craftingBill(recipe));
         assertEquals(
-                List.of(HOUSING, KOOOKI_DOLL, ALAKARKINOS_TOKEN, SOURCE_GEM_BLOCK, MAGEBLOOM_SEED,
+                List.of(HOUSING, SUPERCONDUCTIVE_INGOT, ALAKARKINOS_TOKEN, SOURCE_GEM_BLOCK, MAGEBLOOM_SEED,
                         WATER_ESSENCE, FIRE_ESSENCE, EARTH_ESSENCE),
                 craftingBill(recipe));
         assertTrue(recipe.getAsJsonArray("pedestalItems").size() <= 8,
