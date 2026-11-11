@@ -15,10 +15,12 @@ import javax.imageio.ImageIO;
 import org.junit.jupiter.api.Test;
 
 /**
- * The recorder has no server-side face for its art and no suite face for its recipes: GameTest never
+ * The recorder has no server-side face for its art and no suite face for its panel: GameTest never
  * loads models and never resolves JEI ingredients, so a wrong texture path, a missing loot table or a
- * recipe that names an item nobody can craft would ship silently - and the music data type would stay
- * as unobtainable as it was before this machine existed.
+ * button wired to nothing would ship silently. The family is withheld this release, so the recipe and
+ * creative-tab faces assert absence instead of presence - a data file re-added without flipping the
+ * markers goes red here first. The runtime half of that (no recipe in the manager, red line on all three
+ * items) is {@code musicFamilyStaysWithheld} in the suite.
  */
 final class MusicRecorderResourcesTest {
 
@@ -147,33 +149,59 @@ final class MusicRecorderResourcesTest {
         }
     }
 
+    /**
+     * The family is withheld: the three recipes are out of the jar (the originals are in the commit that
+     * added them, {@code 7c81804}) and the three tab entries are commented out in place. Asserting the
+     * absence rather than deleting the check is what keeps the withholding honest - a file re-added under
+     * another name is caught by the result scan, and a tab entry uncommented by the line scan.
+     */
     @Test
-    void theWholeMusicChainIsCraftable() throws Exception {
-        for (String[] recipe : List.of(
-                new String[]{"music_recorder", "neoecoprototype:music_recorder"},
-                new String[]{"music_jukebox", "neoecoprototype:music_jukebox"},
-                new String[]{"music_data_disc", "neoecoprototype:music_data_disc"})) {
-            Path file = DATA.resolve("recipe/" + recipe[0] + ".json");
-            assertTrue(Files.isRegularFile(file), "no recipe named " + recipe[0] + "; the chain that makes"
-                    + " music data visible is not obtainable in survival");
-            JsonObject json = json(file);
-            assertEquals("minecraft:crafting_shaped", json.get("type").getAsString(),
-                    recipe[0] + " is not a shaped crafting recipe");
-            assertEquals(recipe[1], json.getAsJsonObject("result").get("id").getAsString(),
-                    recipe[0] + " crafts " + json.getAsJsonObject("result").get("id")
-                            + " instead of " + recipe[1]);
-            JsonObject key = json.getAsJsonObject("key");
-            assertTrue(key.size() >= 3, recipe[0] + " uses only " + key.size() + " ingredients; a machine"
-                    + " recipe that cheap is usually a placeholder");
-            for (var entry : key.entrySet()) {
-                assertTrue(entry.getValue().getAsJsonObject().has("item"),
-                        recipe[0] + " ingredient " + entry.getKey() + " is not an item entry");
+    void theMusicChainStaysUncraftableWhileWithheld() throws Exception {
+        List<String> withheld = List.of("neoecoprototype:music_recorder", "neoecoprototype:music_jukebox",
+                "neoecoprototype:music_data_disc");
+        for (String id : withheld) {
+            String path = id.substring(id.indexOf(':') + 1);
+            assertTrue(!Files.exists(DATA.resolve("recipe/" + path + ".json")),
+                    "recipe/" + path + ".json is back, so the withheld " + id + " is craftable again");
+        }
+        int scanned = 0;
+        try (var files = Files.walk(DATA.resolve("recipe"))) {
+            for (Path file : files.filter(Files::isRegularFile).toList()) {
+                if (!file.toString().endsWith(".json")) {
+                    continue;
+                }
+                scanned++;
+                JsonObject json = json(file);
+                JsonElement result = json.get("result");
+                if (result == null || !result.isJsonObject()) {
+                    continue;
+                }
+                JsonElement id = result.getAsJsonObject().get("id");
+                if (id != null && withheld.contains(id.getAsString())) {
+                    throw new AssertionError(DATA.relativize(file) + " crafts the withheld "
+                            + id.getAsString() + "; renaming the file does not un-withhold it");
+                }
             }
         }
+        assertTrue(scanned >= 20, "only " + scanned + " recipe files were scanned; the result scan is"
+                + " reading an empty directory and would pass on anything");
+
+        String registration = Files.readString(SOURCES.resolve("registration/ModRegistration.java"));
+        int markers = 0;
+        for (String line : registration.split("\n")) {
+            if (!line.contains("output.accept(MUSIC_")) {
+                continue;
+            }
+            markers++;
+            assertTrue(line.trim().startsWith("//"), "a music item is back in the creative tab: "
+                    + line.trim());
+        }
+        assertEquals(3, markers, "the tab no longer carries three commented-out music entries; the"
+                + " withholding marker was deleted instead of flipped, so nothing pins it any more");
     }
 
     @Test
-    void musicDataIsRegisteredAsAJeiIngredientBehindItsGuards() throws Exception {
+    void musicDataStaysOutOfJeiWhileTheFamilyIsWithheld() throws Exception {
         String ingredient = Files.readString(SOURCES.resolve("integration/jei/MusicDataIngredient.java"));
         assertTrue(ingredient.contains("IIngredientType<MusicKey>"),
                 "MusicDataIngredient no longer declares an ingredient type, so JEI has nothing to draw");
@@ -186,13 +214,19 @@ final class MusicRecorderResourcesTest {
                 "the converter no longer plugs into ae2jeiintegration, so Data Energistics' reassembler"
                         + " page falls back to an iconless wrapped stack");
         String plugin = Files.readString(SOURCES.resolve("integration/jei/NeoECOPrototypeJeiPlugin.java"));
-        assertTrue(plugin.contains("registerIngredients"), "the JEI plugin has no registerIngredients");
-        assertTrue(plugin.contains("isLoaded(\"data_energistics\")"),
-                "the music ingredient is not gated on Data Energistics; without it the key cannot exist");
+        assertTrue(plugin.contains("MUSIC_VISIBLE_IN_JEI = false"),
+                "the music JEI gate is gone or flipped to true while the machines are still withheld;"
+                        + " the ingredient would be a searchable row nothing can produce");
+        assertTrue(plugin.contains("if (!MUSIC_VISIBLE_IN_JEI || !ModList.get().isLoaded(\"data_energistics\"))"),
+                "the ingredient registration is no longer behind both gates");
+        assertTrue(plugin.contains("if (MUSIC_VISIBLE_IN_JEI && ModList.get().isLoaded(\"data_energistics\"))"),
+                "the info page is no longer behind both gates; it tells the player to build a recorder"
+                        + " they cannot craft");
         assertTrue(plugin.contains("isLoaded(\"ae2jeiintegration\")"),
                 "the converter is not gated on ae2jeiintegration");
         assertTrue(plugin.contains("addIngredientInfo(MusicKey.INSTANCE"),
-                "music data has no JEI info page, so the player still cannot read where it comes from");
+                "the info page code was deleted instead of gated; restoring the family should be a"
+                        + " one-line flip, not a rewrite");
     }
 
     @Test

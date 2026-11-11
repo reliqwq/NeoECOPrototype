@@ -34,6 +34,15 @@ public final class NeoECOPrototypeJeiPlugin implements IModPlugin {
      */
     private static final boolean TRINITY_VISIBLE_IN_JEI = false;
 
+    /**
+     * The music family is withheld while its Data Energistics half is unfinished: no tab entry, no recipe,
+     * and the red "not implemented" line on all three items. Both JEI halves go with it - the ingredient
+     * would be a searchable row nothing can produce, and the info page tells the player to build a recorder
+     * they cannot craft. Flip this to true when the family ships; the terminal icon is registered separately
+     * in {@code NeoECOPrototypeClient} and stays, so music already stored in a world still draws its face.
+     */
+    private static final boolean MUSIC_VISIBLE_IN_JEI = false;
+
     @Override
     public ResourceLocation getPluginUid() {
         return ResourceLocation.fromNamespaceAndPath(NeoECOPrototype.MOD_ID, "jei_plugin");
@@ -47,7 +56,8 @@ public final class NeoECOPrototypeJeiPlugin implements IModPlugin {
     /**
      * Music data only exists while Data Energistics does: our key type is published through its registry,
      * and every recipe that names the key is its own. Registering the ingredient without it would only put
-     * an unobtainable entry in JEI's search list.
+     * an unobtainable entry in JEI's search list - which is also why {@link #MUSIC_VISIBLE_IN_JEI} gates it
+     * while the machines that produce the key are withheld.
      *
      * <p>The converter half teaches ae2jeiintegration's generic-stack bridge about the key, which is what
      * makes Data Energistics' reassembler page draw our icon instead of an iconless wrapped stack. Both
@@ -55,7 +65,7 @@ public final class NeoECOPrototypeJeiPlugin implements IModPlugin {
      */
     @Override
     public void registerIngredients(IModIngredientRegistration registration) {
-        if (!ModList.get().isLoaded("data_energistics")) {
+        if (!MUSIC_VISIBLE_IN_JEI || !ModList.get().isLoaded("data_energistics")) {
             return;
         }
         MusicDataIngredient.register(registration);
@@ -80,7 +90,7 @@ public final class NeoECOPrototypeJeiPlugin implements IModPlugin {
                 new cn.dancingsnow.neoecoae.integration.xei.multiblock.MultiBlockInfoWrapper(
                         cn.dancingsnow.neoecoprototype.multiblock.definition.SimplifyCraftingDefinition.L1)));
         var level = net.minecraft.client.Minecraft.getInstance().level;
-        if (ModList.get().isLoaded("data_energistics")) {
+        if (MUSIC_VISIBLE_IN_JEI && ModList.get().isLoaded("data_energistics")) {
             registration.addIngredientInfo(MusicKey.INSTANCE, MusicDataIngredient.TYPE,
                     Component.translatable("jei.neoecoprototype.music_data.info"));
         }

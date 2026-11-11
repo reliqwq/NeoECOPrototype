@@ -2095,12 +2095,15 @@ private static Supplier<BlockEntityType<SimplifyStorageVentBlockEntity>> registe
                         output.accept(ENERGIZED_COMPUTATION_CELL_4M.get());
                          output.accept(SIMPLIFY_CRAFTING_SYSTEM_ITEM.get());
                          output.accept(SIMPLIFY_STONECUTTING_ASSEMBLER_ITEM.get());
-                        // The music family is visible from its first release: the recorder writes whole
-                        // songs onto a blank disc, and the jukebox is the player's only way to hear a
-                        // recorded disc and feed the network.
-                        output.accept(MUSIC_JUKEBOX_ITEM.get());
-                        output.accept(MUSIC_RECORDER_ITEM.get());
-                        output.accept(MUSIC_DATA_DISC_ITEM.get());
+                        // The music family is registered but withheld: the Data Energistics half it feeds
+                        // is unfinished, so the recorder, the jukebox and the blank disc have no tab entry
+                        // and no survival recipe this release, and each carries the red not-implemented
+                        // line. Registrations, models, loot tables, the client key icon and the whole suite
+                        // stay - a world that already has one of these machines still loads and still runs.
+                        // Restoring it is these three lines plus the three recipe files.
+                        // output.accept(MUSIC_JUKEBOX_ITEM.get());
+                        // output.accept(MUSIC_RECORDER_ITEM.get());
+                        // output.accept(MUSIC_DATA_DISC_ITEM.get());
                         // The dissociator family is registered but withheld: it has no survival recipe, its
                         // input comes from the comet, and the comet generates nowhere by default. Keeping the
                         // four items out of the tab is the whole hiding - registrations, models, the

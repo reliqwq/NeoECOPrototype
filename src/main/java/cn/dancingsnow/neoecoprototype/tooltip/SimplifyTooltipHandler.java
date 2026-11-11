@@ -75,7 +75,8 @@ public final class SimplifyTooltipHandler {
     /**
      * Trinity controller and its three modules work, but are unreleased; see the JEI gate. The wireless link
      * card joins them for the same reason this release, and so does the reactor family, which has no recipe
-     * and no tab entry this release. Public because a guard asks it on a stack rather than trusting that the
+     * and no tab entry this release. The music family is withheld the same way while its Data Energistics
+     * half is unfinished. Public because a guard asks it on a stack rather than trusting that the
      * withheld list was edited in every place that matters.
      */
     public static boolean isNotImplemented(ItemStack stack) {
@@ -93,7 +94,12 @@ public final class SimplifyTooltipHandler {
                 || stack.is(ModRegistration.REACTOR_FRAME_ITEM.get())
                 || stack.is(ModRegistration.REACTOR_GLASS_ITEM.get())
                 || stack.is(ModRegistration.REACTOR_COIL_ITEM.get())
-                || stack.is(ModRegistration.REACTOR_CORE_ITEM.get());
+                || stack.is(ModRegistration.REACTOR_CORE_ITEM.get())
+                // The music chain works, but the data type it feeds is not finished; a /give'd machine must
+                // not read like something the player can go and build.
+                || stack.is(ModRegistration.MUSIC_JUKEBOX_ITEM.get())
+                || stack.is(ModRegistration.MUSIC_RECORDER_ITEM.get())
+                || stack.is(ModRegistration.MUSIC_DATA_DISC_ITEM.get());
     }
 
     /** @return the language key of the extra line, or null when the item has none. */
