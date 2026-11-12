@@ -388,6 +388,11 @@ tasks.named('processResources', ProcessResources) {
         filter(ReplaceTokens, tokens: [mod_version: project.version.toString()])
     }
 }
+// Dev verification sources live in src/main so runGameTestServer can reach them through
+// mods { sourceSet(sourceSets.main) }, but players never load them: keep the shipped jar clean.
+tasks.named('jar', Jar) {
+    exclude 'cn/dancingsnow/neoecoprototype/gametest/**'
+}
 tasks.named('test', Test) {
     useJUnitPlatform()
     maxHeapSize = '2G'
