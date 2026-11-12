@@ -69,7 +69,12 @@ public class SimplifyStorageHostBlockEntity
         // and no eco block entity is required by the contract, and our two methods already do exactly what it
         // asks - read the configured number, and set it with persistence, sync and a mount refresh - so
         // anything coding to the interface can drive an L1 host as well as one of eco's.
-        cn.dancingsnow.neoecoae.api.storage.IECOStoragePriorityHost {
+        cn.dancingsnow.neoecoae.api.storage.IECOStoragePriorityHost,
+        // eco's #156 answer (their commit fc7b9bd7): a host that answers these four members can hand its
+        // installed cells to AE2's cell workbench, and their StorageCellWorkbenchLocator no longer insists
+        // the controller be an eco block entity. openCellConfiguration stays the interface default - it is
+        // the one place the three guards (server side, empty carried stack, same level) are written.
+        cn.dancingsnow.neoecoae.api.storage.IECOConfigurableCellHost {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(SimplifyStorageHostBlockEntity.class);
     private static final int DEFAULT_BUILD_LENGTH = 1;
@@ -273,13 +278,14 @@ public class SimplifyStorageHostBlockEntity
     public ModularUI createUI(BlockUIMenuType.BlockUIHolder holder) {
         // eco's shared per-cell priority window (their answer to our issue #154). The window carries its own
         // menu-scoped RPC events, so this host needs no @RPCMethod of its own: the handlers live on the
-        // window and reach the drives through the ECOStorageCellPriorities instance below. Starting from
-        // CellActions.NONE is deliberate - the other four actions are eco's bulk-marking, compression
-        // display, migration preview and cell workbench, none of which an L1 host runs.
+        // window and reach the drives through the ECOStorageCellPriorities instance below.
         var cellPriorityWindow =
                 new cn.dancingsnow.neoecoae.gui.storage.StorageCellPriorityUI(holder.player, cellPriorities);
+        // Three of the four remaining actions stay eco's no-ops, because they belong to features an L1 host
+        // does not run: bulk marking, the compression display and the migration preview. The fifth is the
+        // cell workbench (their #156).
         UIElement root = StorageHostUI.create(createStoragePanelConfig(holder.player)
-                        .withCellActions(cellPriorityWindow.withActions(StorageHostUI.CellActions.NONE)))
+                        .withCellActions(cellPriorityWindow.withActions(panelCellActions(holder.player))))
                 .addClass("panel_bg");
 
         StorageHostActionUI.Elements actionUI = StorageHostActionUI.create(new StorageHostActionUI.Config(
@@ -320,6 +326,39 @@ public class SimplifyStorageHostBlockEntity
     getConfigurableCellDrives() {
         SimplifyStorageCluster cluster = getCluster();
         return cluster == null ? java.util.List.of() : cluster.getDrives();
+    }
+
+    @Override
+    public net.minecraft.world.level.block.entity.BlockEntity getCellWorkbenchBlockEntity() {
+        // The workbench's locator refuses a host whose block entity is not the one it was given, so this has
+        // to answer `this` rather than any neighbour; our host is the panel, the drive is only a slot.
+        return this;
+    }
+
+    @Override
+    public java.util.List<? extends cn.dancingsnow.neoecoae.api.storage.IECOCellWorkbenchDrive>
+    getStorageDrivesForIntegration() {
+        return getCluster() == null ? java.util.List.of() : getCluster().getDrives();
+    }
+
+    /**
+     * The per-cell actions this host hands eco's panel. Public because the suite drives the workbench
+     * through the handle the panel receives: a test that called {@link #openCellConfiguration} directly
+     * would stay green even if the panel passed {@code CellActions.NONE} again, and passing an idle body for
+     * the fifth action is the exact symptom eco's #156 was filed against.
+     *
+     * <p>The four idle bodies come from {@code CellActions.NONE} rather than being written here, so an eco
+     * change to what a no-op means reaches us as a compile error, not as a silently different panel.</p>
+     */
+    public cn.dancingsnow.neoecoae.gui.storage.StorageHostUI.CellActions panelCellActions(
+            net.minecraft.world.entity.player.Player player) {
+        var idle = cn.dancingsnow.neoecoae.gui.storage.StorageHostUI.CellActions.NONE;
+        return new cn.dancingsnow.neoecoae.gui.storage.StorageHostUI.CellActions(
+                idle.migrateMarked(),
+                idle.openPriority(),
+                idle.openCompressionDisplay(),
+                idle.previewMigration(),
+                (drive, installation) -> openCellConfiguration(player, drive, installation));
     }
 
 

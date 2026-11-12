@@ -13318,6 +13318,89 @@ public final class NeoECOPrototypeGameTests {
     }
 
     /**
+     * eco's workbench accepts our host and our drive - the thing their side could not be tested for until
+     * fc7b9bd7 (#156), and the field symptom was the panel row 配置 doing nothing at all.
+     *
+     * <p>eco's own test mocks {@code StorageCellWorkbench} and asserts only that their locator tolerates a
+     * non-eco host; that proves nothing about our two block entities answering the contract. This asks
+     * eco's real locator, with our real formed host and a real installed cell, and it reads the three
+     * answers that matter: the workbench exists, it stays valid while the cell it was opened on is still
+     * there, and a stale installation id gets nothing at all.</p>
+     *
+     * <p>What is NOT asserted here, and why: the fake player a GameTest can build never ends up with the
+     * workbench in {@code player.containerMenu}. Measured on 2026-11-12 - with every gate green and
+     * eco's locator returning a live {@code StorageCellWorkbench} for the same call,
+     * {@code ServerPlayer#openMenu} leaves the vanilla inventory menu attached, so the last inch (the
+     * window actually appearing on screen) has only a client reading. The row that carries it is
+     * {@link SimplifyStorageHostBlockEntity#panelCellActions}, and that is what createUI hands eco.</p>
+     */
+    @GameTest(template = "l1_room", batch = "cell_workbench", timeoutTicks = 400,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void ecosWorkbenchLocatorAcceptsOurInstalledCell(GameTestHelper helper) {
+        buildL1Room(helper, CARD_HOST,
+                ModRegistration.SIMPLIFY_STORAGE_CONTROLLER_BLOCK.get(),
+                ModRegistration.SIMPLIFY_STORAGE_INTERFACE_BLOCK.get(),
+                ModRegistration.SIMPLIFY_STORAGE_INTERFACE_BLOCK.get(),
+                host -> {
+                    if (!(host instanceof SimplifyStorageHostBlockEntity storageHost)
+                            || storageHost.getCluster() == null) {
+                        helper.fail("no formed L1 storage host to hand to eco's workbench");
+                        return;
+                    }
+                    var drive = storageHost.getCluster().getDrives().stream()
+                            .filter(entry -> !entry.hasCell())
+                            .findFirst().orElse(null);
+                    if (drive == null || !drive.insertCell(new ItemStack(
+                            ModRegistration.SIMPLIFY_ITEM_CELL_1K.get()))) {
+                        helper.fail("no empty drive took the fixture cell, so there is no installation to"
+                                + " hand over");
+                        return;
+                    }
+                    var player = helper.makeMockPlayer(net.minecraft.world.level.GameType.SURVIVAL);
+                    // Our canPlayerInteract is a distance rule and a fresh fake player sits at the world
+                    // origin, so stand it at the host: without this eco's locator refuses for a reason that
+                    // has nothing to do with the contract under test.
+                    var at = storageHost.getBlockPos();
+                    player.setPos(at.getX() + 0.5D, at.getY() + 0.5D, at.getZ() + 0.5D);
+                    var installation = drive.getCellInteractionId();
+                    var locator = new cn.dancingsnow.neoecoae.menu.StorageCellWorkbenchLocator(
+                            at, drive.getBlockPos(), installation);
+                    var workbench = locator.locate(player,
+                            cn.dancingsnow.neoecoae.blocks.entity.storage.StorageCellWorkbench.class);
+                    NeoECOPrototype.LOGGER.info("cell workbench: located={} validFor={} formed={}"
+                                    + " driveStack={}", workbench == null ? "null" : "workbench",
+                            workbench != null && workbench.isValidFor(player), storageHost.isFormed(),
+                            drive.getCellStack());
+                    if (workbench == null) {
+                        helper.fail("eco's locator refused our host/drive pair, so the panel's 配置 row can"
+                                + " only ever open nothing (installation=" + installation
+                                + ", formed=" + storageHost.isFormed() + ")");
+                        return;
+                    }
+                    if (!workbench.isValidFor(player)) {
+                        helper.fail("the workbench was built but reports itself invalid for the player who"
+                                + " opened it, so AE2 would close the window on the first tick");
+                        return;
+                    }
+                    var stale = new cn.dancingsnow.neoecoae.menu.StorageCellWorkbenchLocator(
+                            at, drive.getBlockPos(), java.util.UUID.randomUUID());
+                    if (stale.locate(player,
+                            cn.dancingsnow.neoecoae.blocks.entity.storage.StorageCellWorkbench.class) != null) {
+                        helper.fail("a made-up installation id built a workbench, so a window left open from"
+                                + " an older cell could reconfigure whatever stands in that slot now");
+                        return;
+                    }
+                    drive.removeCell();
+                    if (workbench.isValidFor(player)) {
+                        helper.fail("the workbench stayed valid after its cell left the drive, which is the"
+                                + " same stale-window hazard as the id check above");
+                        return;
+                    }
+                    helper.succeed();
+                });
+    }
+
+    /**
      * The byte bar pins itself to 100% on a host that reports "0 used": eco's
      * {@code StoragePanelState.usage} returns 1.0 for any row whose per-row {@code infinite} flag is set, and
      * it only swaps the percentage for its "unbounded" glyph when the panel-level {@code infiniteStorage}

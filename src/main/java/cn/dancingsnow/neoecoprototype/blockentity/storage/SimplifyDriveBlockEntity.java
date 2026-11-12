@@ -48,7 +48,10 @@ import java.util.List;
  */
 public class SimplifyDriveBlockEntity extends NEBlockEntity<SimplifyStorageCluster, SimplifyDriveBlockEntity>
         implements ISyncPersistRPCBlockEntity, ISaveProvider, IStorageProvider, ICellHost,
-        cn.dancingsnow.neoecoae.api.storage.IECOConfigurableCellDrive {
+        // eco widened this into IECOCellWorkbenchDrive in their fc7b9bd7 (#156): the same six members, plus
+        // reloadCellConfiguration(). The workbench's locator now accepts any host/drive pair answering those
+        // interfaces, which is what lets our panel open AE2's cell workbench on an installed L1 cell.
+        cn.dancingsnow.neoecoae.api.storage.IECOCellWorkbenchDrive {
 
     private final FieldManagedStorage syncStorage = new FieldManagedStorage(this);
 
@@ -201,6 +204,29 @@ public class SimplifyDriveBlockEntity extends NEBlockEntity<SimplifyStorageClust
         }
         // This is the one place cellStack is mutated in place rather than replaced, which is exactly the
         // case getCellInventory()'s comment asks a writer to handle: drop the cache, then remount.
+        invalidateCellInventoryCache();
+        notifyClusterStorageChanged();
+        setChanged();
+        markForUpdate();
+    }
+
+    /**
+     * eco's cell workbench entry point ({@code IECOCellWorkbenchDrive}, their #156): it is called after the
+     * workbench has written a filter, fuzzy mode or upgrade straight onto the installed stack, so the stack
+     * object and its UUID stay the same and nothing else tells this drive anything changed. Without the
+     * release the AE2 storage mount keeps judging the cell by the config it was opened with - a card put in
+     * through the panel would show up in the tooltip and do nothing.
+     *
+     * <p>Shape copied from eco's own {@code ECODriveBlockEntity.reloadCellConfiguration}, minus the pending
+     * write flush and the explicit persist: our drive does not implement {@code DeferredCellPersistence},
+     * so eco's cell writes land immediately and there is nothing to flush.</p>
+     */
+    @Override
+    public void reloadCellConfiguration() {
+        if (level == null || level.isClientSide || cellStack.isEmpty()) {
+            return;
+        }
+        ECOStorageCells.releaseCellInventory(cellStack, this);
         invalidateCellInventoryCache();
         notifyClusterStorageChanged();
         setChanged();
