@@ -374,6 +374,164 @@ public final class NeoECOPrototypeGameTests {
     }
 
     /**
+     * The script-made supply cell is a thin reader over eco's infinite-resource engine, so it is pinned at
+     * the two seams it actually owns. The binding list: keys resolve lazily (a KubeJS startup script runs
+     * before the item registry closes, so a pack may name an item another mod registers later), resolve once
+     * for every later read, and keep script order. The engine: eco's own {@code ECOInfiniteResourceCell} has
+     * to list each bound key at {@code Long.MAX_VALUE}, refuse every other key on insert and extract, and
+     * hand out whatever amount of a bound key it is asked for - that is what "supply" means, and it is all
+     * read through the public {@code ECOStorageCells} entry point rather than by calling our item directly.
+     *
+     * <p>A misconfigured binder must also fail on the tooltip and nowhere earlier: the hover is the only
+     * place a pack author ever sees the cell, so a throw there is a throw in the inventory screen. The two
+     * tooltip assertions also pin that the healthy cell does not inherit eco's group - eco's own lines name
+     * water, cobblestone and lava, which would read as bound keys on any script cell.
+     *
+     * <p>The cells come from {@link SupplyCellGuardProbe}, which builds them while the item registry is
+     * still open: an {@code Item} cannot be constructed later ({@code Item}'s field initialiser creates a
+     * registry intrusive holder, and that write throws once the registry is frozen), and the probe
+     * registers them under its own namespace so no startup pass or item sweep ever asks the broken one for
+     * a partition table. The KubeJS builder is not the path under test: its only job is to hand these
+     * suppliers over, and scripts have no headless face here (they run in a client's startup phase).
+     * The client-side reading for that path is the demo startup script in {@code run/kubejs}.
+     */
+    @GameTest(template = "empty", batch = "eco_supply_cell", timeoutTicks = 100,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void scriptSupplyCellBindsLazilyAndEcosEngineServesOnlyThoseKeys(GameTestHelper helper) {
+        var cobble = AEItemKey.of(Items.COBBLESTONE);
+        var water = AEFluidKey.of(Fluids.WATER);
+        var dirt = AEItemKey.of(Items.DIRT);
+        if (cobble == null || water == null || dirt == null) {
+            helper.fail("a vanilla key resolved to null, so nothing below was measured");
+            return;
+        }
+        if (!SupplyCellGuardProbe.isBuilt()) {
+            helper.fail("the supply-cell probe was not built at registry time (gameTestServer="
+                    + Boolean.getBoolean("neoforge.gameTestServer") + ", enableGameTest="
+                    + Boolean.getBoolean("neoforge.enableGameTest") + "), so nothing below was measured");
+            return;
+        }
+        if (SupplyCellGuardProbe.callsAtConstruction() != 0) {
+            helper.fail("the supply cell resolved " + SupplyCellGuardProbe.callsAtConstruction()
+                    + " binding(s) while it was being constructed; a script may name an item another mod"
+                    + " registers later in the same startup, so resolution has to wait for the first read");
+            return;
+        }
+        var cell = SupplyCellGuardProbe.bindings();
+        var keys = cell.suppliedKeys();
+        if (!keys.equals(List.of(cobble, water))) {
+            helper.fail("the supply cell listed " + keys + " instead of the two bound keys in script order");
+            return;
+        }
+        // Every later reader must reuse that one resolution: a re-resolve per hover would run the binder
+        // again and, when an id is broken, log on every frame.
+        cell.suppliesKey(cobble);
+        cell.suppliesKey(water);
+        cell.getKeyTypes();
+        var stack = new ItemStack(cell);
+        cell.isBlackListed(stack, cobble);
+        if (SupplyCellGuardProbe.binderCalls(0) != 1 || SupplyCellGuardProbe.binderCalls(1) != 1) {
+            helper.fail("the bindings were resolved " + SupplyCellGuardProbe.binderCalls(0) + " item / "
+                    + SupplyCellGuardProbe.binderCalls(1) + " fluid time(s) by the first read; each must be"
+                    + " exactly once");
+            return;
+        }
+        boolean boundItem = cell.suppliesKey(cobble);
+        boolean boundFluid = cell.suppliesKey(water);
+        boolean unbound = cell.suppliesKey(dirt);
+        boolean nullKey = cell.suppliesKey(null);
+        if (!boundItem || !boundFluid || unbound || nullKey) {
+            helper.fail("suppliesKey answered wrong: bound item=" + boundItem + " bound fluid=" + boundFluid
+                    + " unbound=" + unbound + " null=" + nullKey);
+            return;
+        }
+        var expectedTypes = java.util.Set.of(appeng.api.stacks.AEKeyType.items(),
+                appeng.api.stacks.AEKeyType.fluids());
+        if (!cell.getKeyTypes().equals(expectedTypes)) {
+            helper.fail("the supply cell declared key types " + cell.getKeyTypes()
+                    + " instead of exactly the two its bindings use");
+            return;
+        }
+        if (cell.isBlackListed(stack, cobble) || cell.isBlackListed(stack, water)
+                || !cell.isBlackListed(stack, dirt)) {
+            helper.fail("isBlackListed does not mirror the binding list");
+            return;
+        }
+        var partition = cell.getConfigInventory(stack);
+        boolean partitionAllowsBound = partition.isAllowedIn(0, cobble);
+        boolean partitionAllowsUnbound = partition.isAllowedIn(0, dirt);
+        if (partition.size() != 2 || !partitionAllowsBound || partitionAllowsUnbound) {
+            helper.fail("the partition table has " + partition.size() + " slots, accepts a bound key="
+                    + partitionAllowsBound + ", accepts an unbound key=" + partitionAllowsUnbound);
+            return;
+        }
+        var inventory = ECOStorageCells.getCellInventory(stack, (ISaveProvider) null);
+        if (inventory == null) {
+            helper.fail("eco's cell handler did not recognise the script-made supply cell at all");
+            return;
+        }
+        var available = new KeyCounter();
+        inventory.getAvailableStacks(available);
+        if (available.get(cobble) != Long.MAX_VALUE || available.get(water) != Long.MAX_VALUE
+                || available.get(dirt) != 0L) {
+            helper.fail("the engine listed cobble=" + available.get(cobble) + " water=" + available.get(water)
+                    + " dirt=" + available.get(dirt) + " - only the bound keys may be listed, each at"
+                    + " Long.MAX_VALUE");
+            return;
+        }
+        long acceptedDirt = inventory.insert(dirt, 64L, Actionable.MODULATE, IActionSource.empty());
+        if (acceptedDirt != 0L) {
+            helper.fail("the engine accepted " + acceptedDirt + " of an unbound key, so a network could route"
+                    + " stock into a cell that never lists it back");
+            return;
+        }
+        long acceptedWater = inventory.insert(water, 64L, Actionable.MODULATE, IActionSource.empty());
+        long handedCobble = inventory.extract(cobble, 1000L, Actionable.SIMULATE, IActionSource.empty());
+        if (acceptedWater != 64L || handedCobble != 1000L) {
+            helper.fail("a bound key did not round-trip: insert(water, 64)=" + acceptedWater
+                    + ", extract(cobble, 1000)=" + handedCobble);
+            return;
+        }
+        var broken = SupplyCellGuardProbe.broken();
+        var brokenLines = new ArrayList<Component>();
+        try {
+            broken.appendHoverText(new ItemStack(broken), Item.TooltipContext.EMPTY, brokenLines,
+                    net.minecraft.world.item.TooltipFlag.NORMAL);
+        } catch (RuntimeException crash) {
+            helper.fail("hovering a supply cell whose binder resolves to nothing threw " + crash
+                    + " - the tooltip is the only place a pack author sees the cell");
+            return;
+        }
+        if (brokenLines.size() != 1 || !hasTranslationKey(brokenLines.get(0),
+                "tooltip.neoecoprototype.eco_supply_cell.broken")) {
+            helper.fail("a broken supply cell's tooltip is " + brokenLines + " instead of the single"
+                    + " tooltip.neoecoprototype.eco_supply_cell.broken line");
+            return;
+        }
+        var healthyLines = new ArrayList<Component>();
+        cell.appendHoverText(stack, Item.TooltipContext.EMPTY, healthyLines,
+                net.minecraft.world.item.TooltipFlag.NORMAL);
+        if (healthyLines.size() != 3 || !hasTranslationKey(healthyLines.get(0),
+                "tooltip.neoecoprototype.eco_supply_cell.contents")) {
+            helper.fail("a healthy supply cell's tooltip is " + healthyLines + " instead of the three lines"
+                    + " headed by tooltip.neoecoprototype.eco_supply_cell.contents");
+            return;
+        }
+        // The tooltip reads resolve() on every hover; a re-resolve there would run the binder again.
+        if (SupplyCellGuardProbe.binderCalls(0) != 1 || SupplyCellGuardProbe.binderCalls(1) != 1) {
+            helper.fail("drawing the tooltip resolved the bindings again (" + SupplyCellGuardProbe.binderCalls(0)
+                    + " item / " + SupplyCellGuardProbe.binderCalls(1) + " fluid calls); the tooltip has to"
+                    + " read the cached list");
+            return;
+        }
+        helper.succeed();
+    }
+
+    private static boolean hasTranslationKey(Component line, String key) {
+        return line.getContents() instanceof TranslatableContents contents && contents.getKey().equals(key);
+    }
+
+    /**
      * eco issue #153's hook, answered: every one of our tiers hands the crafting confirmation screen a
      * 13x18 digit rather than the interface default's null - which is what made our CPUs read "EC0", since
      * the wordmark's third letter is a cell stamped over the "O" and the only cells eco's own switch knew

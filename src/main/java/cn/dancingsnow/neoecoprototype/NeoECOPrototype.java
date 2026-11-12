@@ -29,6 +29,13 @@ public class NeoECOPrototype {
 
     public NeoECOPrototype(IEventBus modBus, ModContainer container) {
         LOGGER.info("Loading {}...", MOD_ID);
+        // The script-made supply cell has no registered twin, so its game test needs a fixture - and a
+        // fixture Item has to exist before the item registry freezes. Both readings below are launch
+        // properties, so this branch is taken by the gametest server only and never in production.
+        if (net.neoforged.neoforge.gametest.GameTestHooks.isGametestServer()
+                || Boolean.getBoolean("neoforge.enableGameTest")) {
+            cn.dancingsnow.neoecoprototype.gametest.SupplyCellGuardProbe.init(modBus);
+        }
         if (ModList.get().isLoaded("neoecoae") && ModList.get().isLoaded("mekanism")
                 && ModList.get().isLoaded("useless_stretcher")) {
             cn.dancingsnow.neoecoprototype.integration.mekanism.MilkInfusionCompatibility.register(modBus);
