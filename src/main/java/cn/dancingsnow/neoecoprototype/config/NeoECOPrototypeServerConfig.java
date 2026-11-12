@@ -16,6 +16,20 @@ public final class NeoECOPrototypeServerConfig {
     public static final ModConfigSpec.BooleanValue DERIVE_PROCESSOR_RECIPES_FROM_INSCRIBER;
     /** Processor outputs the assembler must refuse, from either the JSON recipes or the derivation. */
     public static final ModConfigSpec.ConfigValue<List<? extends String>> DISABLED_PROCESSOR_RECIPES;
+    /**
+     * How many runs of one recipe a single assembly cycle may process. The shipped default is 64, which is
+     * one full stack of a one-per-craft processor -- the most a cycle hands over in the single stack it
+     * ejects, with nothing routed through the network. A pack that wants the wider batch raises it up to
+     * {@link #PROCESSOR_ASSEMBLER_MAX_RUNS_PER_CYCLE_LIMIT}, or turns it down to one.
+     */
+    public static final int PROCESSOR_ASSEMBLER_MAX_RUNS_PER_CYCLE_DEFAULT = 64;
+    /**
+     * The most a cycle can ever run, which the recipe shape decides: the nine-slot grid holds 576 items
+     * and a three-ingredient processor costs three per run, so 192 runs is the widest of the families the
+     * machine runs (a four-ingredient recipe tops out at 144). A ceiling above that could never be reached.
+     */
+    public static final int PROCESSOR_ASSEMBLER_MAX_RUNS_PER_CYCLE_LIMIT = 192;
+    public static final ModConfigSpec.IntValue PROCESSOR_ASSEMBLER_MAX_RUNS_PER_CYCLE;
     /** Kept as a plain constant so a test can pin the shipped default without loading a config file. */
     public static final boolean STRUCTURE_CARD_CONSUMES_ITEMS_DEFAULT = true;
     public static final ModConfigSpec.BooleanValue STRUCTURE_CARD_CONSUMES_ITEMS;
@@ -266,6 +280,14 @@ public final class NeoECOPrototypeServerConfig {
                 .defineListAllowEmpty("disabled_processor_recipes",
                         List.of(), value -> value instanceof String id
                         && net.minecraft.resources.ResourceLocation.tryParse(id) != null);
+        PROCESSOR_ASSEMBLER_MAX_RUNS_PER_CYCLE = builder
+                .comment("Most recipe runs one assembly cycle may process. Default: 64 | Range: 1~192.",
+                        "Note: 64 is one full stack of a one-per-craft processor, the most a cycle ejects outright; a bigger pattern's surplus goes to the network. 192 is the ceiling the recipes themselves set: the nine-slot grid holds 576 items and a three-ingredient processor costs three per run.",
+                        "一个装配周期最多处理几份配方。默认 64 | 范围 1~192。",
+                        "注：64 就是一次弹出的一整组（每份产 1 个的处理器），更大的样板多出来的部分进网络；192 是配方本身决定的上限——九格工作台摆 576 个物品，三原料处理器每份 3 个。超过本值的样板整张拒收，原料留在网络里。")
+                .defineInRange("processor_assembler_max_runs_per_cycle",
+                        PROCESSOR_ASSEMBLER_MAX_RUNS_PER_CYCLE_DEFAULT, 1,
+                        PROCESSOR_ASSEMBLER_MAX_RUNS_PER_CYCLE_LIMIT);
         builder.push("cryotheum_ore");
         CRYOTHEUM_ORE_DIMENSIONS = builder
                 .comment("Dimensions the cryotheum ores generate in, by full ID. Default: [] (all off).",
@@ -417,6 +439,11 @@ public final class NeoECOPrototypeServerConfig {
     public static long sourceCellAmountPerBatch() {
         return Math.min(SINGULARITY_CELL_AMOUNT_PER_BATCH_MAX,
                 Math.max(1L, SOURCE_CELL_AMOUNT_PER_BATCH.get()));
+    }
+
+    /** Runs one assembly cycle may process, read live so an edited config applies without a restart. */
+    public static int processorAssemblerMaxRunsPerCycle() {
+        return PROCESSOR_ASSEMBLER_MAX_RUNS_PER_CYCLE.get();
     }
 
     /** Shared by the assembler and its JEI page so both agree on what is refused. */

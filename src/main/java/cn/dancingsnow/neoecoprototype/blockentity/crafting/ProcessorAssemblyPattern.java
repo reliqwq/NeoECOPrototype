@@ -167,6 +167,20 @@ public record ProcessorAssemblyPattern(IPatternDetails delegate, ProcessorAssemb
     }
 
     /**
+     * Recipe runs this pattern asks for in one push, which is the batch factor it was encoded with. Only
+     * a pattern {@code ProcessorAssemblerRecipes.resolve} accepted can reach a machine, and that match
+     * requires the output amount to divide by the recipe's own count, so this is a whole number here.
+     */
+    public long requestedRuns() {
+        var outputs = getOutputs();
+        int perRun = recipe.result().getCount();
+        if (outputs.isEmpty() || perRun <= 0) {
+            return 0;
+        }
+        return outputs.get(0).amount() / perRun;
+    }
+
+    /**
      * What the grid content pays for, including the pattern's own batch factor: a 64x processor pattern
      * asks for 64 per execution, and answering it with the recipe's single processor would silently drop
      * 63 of them.

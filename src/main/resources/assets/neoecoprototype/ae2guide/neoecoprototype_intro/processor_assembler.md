@@ -27,13 +27,14 @@ Both are made in a **crafting table**: the assembler is 1 Molecular Assembler + 
 
 ## Built-in recipes
 
-The three processors (the rest are derived from the inscriber, see below):
+The four processors (the last one needs AE2 Lightning Tech; other press recipes in the inscriber are also derived, see below):
 
 | Output | Ingredients |
 |--------|-------------|
 | Logic Processor | silicon + redstone dust + gold ingot |
 | Calculation Processor | silicon + redstone dust + certus quartz crystal |
 | Engineering Processor | silicon + redstone dust + diamond |
+| Overload Processor (AE2 Lightning Tech) | silicon + redstone dust + Overload Crystal |
 
 The other eight:
 
@@ -50,7 +51,7 @@ The other eight:
 
 Silicon, gold and diamond are taken by tag, so any mod's version counts.
 
-Processor recipes beyond those three are derived live from the inscriber's recipes, so a recipe another mod adds to the inscriber works with no data file. Two server config keys govern that:
+Other press recipes in the inscriber are also derived live, so a recipe another mod adds to the inscriber works with no data file. Two server config keys govern that:
 
 | Config key | What it does |
 |------------|--------------|
@@ -61,7 +62,12 @@ Processor recipes beyond those three are derived live from the inscriber's recip
 
 5 card slots take nothing but the <ItemLink id="ae2:speed_card" />: one craft costs 100 ticks empty and 20 ticks with five cards in.
 
-However many complete sets a push carries, they finish in a **single** cycle - output scales with the multiplier, time does not - so more cards are the only way to go faster. The assembler has a nine-slot grid, and one batch has to fit into those nine slots at its own stack sizes; a pattern that needs **more than nine slots** is refused - the materials go back to the network and the log names the offending line. For a processor the ceiling is 3 ingredients x 64 per stack = **192×**. One stack of the output reaches the machine per round; the rest is inserted into the network rather than lost.
+However many complete sets a push carries, they finish in a **single** cycle - output scales with the multiplier, time does not - so more cards are the only way to go faster. Two limits bound how many sets a pattern may ask for, and a pattern over either one is refused whole: the materials go back to the network and the log names the offending line.
+
+1. **`processor_assembler_max_runs_per_cycle`** (server config, default 64, range 1-192): the most sets one cycle may process. The default 64 is one full stack of a one-per-craft processor - what the cycle ejects outright, with no surplus sent to the network; lowering it tightens the machine (1 means one set per cycle), raising it widens the batch up to 192, the ceiling the recipes themselves set (the grid holds 576 items; a three-ingredient processor costs three per run). A larger pattern is refused - refused, not partly run.
+2. **The nine-slot grid**: one batch has to fit those nine slots at its own stack sizes. Nine slots of 64 items hold 576 items, which is 192 sets of a three-ingredient processor; anything bigger cannot fit.
+
+Raise the config to process more per cycle, up to 192 - the key will not take more; the nine-slot limit is physical and a config change cannot lift it. One stack of the output reaches the machine per round; the rest is inserted into the network rather than lost.
 
 ## L1 Pattern Provider
 

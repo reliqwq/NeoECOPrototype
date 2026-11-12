@@ -2846,6 +2846,85 @@ public final class NeoECOPrototypeGameTests {
     }
 
     /**
+     * The batch ceiling is a config value, and the control is the same push twice with only the config
+     * changed: a pattern above the cap must be refused with nothing consumed and nothing started, and the
+     * identical pattern must be accepted once the cap covers it. The size is chosen to fit nine slots, so
+     * the ordinary "cannot hold the batch" refusal cannot answer for the first push.
+     */
+    @GameTest(template = "empty", batch = "processor_assembler_batch_cap", timeoutTicks = 100,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void processorAssemblerRefusesPatternsAboveTheConfiguredBatchCap(GameTestHelper helper) {
+        var pos = new BlockPos(0, 1, 0);
+        helper.setBlock(pos, ModRegistration.SIMPLIFY_STONECUTTING_ASSEMBLER_BLOCK.get());
+        if (!(helper.getBlockEntity(pos) instanceof cn.dancingsnow.neoecoprototype
+                .blockentity.crafting.SimplifyStonecuttingAssemblerBlockEntity assembler)) {
+            helper.fail("the assembler did not come into existence");
+            return;
+        }
+        var output = stackOf("ae2:logic_processor");
+        var silicon = AEItemKey.of(stackOf("ae2:silicon"));
+        var redstone = AEItemKey.of(stackOf("minecraft:redstone"));
+        var gold = AEItemKey.of(stackOf("minecraft:gold_ingot"));
+        int runs = 33;
+        var pattern = new HandmadePattern(AEItemKey.of(output),
+                List.of(new HandmadeInput(1, new GenericStack(silicon, runs)),
+                        new HandmadeInput(1, new GenericStack(redstone, runs)),
+                        new HandmadeInput(1, new GenericStack(gold, runs))),
+                List.of(new GenericStack(AEItemKey.of(output), runs)));
+
+        int shippedCap = cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig
+                .processorAssemblerMaxRunsPerCycle();
+        try {
+            cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig
+                    .PROCESSOR_ASSEMBLER_MAX_RUNS_PER_CYCLE.set(runs - 1);
+            KeyCounter[] refused = new KeyCounter[] {new KeyCounter(), new KeyCounter(), new KeyCounter()};
+            refused[0].add(silicon, runs);
+            refused[1].add(redstone, runs);
+            refused[2].add(gold, runs);
+            if (assembler.pushPattern(pattern, refused, net.minecraft.core.Direction.UP)) {
+                helper.fail("a " + runs + "x pattern was accepted with the cap at " + (runs - 1));
+                return;
+            }
+            if (assembler.getCurrentPattern() != null) {
+                helper.fail("the refused push still installed a plan on the machine");
+                return;
+            }
+            if (refused[0].get(silicon) != runs || refused[1].get(redstone) != runs
+                    || refused[2].get(gold) != runs) {
+                helper.fail("refusing a pattern above the cap consumed material: " + refused[0].get(silicon)
+                        + "/" + refused[1].get(redstone) + "/" + refused[2].get(gold) + " left of " + runs);
+                return;
+            }
+
+            // The control: same pattern, same machine, only the cap moves.
+            cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig
+                    .PROCESSOR_ASSEMBLER_MAX_RUNS_PER_CYCLE.set(runs);
+            KeyCounter[] accepted = new KeyCounter[] {new KeyCounter(), new KeyCounter(), new KeyCounter()};
+            accepted[0].add(silicon, runs);
+            accepted[1].add(redstone, runs);
+            accepted[2].add(gold, runs);
+            if (!assembler.pushPattern(pattern, accepted, net.minecraft.core.Direction.UP)) {
+                helper.fail("the same " + runs + "x pattern was refused with the cap raised to " + runs
+                        + ", so the refusal above is not the cap");
+                return;
+            }
+            if (assembler.getCurrentPattern() == null) {
+                helper.fail("the accepted push did not install a plan on the machine");
+                return;
+            }
+            if (accepted[0].get(silicon) != 0 || accepted[1].get(redstone) != 0
+                    || accepted[2].get(gold) != 0) {
+                helper.fail("the accepted push consumed only part of what it was handed");
+                return;
+            }
+        } finally {
+            cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig
+                    .PROCESSOR_ASSEMBLER_MAX_RUNS_PER_CYCLE.set(shippedCap);
+        }
+        helper.succeed();
+    }
+
+    /**
      * A provider's terminal group is the machine it pushes to, and AE2 names that machine from two inputs
      * only: {@code Nameable.getName()} when the block entity has one, otherwise the display name of the
      * block's own item. This guard reads exactly those two inputs on both machines, so the load-bearing half

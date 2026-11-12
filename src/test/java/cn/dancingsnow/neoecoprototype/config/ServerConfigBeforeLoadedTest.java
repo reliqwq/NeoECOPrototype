@@ -79,6 +79,26 @@ class ServerConfigBeforeLoadedTest {
     }
 
     /**
+     * The assembler's per-cycle batch ceiling ships at 64 runs: one full stack of a one-per-craft
+     * processor, which is exactly what a single cycle ejects without routing anything into the network.
+     * A pack that wants the wider batch raises it, up to the recipes' own ceiling of 192 runs; one that
+     * wants the machine stricter turns it down, as far as one run.
+     */
+    @Test
+    void theAssemblerBatchCeilingShipsAtOneOutputStack() {
+        assertEquals(64, NeoECOPrototypeServerConfig.PROCESSOR_ASSEMBLER_MAX_RUNS_PER_CYCLE_DEFAULT,
+                "the ceiling ships at 64 runs - one full stack of a one-per-craft processor");
+        assertEquals(192, NeoECOPrototypeServerConfig.PROCESSOR_ASSEMBLER_MAX_RUNS_PER_CYCLE_LIMIT,
+                "the range top is what the recipes themselves allow: 576 items in the grid / 3 per run");
+        assertTrue(NeoECOPrototypeServerConfig.PROCESSOR_ASSEMBLER_MAX_RUNS_PER_CYCLE_DEFAULT
+                        <= NeoECOPrototypeServerConfig.PROCESSOR_ASSEMBLER_MAX_RUNS_PER_CYCLE_LIMIT,
+                "the shipped default has to sit inside the range the key accepts");
+        assertEquals(NeoECOPrototypeServerConfig.PROCESSOR_ASSEMBLER_MAX_RUNS_PER_CYCLE_DEFAULT,
+                NeoECOPrototypeServerConfig.PROCESSOR_ASSEMBLER_MAX_RUNS_PER_CYCLE.getDefault(),
+                "the key's own default has to match the constant the jar ships with");
+    }
+
+    /**
      * The textual half of the fix: a client-reachable file must not read a raw value. Scanning the source
      * rather than the bytecode because the property is "which file is this line in", and the read is legal
      * the moment the enclosing method takes a ServerLevel.

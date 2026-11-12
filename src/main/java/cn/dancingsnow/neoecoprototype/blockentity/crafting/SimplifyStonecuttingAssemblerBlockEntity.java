@@ -58,14 +58,36 @@ public class SimplifyStonecuttingAssemblerBlockEntity extends MolecularAssembler
             return false;
         }
         var plan = new ProcessorAssemblyPattern(pattern, recipe, this::deliverSurplus);
-        // Filling the grid throws when the batch cannot be held, and a throw here rides straight out of
-        // AE2's grid tick and crashes the world -- so the fit is asked about first and refused quietly.
-        if (plan.fittingRuns(inputs) <= 0) {
-            logRefusal(pattern, "一批原料摆不进 9 格工作台，或者一次产出装不下一组");
+        String refusal = refusalReason(plan, inputs);
+        if (refusal != null) {
+            logRefusal(pattern, refusal);
             return false;
         }
         refusedOutput = null;
         return super.pushPattern(plan, inputs, direction);
+    }
+
+    /**
+     * Why this plan cannot run here right now, or null when it can. Asked before AE2 sees the plan:
+     * filling the grid throws when the push cannot be consumed whole, and a throw here rides straight
+     * out of AE2's grid tick and crashes the world, so both limits are checked and refused quietly.
+     *
+     * <p>The batch ceiling comes first because it is the one a player can raise: a pattern that is a
+     * real recipe and still above {@code processor_assembler_max_runs_per_cycle} has to say so, or the
+     * refusal reads as "this recipe does not exist".
+     */
+    @Nullable
+    public String refusalReason(ProcessorAssemblyPattern plan, KeyCounter[] inputs) {
+        long runs = plan.requestedRuns();
+        int cap = NeoECOPrototypeServerConfig.processorAssemblerMaxRunsPerCycle();
+        if (runs > cap) {
+            return "样板一次要 " + runs + " 份，超过本机每周期上限 " + cap
+                    + " 份（服务端配置 processor_assembler_max_runs_per_cycle）";
+        }
+        if (plan.fittingRuns(inputs) <= 0) {
+            return "一批原料摆不进 9 格工作台，或者一次产出装不下一组";
+        }
+        return null;
     }
 
     /**
