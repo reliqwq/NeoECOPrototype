@@ -82,7 +82,7 @@ public class InfiniteMatrixBuilder extends ItemBuilder {
     @Info("绑定到指定物品：该物品可无限存入与取出（如 minecraft:glass）")
     public InfiniteMatrixBuilder itemType(ResourceLocation id) {
         this.matrixType = StorageMatrixDefinition.MatrixType.ITEM;
-        this.record = new TraceableSupplier(id.toString(),
+        this.record = new TraceableSupplier(this.id.toString(), id.toString(),
                 () -> AEItemKey.of(BuiltInRegistries.ITEM.get(id)));
         return this;
     }
@@ -90,7 +90,7 @@ public class InfiniteMatrixBuilder extends ItemBuilder {
     @Info("绑定到指定流体：该流体可无限存入与取出（如 minecraft:water）")
     public InfiniteMatrixBuilder fluidType(ResourceLocation id) {
         this.matrixType = StorageMatrixDefinition.MatrixType.FLUID;
-        this.record = new TraceableSupplier(id.toString(),
+        this.record = new TraceableSupplier(this.id.toString(), id.toString(),
                 () -> AEFluidKey.of(BuiltInRegistries.FLUID.get(id)));
         return this;
     }
@@ -168,15 +168,15 @@ public class InfiniteMatrixBuilder extends ItemBuilder {
      * 延迟解析：脚本注册时其他模组内容可能尚未入册，首次使用时再求值并给出
      * 可读的报错。
      */
-    record TraceableSupplier(String err, Supplier<AEKey> supplier) implements Supplier<AEKey> {
+    record TraceableSupplier(String owner, String err, Supplier<AEKey> supplier) implements Supplier<AEKey> {
 
         @Override
         public AEKey get() {
             var key = this.supplier.get();
             if (key == null) {
-                throw new NullPointerException(
-                        "Invalid custom infinite storage matrix, check your KubeJS script. Type: %s."
-                                .formatted(this.err));
+                throw new IllegalStateException(("Custom infinite storage matrix '%s' names '%s', which is"
+                        + " not registered; check your KubeJS startup script (is the mod that adds it installed?)")
+                        .formatted(this.owner, this.err));
             }
             return key;
         }

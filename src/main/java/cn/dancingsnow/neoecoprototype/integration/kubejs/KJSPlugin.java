@@ -36,6 +36,7 @@ public class KJSPlugin implements KubeJSPlugin {
                     // behind their own classes (ChemicalMatrixSupport, OmniMatrixSupport), so naming the
                     // builder no longer pulls Mekanism or Omni Cells into a pack that lacks them.
                     r.add("storage_matrix", StorageMatrixBuilder.class, StorageMatrixBuilder::new);
+                    r.add("eco_supply_cell", EcoSupplyCellBuilder.class, EcoSupplyCellBuilder::new);
                 }
         );
     }

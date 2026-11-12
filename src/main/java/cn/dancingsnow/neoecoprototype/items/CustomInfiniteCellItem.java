@@ -9,6 +9,7 @@ import appeng.util.ConfigInventory;
 import appeng.util.InteractionUtil;
 import cn.dancingsnow.neoecoae.api.storage.ECOCellType;
 import cn.dancingsnow.neoecoae.api.storage.IBasicECOCellItem;
+import cn.dancingsnow.neoecoprototype.NeoECOPrototype;
 import cn.dancingsnow.neoecoprototype.api.SimplifyTier;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
@@ -63,6 +64,7 @@ public final class CustomInfiniteCellItem extends Item implements IBasicECOCellI
     private final Supplier<ECOCellType> cellType;
     @Nullable
     private final ResourceLocation driveModel;
+    private boolean failureLogged;
 
     public CustomInfiniteCellItem(Properties properties, Supplier<AEKey> record,
                                   @Nullable ResourceLocation driveModel) {
@@ -80,13 +82,31 @@ public final class CustomInfiniteCellItem extends Item implements IBasicECOCellI
 
     /** @return the bound key; resolves lazily and fails with a script-readable message. */
     public AEKey getRecord() {
-        AEKey key = this.record.get();
+        AEKey key;
+        try {
+            key = this.record.get();
+        } catch (RuntimeException failure) {
+            // The binder names the missing id in its own sentence; this names the script item.
+            logResolutionFailure(failure);
+            throw failure;
+        }
         if (key == null) {
-            throw new IllegalStateException(
+            IllegalStateException failure = new IllegalStateException(
                     "Invalid custom infinite storage matrix, check your KubeJS script. Item: "
                             + BuiltInRegistries.ITEM.getKey(this));
+            logResolutionFailure(failure);
+            throw failure;
         }
         return key;
+    }
+
+    /** One line per broken matrix: callers ask every tick, and the stack is only useful the first time. */
+    private void logResolutionFailure(Throwable failure) {
+        if (!this.failureLogged) {
+            this.failureLogged = true;
+            NeoECOPrototype.LOGGER.error("Custom infinite storage matrix '" + BuiltInRegistries.ITEM.getKey(this)
+                    + "' cannot resolve its bound id", failure);
+        }
     }
 
     /** Drive-render model override from the script, or null for the default item cell model. */

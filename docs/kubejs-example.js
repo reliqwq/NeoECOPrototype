@@ -108,6 +108,28 @@ StartupEvents.registry('item', event => {
     .chemicalType('mekanism:hydrogen')
     .grows(1, 1200)
     .displayName('氢气自产矩阵 | 每 1200 刻 1')
+
+  // ---------- 8. 跑在 eco 引擎上的无限供给矩阵 ----------
+  // 和上面两只无限矩阵不是一个引擎：这只用的是 eco 自己的无限基础资源存储矩阵
+  // （ECOInfiniteResourceCell），绑定的键由 ME 网络直接无限抽取，推进来的
+  // 同类资源被直接销毁，别的键一律不收。
+  // 至少绑一个键；supplies / suppliesFluid 可以写任意多个，顺序就是 tooltip 的顺序。
+  event.create('infinite_base_resources', 'neoecoprototype:eco_supply_cell')
+    .suppliesFluid('minecraft:water')
+    .supplies('minecraft:cobblestone')
+    .suppliesFluid('minecraft:lava')
+    .displayName('无限基础资源矩阵')
+
+  // 档位是 eco 的 l4 / l6 / l9（默认 l9），决定每类型成本与待机耗电。
+  event.create('infinite_certus', 'neoecoprototype:eco_supply_cell')
+    .supplies('ae2:certus_quartz_crystal')
+    .tier('l4')
+    .displayName('无限赛特斯石英矩阵')
+
+  // 高级用法：绑既不是物品也不是流体的键（魔源、能量这类）。
+  // 这类键裸 id 造不出来，键对象要脚本自己从那个模组的 API 取，所以这里只写形状：
+  //   .suppliesKey(() => <那个模组给的键对象>)
+  // 三种绑法可以混用，顺序就是 tooltip 的顺序；引擎对它们一视同仁。
 })
 
 // -----------------------------------------------------------------------------
