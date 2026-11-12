@@ -1302,6 +1302,63 @@ public final class NeoECOPrototypeGameTests {
     }
 
     /**
+     * AE2 Lightning Tech's overload processor, made by our assembler. This is the reason lightning is on the
+     * dev runtime at all: {@code recipe_files_all_load} deliberately skips every recipe carrying
+     * {@code neoforge:conditions}, so a gated recipe - the whole shape of a crossover recipe - had no code
+     * face before 2026-11-12, and the file could be deleted or mistyped without anything noticing.
+     *
+     * <p>Both branches assert. With ae2lt loaded the recipe has to reach the manager, match the three
+     * materials the file names and hand back exactly one overload processor; without it the recipe has to be
+     * absent, which is what makes the gate meaningful rather than decorative. The loaded branch is the one
+     * that runs by default now; the absent branch is a control run with the two lightning
+     * {@code runtimeOnly} lines commented out.</p>
+     */
+    @GameTest(template = "empty", batch = "lightning_processor_recipe", timeoutTicks = 200,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void assemblerServesLightningsOverloadProcessor(GameTestHelper helper) {
+        var recipeId = NeoECOPrototype.id("processor_assembler/overload_processor");
+        var found = helper.getLevel().getRecipeManager().byKey(recipeId);
+        if (!ModList.get().isLoaded("ae2lt")) {
+            helper.assertTrue(found.isEmpty(), "the overload processor recipe loaded although ae2lt is not"
+                    + " installed, so the mod_loaded gate is not what drops it: " + recipeId);
+            helper.succeed();
+            return;
+        }
+        helper.assertTrue(found.isPresent(), "ae2lt is loaded but our assembler's recipe for its overload"
+                + " processor did not reach the recipe manager: " + recipeId);
+        var recipe = found.orElseThrow().value();
+        helper.assertTrue(recipe instanceof cn.dancingsnow.neoecoprototype.recipe.ProcessorAssemblerRecipe,
+                "the overload processor must be crafted by our assembler, not by a copy of some other"
+                        + " recipe type: " + recipe.getClass().getName());
+        var assembled = (cn.dancingsnow.neoecoprototype.recipe.ProcessorAssemblerRecipe) recipe;
+        var circuitBoard = net.minecraft.core.registries.BuiltInRegistries.ITEM
+                .getKey(net.minecraft.core.registries.BuiltInRegistries.ITEM.get(
+                        ResourceLocation.fromNamespaceAndPath("ae2lt", "overload_circuit_board")));
+        var processor = net.minecraft.core.registries.BuiltInRegistries.ITEM.get(
+                ResourceLocation.fromNamespaceAndPath("ae2lt", "overload_processor"));
+        helper.assertTrue(processor != net.minecraft.world.item.Items.AIR,
+                "ae2lt is loaded but ae2lt:overload_processor is not a registered item, so the recipe's"
+                        + " output would be air");
+        // Matched through the recipe's own one-to-one helper rather than a CraftingInput: an assembler job
+        // is inserted in any order, and that unordered matching is the half a player can trip over.
+        var stack = new ItemStack[]{
+                new ItemStack(net.minecraft.core.registries.BuiltInRegistries.ITEM
+                        .get(ResourceLocation.fromNamespaceAndPath("ae2lt", "overload_circuit_board"))),
+                new ItemStack(Items.REDSTONE),
+                new ItemStack(net.minecraft.core.registries.BuiltInRegistries.ITEM
+                        .get(ResourceLocation.fromNamespaceAndPath("ae2", "silicon")))};
+        helper.assertTrue(assembled.matches(stack),
+                "the assembler's overload recipe does not match circuit board + redstone + silicon"
+                        + " (board id " + circuitBoard + ")");
+        var output = recipe.getResultItem(helper.getLevel().registryAccess());
+        helper.assertTrue(output.is(processor) && output.getCount() == 1,
+                "the overload recipe must hand back exactly one ae2lt:overload_processor, got " + output);
+        NeoECOPrototype.LOGGER.info("lightning processor recipe: board={} matches=1 out={}", circuitBoard,
+                output.getItem());
+        helper.succeed();
+    }
+
+    /**
      * The mod's first food, both halves. The recipe side asserts the four ingredients he named - glass bottle,
      * sugar, eco's cryotheum powder, snowball - as a set, one-to-one, because {@code recipe_files_all_load}
      * only proves a file reached the manager: a typo that still names a real item (a second snowball, or
@@ -10871,32 +10928,40 @@ public final class NeoECOPrototypeGameTests {
      * interfaces, while ae2lt is only declared optional. The re-uploaded 21.2.10 moved that reference into
      * {@code $LightningBorrowing} behind {@code loaded("ae2lt")}, which is the same shape this repo's §4.2
      * requires. Nothing here builds an L4 machine: the scan is the unit, and it runs on every server that
-     * has an AE2 grid, so calling it with lightning absent is the whole test.
+     * has an AE2 grid.
+     *
+     * <p>It used to fail outright when ae2lt was loaded, because that was the only way to keep it from
+     * quietly reading the wrong case. ae2lt is on the dev runtime since 2026-11-12 (build.gradle names the
+     * two jars), so the assertion is now "the scan works in whichever environment this is running in" and
+     * the branch that is actually being measured gets logged. The no-lightning half is still the more
+     * interesting one, and it is covered by a control run rather than by default: comment out the two
+     * {@code runtimeOnly} lightning lines, delete run-gametest/world, run once - the log has to say
+     * "ae2lt absent" and the scan still has to answer with a non-empty table.
      */
     @GameTest(template = "empty", batch = "large_station_scan", timeoutTicks = 100,
             templateNamespace = NeoECOPrototype.MOD_ID)
-    public static void largeWorkstationScanSurvivesWithoutLightning(GameTestHelper helper) {
-        if (ModList.get().isLoaded("ae2lt")) {
-            helper.fail("ae2lt is loaded in this run, so this scan would not be reading the no-lightning case");
-            return;
-        }
+    public static void largeWorkstationScanSurvivesEitherWay(GameTestHelper helper) {
+        boolean lightning = ModList.get().isLoaded("ae2lt");
         java.util.List<cn.dancingsnow.neoecoae.recipe.LargeWorkstationRecipe> recipes;
         try {
             recipes = cn.dancingsnow.neoecoae.recipe.LargeWorkstationRecipes.getAll(helper.getLevel());
         } catch (Throwable thrown) {
-            helper.fail("the scan reached for lightning although ae2lt is not installed: " + thrown);
+            helper.fail("the scan threw with ae2lt " + (lightning ? "loaded" : "absent") + ": " + thrown);
             return;
         }
         if (recipes == null) {
-            helper.fail("eco's large-workstation scan returned null with no lightning mod, where an empty"
-                    + " list is the answer");
+            helper.fail("eco's large-workstation scan returned null with ae2lt "
+                    + (lightning ? "loaded" : "absent") + ", where an empty list is the answer");
             return;
         }
         if (recipes.isEmpty()) {
-            helper.fail("the scan answered with no recipe at all, so this run is not reading eco's real"
-                    + " table and the check above would pass on an empty list anyway");
+            helper.fail("the scan answered with no recipe at all (ae2lt " + (lightning ? "loaded" : "absent")
+                    + "), so this run is not reading eco's real table and the check above would pass on an"
+                    + " empty list anyway");
             return;
         }
+        NeoECOPrototype.LOGGER.info("large workstation scan: ae2lt {} -> {} recipes",
+                lightning ? "loaded" : "absent", recipes.size());
         helper.succeed();
     }
 

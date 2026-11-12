@@ -290,6 +290,20 @@ dependencies {
     // 少一件就是启动期依赖报错：① 把下面这行 runtimeOnly 恢复；② ae2 与 ldlib2 的 runtimeOnly 回到
     // 19.2.18 / 2.2.44；③ run/mods 里那颗 jar 的 .disabled 后缀去掉（已改名，不是删除）。
     compileOnly files("libs/data_energistics-1.21.1-3.4.0.jar")
+    // 可选联动：AE2 Lightning Tech（闪电科技，modId ae2lt，LGPL-3.0）与它自己的前置 thunderbolt（LGPL）。
+    // 只上运行期，不上编译期：我们这边 0 处 Java 引用，唯一点名 ae2lt 的是配方 JSON
+    // （data/neoecoprototype/recipe/processor_assembler/overload_processor.json 里的
+    // ae2lt:overload_circuit_board 与 ae2lt:overload_processor，各自带 mod_loaded = ae2lt 条件）。
+    // 这两颗 jar 进运行期的意义就是给那条配方一个真的加载环境：没有它们，任何 dev 环境里那条配方都是
+    // 静默丢弃，"我们的处理器装配室能不能做闪电的过载处理器"这一面套件永远看不见。
+    // 它自己 required（2.1.4-beta3 现量）：neoforge [21.1.220,) + minecraft [1.21.1,1.22) +
+    // ae2 [19.2.17,19.3) + ae2wtlib_api + thunderbolt [2.0.3,3.0.0)；ae2wtlib_api 由 run/mods 与
+    // run-gametest/mods 里那颗 ae2wtlib-19.5.1 提供，所以不重复声明。2.1.4-beta3 一个 ldlib2 依赖都不写
+    // （旧 2.1.2-beta4 要 [2.2.42,3.0.0)，那颗仍留在 libs/ 里只做对照），因此这里不需要抬 LDLib2。
+    // run/mods 里原先手放的两颗副本已改 .disabled：同一颗 mod 从 classpath 和 run/mods 各来一份会让 FML
+    // 在启动期报重复，恢复它们之前先把上面这两行去掉。
+    runtimeOnly files("libs/ae2lt-2.1.4-beta3.jar")
+    runtimeOnly files("libs/thunderbolt-2.0.3.jar")
     // Optional OmniCells API is needed by the eco-native Omni adapter.
     compileOnly files("libs/ae2omnicells-1.1.6.jar")
     compileOnly files("libs/Registrate-MC1.21.1-1.4.8.jar")
