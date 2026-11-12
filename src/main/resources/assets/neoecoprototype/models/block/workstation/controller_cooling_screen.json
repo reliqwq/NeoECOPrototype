@@ -1,0 +1,29 @@
+{
+  "format_version": "1.9.0",
+  "parent": "block/block",
+  "render_type": "cutout",
+  "texture_size": [128, 128],
+  "textures": {
+    "cooling_screen": "neoecoprototype:block/workstation/cooling_controller/screen_on",
+    "particle": "neoecoprototype:block/workstation/controller_particle"
+  },
+  "elements": [
+    {
+      "name": "cooling_screen",
+      "from": [3, 3, 32],
+      "to": [13, 13, 32],
+      "shade": false,
+      "faces": {
+        "south": {
+          "uv": [3, 3, 13, 13],
+          "texture": "#cooling_screen",
+          "neoforge_data": {
+            "block_light": 15,
+            "sky_light": 15,
+            "ambient_occlusion": false
+          }
+        }
+      }
+    }
+  ]
+}

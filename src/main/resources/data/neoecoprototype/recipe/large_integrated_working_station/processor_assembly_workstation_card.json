@@ -2,6 +2,10 @@
   "type": "neoecoae:large_integrated_working_station",
   "inputItems": [
     {
+      "count": 1,
+      "item": "neoecoae:integrated_working_station_module_empty"
+    },
+    {
       "count": 8,
       "item": "neoecoprototype:simplify_stonecutting_assembler"
     },

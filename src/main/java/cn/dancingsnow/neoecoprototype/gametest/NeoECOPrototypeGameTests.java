@@ -6552,6 +6552,71 @@ public final class NeoECOPrototypeGameTests {
         helper.succeed();
     }
 
+    @GameTest(template = "empty", batch = "ae2_to_l1_provider_card", templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void ae2PatternProviderCardConvertsBlockToL1(GameTestHelper helper) {
+        String problem = AddonProviderConversionTestProbe.checkAe2PatternProviderBecomesL1(helper);
+        if (problem != null) {
+            helper.fail(problem);
+            return;
+        }
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty", batch = "ae2_to_l1_provider_card", templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void ae2InterfaceCardsConvertBlockToBothL1Kinds(GameTestHelper helper) {
+        String powered = AddonProviderConversionTestProbe.checkAe2InterfaceBecomesL1(helper, false);
+        if (powered != null) {
+            helper.fail("powered interface card: " + powered);
+            return;
+        }
+        String superconductive = AddonProviderConversionTestProbe.checkAe2InterfaceBecomesL1(helper, true);
+        if (superconductive != null) {
+            helper.fail("superconductive interface card: " + superconductive);
+            return;
+        }
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty", batch = "ae2_to_l1_provider_card", templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void ae2CablePartsConvertToL1Parts(GameTestHelper helper) {
+        String problem = AddonProviderConversionTestProbe.checkAe2PartsBecomeL1(helper);
+        if (problem != null) {
+            helper.fail(problem);
+            return;
+        }
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty", batch = "provider_conversion_extendedae", required = false,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void extendedAeUpgradePreservesL1ProviderData(GameTestHelper helper) {
+        if (!ModList.get().isLoaded("extendedae")) {
+            helper.succeed();
+            return;
+        }
+        String problem = AddonProviderConversionTestProbe.checkExtendedPatternProvider(helper);
+        if (problem != null) {
+            helper.fail(problem);
+            return;
+        }
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty", batch = "provider_conversion_advancedae", required = false,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void advancedAeUpgradePreservesL1ProviderData(GameTestHelper helper) {
+        if (!ModList.get().isLoaded("advanced_ae")) {
+            helper.succeed();
+            return;
+        }
+        String problem = AddonProviderConversionTestProbe.checkAdvancedPatternProvider(helper);
+        if (problem != null) {
+            helper.fail(problem);
+            return;
+        }
+        helper.succeed();
+    }
+
     /**
      * The energized core is sold as "exactly one, directly behind the host". The geometry enforces it by
      * allotting a single cell, so nothing has to be counted afterwards. These tests each build the
@@ -13386,6 +13451,7 @@ public final class NeoECOPrototypeGameTests {
             return;
         }
         var expectedInputs = new java.util.TreeMap<String, Integer>();
+        expectedInputs.put("neoecoae:integrated_working_station_module_empty", 1);
         expectedInputs.put("neoecoprototype:simplify_stonecutting_assembler", 8);
         expectedInputs.put("neoecoprototype:energized_computation_core", 1);
         expectedInputs.put("neoecoprototype:simplify_green_crystal_matrix", 32);

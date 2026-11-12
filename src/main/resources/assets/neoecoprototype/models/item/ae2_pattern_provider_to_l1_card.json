@@ -1,0 +1,6 @@
+{
+  "parent": "minecraft:item/generated",
+  "textures": {
+    "layer0": "neoecoprototype:item/ae2_pattern_provider_to_l1_card"
+  }
+}

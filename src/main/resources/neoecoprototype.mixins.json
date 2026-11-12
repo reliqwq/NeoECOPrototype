@@ -4,13 +4,16 @@
   "package": "cn.dancingsnow.neoecoprototype.mixin",
   "compatibilityLevel": "JAVA_21",
   "mixins": [
+    "AdvancedAEPatternUpgradeMixin",
     "CraftingBlockEntityDollSidesMixin",
     "CraftingCPUCalculatorFamilyMixin",
+    "ExtendedAEPatternUpgradeMixin",
     "ECOClientUIBridgeMixin",
     "EnergyServiceRequesterReAddMixin",
     "InterfaceLogicAccess"
   ],
   "client": [
+    "ComputationCpuStatusTierGlyphMixin",
     "FixedBlockEntityRenderersMixin",
     "SlotYAccessor"
   ],

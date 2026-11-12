@@ -1,0 +1,12 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    { "item": "neoecoprototype:simplify_powered_me_interface" },
+    { "tag": "c:ingots" }
+  ],
+  "result": {
+    "count": 1,
+    "id": "neoecoprototype:ae2_interface_to_l1_powered_card"
+  }
+}

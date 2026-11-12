@@ -405,13 +405,21 @@ Beyond 适配器仍使用原有 handler 和注册路径，避免改变现有存�
 全部取自 eco 的档位，只有「锁哪几个键」由脚本给。绑定的键由 ME 网络直接无限抽取；
 推进来的同类资源被直接销毁；别的键一律不收。
 
+需要 Mekanism 与 Applied Mekanistics。这个示例直接加载化学品 API 并注册，不做模组存在性或化学品存在性判断：
+
 ```js
+const MekanismAPI = Java.loadClass('mekanism.api.MekanismAPI')
+const ChemicalStack = Java.loadClass('mekanism.api.chemical.ChemicalStack')
+const MekanismKey = Java.loadClass('me.ramidzkh.mekae2.ae2.MekanismKey')
+const ResourceLocation = Java.loadClass('net.minecraft.resources.ResourceLocation')
+
 StartupEvents.registry('item', event => {
-  event.create('infinite_base_resources', 'neoecoprototype:eco_supply_cell')
-       .suppliesFluid('minecraft:water')
-       .supplies('minecraft:cobblestone')
-       .suppliesFluid('minecraft:lava')
-       .displayName('无限基础资源矩阵')
+  event.create('base_resources', 'neoecoprototype:eco_supply_cell')
+    .supplies('minecraft:redstone')
+    .suppliesFluid('minecraft:milk')
+    .suppliesKey(() => MekanismKey.of(new ChemicalStack(
+      MekanismAPI.CHEMICAL_REGISTRY.get(ResourceLocation.parse('mekanism:antimatter')), 1)))
+    .displayName('基础资源无限供给矩阵')
 })
 ```
 

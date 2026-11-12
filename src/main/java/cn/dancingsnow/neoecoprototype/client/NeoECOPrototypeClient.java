@@ -7,6 +7,7 @@ import appeng.menu.implementations.InterfaceMenu;
 import appeng.menu.implementations.PatternProviderMenu;
 import appeng.client.render.crafting.MolecularAssemblerRenderer;
 import cn.dancingsnow.neoecoae.api.ECOCellModels;
+import cn.dancingsnow.neoecoae.blocks.ECOIntegratedWorkingStation;
 import cn.dancingsnow.neoecoae.api.ECOComputationModels;
 import cn.dancingsnow.neoecoae.client.rendering.FixedBlockEntityRenderers;
 import cn.dancingsnow.neoecoprototype.integration.kubejs.InfiniteMatrixClientModels;
@@ -18,6 +19,7 @@ import cn.dancingsnow.neoecoprototype.client.renderer.blockentity.SimplifyCoolin
 import cn.dancingsnow.neoecoprototype.client.renderer.blockentity.SimplifyDriveRenderer;
 import cn.dancingsnow.neoecoprototype.menu.ProcessorAssemblerMenu;
 import cn.dancingsnow.neoecoprototype.registration.ModRegistration;
+import cn.dancingsnow.neoecoprototype.registration.ProcessorAssemblyWorkstationSupport;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.resources.model.ModelResourceLocation;
 import net.minecraft.core.BlockPos;
@@ -32,6 +34,7 @@ import net.minecraft.server.packs.resources.ResourceManagerReloadListener;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.api.distmarker.Dist;
+import net.neoforged.bus.api.EventPriority;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.ModList;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -290,6 +293,15 @@ public final class NeoECOPrototypeClient {
                         ? new SimplifyCoolingControllerBakedModel(model) : model);
     }
 
+    @SubscribeEvent(priority = EventPriority.LOWEST)
+    public static void onWrapSmartCoolingWorkstationModels(ModelEvent.ModifyBakingResult event) {
+        event.getModels().replaceAll((location, model) ->
+                location.id().equals(ResourceLocation.fromNamespaceAndPath("neoecoae", "integrated_working_station"))
+                        && location.variant().contains("formed=true")
+                        && location.variant().contains("smart_cooling=true")
+                        ? new WorkstationSmartCoolingBakedModel(model) : model);
+    }
+
     @SubscribeEvent
     public static void onRegisterAdditionalModels(ModelEvent.RegisterAdditional event) {
         event.register(ModelResourceLocation.standalone(ResourceLocation.fromNamespaceAndPath(
@@ -300,6 +312,12 @@ public final class NeoECOPrototypeClient {
                 NeoECOPrototype.MOD_ID, "block/computation_cable/cable_l1r")));
         event.register(ModelResourceLocation.standalone(ResourceLocation.fromNamespaceAndPath(
                 NeoECOPrototype.MOD_ID, "block/computation_cable/cable_l1r_dis")));
+        event.register(ModelResourceLocation.standalone(ResourceLocation.fromNamespaceAndPath(
+                NeoECOPrototype.MOD_ID, "block/workstation/controller_on_smart")));
+        event.register(ModelResourceLocation.standalone(ResourceLocation.fromNamespaceAndPath(
+                NeoECOPrototype.MOD_ID, "block/workstation/controller_off_smart")));
+        event.register(ModelResourceLocation.standalone(ResourceLocation.fromNamespaceAndPath(
+                NeoECOPrototype.MOD_ID, "block/workstation/controller_cooling_screen")));
         event.register(ModelResourceLocation.standalone(ResourceLocation.fromNamespaceAndPath(
                 NeoECOPrototype.MOD_ID, "block/computation_cell/cell_l4")));
         event.register(ModelResourceLocation.standalone(ResourceLocation.fromNamespaceAndPath(

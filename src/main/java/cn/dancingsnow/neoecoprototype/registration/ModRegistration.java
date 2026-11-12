@@ -100,6 +100,7 @@ import cn.dancingsnow.neoecoprototype.items.SimplifyConcreteStorageCellItem;
 import cn.dancingsnow.neoecoprototype.items.SimplifySingularityCellItem;
 import cn.dancingsnow.neoecoprototype.items.SimplifyMigrationDriveItem;
 import cn.dancingsnow.neoecoprototype.items.SimplifyStructureExpansionCardItem;
+import cn.dancingsnow.neoecoprototype.items.Ae2ToL1UpgradeCardItem;
 import cn.dancingsnow.neoecoprototype.items.BackupDriveItem;
 import cn.dancingsnow.neoecoprototype.items.SimplifyStorageCellItem;
 import cn.dancingsnow.neoecoprototype.items.SimplifySmallBulkFluidStorageCellItem;
@@ -1113,6 +1114,29 @@ public class ModRegistration {
             ITEMS.register("processor_assembly_workstation_card",
                     () -> new Item(l1Name("processor_assembly_workstation_card").stacksTo(1)));
 
+    public static final Supplier<Item> AE2_PATTERN_PROVIDER_TO_L1_CARD = ITEMS.register(
+            "ae2_pattern_provider_to_l1_card", () -> new Ae2ToL1UpgradeCardItem(
+                    l1Name("ae2_pattern_provider_to_l1_card"),
+                    appeng.blockentity.crafting.PatternProviderBlockEntity.class,
+                    appeng.parts.crafting.PatternProviderPart.class,
+                    () -> ModRegistration.SIMPLIFY_PATTERN_PROVIDER_BLOCK.get(),
+                    () -> ModRegistration.SIMPLIFY_PATTERN_PROVIDER_BE.get(),
+                    () -> ModRegistration.CABLE_PATTERN_PROVIDER_PART.get()));
+    public static final Supplier<Item> AE2_INTERFACE_TO_L1_POWERED_CARD = ITEMS.register(
+            "ae2_interface_to_l1_powered_card", () -> new Ae2ToL1UpgradeCardItem(
+                    l1Name("ae2_interface_to_l1_powered_card"),
+                    appeng.blockentity.misc.InterfaceBlockEntity.class, appeng.parts.misc.InterfacePart.class,
+                    () -> ModRegistration.SIMPLIFY_POWERED_ME_INTERFACE_BLOCK.get(),
+                    () -> ModRegistration.SIMPLIFY_POWERED_ME_INTERFACE_BE.get(),
+                    () -> ModRegistration.POWERED_INTERFACE_PART.get()));
+    public static final Supplier<Item> AE2_INTERFACE_TO_L1_SUPERCONDUCTIVE_CARD = ITEMS.register(
+            "ae2_interface_to_l1_superconductive_card", () -> new Ae2ToL1UpgradeCardItem(
+                    l1Name("ae2_interface_to_l1_superconductive_card"),
+                    appeng.blockentity.misc.InterfaceBlockEntity.class, appeng.parts.misc.InterfacePart.class,
+                    () -> ModRegistration.SUPERCONDUCTIVE_INTERFACE_BLOCK.get(),
+                    () -> ModRegistration.SUPERCONDUCTIVE_INTERFACE_BE.get(),
+                    () -> ModRegistration.SUPERCONDUCTIVE_INTERFACE_PART.get()));
+
     /**
      * What a structure card hands over when the blocks it took out of a machine no longer fit in the
      * player's bag: one item instead of ninety loose blocks at the machine's own cells. Right-click it to
@@ -2059,6 +2083,9 @@ private static Supplier<BlockEntityType<SimplifyStorageVentBlockEntity>> registe
                           output.accept(SIMPLIFY_SINGULARITY_CELL.get());
                           output.accept(SIMPLIFY_SKY_STONE_DUST_CELL.get());
                         output.accept(SIMPLIFY_STRUCTURE_EXPANSION_CARD.get());
+                        output.accept(AE2_PATTERN_PROVIDER_TO_L1_CARD.get());
+                        output.accept(AE2_INTERFACE_TO_L1_POWERED_CARD.get());
+                        output.accept(AE2_INTERFACE_TO_L1_SUPERCONDUCTIVE_CARD.get());
                         // This one belongs to eco's machine, not ours: it goes in the large workstation's module
                         // slot. In the tab next to the card above so the two directions of "insert a card" can
                         // be held at once, and it does have a survival recipe.

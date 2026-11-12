@@ -1,0 +1,12 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    { "item": "neoecoprototype:superconductive_interface" },
+    { "tag": "c:ingots" }
+  ],
+  "result": {
+    "count": 1,
+    "id": "neoecoprototype:ae2_interface_to_l1_superconductive_card"
+  }
+}

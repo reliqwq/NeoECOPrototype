@@ -115,6 +115,10 @@ public final class ProcessorAssemblyWorkstationSupport {
      */
     static final ResourceLocation IDLE_MODEL = NeoECOPrototype.id("block/workstation/controller_off");
     static final ResourceLocation WORKING_MODEL = NeoECOPrototype.id("block/workstation/controller_on");
+    public static final ResourceLocation SMART_IDLE_MODEL = NeoECOPrototype.id("block/workstation/controller_off_smart");
+    public static final ResourceLocation SMART_WORKING_MODEL = NeoECOPrototype.id("block/workstation/controller_on_smart");
+    public static final ResourceLocation SMART_COOLING_SCREEN_MODEL =
+            NeoECOPrototype.id("block/workstation/controller_cooling_screen");
 
     /** Called from commonSetup alongside the other eco extension registrations. */
     public static void register() {

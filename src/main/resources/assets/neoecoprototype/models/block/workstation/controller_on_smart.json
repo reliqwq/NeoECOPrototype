@@ -1,0 +1,7 @@
+{
+  "parent": "neoecoprototype:block/workstation/controller_on",
+  "textures": {
+    "body": "neoecoprototype:block/workstation/controller_formed_smart",
+    "screen": "neoecoprototype:block/workstation/controller_screen_on"
+  }
+}
