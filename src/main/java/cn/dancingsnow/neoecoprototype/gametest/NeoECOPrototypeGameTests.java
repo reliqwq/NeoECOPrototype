@@ -16083,6 +16083,7 @@ public final class NeoECOPrototypeGameTests {
                     NeoECOPrototypeServerConfig.MIGRATION_DRIVE_REFUND_BLOCKS.set(true);
                     var wrong = ModRegistration.MIGRATION_DRIVE_6_9.get();
                     var right = ModRegistration.MIGRATION_DRIVE_4_6.get();
+                    var refusalBefore = refusalLedger(helper, player);
 
                     player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(wrong, 1));
                     useCard(helper, player, wrong);
@@ -16095,7 +16096,7 @@ public final class NeoECOPrototypeGameTests {
                         helper.fail("a refused click still changed the host block");
                         return;
                     }
-                    if (billedOnRefusal(helper, player, "an L6 disk on an L4 room")) {
+                    if (billedOnRefusal(helper, player, "an L6 disk on an L4 room", refusalBefore)) {
                         return;
                     }
 
@@ -16196,6 +16197,7 @@ public final class NeoECOPrototypeGameTests {
                     var before = machineSnapshot(helper);
                     var player = cardPlayer(helper);
                     player.setShiftKeyDown(true);
+                    var refusalBefore = refusalLedger(helper, player);
                     // Two of each: one would also survive being eaten, because shrink(1) would leave an
                     // empty hand and the count check would read 0 either way.
                     for (var disk : new net.minecraft.world.item.Item[]{
@@ -16215,7 +16217,8 @@ public final class NeoECOPrototypeGameTests {
                             return;
                         }
                     }
-                    if (billedOnRefusal(helper, player, "a wrong-rung disk on a short machine")) {
+                    if (billedOnRefusal(helper, player, "a wrong-rung disk on a short machine",
+                            refusalBefore)) {
                         return;
                     }
                     var after = machineSnapshot(helper);
@@ -19608,13 +19611,19 @@ public final class NeoECOPrototypeGameTests {
     }
 
     /**
-     * What a refused rung disk may never leave behind. The disk is the whole price, so a refusal has to
-     * come back out whole: no work order, no backup drive to carry one, no printed pattern. The orders are
-     * read off the registry by id rather than a typed list, so a rung added later cannot slip past this.
+     * Everything a refused click is forbidden to leave with the player: no work order, no backup drive to
+     * carry one, no printed pattern. The disk is the whole price, so a refusal has to come back out whole.
+     * The orders are read off the registry by id rather than a typed list, so a rung added later cannot slip
+     * past this.
+     *
+     * <p>Measured as a pair of snapshots, not an absolute count, for the same reason every other
+     * conservation guard here does: the scan box around one L1 room reaches into the neighbouring test's
+     * room, and GameTest drops a finished structure's contents onto the floor - which is how a
+     * {@code expansion_card_carry_bus} teardown came in as "1 printed pattern" billed by a test that never
+     * touched a pattern at all.</p>
      */
-    private static boolean billedOnRefusal(GameTestHelper helper,
-                                           net.minecraft.server.level.ServerPlayer player,
-                                           String what) {
+    private static int[] refusalLedger(GameTestHelper helper,
+                                       net.minecraft.server.level.ServerPlayer player) {
         int orders = 0;
         for (var item : BuiltInRegistries.ITEM) {
             var id = BuiltInRegistries.ITEM.getKey(item);
@@ -19623,8 +19632,18 @@ public final class NeoECOPrototypeGameTests {
                 orders += everywhere(helper, player, item);
             }
         }
-        int bags = bagCount(player);
-        int printed = everywhere(helper, player, AEItems.PROCESSING_PATTERN.asItem());
+        return new int[]{orders, bagCount(player),
+                everywhere(helper, player, AEItems.PROCESSING_PATTERN.asItem())};
+    }
+
+    /** @return true when the click billed the player, after reporting what it billed. */
+    private static boolean billedOnRefusal(GameTestHelper helper,
+                                           net.minecraft.server.level.ServerPlayer player,
+                                           String what, int[] before) {
+        var now = refusalLedger(helper, player);
+        int orders = now[0] - before[0];
+        int bags = now[1] - before[1];
+        int printed = now[2] - before[2];
         if (orders == 0 && bags == 0 && printed == 0) {
             return false;
         }

@@ -91,7 +91,12 @@ public final class AddonProviderConversionTestProbe {
         var player = FakePlayerFactory.get(level, new com.mojang.authlib.GameProfile(UUID.randomUUID(), "l1-part-upgrade"));
         player.setGameMode(GameType.SURVIVAL);
         player.setPos(pos.getX() + 0.5, pos.getY() + 1, pos.getZ() + 0.5);
-        Vec3 hitPos = Vec3.atLowerCornerOf(pos).add(0.5, 0.5, 0.5);
+        // Click inside the face's own region, not the middle of the block. The card asks AE2
+        // selectPartLocal(localHit), and the exact centre belongs to the cable anchor, so a centre hit
+        // selects no part, the card returns PASS, and this test would read "the card does nothing" when
+        // what failed was the fixture. A player never aims there: the click lands on the part's surface.
+        Vec3 hitPos = Vec3.atLowerCornerOf(pos).add(0.5D + 0.25D * side.getStepX(),
+                0.5D + 0.25D * side.getStepY(), 0.5D + 0.25D * side.getStepZ());
         var hit = new BlockHitResult(hitPos, side, pos, false);
         ItemStack cardStack = new ItemStack(card);
         cardStack.getItem().useOn(new net.minecraft.world.item.context.UseOnContext(

@@ -105,8 +105,13 @@ public final class Ae2ToL1UpgradeCardItem extends Item {
         if (replaced == null) {
             return InteractionResult.PASS;
         }
+        // No addToWorld() here. CableBusContainer.replacePart is removePartWithoutUpdates + addPart, and
+        // addPart already calls part.addToWorld() once the host is in the world - that is also the order
+        // AE2's own tag-driven replacement uses (replacePart, then readFromNBT, then nothing). Asking twice
+        // runs ManagedGridNode.create on a node that is already created, which throws
+        // "The node has already been initialized" - on a placed bus at click time, and in a fresh
+        // structure one tick later when CableBusBlockEntity.onReady adds every part itself.
         replaced.readFromNBT(data, context.getLevel().registryAccess());
-        replaced.addToWorld();
         consume(context.getPlayer(), context);
         return InteractionResult.CONSUME;
     }
