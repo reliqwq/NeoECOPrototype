@@ -1,0 +1,12 @@
+{
+  "neoforge:conditions": [
+    { "type": "neoforge:mod_loaded", "modid": "ae2lt" }
+  ],
+  "type": "neoecoprototype:processor_assembler",
+  "ingredients": [
+    { "tag": "c:silicon" },
+    { "item": "minecraft:redstone" },
+    { "item": "ae2lt:overload_crystal" }
+  ],
+  "result": { "id": "ae2lt:overload_processor", "count": 1 }
+}

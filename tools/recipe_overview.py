@@ -27,7 +27,8 @@ GRADLE = Path("build.gradle")
 MC_CLIENT_GLOB = str(Path.home() / ".gradle/caches/neoformruntime/artifacts/minecraft_*_client.jar")
 
 # optional-mod jars are matched by file-name prefix, newest wins if several are present
-OPTIONAL_JARS = ["ae2omnicells", "megacells", "ars_nouveau", "Mekanism", "appflux", "data_energistics"]
+OPTIONAL_JARS = ["ae2omnicells", "megacells", "ars_nouveau", "Mekanism", "appflux", "data_energistics",
+                 "ae2lt"]
 
 # the client jar only ships en_us for vanilla, so every vanilla id used by these recipes gets a zh name
 ZH_VANILLA = {
