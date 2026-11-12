@@ -36,12 +36,12 @@ import org.objectweb.asm.tree.MethodInsnNode;
  * </pre>
  *
  * <p>eco issue #155 is the reason for that last row: we asked for the literal to become the block's own
- * name, they did it, and it shipped in the stable release only. Our run floor is {@code [21.2.15-beta,)},
- * so one addon jar now shows <em>our</em> name to a player on 21.2.15 and <em>eco's</em> to a player still on
- * the beta. That is what the 1.4.6 notes have to say precisely, and it is why the first arm below is a test
- * rather than a comment: an override of {@code createUI} used to be how we bought that title, we deleted it
- * on 2026-10-27 because it was a hand copy of upstream's method body, and if this arm ever reddens the
- * answer is to re-file upstream - not to put the copy back.</p>
+ * name, they did it, and it shipped in the stable release only. That half is behind us now - the floor moved
+ * to {@code [21.2.16,)} on 2026-11-12, so every jar that can load is on one where the input panel is named by
+ * its block, and the 1.4.6 notes' "depends on which eco you have" sentence is history rather than a
+ * description. The first arm below is still a test rather than a comment: an override of {@code createUI}
+ * used to be how we bought that title, we deleted it on 2026-10-27 because it was a hand copy of upstream's
+ * method body, and if this arm ever reddens the answer is to re-file upstream - not to put the copy back.</p>
  */
 final class FluidHatchPanelTitleContractTest {
 

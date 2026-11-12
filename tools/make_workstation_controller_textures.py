@@ -49,6 +49,14 @@ import zipfile
 
 from PIL import Image
 
+# Deliberately NOT the jar build.gradle compiles against: this script reproduces the art that shipped,
+# and eco 21.2.16 re-cut the whole working-station controller family out from under it. The single
+# two-frame strip (`controller_formed_light.png` / `_light_on.png`) and the eight `controller_formed_light_compat/<family>`
+# sheets are gone; the controller now composes static layers (`controller_formed_light_normal.png`, a
+# `colored/normal/controller_formed_light/{dark,light}` pair per family) plus `colored/normal/controller_formed_screen_on/{dark,middle,light}`,
+# which is why its models went 12 -> 14 elements idle and 12 -> 16 working and why `controller_formed.png`
+# lost the two purples (17 -> 14 colours). Run against 21.2.16 this script stops at the first read_png.
+# So the pin is honest, not stale: moving it means re-authoring our module art on the new scheme.
 ECO_JAR = "neoecobeta/neoecoae-21.2.15.jar"
 TEX_DIR = "assets/neoecoae/textures/block/working_station"
 MODEL_DIR = "assets/neoecoae/models/block"

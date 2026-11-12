@@ -22,7 +22,7 @@ from PIL import Image
 
 # Same jar build.gradle compiles against; the sprite rectangles are eco's, read from
 # WorkstationTextures.module/circuit: widget(column*15, 17, 15, 15) and widget(column*28, 34, 28, 28).
-ECO_JAR = "neoecobeta/neoecoae-21.2.15.jar"
+ECO_JAR = "neoecobeta/neoecoae-21.2.16.jar"
 ATLAS = "assets/neoecoae/textures/guis/workstation/integrated_working_station_widget.png"
 # WorkstationTextures.moduleColumn maps OTHER to column 7 (DATA_ENERGISTICS and APPLIED_GENERATORS
 # take 5 and 6), so the atlas order is not the enum order.

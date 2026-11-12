@@ -251,9 +251,13 @@ dependencies {
 // code; #154 opens api/storage/IECOConfigurableCellDrive plus ECOStorageCellPriorities and
 // StorageCellPriorityUI so an addon drive can offer per-cell priorities without inheriting eco's block
 // entity, and it adds Config.withCellActions with a 19-parameter compatibility constructor.
-// The floor stays [21.2.15-beta,) on purpose: the stable jar is not installable yet (the GitHub release has
-// zero assets and Modrinth still lists 21.2.15-beta), so this jar is the CI artifact of the tagged commit.
-    implementation files("neoecobeta/neoecoae-21.2.15.jar")
+// 21.2.16 (released 2026-11-11) is the first PUBLISHED jar that carries eco's #156 interfaces: the panel's
+// configure row reaches the cell workbench through api/storage/IECOConfigurableCellHost and
+// IECOCellWorkbenchDrive, which landed on eco main as fc7b9bd7 and which 21.2.15 does not ship at all
+// (measured: 0 entries). GitHub and Modrinth publish the same bytes (sha256 126ce54c...), and both
+// interfaces carry the same entry CRCs as the main-HEAD CI artifact this work was written against, so the
+// compile baseline and the published floor are the same jar again.
+    implementation files("neoecobeta/neoecoae-21.2.16.jar")
     // MegaCells 4.11.0 is the supported optional integration version.
     implementation files("libs/megacells-4.11.0.jar")
     // Dev-runtime only: keep them off the compile classpath but on the runtime classpath.

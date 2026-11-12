@@ -2,6 +2,8 @@
 
 现量来源：**eco 21.2.15 正式版那颗 jar**（`neoecobeta/neoecoae-21.2.15.jar`，与 reliqwq 从发布渠道下载的 `E:/software E/neoecoae-21.2.15.jar` **逐条目 CRC 全等**：4982 行 name+CRC+length 排序后 diff 0 行，md5 只差 zip 时间戳）+ 我们自己的 `build/classes/java/main`（310 个 class）。重跑日期 2026-11-06。
 
+> **11-12 追记：编译基线已抬到 21.2.16，本页正文仍是 21.2.15 那天的快照。** 按本页自己的规则（`api/` 下无 `$` 的类）今天重数：**121 → 123**，多出来的两只就是 `api/storage/IECOConfigurableCellHost` 与 `api/storage/IECOCellWorkbenchDrive`（eco issue #156 的交付，我们两只 BE 已 implements，见 AGENTS §15「配置（元件工作台）」那行）。**"我们引用 27 个"这一格没有重算**：口径要先定（常量池 vs 原始字节、嵌套类算不算），而本页那两个数（27 / 28）是按 310 个 class 量的，现树是 356 个 ⇒ 引用第二节那些行之前，先按本页第一节的规则重跑一次。
+
 两把尺，口径不同，别混：
 
 - **常量池尺**（`javap -v` 逐 class 扫 `cn/dancingsnow/neoecoae/api/...`）⇒ 我们点名 **27 个**。第四节这张表用它。

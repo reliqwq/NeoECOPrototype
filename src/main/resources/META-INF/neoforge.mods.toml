@@ -83,7 +83,11 @@ side = "BOTH"
 [[dependencies.neoecoprototype]]
 modId = "neoecoae"
 mandatory = true
-versionRange = "[21.2.15,)"
+versionRange = "[21.2.16,)"
+# 21.2.16 is forced the same way, by a must-resolve reference rather than by a baseline bump: our drive
+# and storage host implement eco's IECOConfigurableCellHost / IECOCellWorkbenchDrive (the #156 workbench
+# entry point), and neither type exists in 21.2.15 - so on that jar the failure is at class load, not at
+# the click. 21.2.16 is the published jar they arrived in, and it is also the compile baseline (build.gradle).
 # Issue #16 forced the floor up to this series, and the -beta that used to be spelled into the range was
 # written while the stable release could not be installed: FML reads these ranges with maven-artifact, where
 # 21.2.15-beta compares BELOW 21.2.15 (measured -4), so "[21.2.15,)" would have shut out the very jar this
