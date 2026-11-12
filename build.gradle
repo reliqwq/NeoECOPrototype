@@ -45,12 +45,19 @@ dependencies {
     // here (core.localization.Tooltips lost three public static fields) and would then throw on 18.
     //
     // 2026-11-09 Data Energistics 3.4.0 requires ae2 [19.2.18,) and ldlib2 [2.2.44,), so the *dev
-    // runtime* has to be those, while the published floors stay [19.2.17,)/[2.2.40,) (a player who
-    // never installs DE still runs the floor). Compile therefore splits: compileOnly keeps the floor
-    // as the baseline - a 19.2.18-only member still fails here - and runtimeOnly serves the newer jar.
+    // runtime* had to be those, while the published floors stayed [19.2.17,)/[2.2.40,) (a player who
+    // never installs DE still runs the floor). Compile therefore split: compileOnly kept the floor as
+    // the baseline - a 19.2.18-only member still fails here - and runtimeOnly served the newer jar.
     // testImplementation restores the floor jar on the test classpath, which compileOnly does not do.
+    // 2026-11-12 reliqwq took DE out of the dev environment for now, so the dev runtime is back on the
+    // floor we ship: the whole reason 19.2.18 was here was DE, and nothing else asked for it - measured
+    // across every jar in libs/, run/mods/ and run-gametest/mods/, the only required [19.2.18,) is
+    // data_energistics itself (eco 21.2.16 asks [19.2.17,), ae2lt 2.1.4-beta3 and thunderbolt 2.0.3 ask
+    // [19.2.17,19.3)). That gap was load-bearing once already: today's part-card crash (second
+    // ManagedGridNode.create) had to be re-checked against 19.2.17's bytecode before it could be
+    // claimed for players, and the two addToWorld call sites read the same on both jars.
     compileOnly files("libs/ae2-19.2.17.jar")                  // AE2 (modId: ae2) - compile floor
-    runtimeOnly files("libs/ae2-19.2.18.jar")                  // dev runtime (DE 3.4.0 floor)
+    runtimeOnly files("libs/ae2-19.2.17.jar")                  // dev runtime = the published floor
     testImplementation files("libs/ae2-19.2.17.jar")
     implementation files("libs/guideme-21.1.1.jar")            // GuideME (AE2 强制依赖, modId: guideme)
     // LDLib2 (modId: ldlib2) - eco 21.2.1 raised its floor to [2.2.40,), and 21.2.10 and 21.2.11 both keep it,
@@ -59,10 +66,12 @@ dependencies {
     // because ae2lt 2.1.2-beta4 demands [2.2.42,3.0.0) and eco 21.2.10 would not start without ae2lt; eco
     // re-uploaded 21.2.10 on 2026-10-25 (md5 444dcfc3fdab, two classes changed) with that gate in place, so
     // lightning is optional again and the runtime is back on the floor we ship. libs/ keeps the 2.2.42 jar
-    // for a lightning test bed. Same split as AE2 above: DE 3.4.0 demands [2.2.44,), so only the dev runtime
-    // moves; a player without DE keeps running the 2.2.40 floor we publish.
+    // for a lightning test bed. DE 3.4.0 wanted [2.2.44,) and is off the dev runtime since 2026-11-12, so
+    // compile and runtime are one version again - and note ae2lt 2.1.4-beta3 declares no ldlib2
+    // dependency at all (measured: its required list is neoforge/minecraft/ae2/ae2wtlib_api/thunderbolt),
+    // so lightning does not need the bump either.
     compileOnly files("libs/ldlib2-neoforge-1.21.1-2.2.40-all.jar")
-    runtimeOnly files("libs/ldlib2-neoforge-1.21.1-2.2.44-all.jar")
+    runtimeOnly files("libs/ldlib2-neoforge-1.21.1-2.2.40-all.jar")
     testImplementation files("libs/ldlib2-neoforge-1.21.1-2.2.40-all.jar")
     implementation "dev.vfyjxf:taffy:1.1.3"
     implementation "org.appliedenergistics.yoga:yoga:1.0.0"
@@ -274,10 +283,13 @@ dependencies {
     runtimeOnly files("libs/ae2jeiintegration-1.2.1.jar")
     // 可选联动：Data Energistics（数据能源，modId data_energistics，AGPL-3.0 代码）。
     // 插件通过它自己的 @DataEnergisticsEntrypoint 注解被它扫描发现，所以我们这边没有任何代码直接
-    // 调用它、也没有类级闸要写；compileOnly 只为编译那一个插件包，runtimeOnly 让开发环境真的加载它。
+    // 调用它、也没有类级闸要写；compileOnly 只为编译那一个插件包。
     // 它自己 required: ae2 [19.2.18,) + ldlib2 [2.2.44,) + ae2wtlib（另外装，run/mods 里有）。
+    // 2026-11-12 起开发环境不再加载它（reliqwq 拍"暂时不要数据能源了"）：那两个 required 区间是把 dev
+    // 运行期顶到 19.2.18 / 2.2.44 的唯一原因，音乐那一族本来也已整族对玩家隐藏。要接回来是三件事，
+    // 少一件就是启动期依赖报错：① 把下面这行 runtimeOnly 恢复；② ae2 与 ldlib2 的 runtimeOnly 回到
+    // 19.2.18 / 2.2.44；③ run/mods 里那颗 jar 的 .disabled 后缀去掉（已改名，不是删除）。
     compileOnly files("libs/data_energistics-1.21.1-3.4.0.jar")
-    runtimeOnly files("libs/data_energistics-1.21.1-3.4.0.jar")
     // Optional OmniCells API is needed by the eco-native Omni adapter.
     compileOnly files("libs/ae2omnicells-1.1.6.jar")
     compileOnly files("libs/Registrate-MC1.21.1-1.4.8.jar")
