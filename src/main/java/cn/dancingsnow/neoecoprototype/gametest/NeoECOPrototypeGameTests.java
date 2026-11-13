@@ -1,6 +1,7 @@
 package cn.dancingsnow.neoecoprototype.gametest;
 
 import cn.dancingsnow.neoecoprototype.NeoECOPrototype;
+import cn.dancingsnow.neoecoprototype.blockentity.wireless.WirelessChannelModuleBlockEntity;
 import appeng.api.config.Actionable;
 import appeng.api.crafting.IPatternDetails;
 import appeng.api.crafting.PatternDetailsHelper;
@@ -9076,6 +9077,239 @@ public final class NeoECOPrototypeGameTests {
                             }
                         }
                         helper.fail("the port probe threw " + e);
+                    }
+                });
+    }
+
+    /**
+     * The near end (one AE2 controller with one subsystem channel module beside it) plus {@code groups}
+     * controllerless far networks of {@code perGroup} machines each, stacked in y so they cannot touch.
+     */
+    private record PortFixture(GlobalPos nearModule, BlockPos nearModulePos, GlobalPos[] hubs,
+                               GlobalPos[] devices) {
+    }
+
+    /**
+     * Builds {@link #buildPortFixture}'s blocks. The y gap between groups is not tidiness: two far networks
+     * that share a cable become one grid, and then "32 per port" is that one grid's 32 and the reading says
+     * nothing about ports whatsoever.
+     */
+    private static PortFixture buildPortFixture(GameTestHelper helper, int groups, int perGroup) {
+        var level = (ServerLevel) helper.getLevel();
+        var moduleBlock = ModRegistration.SUBSYSTEM_CHANNEL_MODULE_BLOCK.get();
+        var interfaceBlock = ModRegistration.SUPERCONDUCTIVE_INTERFACE_BLOCK.get();
+        helper.setBlock(new BlockPos(0, 1, 0), appeng.core.definitions.AEBlocks.CONTROLLER.block());
+        helper.setBlock(new BlockPos(1, 1, 0), moduleBlock);
+        var nearModulePos = new BlockPos(1, 1, 0);
+        var hubs = new GlobalPos[groups];
+        var devices = new GlobalPos[groups * perGroup];
+        for (int g = 0; g < groups; g++) {
+            var y = 1 + 2 * g;
+            helper.setBlock(new BlockPos(6, y, 0), moduleBlock);
+            hubs[g] = GlobalPos.of(level.dimension(), helper.absolutePos(new BlockPos(6, y, 0)));
+            for (int i = 0; i < perGroup; i++) {
+                placeDenseTrunk(helper, new BlockPos(5, y, i));
+                helper.setBlock(new BlockPos(4, y, i), interfaceBlock);
+                devices[g * perGroup + i] = GlobalPos.of(level.dimension(),
+                        helper.absolutePos(new BlockPos(4, y, i)));
+            }
+        }
+        return new PortFixture(GlobalPos.of(level.dimension(), helper.absolutePos(nearModulePos)),
+                nearModulePos, hubs, devices);
+    }
+
+    /** The module block entity at the near end, read through the position so it survives a re-place. */
+    private static WirelessChannelModuleBlockEntity portModule(GameTestHelper helper, PortFixture fixture) {
+        return helper.getLevel().getBlockEntity(helper.absolutePos(fixture.nearModulePos()))
+                instanceof WirelessChannelModuleBlockEntity module ? module : null;
+    }
+
+    /** How many of {@code hubs} sit on the other end of one of the near module's virtual ports. */
+    private static int hubsOnPorts(ServerLevel level, WirelessChannelModuleBlockEntity module, GlobalPos[] hubs) {
+        int landed = 0;
+        for (var hub : hubs) {
+            var hubNode = networkNode(level, hub);
+            if (hubNode == null) {
+                continue;
+            }
+            for (var port : module.livePortNodes()) {
+                for (var connection : port.getConnections()) {
+                    if (connection.a() == hubNode || connection.b() == hubNode) {
+                        landed++;
+                    }
+                }
+            }
+        }
+        return landed;
+    }
+
+    /**
+     * The claim route D rests on, with the module's own ports doing the work instead of nodes a test built:
+     * two networks fed through one block get two independent 32-channel outlets, so 34 machines come up where
+     * a single dense face would have starved two of them.
+     *
+     * <p>34 is the number with the discriminating power. Anything that quietly routes both edges onto the
+     * module's own node, or onto one shared port, lands 32 of 34 and goes red here rather than in a player's
+     * world - which is the failure mode the whole channel investigation started from.
+     *
+     * <p>It also pins the port count at two rather than six: a port is a node in the grid, so opening the
+     * whole ceiling up front would charge the player for outlets they never used and inflate every node
+     * reading the card prints.
+     */
+    @GameTest(template = "empty", batch = "wireless_module_ports", timeoutTicks = 1800,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void twoPortsOnOneModuleFeedTwoNetworksPastThirtyTwo(GameTestHelper helper) {
+        var level = (ServerLevel) helper.getLevel();
+        clearWirelessLinksAndBillSnapshots(level);
+        var links = cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig
+                .WIRELESS_MAX_LINKS_PER_DEVICE;
+        var savedCap = links.get();
+        links.set(0);
+        var fixture = buildPortFixture(helper, 2, 17);
+        waitUntil(helper, 80,
+                () -> networkNode(level, fixture.nearModule()) != null
+                        && networkNode(level, fixture.hubs()[0]) != null
+                        && networkNode(level, fixture.hubs()[1]) != null
+                        && networkNode(level, fixture.hubs()[0]).getGrid()
+                        != networkNode(level, fixture.hubs()[1]).getGrid()
+                        && networkNode(level, fixture.hubs()[0]).getGrid()
+                        != networkNode(level, fixture.nearModule()).getGrid(),
+                () -> "the near grid and the two far grids never came up as three separate networks: near="
+                        + nodeSummary(level, fixture.nearModule()) + " hub0="
+                        + nodeSummary(level, fixture.hubs()[0]) + " hub1="
+                        + nodeSummary(level, fixture.hubs()[1]),
+                () -> {
+                    try {
+                        for (int g = 0; g < fixture.hubs().length; g++) {
+                            String bound = WirelessLinks.bind(level, ModRegistration.WIRELESS_LINKS,
+                                    fixture.nearModule(), fixture.hubs()[g]);
+                            if (!bound.startsWith("linked ")) {
+                                helper.fail("far network " + (g + 1) + " was refused by the module: \"" + bound
+                                        + "\" ports=" + livePortsOf(helper, fixture));
+                                return;
+                            }
+                        }
+                        var module = portModule(helper, fixture);
+                        if (module == null) {
+                            helper.fail("the near module's block entity is gone");
+                            return;
+                        }
+                        if (module.livePorts() != fixture.hubs().length) {
+                            helper.fail("two links opened " + module.livePorts()
+                                    + " ports - a port is one outlet per network, and they are not to be"
+                                    + " created in advance of being used");
+                            return;
+                        }
+                        if (hubsOnPorts(level, module, fixture.hubs()) != fixture.hubs().length) {
+                            helper.fail("only " + hubsOnPorts(level, module, fixture.hubs())
+                                    + " of " + fixture.hubs().length + " far networks are reached through a"
+                                    + " virtual port, so an edge landed on the module's own node and shares its"
+                                    + " single 32 again");
+                            return;
+                        }
+                        waitUntil(helper, 80,
+                                () -> chargedDevices(level, fixture.devices()) == fixture.devices().length,
+                                () -> "only " + chargedDevices(level, fixture.devices()) + " of "
+                                        + fixture.devices().length + " machines came up through "
+                                        + module.livePorts() + " ports (" + perGroupCharged(level,
+                                        fixture.devices(), fixture.hubs().length, 17)
+                                        + ") - that is what ONE shared 32-channel bucket does, so the ports are"
+                                        + " not each their own bottleneck. near=" + gridUsed(level,
+                                        fixture.nearModule()),
+                                helper::succeed);
+                    } finally {
+                        links.set(savedCap);
+                        clearWirelessLinksAndBillSnapshots(level);
+                    }
+                });
+    }
+
+    private static int livePortsOf(GameTestHelper helper, PortFixture fixture) {
+        var module = portModule(helper, fixture);
+        return module == null ? -1 : module.livePorts();
+    }
+
+    /**
+     * The other half of the probe, now against the real block: pull the module out of the world and every
+     * port has to go with it.
+     *
+     * <p>A virtual node that outlives its block keeps occupying the controller bucket it hangs off, and the
+     * player sees those channels as used-up with nothing on the square to account for them - which is why the
+     * ports live on the block entity and are destroyed on both unload paths rather than tracked anywhere the
+     * game could hand them back after the block is gone. This asserts the three observable halves of that: no
+     * port standing, nothing charged behind them, and the saved records still there reporting as not live.
+     */
+    @GameTest(template = "empty", batch = "wireless_module_teardown", timeoutTicks = 1800,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void breakingTheModuleLeavesNoPortAndNoChannelBehindIt(GameTestHelper helper) {
+        var level = (ServerLevel) helper.getLevel();
+        clearWirelessLinksAndBillSnapshots(level);
+        var links = cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig
+                .WIRELESS_MAX_LINKS_PER_DEVICE;
+        var savedCap = links.get();
+        links.set(0);
+        var fixture = buildPortFixture(helper, 2, 17);
+        waitUntil(helper, 80,
+                () -> networkNode(level, fixture.nearModule()) != null
+                        && networkNode(level, fixture.hubs()[1]) != null
+                        && chargedDevices(level, fixture.devices()) == 0,
+                () -> "the fixture never came up, or came up charged before anything was bound: near="
+                        + nodeSummary(level, fixture.nearModule())
+                        + " hub0=" + nodeSummary(level, fixture.hubs()[0])
+                        + " charged=" + chargedDevices(level, fixture.devices()),
+                () -> {
+                    try {
+                        for (var hub : fixture.hubs()) {
+                            String bound = WirelessLinks.bind(level, ModRegistration.WIRELESS_LINKS,
+                                    fixture.nearModule(), hub);
+                            if (!bound.startsWith("linked ")) {
+                                helper.fail("a link was refused before the teardown could be tested: \""
+                                        + bound + "\"");
+                                return;
+                            }
+                        }
+                        waitUntil(helper, 80,
+                                () -> chargedDevices(level, fixture.devices()) == fixture.devices().length,
+                                () -> "nothing to tear down: only " + chargedDevices(level, fixture.devices())
+                                        + " of " + fixture.devices().length + " machines were charged first ("
+                                        + perGroupCharged(level, fixture.devices(), 2, 17) + ")",
+                                () -> {
+                                    var module = portModule(helper, fixture);
+                                    if (module == null || module.livePorts() != 2) {
+                                        helper.fail("the fixture did not reach two live ports: "
+                                                + (module == null ? "no block entity" : module.livePorts()));
+                                        return;
+                                    }
+                                    helper.destroyBlock(fixture.nearModulePos());
+                                    waitUntil(helper, 80,
+                                            () -> module.livePorts() == 0 && module.livePortNodes().isEmpty()
+                                                    && chargedDevices(level, fixture.devices()) == 0,
+                                            () -> "breaking the module left " + module.livePorts()
+                                                    + " port(s) standing and "
+                                                    + chargedDevices(level, fixture.devices())
+                                                    + " machines still charged - a virtual node that outlives"
+                                                    + " its block holds channels the player cannot see the"
+                                                    + " owner of. records at hub0="
+                                                    + WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS,
+                                                    fixture.hubs()[0]),
+                                            () -> {
+                                                var status = WirelessLinks.status(level,
+                                                        ModRegistration.WIRELESS_LINKS, fixture.hubs()[0]);
+                                                if (!status.contains("live=0")) {
+                                                    helper.fail("the saved link still reads as live after the"
+                                                            + " module is gone: " + status);
+                                                    return;
+                                                }
+                                                NeoECOPrototype.LOGGER.info(
+                                                        "wireless port teardown: ports={} charged={} status={}",
+                                                        module.livePorts(),
+                                                        chargedDevices(level, fixture.devices()), status);
+                                                helper.succeed();
+                                            });
+                                });
+                    } finally {
+                        links.set(savedCap);
+                        clearWirelessLinksAndBillSnapshots(level);
                     }
                 });
     }
@@ -21958,9 +22192,9 @@ public final class NeoECOPrototypeGameTests {
 
     /**
      * The translated layer, pinned from both sides. Every line the two cards hand a player now goes out as
-     * {@code Component.translatable(key, args)} - all 28 of them, keyed on 2026-11-04 after a Chinese player
-     * read his first English refusal and named it ("有中文有英文") - while the log keeps the English sentence
-     * for the guards. Three things can rot here and this checks all three: a key can vanish from one language
+     * {@code Component.translatable(key, args)} - 35 of them as of 2026-11-14, 28 when the layer landed on
+     * 2026-11-04 after a Chinese player read his first English refusal and named it ("有中文有英文") - while the
+     * log keeps the English sentence for the guards. Three things can rot here and this checks all three: a key can vanish from one language
      * file; the English text the code builds can drift away from the {@code en_us} value it is supposed to
      * equal (that equivalence is the only reason the log and the chat still say the same thing); and AE2 can
      * add a controller verdict the sentence does not translate. It also records one measurement in its own log
@@ -21977,10 +22211,15 @@ public final class NeoECOPrototypeGameTests {
         var names = java.util.List.of("linked", "marked", "dropped", "already_linked", "raised", "already_top",
                 "channels", "channels_none", "same_block", "owner_dim_unloaded", "cross_dim_off",
                 "out_of_range",
-                "not_a_device", "no_device_at", "at_limit", "endpoint_full", "no_node_yet", "wired_already", "one_network",
+                "not_a_device", "no_device_at", "at_limit", "endpoint_full", "no_free_port", "no_node_yet",
+                "wired_already", "one_network",
                 "starvation", "recorded_no_node", "recorded_no_edge", "marked_gone_no_device",
                 "marked_gone_remarked", "controller_no_edge", "controller_verdict", "carries_none",
-                "dim_unloaded", "not_on_network", "no_pathing_service", "teardown_moved");
+                "dim_unloaded", "not_on_network", "no_pathing_service", "teardown_moved",
+                // Three outcomes the manager and the unlink-by-group path speak. They were missing from this
+                // list when it was cut over to groups, so a key dropped from a language file would only have
+                // been caught by the JUnit scan, which checks presence but never reads the slots in order.
+                "group_required", "group_empty", "group_unlinked");
         for (String lang : new String[]{"en_us", "zh_cn"}) {
             String json = readResource("/assets/neoecoprototype/lang/" + lang + ".json", helper);
             if (json == null) {

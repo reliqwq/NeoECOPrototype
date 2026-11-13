@@ -290,6 +290,7 @@
   "gui.neoecoprototype.wireless_link.no_device_at": "%s 这里没有网络设备。",
   "gui.neoecoprototype.wireless_link.at_limit": "%1$s 身上已经有 %2$s 条链路，而这个世界的配置把单台上限设为 %3$s（wireless_max_links_per_device）——这个数字是整合包作者定的，不是 AE2 的天花板；把它设成 0，剩下的唯一天花板就是那一格自己的频道宽度",
   "gui.neoecoprototype.wireless_link.endpoint_full": "%1$s 已经承载了 %2$s 个频道，而它最多只能承载 %3$s 个，所以再接一条无线边进去什么也拿不到：对面那张网要从这一格进网，而 AE2 把一个入口的上限定在这个数。把链路改接到子系统频道通讯模块上，或者密线线缆的面上，别接在这台机器上",
+  "gui.neoecoprototype.wireless_link.no_free_port": "%1$s 上没有空闲的频道端口了：它一共 %2$s 只端口，每一只都已经载着另一张网，所以再从这只模块过一张网就没有属于它自己的出口了——把那张网改接到第二只子系统频道通讯模块上，或者先解绑这几只里的一个",
   "gui.neoecoprototype.wireless_link.no_node_yet": "%s 还没有网络节点——方块在，但 AE2 还没给它建出节点，过一会儿再绑一次就行。",
   "gui.neoecoprototype.wireless_link.wired_already": "这两台已经被方块连在一起了：在那里加一条无线链路什么也带不动，而拆它还会把你铺好的那段连接一起撕掉。",
   "gui.neoecoprototype.wireless_link.one_network": "这两台本来就在同一张 %s 台设备的网络里，所以在它们之间加无线链路什么也不会变——它们已经能通过你铺的方块互相到达。",

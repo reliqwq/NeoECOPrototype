@@ -5,6 +5,7 @@ import appeng.api.networking.IGrid;
 import appeng.api.networking.IGridConnection;
 import appeng.api.networking.IGridNode;
 import cn.dancingsnow.neoecoprototype.NeoECOPrototype;
+import cn.dancingsnow.neoecoprototype.blockentity.wireless.WirelessChannelModuleBlockEntity;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.GlobalPos;
 import net.minecraft.core.HolderLookup;
@@ -465,10 +466,29 @@ public final class WirelessLinks {
             // Measured in the client: a block answers as a device the moment it is placed (that is what
             // let the card mark it), while AE2 only builds the node when that block first ticks - so this
             // is the one refusal worth saying how to get past.
-            GlobalPos missing = a == null ? link.a() : link.b();
-            return Reply.of("no_node_yet", "no network node at " + labelText(acting, missing)
-                    + " yet - the block is there but AE2 has not given it a node, so bind it again in a moment",
-                    label(acting, missing));
+            return noNodeYet(acting, a == null ? link.a() : link.b());
+        }
+        // A subsystem channel module is asked for one of its ports rather than for its own node, and this has
+        // to happen here rather than in the rebuild pass: an edge created on the module node would not be
+        // findable by landingNodes (which deliberately excludes that node), so the next sweep would read the
+        // link as having no edge at all and build a second one onto a port.
+        var moduleA = moduleOf(a);
+        if (moduleA != null) {
+            var port = moduleA.portForNewLink();
+            if (port == null) {
+                // "No room on any port" and "not wired into a grid yet" are different answers, and only one of
+                // them tells the player to build a second module.
+                return moduleA.gridOnline() ? noFreePort(acting, link.a()) : noNodeYet(acting, link.a());
+            }
+            a = port;
+        }
+        var moduleB = moduleOf(b);
+        if (moduleB != null) {
+            var port = moduleB.portForNewLink();
+            if (port == null) {
+                return moduleB.gridOnline() ? noFreePort(acting, link.b()) : noNodeYet(acting, link.b());
+            }
+            b = port;
         }
         if (physicallyWiredTogether(a, b)) {
             return Reply.of("wired_already", "those two are already wired together with blocks: a wireless"
@@ -1516,24 +1536,97 @@ public final class WirelessLinks {
     }
 
     /**
+     * The module behind an endpoint node, or null for any other device. Read off
+     * {@code IGridNode.getOwner()} - the node carries its block entity - so no caller has to guess whether
+     * the chunk is loaded enough to ask the world.
+     */
+    @Nullable
+    private static WirelessChannelModuleBlockEntity moduleOf(@Nullable IGridNode node) {
+        return node != null && node.getOwner() instanceof WirelessChannelModuleBlockEntity module ? module : null;
+    }
+
+    /** The endpoint has a block and no node yet: AE2 builds nodes on the block's first tick. */
+    private static Reply noNodeYet(ServerLevel acting, GlobalPos at) {
+        return Reply.of("no_node_yet", "no network node at " + labelText(acting, at)
+                        + " yet - the block is there but AE2 has not given it a node, so bind it again in a moment",
+                label(acting, at));
+    }
+
+    /**
+     * Every port this module has is carrying all of its channels, so the next network through it would land on
+     * a square with nothing left to give. This is the module's own ceiling and it is deliberately not the same
+     * sentence as {@code endpoint_full}, which is about the square on the other end of the edge: a player told
+     * the far side is full when it is the near module that ran out of ports goes looking in the wrong network.
+     */
+    private static Reply noFreePort(ServerLevel acting, GlobalPos at) {
+        return Reply.of("no_free_port", "no channel port on " + labelText(acting, at) + " is free: all "
+                        + WirelessChannelModuleBlockEntity.MAX_PORTS + " of them already carry another network,"
+                        + " so one more through this module would have no outlet of its own - bind that network"
+                        + " through a second subsystem channel module, or unbind one of these first",
+                label(acting, at), WirelessChannelModuleBlockEntity.MAX_PORTS);
+    }
+
+    /**
+     * Every node a recorded endpoint could legitimately be reached through.
+     *
+     * <p>For almost every device that is exactly one node, and this is {@link #node} wrapped in a list. A
+     * subsystem channel module is the exception: it owns several virtual dense ports, each worth its own 32
+     * channels, and a link is on the module as soon as it is on any one of them. Answering with the whole set
+     * is what stops the rebuild pass from tearing an edge down every pass - the pass has no record of
+     * <em>which</em> port a link landed on, and it does not need one, because ports are interchangeable
+     * buckets of the same width. What it must not do is also add the module's own node: that node is the one
+     * shared 32 the ports exist to get away from, and accepting it would let a link slide onto it and read as
+     * healthy while a whole port's worth of channels goes unused.
+     *
+     * <p>The module is recognised through {@code IGridNode.getOwner()} rather than by reading the block entity
+     * out of the world, so this keeps {@link #node}'s chunk and thread gating instead of inventing a second one.
+     */
+    private static List<IGridNode> landingNodes(ServerLevel acting, GlobalPos at) {
+        var main = node(acting, at);
+        var module = moduleOf(main);
+        if (module != null) {
+            // Deliberately does not open a port: this answers "where could an edge of ours already be", and a
+            // module with none standing simply has an empty answer until something asks for one.
+            return module.livePortNodes();
+        }
+        return main == null ? List.of() : List.of(main);
+    }
+
+    /** The virtual edge between any legal pair of these two endpoint sets, or null. */
+    @Nullable
+    private static IGridConnection firstConnectionBetween(List<IGridNode> onA, List<IGridNode> onB) {
+        for (var a : onA) {
+            for (var b : onB) {
+                var existing = connectionBetween(a, b);
+                if (existing != null) {
+                    return existing;
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
      * Brings one recorded pair to "there is an edge between these two nodes", by the cheapest route that
      * gets there: adopt the edge AE2 already has, otherwise ask for one - through the throttle, and never
      * more often than once per {@link #REBUILD_COOLDOWN_TICKS} per pair.
      */
     private static EdgeResult ensureEdge(ServerLevel acting, Data data, Link link) {
-        IGridNode a = node(acting, link.a());
-        IGridNode b = node(acting, link.b());
-        if (a == null || b == null) {
-            return new EdgeResult(null, null, null, a == null ? link.a() : link.b());
+        IGridNode mainA = node(acting, link.a());
+        IGridNode mainB = node(acting, link.b());
+        if (mainA == null || mainB == null) {
+            return new EdgeResult(null, null, null, mainA == null ? link.a() : link.b());
         }
-        IGridConnection existing = connectionBetween(a, b);
+        var onA = landingNodes(acting, link.a());
+        var onB = landingNodes(acting, link.b());
+        IGridConnection existing = firstConnectionBetween(onA, onB);
         if (existing != null) {
             // appeng.me.GridConnection#create throws IllegalStateException for a pair that is already
             // connected, so adopting is the only way this pass can be called twice on the same link.
             data.edges.put(link, existing);
             data.rebuildFailures.remove(link);
             data.givenUp.remove(link);
-            return new EdgeResult(existing, a, b, null);
+            return new EdgeResult(existing, existing.a(), existing.b(), null);
         }
         if (data.givenUp.contains(link)) {
             return new EdgeResult(null, null, null, null);
@@ -1542,11 +1635,30 @@ public final class WirelessLinks {
         if (last != null && acting.getGameTime() - last < REBUILD_COOLDOWN_TICKS) {
             return new EdgeResult(null, null, null, null);
         }
+        // Nothing to adopt, so a new edge is asked for. On a module end that means a port with channels to
+        // spare; running out of those is a capacity answer, not a failure, so it waits rather than counting
+        // attempts - the loud version belongs to the bind that created the record.
+        IGridNode a = creationNode(acting, link.a(), onA);
+        IGridNode b = creationNode(acting, link.b(), onB);
+        if (a == null || b == null) {
+            return new EdgeResult(null, null, null, null);
+        }
         data.lastAttemptTick.put(link, acting.getGameTime());
         IGridConnection created;
         try {
             created = GridHelper.createConnection(a, b);
         } catch (RuntimeException e) {
+            // Reached when another pass (or another endpoint's sweep) connected this pair between the scan
+            // above and this call. Ask once more before blaming the link: an IllegalStateException here means
+            // the edge exists, not that AE2 refused us.
+            IGridConnection adopted = firstConnectionBetween(landingNodes(acting, link.a()),
+                    landingNodes(acting, link.b()));
+            if (adopted != null) {
+                data.edges.put(link, adopted);
+                data.rebuildFailures.remove(link);
+                data.givenUp.remove(link);
+                return new EdgeResult(adopted, adopted.a(), adopted.b(), null);
+            }
             int failures = data.rebuildFailures.merge(link, 1, Integer::sum);
             if (failures >= MAX_REBUILD_ATTEMPTS) {
                 data.givenUp.add(link);
@@ -1561,6 +1673,19 @@ public final class WirelessLinks {
         data.edges.put(link, created);
         data.rebuildFailures.remove(link);
         return new EdgeResult(created, a, b, null);
+    }
+
+    /**
+     * The node to ask for a new edge on: the module's free port where there is a module, otherwise the one
+     * endpoint node. {@code candidates} is already the legal set, so a plain device never re-reads anything.
+     */
+    @Nullable
+    private static IGridNode creationNode(ServerLevel acting, GlobalPos at, List<IGridNode> candidates) {
+        var module = moduleOf(node(acting, at));
+        if (module != null) {
+            return module.portForNewLink();
+        }
+        return candidates.isEmpty() ? null : candidates.get(0);
     }
 
     /**
@@ -1594,14 +1719,22 @@ public final class WirelessLinks {
      * True only when the reference really is the edge this pair asked for. A node that left the world
      * answers null here, which is what turns "the far chunk went to sleep" and "AE2 dropped our edge" into
      * the same safe answer: stop believing the reference, and let {@link #ensureEdge} sort it out.
+     *
+     * <p>Each side is a set rather than a node (see {@link #landingNodes}), so a link sitting on any one of a
+     * module's ports counts as still where it belongs.
      */
     private static boolean isStillBetween(ServerLevel acting, @Nullable IGridConnection held, Link link) {
         if (held == null || held.isInWorld()) {
             return false;
         }
-        IGridNode a = node(acting, link.a());
-        IGridNode b = node(acting, link.b());
-        return a != null && b != null && spans(held, a, b);
+        for (var a : landingNodes(acting, link.a())) {
+            for (var b : landingNodes(acting, link.b())) {
+                if (spans(held, a, b)) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     /** A connection the player built out of blocks between exactly these two devices. */

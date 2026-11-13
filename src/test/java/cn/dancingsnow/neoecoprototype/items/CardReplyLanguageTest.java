@@ -62,7 +62,7 @@ final class CardReplyLanguageTest {
     void everyReplyNameHasItsKeyInBothLanguages() throws Exception {
         var names = replyNames();
         // The expected count makes adding or folding a player-facing outcome explicit.
-        assertEquals(32, names.size(), "keyed card replies found: " + names);
+        assertEquals(33, names.size(), "keyed card replies found: " + names);
         var zh = language("zh_cn");
         var en = language("en_us");
         for (String name : names) {
