@@ -256,6 +256,15 @@ appflux 把 AE2 字节换算成 FE：`FluxKeyType.getAmountPerByte()` 直接返�
 - 这条成立的前提也量过：`NetworkStorage` 里没有缓存的内容列表字段，终端问网络要内容时会**实时遍历各存储调 `getAvailableStacks`** —— 推导出来的库存不需要任何 mutation 就能长出来。反过来，如果你的单元靠"攒"，就必须自己找到钟，而这里没有。
 - 想给"没人来问也要开始"找一个钩子，原版只有一条路，量过：`Inventory.tick()` 遍历 `compartments = ImmutableList.of(items, armor, offhand)`，对每格调 `ItemStack.inventoryTick` ⇒ **玩家身上 41 格都算**（主物品栏 36 + 盔甲 4 + 副手 1），但**两个 dist 都会跑**，所以要自己判 `level.isClientSide`，写服务端再靠槽位同步带回客户端。`ItemEntity` 里没有这个调用（javap 计数 0 处），所以丢在地上、留在箱子里的都不会 tick —— 那只元件要等被捡起来或插进驱动器。**3.1.0 起这条钩子我们故意没用**：规则收成"只有驱动器与主机问过库存才起算"，身上起算要多背一个 dist 判断，而且会让创造栏里放着的一只也在产。
 
+## 频道上限写在节点上，不在边上（AE2 19.2.17 现量）
+
+完整对账与三条参考 mod 的读法在 [wireless-channel-ceiling.md](wireless-channel-ceiling.md)，这里只留四条会救命的锚点：
+
+- `GridNode.getMaxChannels()` = `CANNOT_CARRY ? 0 : (DENSE_CAPACITY ? 32 : 8) × ChannelMode.cableCapacityFactor`；`DEFAULT` 下就是 8 / 32 两个数，**没有第三个数、没有 setter**（全 jar `setMaxChannels` / `setChannelCapacity` 0 命中，对照 `getUsedChannels` 13 命中）。
+- `GridConnection.getMaxChannels()` 是死数（**全 jar 0 个调用点**），所以"一条无线边值多少频道"完全由**落点那只节点**报多少决定。`GridConnection.hasFlag` 恒 false ⇒ 边自己永远不是频道消费者。
+- 拒绝只发生在 `PathingCalculation.tryUseChannel`：沿 `getHighestSimilarAncestor()` 逐层比 `channelBottlenecks >= getMaxChannels()`。等宽路径被压成一个桶，宽度一变就分桶 ⇒ "链到第 9 台掉线"是规则形状。
+- 控制器**不是频道池**：`ControllerBlockEntity` 一只方块一只节点、flags 含 `CANNOT_CARRY` ⇒ 答 0。DE 那份"6 面 × 32 × factor"是它自己造的建模（`supplyFromControllerNode` 读到 `<= 0` 才退回 `32 × factor`），不是从 AE2 读到的；AE2CS 的 `32 × 相邻控制器数` 同理，而且是 mixin 打进 `appeng.me.GridNode` 才生效的。
+
 ## 验证清单
 
 - `compileJava processResources` 通过。
