@@ -260,13 +260,12 @@ dependencies {
 // code; #154 opens api/storage/IECOConfigurableCellDrive plus ECOStorageCellPriorities and
 // StorageCellPriorityUI so an addon drive can offer per-cell priorities without inheriting eco's block
 // entity, and it adds Config.withCellActions with a 19-parameter compatibility constructor.
-// 21.2.16 (released 2026-11-11) is the first PUBLISHED jar that carries eco's #156 interfaces: the panel's
-// configure row reaches the cell workbench through api/storage/IECOConfigurableCellHost and
-// IECOCellWorkbenchDrive, which landed on eco main as fc7b9bd7 and which 21.2.15 does not ship at all
-// (measured: 0 entries). GitHub and Modrinth publish the same bytes (sha256 126ce54c...), and both
-// interfaces carry the same entry CRCs as the main-HEAD CI artifact this work was written against, so the
-// compile baseline and the published floor are the same jar again.
-    implementation files("neoecobeta/neoecoae-21.2.16.jar")
+// 21.2.16 (released 2026-11-11) is the first published jar with eco's #156 workbench host interfaces;
+// 21.2.17 (released 2026-11-12) adds a separate crafting-status CPU glyph hook. The addon implements that
+// hook on both tier families and no longer needs its client mixin for the status panel. Entry diff:
+// 4666 -> 4691, 29 added, 4 removed, 123 changed; member audit is unchanged and all 67 constructor
+// descriptors resolve on both releases.
+    implementation files("neoecobeta/neoecoae-21.2.17.jar")
     // MegaCells 4.11.0 is the supported optional integration version.
     implementation files("libs/megacells-4.11.0.jar")
     // Dev-runtime only: keep them off the compile classpath but on the runtime classpath.
@@ -396,6 +395,9 @@ tasks.named('jar', Jar) {
 tasks.named('test', Test) {
     useJUnitPlatform()
     maxHeapSize = '2G'
+    def releaseJar = tasks.named('jar', Jar)
+    dependsOn releaseJar
+    systemProperty 'neoecoprototype.test.jar', releaseJar.get().archiveFile.get().asFile.absolutePath
     // Point the cable-model contract test at any eco jar to watch it disagree with us - the way this file
     // proves it is reading upstream rather than our own assumptions:
     //   ./gradlew test -Dneoecoprototype.test.ecoJar=neoecobeta/neoecoae-21.2.9.jar

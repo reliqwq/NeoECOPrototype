@@ -13,7 +13,6 @@
     "InterfaceLogicAccess"
   ],
   "client": [
-    "ComputationCpuStatusTierGlyphMixin",
     "FixedBlockEntityRenderersMixin",
     "SlotYAccessor"
   ],

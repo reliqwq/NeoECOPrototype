@@ -164,9 +164,8 @@ public enum SimplifyTier implements IECOTier {
      * (97,211,137) — and differ only in frame: computation and storage top out at a 108-pixel
      * (203,204,212), this one at (135,143,165) with a (65,63,84) bottom, because the page it is stamped on
      * is dark. On the confirmation screen's ground the light cell reads as a pasted rectangle rather than
-     * as part of the wordmark. So the answer to "which art" is the page, not the machine: this hook has
-     * exactly one consumer, {@code ECOCraftConfirmScreen.drawCpuTierGlyph}, and it is reached from both
-     * tier enums.</p>
+     * as part of the wordmark. The confirmation and status pages have separate hooks, both reached from the
+     * registered tier, and both use this same dark-page glyph.</p>
      *
      * <p>What this cannot prove from here: where the glyph lands on screen. The screen blits it at a fixed
      * offset from the wordmark, and only a client can say whether it sits on the "O" and not next to it.</p>
@@ -175,6 +174,11 @@ public enum SimplifyTier implements IECOTier {
     public cn.dancingsnow.neoecoae.api.ECOCpuTierGlyph getCraftConfirmCpuTierGlyph() {
         return new cn.dancingsnow.neoecoae.api.ECOCpuTierGlyph(ResourceLocation.fromNamespaceAndPath(
                 "neoecoprototype", "textures/gui/panel/crafting_tier.png"));
+    }
+
+    @Override
+    public cn.dancingsnow.neoecoae.api.ECOCpuTierGlyph getCraftingStatusCpuTierGlyph() {
+        return getCraftConfirmCpuTierGlyph();
     }
 
     /**

@@ -146,6 +146,11 @@ public enum SimplifyCraftingTier implements IECOTier {
                 "neoecoprototype", "textures/gui/panel/crafting_tier.png"));
     }
 
+    @Override
+    public cn.dancingsnow.neoecoae.api.ECOCpuTierGlyph getCraftingStatusCpuTierGlyph() {
+        return getCraftConfirmCpuTierGlyph();
+    }
+
     /** Same six sheets as {@link SimplifyTier#getPanelAtlas(String)}; the crafting panel asks its own tier. */
     @Override
     @org.jetbrains.annotations.Nullable
