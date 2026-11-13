@@ -29,11 +29,9 @@ public class NeoECOPrototype {
 
     public NeoECOPrototype(IEventBus modBus, ModContainer container) {
         LOGGER.info("Loading {}...", MOD_ID);
-        // The script-made supply cell has no registered twin, so its game test needs a fixture - and a
-        // fixture Item has to exist before the item registry freezes. Both readings below are launch
-        // properties, so this branch is taken by the gametest server only and never in production.
-        if (net.neoforged.neoforge.gametest.GameTestHooks.isGametestServer()
-                || Boolean.getBoolean("neoforge.enableGameTest")) {
+        // The fixture Item must exist before the registry freezes, but enableGameTest can also be present
+        // in the client run's VM args. The dedicated server flag distinguishes the test server from a client.
+        if (Boolean.getBoolean("neoforge.gameTestServer")) {
             cn.dancingsnow.neoecoprototype.gametest.SupplyCellGuardProbe.init(modBus);
         }
         if (ModList.get().isLoaded("neoecoae") && ModList.get().isLoaded("mekanism")
@@ -285,6 +283,7 @@ public class NeoECOPrototype {
         // The jukebox pays the grid through its node too; without this line it sits alone in a grid of one
         // node and the music it plays reaches no store at all.
         registerNodeHost(event, ModRegistration.MUSIC_JUKEBOX_BE.get());
+        registerNodeHost(event, ModRegistration.SUBSYSTEM_CHANNEL_MODULE_BE.get());
         event.registerBlockEntity(Capabilities.EnergyStorage.BLOCK,
                 ModRegistration.METEORITE_DISSOCIATOR_BE.get(),
                 (blockEntity, side) -> blockEntity.getEnergyStorage());

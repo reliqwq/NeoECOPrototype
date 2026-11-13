@@ -3,6 +3,8 @@ package cn.dancingsnow.neoecoprototype.items;
 import cn.dancingsnow.neoecoprototype.NeoECOPrototype;
 import cn.dancingsnow.neoecoprototype.event.WirelessLinks;
 import cn.dancingsnow.neoecoprototype.registration.ModRegistration;
+import com.lowdragmc.lowdraglib2.gui.factory.HeldItemUIMenuType;
+import com.lowdragmc.lowdraglib2.gui.ui.ModularUI;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.GlobalPos;
 import net.minecraft.core.component.DataComponents;
@@ -36,14 +38,26 @@ import javax.annotation.Nullable;
  * <p>The card is only the carrier. Once an edge exists the pair lives on the level ({@link WirelessLinks}),
  * so losing the card costs a finished link nothing.</p>
  */
-public class WirelessLinkCardItem extends Item {
+public class WirelessLinkCardItem extends Item implements HeldItemUIMenuType.HeldItemUI {
 
     private static final String TAG_ENDPOINT = "linkCardEndpoint";
+    private static final String TAG_GROUP = "linkCardGroup";
     private static final String TAG_DIM = "dim";
     private static final String TAG_POS = "pos";
 
     public WirelessLinkCardItem(Properties properties) {
         super(properties);
+    }
+
+    @Override
+    public boolean stillValid(HeldItemUIMenuType.HeldItemUIHolder holder) {
+        ItemStack held = holder.player.getItemInHand(holder.hand);
+        return !held.isEmpty() && held.getItem() == this;
+    }
+
+    @Override
+    public ModularUI createUI(HeldItemUIMenuType.HeldItemUIHolder holder) {
+        return WirelessLinkManagementUI.create(holder);
     }
 
     @Override
@@ -127,7 +141,8 @@ public class WirelessLinkCardItem extends Item {
                         WirelessLinks.channelsText(serverLevel, clicked));
             }
         } else {
-            report = WirelessLinks.bindReply(serverLevel, ModRegistration.WIRELESS_LINKS, held, clicked);
+            report = WirelessLinks.bindReply(serverLevel, ModRegistration.WIRELESS_LINKS, held, clicked,
+                    readGroup(card));
             // The mark deliberately survives a successful join: one tap on the hub and then one tap per
             // device is how a player wires a hub to several spokes. What brakes that are all in the world's
             // config - links per device, distance, dimensions, and the AE each live link draws per tick -
@@ -152,8 +167,11 @@ public class WirelessLinkCardItem extends Item {
             return InteractionResultHolder.pass(card);
         }
         if (player.isShiftKeyDown()) {
-            player.displayClientMessage(balanceReport(serverLevel, card), true);
-            return InteractionResultHolder.consume(card);
+            if (player instanceof net.minecraft.server.level.ServerPlayer serverPlayer
+                    && HeldItemUIMenuType.openUI(serverPlayer, hand)) {
+                return InteractionResultHolder.consume(card);
+            }
+            return InteractionResultHolder.pass(card);
         }
         // Plain right-click in mid-air drops the mark and nothing else. This release used to be bundled into
         // "click the marked device again", which also deleted its links - now that the unlink card owns that,
@@ -212,9 +230,24 @@ public class WirelessLinkCardItem extends Item {
 
     // ==================== what the card is carrying ====================
 
+    static String readGroup(ItemStack card) {
+        return WirelessLinks.normalizeGroup(customData(card).getString(TAG_GROUP));
+    }
+
+    static void writeGroup(ItemStack card, String value) {
+        CompoundTag data = customData(card);
+        String group = WirelessLinks.normalizeGroup(value);
+        if (group.isEmpty()) {
+            data.remove(TAG_GROUP);
+        } else {
+            data.putString(TAG_GROUP, group);
+        }
+        card.set(DataComponents.CUSTOM_DATA, CustomData.of(data));
+    }
+
     /** The endpoint the player marked, or null when the card is empty. */
     @Nullable
-    private static GlobalPos readEndpoint(ItemStack card) {
+    static GlobalPos readEndpoint(ItemStack card) {
         CompoundTag endpoint = customData(card).getCompound(TAG_ENDPOINT);
         String dimension = endpoint.getString(TAG_DIM);
         if (dimension.isEmpty()) {

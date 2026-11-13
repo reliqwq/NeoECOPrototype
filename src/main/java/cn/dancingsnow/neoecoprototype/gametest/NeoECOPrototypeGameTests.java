@@ -633,6 +633,14 @@ public final class NeoECOPrototypeGameTests {
                         + " atlas - the cell is 13x18 because that is the file's own size");
                 return;
             }
+            var statusGlyph = tier.getCraftingStatusCpuTierGlyph();
+            if (statusGlyph == null || !expected.equals(statusGlyph.texture()) || statusGlyph.u() != 0
+                    || statusGlyph.v() != 0 || statusGlyph.textureWidth() != width
+                    || statusGlyph.textureHeight() != height) {
+                helper.fail(tier + " answers status glyph=" + statusGlyph + ", expected the whole " + expected
+                        + " at 0,0 in a " + width + "x" + height + " atlas");
+                return;
+            }
         }
         NeoECOPrototype.LOGGER.info("cpu tier glyph: tiers={} ids={} texture={} cell={}x{} atlas={}x{}"
                         + " lightest={} (light sheet {}={})",
@@ -8711,6 +8719,421 @@ public final class NeoECOPrototypeGameTests {
                     }
                     helper.succeed();
                 });
+    }
+
+    /**
+     * A real module node placed against a controller must occupy that physical side, and a wireless edge from
+     * the module must carry the controller path to a remote endpoint.
+     */
+    @GameTest(template = "empty", batch = "wireless_channel_module", timeoutTicks = 600,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void aSubsystemChannelModuleAnchorsAWirelessPathToAController(GameTestHelper helper) {
+        var level = (ServerLevel) helper.getLevel();
+        clearWirelessLinksAndBillSnapshots(level);
+
+        var controllerBlock = new BlockPos(0, 1, 0);
+        var moduleBlock = new BlockPos(1, 1, 0);
+        var remoteBlock = new BlockPos(8, 1, 0);
+        helper.setBlock(controllerBlock, appeng.core.definitions.AEBlocks.CONTROLLER.block());
+        helper.setBlock(moduleBlock, ModRegistration.SUBSYSTEM_CHANNEL_MODULE_BLOCK.get());
+        helper.setBlock(remoteBlock, ModRegistration.SUPERCONDUCTIVE_INTERFACE_BLOCK.get());
+        var controllerAt = GlobalPos.of(level.dimension(), helper.absolutePos(controllerBlock));
+        var moduleAt = GlobalPos.of(level.dimension(), helper.absolutePos(moduleBlock));
+        var remoteAt = GlobalPos.of(level.dimension(), helper.absolutePos(remoteBlock));
+
+        waitUntil(helper, 20,
+                () -> {
+                    var controllerNode = networkNode(level, controllerAt);
+                    var moduleNode = networkNode(level, moduleAt);
+                    var remoteNode = networkNode(level, remoteAt);
+                    return controllerNode != null && moduleNode != null && remoteNode != null
+                            && controllerNode.getGrid() == moduleNode.getGrid()
+                            && remoteNode.getGrid() != moduleNode.getGrid()
+                            && controllerNode.getGrid().getPathingService().getControllerState()
+                                    == appeng.api.networking.pathing.ControllerState.CONTROLLER_ONLINE;
+                },
+                        () -> "the channel module did not join the adjacent controller while the remote device "
+                                + "stayed separate: " + nodeSummary(level, controllerAt) + " / "
+                                + nodeSummary(level, moduleAt) + " / " + nodeSummary(level, remoteAt),
+                () -> {
+                    try {
+                        var controllerNode = networkNode(level, controllerAt);
+                        var moduleNode = networkNode(level, moduleAt);
+                        var remoteNode = networkNode(level, remoteAt);
+                        var faceEdge = controllerNode.getConnections().stream()
+                                .filter(connection -> connection.isInWorld()
+                                        && ((connection.a() == controllerNode && connection.b() == moduleNode)
+                                        || (connection.a() == moduleNode && connection.b() == controllerNode)))
+                                .findFirst().orElse(null);
+                        if (faceEdge == null) {
+                            helper.fail("AE2 has no in-world controller-to-module edge even though the module is "
+                                    + "face-adjacent and no cable block was placed");
+                            return;
+                        }
+                        int factor = controllerNode.getGrid().getPathingService().getChannelMode()
+                                .getCableCapacityFactor();
+                        int faceCapacity = faceEdge instanceof appeng.me.GridConnection internal
+                                ? internal.getMaxChannels() : -1;
+                        if (faceCapacity != 32 * factor) {
+                            helper.fail("the adjacent controller face edge has max=" + faceCapacity
+                                    + ", expected AE2's 32 x factor=" + (32 * factor));
+                            return;
+                        }
+                        if (moduleNode.getMaxChannels() != 32 * factor || moduleNode.getUsedChannels() < 1) {
+                            helper.fail("module node max/used=" + moduleNode.getMaxChannels() + "/"
+                                    + moduleNode.getUsedChannels() + ", expected a dense 32 x factor carrier "
+                                    + "that itself consumes a channel");
+                            return;
+                        }
+                        if (level.getBlockState(helper.absolutePos(moduleBlock)).getBlock()
+                                != ModRegistration.SUBSYSTEM_CHANNEL_MODULE_BLOCK.get()) {
+                            helper.fail("the measured face was not occupied by the visible module block");
+                            return;
+                        }
+
+                        ItemStack card = new ItemStack(ModRegistration.WIRELESS_LINK_CARD.get());
+                        var player = helper.makeMockPlayer(GameType.CREATIVE);
+                        var wirelessEnabled = NeoECOPrototypeServerConfig.WIRELESS_LINKS;
+                        boolean previousEnabled = wirelessEnabled.get();
+                        try {
+                            wirelessEnabled.set(true);
+                            tapWithCard(helper, player, card, remoteBlock);
+                            if (linksOf(WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS, remoteAt)) != 0) {
+                                helper.fail("marking the remote endpoint created a link before the module was tapped");
+                                return;
+                            }
+                            tapWithCard(helper, player, card, moduleBlock);
+                            if (!oneNetwork(level, moduleAt, remoteAt)
+                                    || linksOf(WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS,
+                                            remoteAt)) != 1) {
+                                helper.fail("the link card did not bind the marked remote device to the module: "
+                                        + WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS, moduleAt)
+                                        + " / "
+                                        + WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS, remoteAt));
+                                return;
+                            }
+                        } finally {
+                            wirelessEnabled.set(previousEnabled);
+                        }
+                        waitUntil(helper, 12,
+                                () -> networkNode(level, moduleAt).getGrid() == networkNode(level, remoteAt).getGrid()
+                                        && "CONTROLLER_ONLINE".equals(
+                                                WirelessLinks.controllerState(level, remoteAt)),
+                                () -> "the wireless edge did not carry the controller path to the remote node: "
+                                        + WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS, moduleAt)
+                                        + " / "
+                                        + WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS, remoteAt),
+                                () -> {
+                                    try {
+                                        var mergedModule = networkNode(level, moduleAt);
+                                        var mergedRemote = networkNode(level, remoteAt);
+                                        var wirelessEdge = mergedModule.getConnections().stream()
+                                                .filter(connection -> !connection.isInWorld()
+                                                        && ((connection.a() == mergedModule
+                                                        && connection.b() == mergedRemote)
+                                                        || (connection.a() == mergedRemote
+                                                        && connection.b() == mergedModule)))
+                                                .findFirst().orElse(null);
+                                        int wirelessCapacity = wirelessEdge instanceof appeng.me.GridConnection internal
+                                                ? internal.getMaxChannels() : -1;
+                                        if (wirelessCapacity != 32 * factor) {
+                                            helper.fail("the virtual edge max was " + wirelessCapacity
+                                                    + ", expected " + (32 * factor));
+                                            return;
+                                        }
+                                        if (mergedRemote.getUsedChannels() < 1 || mergedModule.getUsedChannels() < 1) {
+                                            helper.fail("the path reached the remote node but AE2 did not allocate "
+                                                    + "a channel at both endpoints: module="
+                                                    + mergedModule.getUsedChannels() + " remote="
+                                                    + mergedRemote.getUsedChannels() + " grid="
+                                                    + mergedModule.getGrid().getPathingService().getUsedChannels());
+                                            return;
+                                        }
+                                        NeoECOPrototype.LOGGER.info("channel module: faceEdge=in-world max={} "
+                                                        + "moduleNode=max{}/used{} wirelessEdge=virtual max={} "
+                                                        + "remoteNode=max{}/used{} gridUsed={} mode={} controller={}",
+                                                faceCapacity, mergedModule.getMaxChannels(),
+                                                mergedModule.getUsedChannels(), wirelessCapacity,
+                                                mergedRemote.getMaxChannels(), mergedRemote.getUsedChannels(),
+                                                mergedModule.getGrid().getPathingService().getUsedChannels(),
+                                                mergedModule.getGrid().getPathingService().getChannelMode(),
+                                                WirelessLinks.controllerState(level, remoteAt));
+                                        helper.succeed();
+                                    } finally {
+                                        clearWirelessLinksAndBillSnapshots(level);
+                                    }
+                                });
+                    } catch (RuntimeException e) {
+                        clearWirelessLinksAndBillSnapshots(level);
+                        helper.fail("channel-module anchor test threw " + e);
+                    }
+                });
+    }
+
+    /**
+     * Where the 8-channel ceiling comes from: the node the wireless edge lands on, not the edge itself.
+     *
+     * <p>Two identical remote groups of twelve channel-hungry machines, one wireless edge each. In A the
+     * edge lands on an ordinary machine (node max 8); in B it lands on a dense module first (node max 32).
+     * If A tops out at 8 while B carries all twelve, the bottleneck is the landing node - which is why the
+     * card's "mark a device, then the module" gesture caps a far network at 8 whenever that device is not
+     * dense, and why both ends need a module to make the edge worth its own 32.
+     */
+    @GameTest(template = "empty", batch = "wireless_endpoint_capacity", timeoutTicks = 900,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void aWirelessEndpointNodeIsTheChannelBottleneck(GameTestHelper helper) {
+        var level = (ServerLevel) helper.getLevel();
+        clearWirelessLinksAndBillSnapshots(level);
+        var moduleBlock = ModRegistration.SUBSYSTEM_CHANNEL_MODULE_BLOCK.get();
+        var interfaceBlock = ModRegistration.SUPERCONDUCTIVE_INTERFACE_BLOCK.get();
+        var controllerBlock = appeng.core.definitions.AEBlocks.CONTROLLER.block();
+
+        // A: a module on both ends. The far module is what makes the edge worth its 32 - landing the edge on
+        // an ordinary machine instead caps everything behind it at that machine's own 8.
+        helper.setBlock(new BlockPos(0, 1, 0), controllerBlock);
+        helper.setBlock(new BlockPos(1, 1, 0), moduleBlock);
+        helper.setBlock(new BlockPos(6, 1, 0), moduleBlock);
+        var direct = new GlobalPos[12];
+        for (int i = 0; i < direct.length; i++) {
+            var trunk = new BlockPos(5, 1, i);
+            placeDenseTrunk(helper, trunk);
+            helper.setBlock(new BlockPos(4, 1, i), interfaceBlock);
+            direct[i] = GlobalPos.of(level.dimension(), helper.absolutePos(new BlockPos(4, 1, i)));
+        }
+
+        var localA = GlobalPos.of(level.dimension(), helper.absolutePos(new BlockPos(1, 1, 0)));
+        var farModule = GlobalPos.of(level.dimension(), helper.absolutePos(new BlockPos(6, 1, 0)));
+        var controllerA = GlobalPos.of(level.dimension(), helper.absolutePos(new BlockPos(0, 1, 0)));
+
+        waitUntil(helper, 40,
+                () -> networkNode(level, localA) != null
+                        && networkNode(level, controllerA) != null
+                        && networkNode(level, direct[0]) != null && networkNode(level, direct[11]) != null
+                        && networkNode(level, farModule) != null
+                        && networkNode(level, controllerA).getGrid() == networkNode(level, localA).getGrid()
+                        && networkNode(level, direct[0]).getGrid() != networkNode(level, localA).getGrid()
+                        && networkNode(level, farModule).getGrid() == networkNode(level, direct[0]).getGrid()
+                        && appeng.api.networking.pathing.ControllerState.CONTROLLER_ONLINE
+                                == networkNode(level, localA).getGrid().getPathingService().getControllerState(),
+                () -> "the fixture never became a controlled near grid beside a twelve-machine far grid: "
+                        + nodeSummary(level, localA) + " / " + nodeSummary(level, farModule) + " / "
+                        + nodeSummary(level, direct[0]) + " / " + nodeSummary(level, direct[11]),
+                () -> {
+                    String bound = WirelessLinks.bind(level, ModRegistration.WIRELESS_LINKS, localA, farModule);
+                    if (!bound.startsWith("linked ")) {
+                        helper.fail("the module refused its link: \"" + bound + "\"");
+                        return;
+                    }
+                    waitUntil(helper, 40,
+                            () -> gridUsed(level, localA) >= direct.length,
+                            () -> "only " + gridUsed(level, localA) + " of " + direct.length
+                                    + " channels were handed out through one module: "
+                                    + WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS, localA),
+                            () -> {
+                                try {
+                                    int charged = chargedDevices(level, direct);
+                                    NeoECOPrototype.LOGGER.info("wireless endpoint capacity: gridUsed={}"
+                                            + " charged={}/{} devices={}", gridUsed(level, localA),
+                                            charged, direct.length, chargedTable(level, direct));
+                                    if (charged != direct.length) {
+                                        helper.fail("a dense far trunk still only charged " + charged + " of "
+                                                + direct.length + " devices: "
+                                                + chargedTable(level, direct));
+                                        return;
+                                    }
+                                    helper.succeed();
+                                } finally {
+                                    clearWirelessLinksAndBillSnapshots(level);
+                                }
+                            });
+                });
+    }
+
+    /**
+     * The premise route D stands on, measured rather than reasoned: dense virtual nodes hung off the SAME
+     * controller node must each carry their own 32 channels. AE2 never charges the controller for it - the
+     * {@code PathingCalculation} constructor makes the controller the root of the route, and
+     * {@code GridNode.setControllerRoute} answers {@code highestSimilarAncestor = null} for the node whose
+     * route owner is a controller - so every port tops its own bottleneck chain.
+     *
+     * <p>The fixture has to ask for more than 32 or it proves nothing: below 33 one shared bucket and three
+     * private ones read identically. So three separate twelve-machine far groups each reach the controller
+     * through a port of their own, and all 36 have to be charged.
+     *
+     * <p>Nothing here goes through {@code WirelessLinks}: the ports and the three edges are made straight off
+     * AE2's public API inside the test, on purpose. If the topology does not hold, no binding code should be
+     * written on top of it; if it holds, the teardown half is the control group for the lifecycle the real
+     * implementation will have to own.
+     */
+    @GameTest(template = "empty", batch = "wireless_port_probe", timeoutTicks = 1800,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void threePortsOnOneControllerEachCarryTheirOwnChannels(GameTestHelper helper) {
+        var level = (ServerLevel) helper.getLevel();
+        clearWirelessLinksAndBillSnapshots(level);
+        var moduleBlock = ModRegistration.SUBSYSTEM_CHANNEL_MODULE_BLOCK.get();
+        var interfaceBlock = ModRegistration.SUPERCONDUCTIVE_INTERFACE_BLOCK.get();
+        var nearModuleAt = new BlockPos(1, 1, 0);
+        var controllerAtPos = new BlockPos(0, 1, 0);
+        helper.setBlock(controllerAtPos, appeng.core.definitions.AEBlocks.CONTROLLER.block());
+        helper.setBlock(nearModuleAt, moduleBlock);
+        var controllerAt = GlobalPos.of(level.dimension(), helper.absolutePos(controllerAtPos));
+
+        final int groups = 3;
+        final int perGroup = 12;
+        var hubAt = new GlobalPos[groups];
+        var all = new GlobalPos[groups * perGroup];
+        for (int g = 0; g < groups; g++) {
+            // y = 1 + 2g keeps the trunks from touching: the groups must be separate grids, or "32 per port"
+            // would just be one network's 32 and the reading would mean nothing.
+            var y = 1 + 2 * g;
+            var hub = new BlockPos(6, y, 0);
+            helper.setBlock(hub, moduleBlock);
+            hubAt[g] = GlobalPos.of(level.dimension(), helper.absolutePos(hub));
+            for (int i = 0; i < perGroup; i++) {
+                placeDenseTrunk(helper, new BlockPos(5, y, i));
+                helper.setBlock(new BlockPos(4, y, i), interfaceBlock);
+                all[g * perGroup + i] =
+                        GlobalPos.of(level.dimension(), helper.absolutePos(new BlockPos(4, y, i)));
+            }
+        }
+
+        waitUntil(helper, 60,
+                () -> {
+                    var controllerNode = networkNode(level, controllerAt);
+                    if (controllerNode == null || networkNode(level, hubAt[0]) == null
+                            || networkNode(level, hubAt[groups - 1]) == null
+                            || networkNode(level, all[all.length - 1]) == null) {
+                        return false;
+                    }
+                    for (var at : hubAt) {
+                        if (networkNode(level, at).getGrid() == controllerNode.getGrid()) {
+                            return false;
+                        }
+                    }
+                    return networkNode(level, hubAt[0]).getGrid() != networkNode(level, hubAt[1]).getGrid();
+                },
+                () -> "the three far groups and the near controller never came up as four separate grids: "
+                        + nodeSummary(level, controllerAt) + " / " + nodeSummary(level, hubAt[0]) + " / "
+                        + nodeSummary(level, hubAt[1]) + " / " + nodeSummary(level, hubAt[2]),
+                () -> {
+                    var ports = new appeng.api.networking.IManagedGridNode[groups];
+                    var edges = new appeng.api.networking.IGridConnection[groups];
+                    try {
+                        var controllerNode = networkNode(level, controllerAt);
+                        var listener = new appeng.api.networking.IGridNodeListener<Object>() {
+                            @Override
+                            public void onSaveChanges(Object target, appeng.api.networking.IGridNode node) {
+                            }
+                        };
+                        for (int g = 0; g < groups; g++) {
+                            var port = appeng.api.networking.GridHelper
+                                    .createManagedNode(
+                                            level.getBlockEntity(helper.absolutePos(nearModuleAt)), listener)
+                                    .setInWorldNode(false)
+                                    .setIdlePowerUsage(0.0)
+                                    .setTagName("neoecoprototype-probe-port-" + g)
+                                    .setFlags(appeng.api.networking.GridFlags.DENSE_CAPACITY);
+                            port.create(level, helper.absolutePos(nearModuleAt));
+                            ports[g] = port;
+                            appeng.api.networking.GridHelper.createConnection(controllerNode, port.getNode());
+                        }
+                        for (int g = 0; g < groups; g++) {
+                            edges[g] = appeng.api.networking.GridHelper.createConnection(
+                                    ports[g].getNode(), networkNode(level, hubAt[g]));
+                        }
+                        waitUntil(helper, 80,
+                                () -> chargedDevices(level, all) == all.length,
+                                () -> "three dense ports on one controller only charged "
+                                        + chargedDevices(level, all) + " of " + all.length
+                                        + " devices (gridUsed=" + gridUsed(level, controllerAt)
+                                        + "), which is what ONE shared 32-channel bucket would do - the ports"
+                                        + " are not each their own bottleneck: "
+                                        + perGroupCharged(level, all, groups, perGroup),
+                                () -> {
+                                    for (var edge : edges) {
+                                        edge.destroy();
+                                    }
+                                    for (var port : ports) {
+                                        port.destroy();
+                                    }
+                                    waitUntil(helper, 60,
+                                            () -> chargedDevices(level, all) == 0,
+                                            () -> "pulling the three ports out left "
+                                                    + chargedDevices(level, all)
+                                                    + " devices still charged - a destroyed virtual port keeps"
+                                                    + " channels behind",
+                                            helper::succeed);
+                                });
+                    } catch (RuntimeException e) {
+                        for (var edge : edges) {
+                            if (edge != null) {
+                                edge.destroy();
+                            }
+                        }
+                        for (var port : ports) {
+                            if (port != null) {
+                                port.destroy();
+                            }
+                        }
+                        helper.fail("the port probe threw " + e);
+                    }
+                });
+    }
+
+    /** Per-group {@code charged/total}, so a cap can be read off the exact port instead of the whole grid. */
+    private static String perGroupCharged(ServerLevel level, GlobalPos[] all, int groups, int perGroup) {
+        var text = new StringBuilder("groups=[");
+        for (int g = 0; g < groups; g++) {
+            var slice = java.util.Arrays.copyOfRange(all, g * perGroup, (g + 1) * perGroup);
+            if (g > 0) {
+                text.append(", ");
+            }
+            text.append(g).append('=').append(chargedDevices(level, slice)).append('/').append(perGroup);
+        }
+        return text.append(']').toString();
+    }
+
+    /** Channels AE2 has handed out on the grid the given square belongs to, or -1 when it has no node. */
+    private static int gridUsed(ServerLevel level, GlobalPos at) {
+        var node = networkNode(level, at);
+        return node == null || node.getGrid() == null ? -1
+                : node.getGrid().getPathingService().getUsedChannels();
+    }
+
+    /** Puts one dense cable part on that square, the way a player lays a trunk. */
+    private static void placeDenseTrunk(GameTestHelper helper, BlockPos relative) {
+        var absolute = helper.absolutePos(relative);
+        helper.getLevel().setBlock(absolute,
+                appeng.core.definitions.AEBlocks.CABLE_BUS.block().defaultBlockState(), 3);
+        if (helper.getLevel().getBlockEntity(absolute)
+                instanceof appeng.blockentity.networking.CableBusBlockEntity bus) {
+            bus.getCableBus().addPart((appeng.api.parts.IPartItem) AEParts.SMART_DENSE_CABLE.item(AEColor.TRANSPARENT),
+                    null, null);
+        }
+    }
+    private static int chargedDevices(ServerLevel level, GlobalPos[] devices) {
+        int charged = 0;
+        for (var at : devices) {
+            var node = networkNode(level, at);
+            if (node != null && node.getUsedChannels() > 0) {
+                charged++;
+            }
+        }
+        return charged;
+    }
+
+    /** Per-device {@code max/used} in fixture order, so a cap can be read off the exact square. */
+    private static String chargedTable(ServerLevel level, GlobalPos[] devices) {
+        var table = new StringBuilder("[");
+        for (int i = 0; i < devices.length; i++) {
+            var node = networkNode(level, devices[i]);
+            if (i > 0) {
+                table.append(", ");
+            }
+            table.append(i).append('=').append(node == null ? "none"
+                    : node.getMaxChannels() + "/" + node.getUsedChannels());
+        }
+        return table.append(']').toString();
     }
 
     /**
@@ -21554,7 +21977,7 @@ public final class NeoECOPrototypeGameTests {
         var names = java.util.List.of("linked", "marked", "dropped", "already_linked", "raised", "already_top",
                 "channels", "channels_none", "same_block", "owner_dim_unloaded", "cross_dim_off",
                 "out_of_range",
-                "not_a_device", "no_device_at", "at_limit", "no_node_yet", "wired_already", "one_network",
+                "not_a_device", "no_device_at", "at_limit", "endpoint_full", "no_node_yet", "wired_already", "one_network",
                 "starvation", "recorded_no_node", "recorded_no_edge", "marked_gone_no_device",
                 "marked_gone_remarked", "controller_no_edge", "controller_verdict", "carries_none",
                 "dim_unloaded", "not_on_network", "no_pathing_service", "teardown_moved");
@@ -21604,7 +22027,10 @@ public final class NeoECOPrototypeGameTests {
                     // and the three refusals a player hits by tapping the wrong thing - the same block twice,
                     // a square with no device in it, and a device that carries nothing. Each one has to rebuild
                     // the log sentence out of en_us plus its own args; that equivalence is the only reason the
-                    // log and the chat are still one story rather than two.
+                    // log and the chat are still one story rather than two. The two gates on a bind - the
+                    // bookkeeping cap and AE2's width on the landing square - need a world and a config value to
+                    // reach at all, so they make the same comparison in their own fixtures through
+                    // cardLineDriftedFromLog.
                     var nowhere = GlobalPos.of(level.dimension(), helper.absolutePos(new BlockPos(4, 6, 4)));
                     var compared = java.util.List.of(reply,
                             WirelessLinks.bindReply(level, ModRegistration.WIRELESS_LINKS, at, at),
@@ -21702,6 +22128,29 @@ public final class NeoECOPrototypeGameTests {
             }
         }
         return "";
+    }
+
+
+    /**
+     * The chat line and the log sentence have to stay one story: the {@code en_us} value, rendered through the
+     * reply's own arguments, rebuilds the English text byte for byte. The {@code wireless_reply_keys} batch
+     * checks that for the four outcomes a tap can reach; the two gates on a bind - the optional bookkeeping cap
+     * and AE2's channel width on the landing square - each need a world and a config value, so the fixtures
+     * that already trigger them do the comparing. Answers null when they still agree.
+     */
+    private static String cardLineDriftedFromLog(GameTestHelper helper, WirelessLinks.Reply reply) {
+        var en = readResource("/assets/neoecoprototype/lang/en_us.json", helper);
+        if (en == null) {
+            return null;
+        }
+        var value = langValue(en, reply.langKey());
+        if (value.isEmpty()) {
+            return "could not read the en_us value of " + reply.langKey() + " back to compare it with the log";
+        }
+        var rendered = reply.asComponent().getString();
+        return rendered.equals(reply.english()) ? null
+                : reply.langKey() + ": log=[" + reply.english() + "] rendered=[" + rendered
+                        + "] value=[" + value + "]";
     }
 
 
@@ -21873,7 +22322,7 @@ public final class NeoECOPrototypeGameTests {
                             return;
                         }
                         String capped = WirelessLinks.bind(level, ModRegistration.WIRELESS_LINKS, a, d);
-                        if (capped.startsWith("linked ") || !capped.contains("(max 2,")
+                        if (capped.startsWith("linked ") || !capped.contains("caps a device at 2 (")
                                 || !capped.contains("wireless_max_links_per_device")) {
                             helper.fail("the third link at one device did not hit the configured cap of 2:"
                                     + " \"" + capped + "\"");
@@ -22082,6 +22531,111 @@ public final class NeoECOPrototypeGameTests {
     }
 
     /**
+     * Naming a group has to reach links that already exist, not only the ones made afterwards.
+     *
+     * <p>This is the half a player can see and the half nothing else covers: the manager screen is only
+     * reachable by opening it in a client, so "apply group" is guarded here as the call it makes rather than
+     * as the button that makes it. The row it prints is asserted through {@code groupOverview}, which is what
+     * the panel renders from - a group that lives in the store but never reaches that list is still invisible
+     * to the player.
+     */
+    @GameTest(template = "empty", batch = "wireless_group_assign", timeoutTicks = 900,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void aGroupNameReachesLinksThatAlreadyExist(GameTestHelper helper) {
+        clearEveryWirelessLink((ServerLevel) helper.getLevel());
+        var interfaceBlock = ModRegistration.SUPERCONDUCTIVE_INTERFACE_BLOCK.get();
+        helper.setBlock(new BlockPos(0, 1, 0), interfaceBlock);
+        helper.setBlock(new BlockPos(0, 1, 6), interfaceBlock);
+        helper.setBlock(new BlockPos(2, 1, 0), interfaceBlock);
+        var level = (ServerLevel) helper.getLevel();
+        var a = GlobalPos.of(level.dimension(), helper.absolutePos(new BlockPos(0, 1, 0)));
+        var b = GlobalPos.of(level.dimension(), helper.absolutePos(new BlockPos(0, 1, 6)));
+        var c = GlobalPos.of(level.dimension(), helper.absolutePos(new BlockPos(2, 1, 0)));
+        var type = ModRegistration.WIRELESS_LINKS;
+        waitUntil(helper, 15,
+                () -> networkNode(level, a) != null && separateNetworks(level, a, b)
+                        && separateNetworks(level, a, c),
+                () -> "the three devices never became separate networks: " + nodeSummary(level, a) + " / "
+                        + nodeSummary(level, b) + " / " + nodeSummary(level, c),
+                () -> {
+                    String first = WirelessLinks.bind(level, type, a, b);
+                    if (!first.startsWith("linked ")) {
+                        helper.fail("the first link was refused: \"" + first + "\"");
+                        return;
+                    }
+                    var data = level.getData(type.get());
+                    if (data.linksInGroup("") != data.links().size()) {
+                        helper.fail("a link made with an empty group name did not land in the ungrouped set");
+                        return;
+                    }
+                    // The link exists before the name does, which is the whole point of this guard.
+                    int moved = WirelessLinks.assignGroup(level, type, a, "  North  ");
+                    if (moved != 1) {
+                        helper.fail("naming the marked device's existing link moved " + moved
+                                + " link(s), expected 1");
+                        return;
+                    }
+                    if (data.linksInGroup("North") != 1 || data.linksInGroup("") != 0) {
+                        helper.fail("after naming, the store holds North=" + data.linksInGroup("North")
+                                + " ungrouped=" + data.linksInGroup("") + ", expected 1 and 0");
+                        return;
+                    }
+                    var rows = WirelessLinks.groupOverview(level, type);
+                    if (rows.size() != 1 || !"North".equals(rows.get(0).group())) {
+                        helper.fail("the panel's own row list does not carry the new name: " + rows);
+                        return;
+                    }
+                    // Naming again is not a move, and that distinction is what the player's chat line reports.
+                    if (WirelessLinks.assignGroup(level, type, a, "North") != 0) {
+                        helper.fail("re-applying the same group counted as a move");
+                        return;
+                    }
+                    String second = WirelessLinks.bind(level, type, a, c);
+                    if (!second.startsWith("linked ")) {
+                        helper.fail("the second link was refused: \"" + second + "\"");
+                        return;
+                    }
+                    WirelessLinks.assignGroup(level, type, a, "North");
+                    if (data.linksInGroup("North") != 2) {
+                        helper.fail("the second link at the same device stayed out of the group: North="
+                                + data.linksInGroup("North"));
+                        return;
+                    }
+                    // Unlinking the group takes exactly those two and leaves nothing else behind.
+                    var removed = WirelessLinks.unlinkGroupReply(level, type, "North");
+                    if (!removed.langKey().endsWith(".group_unlinked") || !removed.english().contains("2")) {
+                        helper.fail("unlinking a two-link group answered " + removed.langKey() + ": "
+                                + removed.english());
+                        return;
+                    }
+                    if (data.linksInGroup("North") != 0 || !data.links().isEmpty()) {
+                        helper.fail("after unlinking North the store still holds " + data.links().size()
+                                + " link(s), North=" + data.linksInGroup("North"));
+                        return;
+                    }
+                    // An empty name is not a group, so it cannot be batch-unlinked - the manager says so
+                    // instead of quietly deleting every ungrouped link in the world.
+                    if (!WirelessLinks.unlinkGroupReply(level, type, "   ").langKey().endsWith(".group_required")) {
+                        helper.fail("an empty group name was accepted as an unlink target");
+                        return;
+                    }
+                    // A card with no mark still has to be able to name the links the manager lists: null is
+                    // "every recorded link", and that is the state a player is in the first time they open the
+                    // screen, since marking a device is a separate gesture. Measured in the client on
+                    // 2026-11-13: without this, eleven clicks of Apply all logged "0 existing link(s) moved".
+                    WirelessLinks.bind(level, type, a, b);
+                    WirelessLinks.bind(level, type, a, c);
+                    int unmarked = WirelessLinks.assignGroup(level, type, null, "Wide");
+                    if (unmarked != 2 || data.linksInGroup("Wide") != 2) {
+                        helper.fail("applying a group with nothing marked moved " + unmarked + " link(s), Wide="
+                                + data.linksInGroup("Wide") + ", expected 2 and 2");
+                        return;
+                    }
+                    helper.succeed();
+                });
+    }
+
+    /**
      * Drops every wireless record the server still holds. A batch shares one overworld and the attachment
      * lives on the level, so the table can still be carrying links another test made - and the bill walks
      * the whole table, so counting it without clearing would measure somebody else's links.
@@ -22093,6 +22647,15 @@ public final class NeoECOPrototypeGameTests {
             }
             for (var link : each.getData(ModRegistration.WIRELESS_LINKS.get()).links()) {
                 WirelessLinks.unlink(each, ModRegistration.WIRELESS_LINKS, link.a());
+            }
+        }
+    }
+
+    private static void clearWirelessLinksAndBillSnapshots(ServerLevel level) {
+        clearEveryWirelessLink(level);
+        for (ServerLevel each : level.getServer().getAllLevels()) {
+            if (each.hasData(ModRegistration.WIRELESS_LINKS.get())) {
+                WirelessLinks.billNow(each, ModRegistration.WIRELESS_LINKS);
             }
         }
     }
@@ -22183,22 +22746,28 @@ public final class NeoECOPrototypeGameTests {
     }
 
     /**
-     * How many wireless edges a single device may carry - one of the numbers the config owns, and the only
-     * structural one. It has to be enforced where the record is written, because a link costs no blocks and a
-     * player can therefore make as many as they can click.
+     * The <em>optional</em> ceiling on how many wireless edges a single device may carry. It is off by
+     * default (0) since 2026-11-13; what actually brakes the feature is AE2's own width on the landing
+     * square, pinned by {@code aFullLandingSquareIsRefusedByItsOwnChannelWidth}. This one stays because a
+     * pack author may still want a flat limit for reasons AE2 does not model, and a limit that is enforced
+     * where the record is written is the only kind that survives a player clicking as fast as they can.
      *
      * <p>An earlier channel allowance would have run out first and made this cap unreachable, and it is gone
      * for good - AE2 keeps no network-wide channel pool to price against (see WirelessLinks' class notes), so
      * what a device occupies is whatever AE2 assigns it. The energy price
      * ({@code wireless_ae_per_link_per_tick}, pinned by {@code aLiveLinkCostsTheNetworkItSitsOn}) is a drain
-     * rather than a gate, so it never refuses a bind and this cap stays the structural limit.
+     * rather than a gate, so it never refuses a bind.
      *
-     * <p>Everything here is read off {@code getDefault()}, so raising the shipped number raises the fixture
-     * with it: the loop binds exactly the cap, then the one past it has to be refused by name. The shipped 8
-     * is the same figure AE2 gives a non-dense face at {@code ChannelMode.DEFAULT} (19.2.17, javap'd:
-     * DEFAULT 8 / X2 16 / X3 24 / X4 32), which is why this batch is the place that notices if those two ever
-     * stop agreeing - a cap below the face budget refuses links AE2 could still carry, and a cap far above it
-     * lets a player click together a hub whose devices simply never get channels.
+     * <p>This fixture sets the ceiling itself now, because the shipped default is 0 - no bookkeeping limit -
+     * and a test that sized its own spokes off {@code getDefault()} would build one spoke and then wait for a
+     * refusal that can no longer happen. Two sentences are pinned here and they must not be confused: a
+     * bookkeeping refusal names {@code wireless_max_links_per_device}, a width refusal names the channels the
+     * square can carry. A player told their square is full when a pack author merely set a number would go
+     * looking for a bottleneck that is not there, which is the mistake this whole change exists to stop.
+     *
+     * <p>It also renders this refusal through {@code en_us}, because a gate that exists for the pack author has
+     * to keep saying so on the player's screen and not only in the log - the same equality the
+     * {@code wireless_reply_keys} batch pins for the tap-time lines.
      */
     @GameTest(template = "empty", batch = "wireless_link_card", timeoutTicks = 400,
             templateNamespace = NeoECOPrototype.MOD_ID)
@@ -22212,14 +22781,22 @@ public final class NeoECOPrototypeGameTests {
         // branch does not apply, so the thing that stops link 9 is the cap and nothing else, which is what this
         // test claims to prove.
         helper.setBlock(new BlockPos(0, 1, 1), appeng.core.definitions.AEBlocks.CONTROLLER.block());
+        var level = (ServerLevel) helper.getLevel();
+        var hubPos = GlobalPos.of(level.dimension(), helper.absolutePos(hub));
+        // The shipped default is 0 now - no bookkeeping ceiling at all - so the fixture owns its number and
+        // puts it back. Reading it off getDefault() used to be the whole point of this test; with the default
+        // at 0 that would build one spoke and assert a refusal that can never happen.
+        var links = cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig
+                .WIRELESS_MAX_LINKS_PER_DEVICE;
+        final int cap = 3;
+        var savedCap = links.get();
         var spokes = new java.util.ArrayList<BlockPos>();
-        for (int i = 0; i < cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig.WIRELESS_MAX_LINKS_PER_DEVICE.getDefault() + 1; i++) {
+        for (int i = 0; i < cap + 1; i++) {
             var pos = new BlockPos(2 + i, 1, 6);
             helper.setBlock(pos, ModRegistration.SIMPLIFY_STORAGE_CASING_BLOCK.get());
             spokes.add(pos);
         }
-        var level = (ServerLevel) helper.getLevel();
-        var hubPos = GlobalPos.of(level.dimension(), helper.absolutePos(hub));
+        links.set(cap);
         waitUntil(helper, 25,
                 () -> spokes.stream().allMatch(spoke -> separateNetworks(level, hubPos,
                         GlobalPos.of(level.dimension(), helper.absolutePos(spoke))))
@@ -22231,31 +22808,176 @@ public final class NeoECOPrototypeGameTests {
                         + " - a block entity answers as a device the moment it is placed, but AE2 only "
                         + "builds its node in onReady, which is what this poll waits for",
                 () -> {
-                    for (int i = 0; i < cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig.WIRELESS_MAX_LINKS_PER_DEVICE.getDefault(); i++) {
-                        var spoke = GlobalPos.of(level.dimension(),
-                                helper.absolutePos(spokes.get(i)));
-                        String bound = WirelessLinks.bind(level, ModRegistration.WIRELESS_LINKS, hubPos, spoke);
-                        if (!bound.startsWith("linked ")) {
-                            helper.fail("link " + (i + 1) + " of " + cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig.WIRELESS_MAX_LINKS_PER_DEVICE.getDefault()
-                                    + " was refused: \"" + bound + "\"");
+                    try {
+                        for (int i = 0; i < cap; i++) {
+                            var spoke = GlobalPos.of(level.dimension(),
+                                    helper.absolutePos(spokes.get(i)));
+                            String bound = WirelessLinks.bind(level, ModRegistration.WIRELESS_LINKS, hubPos, spoke);
+                            if (!bound.startsWith("linked ")) {
+                                helper.fail("link " + (i + 1) + " of " + cap
+                                        + " was refused with the cap set to " + cap + ": \"" + bound + "\"");
+                                return;
+                            }
+                        }
+                        var extra = GlobalPos.of(level.dimension(), helper.absolutePos(spokes.get(cap)));
+                        var refused = WirelessLinks.bindReply(level, ModRegistration.WIRELESS_LINKS, hubPos, extra);
+                        if (!refused.english().contains("caps a device at " + cap + " (")
+                                || !refused.english().contains("wireless_max_links_per_device")) {
+                            helper.fail("a link past the cap was accepted, or the refusal did not name the"
+                                    + " config it came from: \"" + refused.english() + "\"");
                             return;
                         }
+                        if (refused.english().contains("channels it can carry")) {
+                            helper.fail("the bookkeeping cap spoke with the channel-width sentence, so a"
+                                    + " player would go looking for a full square that is not full:"
+                                    + " \"" + refused.english() + "\"");
+                            return;
+                        }
+                        // This line is a pack author's number, not AE2's, so the sentence that names it is the
+                        // one thing that tells the two refusals apart on screen. It has to say what the log said.
+                        var drifted = cardLineDriftedFromLog(helper, refused);
+                        if (drifted != null) {
+                            helper.fail("the cap refusal's translated line and its log sentence drifted apart: "
+                                    + drifted);
+                            return;
+                        }
+                        if (!WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS, extra)
+                                .contains("wirelessLinks=0 live=0")) {
+                            helper.fail("the refused pair still left a record behind: "
+                                    + WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS, extra));
+                            return;
+                        }
+                        helper.succeed();
+                    } finally {
+                        links.set(savedCap);
+                        clearWirelessLinksAndBillSnapshots(level);
                     }
-                    var extra = GlobalPos.of(level.dimension(),
-                            helper.absolutePos(spokes.get(cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig.WIRELESS_MAX_LINKS_PER_DEVICE.getDefault())));
-                    String refused = WirelessLinks.bind(level, ModRegistration.WIRELESS_LINKS, hubPos, extra);
-                    if (!refused.contains("max " + cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig.WIRELESS_MAX_LINKS_PER_DEVICE.getDefault())) {
-                        helper.fail("a link past the cap was accepted: \"" + refused + "\"");
-                        return;
-                    }
-                    if (!WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS, extra)
-                            .contains("wirelessLinks=0 live=0")) {
-                        helper.fail("the refused pair still left a record behind: "
-                                + WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS, extra));
-                        return;
-                    }
-                    helper.succeed();
                 });
+    }
+
+    /**
+     * The brake that replaced the link count: AE2's own channel width on the square the edge lands on.
+     *
+     * <p>Written as a refusal, not as a silent starvation, because that is exactly what the field gave us
+     * back on 2026-11-13: an ordinary machine carrying {@code 8} of its {@code 8} channels while the dense
+     * module beside it sat at {@code 11} of {@code 32}. A ninth spoke clicked into that machine would have
+     * been recorded, would have started drawing {@code wireless_ae_per_link_per_tick}, and could never have
+     * been given a channel - the worst combination of the three failure modes this feature has had.
+     *
+     * <p>The fixture is deliberately built on a controlled network, and that is the assertion as much as the
+     * setup: on a controllerless one {@code AdHocChannelUpdater} writes the same network-wide count into every
+     * node, so "full" would be a reading of the whole grid rather than of the square, and every ordinary
+     * device would look full at exactly 8. Here the merge guard is also off stage - one side has a controller,
+     * so {@code starvationRisk} answers null and the only thing that can refuse is this gate. The control is
+     * the second bind: the same far network joined through a dense module instead of through the full machine,
+     * which must go through.
+     *
+     * <p>Both numbers in the refusal come from AE2 rather than from a config, so the fixture also renders the
+     * reply through {@code en_us} and demands the log sentence back: a translated line that reorders or drops
+     * one of them would put a channel count in the wrong clause, which is the one thing on this line a player
+     * acts on.
+     *
+     * <p>It owns its batch. The {@code empty} template is three blocks wide, so tests that share a batch are
+     * laid out three blocks apart while these two fixtures reach eight blocks in every direction - putting
+     * them together made one grid out of both, and the reading came back
+     * {@code controller=CONTROLLER_CONFLICT wirelessLinks=2} with two controllers and three modules in one
+     * machine table, which is a fixture collision, not a channel result.
+     */
+    @GameTest(template = "empty", batch = "wireless_landing_headroom", timeoutTicks = 900,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void aFullLandingSquareIsRefusedByItsOwnChannelWidth(GameTestHelper helper) {
+        var level = (ServerLevel) helper.getLevel();
+        clearWirelessLinksAndBillSnapshots(level);
+        var links = cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig
+                .WIRELESS_MAX_LINKS_PER_DEVICE;
+        var savedCap = links.get();
+        links.set(0);
+        try {
+            var moduleBlock = ModRegistration.SUBSYSTEM_CHANNEL_MODULE_BLOCK.get();
+            var interfaceBlock = ModRegistration.SUPERCONDUCTIVE_INTERFACE_BLOCK.get();
+
+            // Near network, controller-bearing: controller -> cable -> the machine that will be the landing
+            // square -> a dense trunk with eight machines behind it. The trunk is what makes the landing
+            // square the entry point of a subtree, which is the only situation where AE2's per-node width
+            // actually costs someone something.
+            helper.setBlock(new BlockPos(0, 1, 0), appeng.core.definitions.AEBlocks.CONTROLLER.block());
+            placeDenseTrunk(helper, new BlockPos(1, 1, 0));
+            var fullAt = GlobalPos.of(level.dimension(),
+                    helper.absolutePos(new BlockPos(2, 1, 0)));
+            helper.setBlock(new BlockPos(2, 1, 0), interfaceBlock);
+            var freeAt = GlobalPos.of(level.dimension(),
+                    helper.absolutePos(new BlockPos(0, 1, 1)));
+            helper.setBlock(new BlockPos(0, 1, 1), moduleBlock);
+            for (int i = 0; i < 8; i++) {
+                placeDenseTrunk(helper, new BlockPos(3, 1, i));
+                helper.setBlock(new BlockPos(4, 1, i), interfaceBlock);
+            }
+            // Far network: one dense module, on its own, no controller.
+            var farAt = GlobalPos.of(level.dimension(),
+                    helper.absolutePos(new BlockPos(8, 1, 0)));
+            helper.setBlock(new BlockPos(8, 1, 0), moduleBlock);
+
+            waitUntil(helper, 60,
+                    () -> {
+                        var full = networkNode(level, fullAt);
+                        var free = networkNode(level, freeAt);
+                        var far = networkNode(level, farAt);
+                        return full != null && free != null && far != null
+                                && full.getGrid() == free.getGrid()
+                                && far.getGrid() != full.getGrid()
+                                && full.getMaxChannels() > 0
+                                && full.getUsedChannels() >= full.getMaxChannels()
+                                && free.getUsedChannels() < free.getMaxChannels();
+                    },
+                    () -> "the landing square never became a full entry point on a controlled network: "
+                            + nodeSummary(level, fullAt) + " free=" + nodeSummary(level, freeAt)
+                            + " far=" + nodeSummary(level, farAt)
+                            + " - eight machines behind one ordinary interface is what pins it at its own 8",
+                    () -> {
+                        var refused = WirelessLinks.bindReply(level, ModRegistration.WIRELESS_LINKS, fullAt, farAt);
+                        if (refused.english().startsWith("linked ")
+                                || !refused.english().contains("channels it can carry")
+                                || !refused.english().contains("8 of the 8")) {
+                            helper.fail("binding through a square that already carries all 8 of its channels"
+                                    + " was not refused by name: \"" + refused.english() + "\"");
+                            return;
+                        }
+                        if (refused.english().contains("caps a device at")) {
+                            helper.fail("the bookkeeping cap refused even though it is set to 0:"
+                                    + " \"" + refused.english() + "\"");
+                            return;
+                        }
+                        // The width sentence is the whole product of this gate - a number read off AE2, not a
+                        // number a pack author typed - so the two numbers in it have to reach the player intact.
+                        var drifted = cardLineDriftedFromLog(helper, refused);
+                        if (drifted != null) {
+                            helper.fail("the width refusal's translated line and its log sentence drifted apart: "
+                                    + drifted);
+                            return;
+                        }
+                        if (!WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS, farAt)
+                                .contains("wirelessLinks=0 live=0")) {
+                            helper.fail("the refused landing square still took a record: "
+                                    + WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS, farAt));
+                            return;
+                        }
+                        // The control: the same two networks, joined through the dense module instead of the
+                        // full machine. Same distance, same dimensions, same everything except the width of
+                        // the square - so if this one is refused too, the gate is not measuring headroom.
+                        String linked = WirelessLinks.bind(level, ModRegistration.WIRELESS_LINKS, freeAt, farAt);
+                        if (!linked.startsWith("linked ")) {
+                            helper.fail("the dense module with channels to spare was refused as well, so this"
+                                    + " is not a headroom gate: \"" + linked + "\"");
+                            return;
+                        }
+                        NeoECOPrototype.LOGGER.info("wireless landing headroom: refused=\"{}\" accepted={}",
+                                refused.english(), linked);
+                        helper.succeed();
+                    });
+        } finally {
+            links.set(savedCap);
+            clearWirelessLinksAndBillSnapshots(level);
+        }
     }
 
     /**

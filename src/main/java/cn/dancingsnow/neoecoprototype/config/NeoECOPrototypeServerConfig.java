@@ -73,8 +73,15 @@ public final class NeoECOPrototypeServerConfig {
     public static final boolean WIRELESS_LINKS_DEFAULT = false;
     public static final ModConfigSpec.BooleanValue WIRELESS_LINKS;
     /**
-     * How many wireless edges one device may carry - the brake on how dense one hub may get, which is the
-     * shape a pack is most likely to want to bound. Read live on every bind, never cached.
+     * An <em>extra</em> ceiling on how many wireless edges one device may carry. 0 - the default - adds no
+     * bookkeeping limit at all and leaves the brake to AE2's own numbers, which is what the measurements say
+     * the brake should be: the channel width of the square the edge lands on
+     * ({@code WirelessLinks.fullLanding}), and for two controllerless networks the ad-hoc ceiling
+     * ({@code WirelessLinks.starvationRisk}). Read live on every bind, never cached.
+     * <p>It is kept rather than deleted because a pack author may still want a flat limit on how dense one hub
+     * is allowed to get for reasons AE2 does not model - aesthetics, save size, or a world where they do not
+     * want one block tying together forty others. A non-zero value here refuses earlier than AE2 would, and
+     * the player is told the number came from this config, not from the grid.
      */
     public static final ModConfigSpec.IntValue WIRELESS_MAX_LINKS_PER_DEVICE;
     /**
@@ -217,11 +224,14 @@ public final class NeoECOPrototypeServerConfig {
                         "关闭仅停用功能，已记录的链路数据仍保留在存档中。")
                 .define("wireless_links", WIRELESS_LINKS_DEFAULT);
         WIRELESS_MAX_LINKS_PER_DEVICE = builder
-                .comment("Max wireless edges per device. Default: 8 | Range: 1~32.",
-                        "Note: on a network without an AE2 controller the actual ceiling is 7.",
-                        "单台设备最大承载的无线链路数。默认 8 | 范围 1~32。",
-                        "注：无 AE2 控制器时，实际可用上限为 7 条。")
-                .defineInRange("wireless_max_links_per_device", 8, 1, 32);
+                .comment("Extra ceiling on wireless edges per device. Default: 0 (no extra ceiling) | Range: 0~32.",
+                        "0 leaves the ceiling to AE2 itself: a link is refused only when the square it lands"
+                        + " on is already carrying every channel it can, or when joining two controllerless"
+                        + " networks would take both of them to zero channels.",
+                        "单台设备无线链路数的额外天花板。默认 0（不设账面天花板）| 范围 0~32。",
+                        "取 0 时天花板交回 AE2 自己：只有当落点那格已经把它能承载的频道全部承载、"
+                        + "或合并两张无控制器网会把两边都压成 0 频道时，链路才被拒绝。")
+                .defineInRange("wireless_max_links_per_device", 0, 0, 32);
         WIRELESS_MAX_RANGE_BLOCKS = builder
                 .comment("Max distance between two devices, in blocks between the squares. Default: 0 (no limit) | Range: 0~100000.",
                         "Note: applied on bind; lowering it will not break existing links.",

@@ -22,13 +22,11 @@ item_ids:
 
 ## 配方
 
-样板供应器升级卡可分别由方块版或线缆版 AE2 样板供应器合成：
+样板供应器升级卡有两条无序合成配方：L1 方块版或线缆版样板供应器，各加任意金属锭，都能合成同一张卡。下方只展示其中一种；另一种可在 JEI 查看。
 
 <RecipeFor id="neoecoprototype:ae2_pattern_provider_to_l1_card" />
 
-<RecipeFor id="neoecoprototype:ae2_cable_pattern_provider_to_l1_card" />
-
-接口升级卡：
+接口升级卡各有两条无序合成配方：对应的 L1 方块版或线缆版接口，各加任意金属锭即可合成。下方只展示方块版配方；线缆版配方可在 JEI 查看。
 
 <RecipeFor id="neoecoprototype:ae2_interface_to_l1_powered_card" />
 

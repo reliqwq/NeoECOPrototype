@@ -22,13 +22,11 @@ Use a card on the matching L1 block or cable part to replace it with the corresp
 
 ## Recipes
 
-样板供应器升级卡可由方块版或线缆版 AE2 样板供应器分别合成：
+The pattern provider upgrade card has two shapeless recipes: use either the L1 block-form or cable-form pattern provider with any metal ingot to make the same card. Only one is shown below; see JEI for the other.
 
 <RecipeFor id="neoecoprototype:ae2_pattern_provider_to_l1_card" />
 
-<RecipeFor id="neoecoprototype:ae2_cable_pattern_provider_to_l1_card" />
-
-接口升级卡：
+Each interface upgrade card has two shapeless recipes: use the matching L1 block-form or cable-form interface with any metal ingot to make the card. Only the block-form recipe is shown below; see JEI for the cable-form recipe.
 
 <RecipeFor id="neoecoprototype:ae2_interface_to_l1_powered_card" />
 

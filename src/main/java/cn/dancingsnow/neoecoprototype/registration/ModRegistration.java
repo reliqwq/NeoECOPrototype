@@ -84,6 +84,8 @@ import cn.dancingsnow.neoecoprototype.blockentity.trinity.SimplifyTrinityCraftin
 import cn.dancingsnow.neoecoprototype.block.reactor.SimplifyReactorControllerBlock;
 import cn.dancingsnow.neoecoprototype.block.reactor.SimplifyReactorFrameBlock;
 import cn.dancingsnow.neoecoprototype.block.reactor.SimplifyReactorGlassBlock;
+import cn.dancingsnow.neoecoprototype.block.wireless.WirelessChannelModuleBlock;
+import cn.dancingsnow.neoecoprototype.blockentity.wireless.WirelessChannelModuleBlockEntity;
 import cn.dancingsnow.neoecoprototype.blockentity.reactor.SimplifyReactorControllerBlockEntity;
 import cn.dancingsnow.neoecoprototype.blockentity.storage.SimplifyDriveBlockEntity;
 import cn.dancingsnow.neoecoprototype.blockentity.storage.SimplifyEnergyCellBlockEntity;
@@ -507,11 +509,11 @@ public class ModRegistration {
      * bottle, sugar, eco's cryotheum powder and a snowball. It is {@link DrinkableFoodItem drunk, not
      * eaten}, and drinking it hands the bottle back ({@code usingConvertsTo}), so the container is not a
      * slow leak in a player's stock. It sits at cooked chicken's rung on purpose - the guard compares it
-     * against vanilla's own number rather than against this line. The icon is PR #17's
-     * {@code sundae_glass.png}: he picked it from the five candidates knowing it is the one whose outline
-     * is slate (74,95,110) rather than eco's deep-sea blue (12,63,104) and whose cream highlights are new
-     * to the family. Swapping the flavour means replacing that file and the model's {@code layer0},
-     * nothing else.
+     * against vanilla's own number rather than against this line. The icon is
+     * {@code sundae_glass.png}: hand-drawn and finalized by our developer from the community concept in
+     * PR #17, keeping that concept's slate (74,95,110) outline rather than eco's deep-sea blue (12,63,104)
+     * and its cream highlights, which are new to the family. Swapping the flavour means replacing that file
+     * and the model's {@code layer0}, nothing else.
      *
      * <p>What it does to the drinker is two things and now carries no tooltip line: four minutes of fire
      * resistance ({@code 4800} ticks, probability 1.0) plus {@link CryotheumIceCreamItem#FREEZE_TICKS} ticks
@@ -820,6 +822,10 @@ public class ModRegistration {
 
     // ============================ L1 crafting blocks ============================
 
+    /** Fixed local endpoint for a wireless edge; it is intentionally not a pool of controller-face channels. */
+    public static final Supplier<WirelessChannelModuleBlock> SUBSYSTEM_CHANNEL_MODULE_BLOCK =
+            BLOCKS.register("subsystem_channel_module", () -> new WirelessChannelModuleBlock(AE2_MACHINE_PROPS));
+
     public static final Supplier<SimplifyCraftingSystemBlock> SIMPLIFY_CRAFTING_SYSTEM_BLOCK =
             BLOCKS.register("simplify_crafting_system", () -> new SimplifyCraftingSystemBlock(COMPUTATION_PROPS));
      public static final Supplier<SimplifyStonecuttingAssemblerBlock> SIMPLIFY_STONECUTTING_ASSEMBLER_BLOCK = BLOCKS.register("simplify_stonecutting_assembler", () -> new SimplifyStonecuttingAssemblerBlock(AE2_MACHINE_PROPS));
@@ -936,6 +942,11 @@ public class ModRegistration {
             ITEMS.register("energized_energy_cell_512g",
                     () -> new cn.dancingsnow.neoecoprototype.items.EnergizedEnergyCellBlockItem(
                             ENERGIZED_ENERGY_CELL_512G_BLOCK.get(), new Item.Properties()));
+
+    /** Registered for worlds/tests; withheld from recipes and the creative tab with the two wireless cards. */
+    public static final Supplier<BlockItem> SUBSYSTEM_CHANNEL_MODULE_ITEM = ITEMS.register(
+            "subsystem_channel_module",
+            () -> new BlockItem(SUBSYSTEM_CHANNEL_MODULE_BLOCK.get(), new Item.Properties()));
 
     /**
      * The wireless link card's gesture, not its memory: the pairs themselves are filed on the level, so an
@@ -1730,7 +1741,16 @@ private static Supplier<BlockEntityType<SimplifyStorageVentBlockEntity>> registe
 
     public static final Supplier<BlockEntityType<SimplifyStonecuttingAssemblerBlockEntity>> SIMPLIFY_STONECUTTING_ASSEMBLER_BE = registerStonecuttingAssemblerBe();
 
-     public static final Supplier<BlockEntityType<SimplifyPatternProviderBlockEntity>> SIMPLIFY_PATTERN_PROVIDER_BE = registerPatternProviderBe();
+    public static final Supplier<BlockEntityType<WirelessChannelModuleBlockEntity>> SUBSYSTEM_CHANNEL_MODULE_BE =
+            registerSubsystemChannelModuleBe();
+
+    private static Supplier<BlockEntityType<WirelessChannelModuleBlockEntity>> registerSubsystemChannelModuleBe() {
+        return (Supplier) BLOCK_ENTITIES.register("subsystem_channel_module", () -> BlockEntityType.Builder.of(
+                (pos, state) -> new WirelessChannelModuleBlockEntity(SUBSYSTEM_CHANNEL_MODULE_BE.get(), pos, state),
+                SUBSYSTEM_CHANNEL_MODULE_BLOCK.get()).build(null));
+    }
+
+    public static final Supplier<BlockEntityType<SimplifyPatternProviderBlockEntity>> SIMPLIFY_PATTERN_PROVIDER_BE = registerPatternProviderBe();
       public static final Supplier<BlockEntityType<SimplifyPoweredMEInterfaceBlockEntity>> SIMPLIFY_POWERED_ME_INTERFACE_BE = registerPoweredMEInterfaceBe();
        public static final Supplier<BlockEntityType<SimplifySuperconductiveInterfaceBlockEntity>> SUPERCONDUCTIVE_INTERFACE_BE = registerSuperconductiveInterfaceBe();
     public static final Supplier<BlockEntityType<SimplifyReactorControllerBlockEntity>> REACTOR_CONTROLLER_BE =
@@ -2205,6 +2225,8 @@ private static Supplier<BlockEntityType<SimplifyStorageVentBlockEntity>> registe
      */
     @SuppressWarnings({"unchecked", "rawtypes"})
     public static void linkBlockEntityTypes() {
+        asEntityBlock(SUBSYSTEM_CHANNEL_MODULE_BLOCK).setBlockEntity(
+                WirelessChannelModuleBlockEntity.class, SUBSYSTEM_CHANNEL_MODULE_BE.get(), null, null);
         asEntityBlock(SIMPLIFY_TRINITY_CONTROLLER_BLOCK).setBlockEntity(
                 SimplifyTrinityControllerBlockEntity.class, SIMPLIFY_TRINITY_CONTROLLER_BE.get(), null,
                 (level, pos, state, blockEntity) -> SimplifyTrinityControllerBlockEntity.tick(
@@ -2357,6 +2379,8 @@ private static Supplier<BlockEntityType<SimplifyStorageVentBlockEntity>> registe
                 MUSIC_JUKEBOX_ITEM.get().asItem());
         AEBaseBlockEntity.registerBlockEntityItem(MUSIC_RECORDER_BE.get(),
                 MUSIC_RECORDER_ITEM.get().asItem());
+        AEBaseBlockEntity.registerBlockEntityItem(SUBSYSTEM_CHANNEL_MODULE_BE.get(),
+                SUBSYSTEM_CHANNEL_MODULE_ITEM.get().asItem());
         AEBaseBlockEntity.registerBlockEntityItem(SIMPLIFY_PATTERN_PROVIDER_BE.get(), SIMPLIFY_PATTERN_PROVIDER_ITEM.get().asItem());
          AEBaseBlockEntity.registerBlockEntityItem(SIMPLIFY_POWERED_ME_INTERFACE_BE.get(), SIMPLIFY_POWERED_ME_INTERFACE_ITEM.get().asItem());
          AEBaseBlockEntity.registerBlockEntityItem(SUPERCONDUCTIVE_INTERFACE_BE.get(), SUPERCONDUCTIVE_INTERFACE_ITEM.get().asItem());

@@ -61,10 +61,8 @@ final class CardReplyLanguageTest {
     @Test
     void everyReplyNameHasItsKeyInBothLanguages() throws Exception {
         var names = replyNames();
-        // Seven replies were keyed before this round (linked / marked / dropped / already_linked / raised /
-        // already_top / teardown_moved) and 21 more on 2026-11-04, when every refusal got a key. The count is
-        // spelled out so folding one reply into another, or keying a new outcome, has to be said on purpose.
-        assertEquals(28, names.size(), "keyed card replies found: " + names);
+        // The expected count makes adding or folding a player-facing outcome explicit.
+        assertEquals(32, names.size(), "keyed card replies found: " + names);
         var zh = language("zh_cn");
         var en = language("en_us");
         for (String name : names) {
@@ -103,6 +101,37 @@ final class CardReplyLanguageTest {
         boolean bare = found.stream().anyMatch(slot -> slot.equals("%s"));
         boolean indexed = found.stream().anyMatch(slot -> !slot.equals("%s"));
         return bare && indexed;
+    }
+
+    /**
+     * The manager screen's own labels. Same failure as a card reply and the same reason for a scan: a missing
+     * key draws its dotted name on the panel, which reads as a broken screen rather than a missing translation,
+     * and the panel is only reachable by opening it in a client - so nothing else in the suite would see it.
+     *
+     * <p>The row pair is checked for slot parity on top of mere presence: {@code row_head} and {@code row_tail}
+     * are two halves of one link, and a language that numbers them differently would show the far end where the
+     * group belongs.
+     */
+    @Test
+    void everyManagerLabelHasItsKeyInBothLanguages() throws Exception {
+        var source = Files.readString(MAIN.resolve("items/WirelessLinkManagementUI.java"));
+        var keys = new LinkedHashSet<String>();
+        Matcher matcher = Pattern.compile("\"(gui\\.neoecoprototype\\.wireless_manager\\.[a-z0-9_]+)\"")
+                .matcher(source);
+        while (matcher.find()) {
+            keys.add(matcher.group(1));
+        }
+        // Adding or folding a manager label should be a deliberate edit to this number, not a silent skip.
+        assertEquals(16, keys.size(), "manager labels found: " + keys);
+
+        var en = language("en_us");
+        var zh = language("zh_cn");
+        for (String key : keys) {
+            assertTrue(en.has(key), "en_us.json has no " + key + ", so the manager draws its key on screen");
+            assertTrue(zh.has(key), "zh_cn.json has no " + key + ", so the manager draws its key on screen");
+            assertEquals(slots(en.get(key).getAsString()).toString(), slots(zh.get(key).getAsString()).toString(),
+                    key + " fills different slots per language, so one of them puts a fact in the wrong place");
+        }
     }
 
     /**

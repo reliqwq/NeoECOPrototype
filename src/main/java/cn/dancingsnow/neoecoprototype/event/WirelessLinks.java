@@ -99,6 +99,7 @@ public final class WirelessLinks {
     private static final String TAG_B = "b";
     private static final String TAG_DIM = "dim";
     private static final String TAG_POS = "pos";
+    private static final String TAG_GROUP = "group";
 
     private WirelessLinks() {
     }
@@ -128,6 +129,22 @@ public final class WirelessLinks {
         }
     }
 
+    public static String normalizeGroup(@Nullable String value) {
+        if (value == null) {
+            return "";
+        }
+        String normalized = value.codePoints().filter(codePoint -> !Character.isISOControl(codePoint))
+                .collect(StringBuilder::new, StringBuilder::appendCodePoint, StringBuilder::append).toString().trim();
+        int count = normalized.codePointCount(0, normalized.length());
+        if (count > 32) {
+            normalized = normalized.substring(0, normalized.offsetByCodePoints(0, 32));
+        }
+        return normalized;
+    }
+
+    public record LinkSummary(String group, GlobalPos a, GlobalPos b, boolean live) {
+    }
+
     private static int compare(GlobalPos x, GlobalPos y) {
         int byDimension = x.dimension().location().compareTo(y.dimension().location());
         return byDimension != 0 ? byDimension : Long.compare(x.pos().asLong(), y.pos().asLong());
@@ -146,6 +163,7 @@ public final class WirelessLinks {
     /** The persisted half is the list of pairs; edges are ours only while both ends are up. */
     public static final class Data {
         final List<Link> links = new ArrayList<>();
+        final Map<Link, String> groups = new HashMap<>();
         final Map<Link, IGridConnection> edges = new HashMap<>();
         /** Per-pair bookkeeping for the rebuild throttle; none of it is persisted. */
         final Map<Link, Long> lastAttemptTick = new HashMap<>();
@@ -173,6 +191,58 @@ public final class WirelessLinks {
             return List.copyOf(links);
         }
 
+        public String group(Link link) {
+            return groups.getOrDefault(link, "");
+        }
+
+        public boolean record(Link link, String groupName) {
+            if (!links.add(link)) {
+                return false;
+            }
+            setGroup(link, groupName);
+            return true;
+        }
+
+        /**
+         * Names an existing pair, or takes it out of its group when the name is empty. Separate from
+         * {@link #record} because recording happens once per pair while a group can be changed any number of
+         * times - the two were one call only while binding was the single writer.
+         */
+        public void setGroup(Link link, String groupName) {
+            String group = normalizeGroup(groupName);
+            if (group.isEmpty()) {
+                groups.remove(link);
+            } else {
+                groups.put(link, group);
+            }
+        }
+
+        public int linksInGroup(String groupName) {
+            String group = normalizeGroup(groupName);
+            int count = 0;
+            for (Link link : links) {
+                if (group.equals(group(link))) {
+                    count++;
+                }
+            }
+            return count;
+        }
+
+        public List<Link> removeGroup(String groupName) {
+            String group = normalizeGroup(groupName);
+            List<Link> removed = new ArrayList<>();
+            for (Iterator<Link> it = links.iterator(); it.hasNext(); ) {
+                Link link = it.next();
+                if (!group.equals(group(link))) {
+                    continue;
+                }
+                removed.add(link);
+                drop(link);
+                it.remove();
+            }
+            return List.copyOf(removed);
+        }
+
         int linksAt(GlobalPos endpoint) {
             int count = 0;
             for (Link link : links) {
@@ -185,6 +255,7 @@ public final class WirelessLinks {
 
         /** Forgets everything we believed about one pair, record included. */
         void drop(Link link) {
+            groups.remove(link);
             edges.remove(link);
             lastAttemptTick.remove(link);
             rebuildFailures.remove(link);
@@ -207,7 +278,8 @@ public final class WirelessLinks {
                             GlobalPos a = readEndpoint(pair.getCompound(TAG_A));
                             GlobalPos b = readEndpoint(pair.getCompound(TAG_B));
                             if (a != null && b != null && !a.equals(b)) {
-                                data.links.add(Link.of(a, b));
+                                Link link = Link.of(a, b);
+                                data.record(link, pair.getString(TAG_GROUP));
                             }
                         }
                     }
@@ -221,6 +293,10 @@ public final class WirelessLinks {
                         CompoundTag pair = new CompoundTag();
                         pair.put(TAG_A, writeEndpoint(link.a()));
                         pair.put(TAG_B, writeEndpoint(link.b()));
+                        String group = data.group(link);
+                        if (!group.isEmpty()) {
+                            pair.putString(TAG_GROUP, group);
+                        }
                         list.add(pair);
                     }
                     CompoundTag tag = new CompoundTag();
@@ -316,6 +392,12 @@ public final class WirelessLinks {
     /** {@link #bind} as the card needs it: the same work, plus the key each outcome speaks in. */
     public static Reply bindReply(ServerLevel acting, Supplier<AttachmentType<Data>> type, GlobalPos from,
                                   GlobalPos to) {
+        return bindReply(acting, type, from, to, "");
+    }
+
+    public static Reply bindReply(ServerLevel acting, Supplier<AttachmentType<Data>> type, GlobalPos from,
+                                  GlobalPos to, String groupName) {
+        String group = normalizeGroup(groupName);
         if (from.equals(to)) {
             return Reply.of("same_block", "both ends are the same block");
         }
@@ -360,15 +442,21 @@ public final class WirelessLinks {
                     "that is not a network device: " + labelText(acting, dead), label(acting, dead));
         }
         int onA = linksAtEverywhere(owner, type, link.a());
-        if (onA >= maxLinks) {
+        if (maxLinks > 0 && onA >= maxLinks) {
             return Reply.of("at_limit", labelText(acting, link.a()) + " already carries " + onA
-                    + " links (max " + maxLinks + ", from wireless_max_links_per_device in this world's config)",
+                    + " links and this world's config caps a device at " + maxLinks
+                    + " (wireless_max_links_per_device) - that number is a pack author's choice, not AE2's"
+                    + " ceiling; set it to 0 and the only ceiling left is the channel width of the square"
+                    + " itself",
                     label(acting, link.a()), onA, maxLinks);
         }
         int onB = linksAtEverywhere(owner, type, link.b());
-        if (onB >= maxLinks) {
+        if (maxLinks > 0 && onB >= maxLinks) {
             return Reply.of("at_limit", labelText(acting, link.b()) + " already carries " + onB
-                    + " links (max " + maxLinks + ", from wireless_max_links_per_device in this world's config)",
+                    + " links and this world's config caps a device at " + maxLinks
+                    + " (wireless_max_links_per_device) - that number is a pack author's choice, not AE2's"
+                    + " ceiling; set it to 0 and the only ceiling left is the channel width of the square"
+                    + " itself",
                     label(acting, link.b()), onB, maxLinks);
         }
         IGridNode a = node(owner, link.a());
@@ -394,9 +482,10 @@ public final class WirelessLinks {
                             + " reach each other through the blocks you laid",
                     nodes);
         }
-        // The merge guard: joining two networks is not "one more cable", it puts their device counts into
-        // one ad-hoc budget, and that budget is all-or-nothing. Refuse before touching anything when the
-        // joined network would certainly be starved, and confirm the rest against AE2's own verdict below.
+        // This pre-check is intentionally limited to two controllerless networks. AE2's own controller
+        // validator follows physical controller-block connectivity; a virtual edge does not turn two separate
+        // controller structures into one controller group (guarded by twoOnlineControllerPilesStayOnlineAcrossAWirelessEdge).
+        // The remaining all-or-nothing case is controllerless ad-hoc capacity.
         Starvation risk = starvationRisk(a, b);
         if (risk != null) {
             return Reply.of("starvation", "these two networks together need " + risk.demand()
@@ -407,7 +496,25 @@ public final class WirelessLinks {
                     + " into one of them, or move some devices off one side first",
                     risk.demand(), risk.fits(), risk.ceilingA(), risk.ceilingB());
         }
-        data.links.add(link);
+        Full fullA = fullLanding(a);
+        if (fullA != null) {
+            return Reply.of("endpoint_full", labelText(acting, link.a()) + " is already carrying " + fullA.used()
+                    + " of the " + fullA.max() + " channels it can carry, so a wireless edge into it would"
+                    + " get nothing: that square is where the other network has to enter, and AE2 caps an"
+                    + " entry at that number. Move the link onto a subsystem channel module, or onto a dense"
+                    + " cable face, instead of onto this machine",
+                    label(acting, link.a()), fullA.used(), fullA.max());
+        }
+        Full fullB = fullLanding(b);
+        if (fullB != null) {
+            return Reply.of("endpoint_full", labelText(acting, link.b()) + " is already carrying " + fullB.used()
+                    + " of the " + fullB.max() + " channels it can carry, so a wireless edge into it would"
+                    + " get nothing: that square is where the other network has to enter, and AE2 caps an"
+                    + " entry at that number. Move the link onto a subsystem channel module, or onto a dense"
+                    + " cable face, instead of onto this machine",
+                    label(acting, link.b()), fullB.used(), fullB.max());
+        }
+        data.record(link, group);
         // No dirty flag to set: LevelAttachmentsSavedData.isDirty() answers true unconditionally, so a
         // level save always re-reads whatever this object currently holds.
         EdgeResult result = ensureEdge(owner, data, link);
@@ -648,6 +755,89 @@ public final class WirelessLinks {
             }
         }
         return count;
+    }
+
+    /**
+     * Puts every link that touches {@code endpoint} into one group, and answers how many pairs that changed.
+     * A null endpoint means every recorded link, which is what the manager uses when the card holds no mark:
+     * the screen lists the links it is about to rename, so "apply" over that list is the same promise as
+     * "apply" over one device's links, and a player who never marked anything is not left clicking a button
+     * that answers zero.
+     *
+     * <p>Answering a count rather than nothing is deliberate - zero is a real answer ("this device carries no
+     * links"), and the caller says so instead of leaving it ambiguous.
+     */
+    public static int assignGroup(ServerLevel acting, Supplier<AttachmentType<Data>> type,
+                                  @Nullable GlobalPos endpoint, String groupName) {
+        String group = normalizeGroup(groupName);
+        int moved = 0;
+        for (ServerLevel level : acting.getServer().getAllLevels()) {
+            if (!level.hasData(type.get())) {
+                continue;
+            }
+            Data data = level.getData(type.get());
+            for (Link link : data.links()) {
+                if (endpoint != null && !link.touches(endpoint)) {
+                    continue;
+                }
+                if (!group.equals(data.group(link))) {
+                    data.setGroup(link, group);
+                    moved++;
+                }
+            }
+        }
+        return moved;
+    }
+
+    public static List<LinkSummary> groupOverview(ServerLevel acting, Supplier<AttachmentType<Data>> type) {
+        List<LinkSummary> rows = new ArrayList<>();
+        for (ServerLevel owner : acting.getServer().getAllLevels()) {
+            if (!owner.hasData(type.get())) {
+                continue;
+            }
+            Data data = owner.getData(type.get());
+            for (Link link : data.links) {
+                rows.add(new LinkSummary(data.group(link), link.a(), link.b(),
+                        isStillBetween(owner, data.edges.get(link), link)));
+            }
+        }
+        rows.sort(java.util.Comparator.comparing((LinkSummary row) -> groupLabel(row.group()), String.CASE_INSENSITIVE_ORDER)
+                .thenComparing(row -> describe(row.a()) + describe(row.b()), String.CASE_INSENSITIVE_ORDER));
+        return List.copyOf(rows);
+    }
+
+    public static Reply unlinkGroupReply(ServerLevel acting, Supplier<AttachmentType<Data>> type,
+                                         String groupName) {
+        String group = normalizeGroup(groupName);
+        if (group.isEmpty()) {
+            return Reply.of("group_required", "enter a named group before unlinking it");
+        }
+        int removed = 0;
+        for (ServerLevel level : acting.getServer().getAllLevels()) {
+            if (!level.hasData(type.get())) {
+                continue;
+            }
+            Data data = level.getData(type.get());
+            List<Link> grouped = data.links().stream().filter(link -> group.equals(data.group(link))).toList();
+            for (Link link : grouped) {
+                IGridConnection held = data.edges.get(link);
+                if (isStillBetween(level, held, link)) {
+                    held.destroy();
+                }
+            }
+            removed += data.removeGroup(group).size();
+        }
+        NeoECOPrototype.LOGGER.info("wireless link: group unlink '{}' removed={} link(s)", groupLabel(group), removed);
+        return removed == 0
+                ? Reply.of("group_empty", "wireless group '" + groupLabel(group) + "' has no links",
+                        groupLabel(group))
+                : Reply.of("group_unlinked", "wireless group '" + groupLabel(group) + "' removed " + removed
+                        + " link(s)", groupLabel(group), removed);
+    }
+
+    public static String groupLabel(String groupName) {
+        String group = normalizeGroup(groupName);
+        return group.isEmpty() ? "(ungrouped)" : group;
     }
 
     /**
@@ -1056,6 +1246,42 @@ public final class WirelessLinks {
     }
 
     /**
+     * The gate that replaced the link count: AE2's own headroom on the square the edge would land on.
+     *
+     * <p>Refusing here is sound rather than merely cautious. A channel that the joined network wants has to
+     * pass through this node, so if AE2 has already handed that node everything it can carry, the far side
+     * cannot be served either - and the link would only start drawing
+     * {@code wireless_ae_per_link_per_tick} for a connection that carries nothing. Measured in the client on
+     * 2026-11-13 in one world with the same module at both ends: an ordinary machine read
+     * {@code a(max=8,used=8)} while the dense module end read {@code b(max=32,used=11)} - the machine was
+     * already full, and a ninth spoke into it would have been billed for zero channels.
+     *
+     * <p>The reading is only a headroom measurement on a controlled network. On a controllerless one
+     * {@code PathingService} runs {@code AdHocChannelUpdater}, which writes the SAME network-wide count into
+     * every node it visits, so {@code getUsedChannels()} there is not this node's usage at all and every
+     * ordinary node would look full at exactly 8. The controllerless case is
+     * {@link #starvationRisk}'s job: it compares AE2's own ad-hoc demand against
+     * {@code ChannelMode.getAdHocNetworkChannels()}, which is the number that actually governs it.
+     *
+     * @return the two numbers when that node can carry nothing more, null when it still has room
+     */
+    private static Full fullLanding(IGridNode node) {
+        var grid = node == null ? null : node.getGrid();
+        int max = node == null ? 0 : node.getMaxChannels();
+        // A CANNOT_CARRY node answers 0, and no width is not the same thing as a full one: refusing on
+        // 0 >= 0 would reject every link that touches a controller block.
+        if (grid == null || max <= 0 || !"CONTROLLER_ONLINE".equals(controllerStateOf(grid))) {
+            return null;
+        }
+        int used = node.getUsedChannels();
+        return used >= max ? new Full(used, max) : null;
+    }
+
+    /** The two numbers the landing gate names when it refuses: what the node carries, and what it can carry. */
+    private record Full(int used, int max) {
+    }
+
+    /**
      * What AE2's ad-hoc branch would charge for this grid, counted the way it counts: one per node that
      * requires a channel, with a multiblock's members folded into the single slot the multiblock itself takes
      * (measured in {@code PathingService#calculateAdHocChannels}). That set is private, so this walks
@@ -1117,7 +1343,7 @@ public final class WirelessLinks {
                 continue;
             }
             if (!rebuildLink(acting, data, link, "wake burst")) {
-                data.links.remove(link);
+                data.drop(link);
                 it.remove();
             }
         }
@@ -1138,7 +1364,9 @@ public final class WirelessLinks {
         }
         Data data = acting.getData(type.get());
         for (Iterator<Link> it = data.links.iterator(); it.hasNext(); ) {
-            if (!rebuildLink(acting, data, it.next(), "sweep")) {
+            Link link = it.next();
+            if (!rebuildLink(acting, data, link, "sweep")) {
+                data.drop(link);
                 it.remove();
             }
         }
@@ -1533,8 +1761,17 @@ public final class WirelessLinks {
 
     /** One end of a link, named - the pair form the card sends as two separate arguments. */
     public static Component endLabel(ServerLevel acting, Link link, boolean first) {
-        var at = first ? link.a() : link.b();
-        var owner = levelOf(acting, at.dimension());
+        return labelAnywhere(acting, first ? link.a() : link.b());
+    }
+
+    /**
+     * {@link #label} for a square the caller may not be standing in: the level asked is the one that square
+     * belongs to, so a link whose far end is in another dimension still gets its block named rather than its
+     * raw coordinates. Falls back to the acting level when that dimension is not loaded, which {@link #label}
+     * then answers as coordinates - the same answer it gives for any square it cannot see.
+     */
+    public static Component labelAnywhere(ServerLevel acting, GlobalPos at) {
+        ServerLevel owner = levelOf(acting, at.dimension());
         return label(owner == null ? acting : owner, at);
     }
 
