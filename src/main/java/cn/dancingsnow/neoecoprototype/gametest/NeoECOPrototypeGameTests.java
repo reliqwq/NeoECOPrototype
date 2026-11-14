@@ -9465,6 +9465,138 @@ public final class NeoECOPrototypeGameTests {
     }
 
     /**
+     * A module whose grid has no controller: the ports still open, they hang off the module's own node, and
+     * they cost the network nothing but a row in the node list.
+     *
+     * <p>Why this exists: two reviews on 2026-11-14 both warned about the ports on a controllerless grid - one
+     * that six {@code DENSE_CAPACITY} nodes would push the ad-hoc accounting past AE2's eight-channel ceiling
+     * and take the whole grid offline, one that the fallback itself is a lucky-case assumption. Neither had a
+     * fixture to argue with, because every port fixture in this file places a controller first. That is a gap
+     * in the suite, not a finding, and this closes it.
+     *
+     * <p>What it pins, in the order a player reaches it: the bind goes through; exactly one port opens; that
+     * port's other end is the module's own main node (the documented fallback - with no controller node there
+     * is nothing to widen, and an ad-hoc network gets its channels from one network-wide branch); the joined
+     * grid reads {@code NO_CONTROLLER} with <em>no</em> {@code adHocError}, and the far machine still gets a
+     * channel. The second bind then packs onto the same port rather than opening a second one, so a
+     * controllerless grid ends up with one outlet and three nodes' worth of ad-hoc demand out of eight.
+     *
+     * <p>The arithmetic the first review was worried about is answered here rather than by a red test, and the
+     * difference matters: a port carries {@code DENSE_CAPACITY} and not {@code REQUIRE_CHANNEL}, and
+     * {@code PathingService.addNode} only files a node into {@code nodesNeedingChannels} behind a
+     * {@code hasFlag(REQUIRE_CHANNEL)} test - so a port contributes zero to {@code calculateAdHocChannels()}
+     * and a control group that adds the flag cannot be made to bite at three consumers out of eight. The
+     * ceiling that does bite is reachable only by networks big enough to be refused by the merge guard first.
+     *
+     * <p>Control group that does bite: make {@code trunkNode()} answer null when the grid has no controller.
+     * Then no port ever opens on this fixture and the first bind is refused. That is the reason the fallback
+     * stays - and it is also why {@code gridOnline()} is defined on it: turning the fallback into a refusal
+     * would make a module that is wired into a live network read as "not on a network at all", which sends the
+     * player to check a cable that is fine.
+     */
+    @GameTest(template = "empty", batch = "wireless_module_no_controller", timeoutTicks = 900,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void aModuleWithoutAControllerStillOpensOnePortAndCostsNoChannels(GameTestHelper helper) {
+        var level = (ServerLevel) helper.getLevel();
+        clearWirelessLinksAndBillSnapshots(level);
+        var links = cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig
+                .WIRELESS_MAX_LINKS_PER_DEVICE;
+        links.set(0);
+        // No controller anywhere, and the two grids four apart: close enough for the distance gate, far
+        // enough that AE2 has not merged them before the card does. Spread along Z because neighbouring tests
+        // in one run sit ~8 apart in X and a fixture reaching x=13 gets written over.
+        helper.setBlock(new BlockPos(0, 1, 0), ModRegistration.SUBSYSTEM_CHANNEL_MODULE_BLOCK.get());
+        helper.setBlock(new BlockPos(1, 1, 0), ModRegistration.SUPERCONDUCTIVE_INTERFACE_BLOCK.get());
+        helper.setBlock(new BlockPos(0, 1, 4), ModRegistration.SUPERCONDUCTIVE_INTERFACE_BLOCK.get());
+        helper.setBlock(new BlockPos(0, 1, 8), ModRegistration.SUPERCONDUCTIVE_INTERFACE_BLOCK.get());
+        var modulePos = new BlockPos(0, 1, 0);
+        var moduleAt = GlobalPos.of(level.dimension(), helper.absolutePos(modulePos));
+        var nearAt = GlobalPos.of(level.dimension(), helper.absolutePos(new BlockPos(1, 1, 0)));
+        var farOne = GlobalPos.of(level.dimension(), helper.absolutePos(new BlockPos(0, 1, 4)));
+        var farTwo = GlobalPos.of(level.dimension(), helper.absolutePos(new BlockPos(0, 1, 8)));
+        var farDevices = new GlobalPos[]{farOne, farTwo};
+        waitUntil(helper, 40,
+                () -> separateNetworks(level, nearAt, farOne) && separateNetworks(level, nearAt, farTwo)
+                        && "NO_CONTROLLER".equals(WirelessLinks.controllerState(level, moduleAt)),
+                () -> "the controllerless premise never held: module="
+                        + WirelessLinks.controllerState(level, moduleAt) + " near="
+                        + nodeSummary(level, nearAt) + " far=" + nodeSummary(level, farOne),
+                () -> {
+                    String bound = WirelessLinks.bind(level, ModRegistration.WIRELESS_LINKS, moduleAt, farOne);
+                    if (!bound.startsWith("linked ")) {
+                        helper.fail("a controllerless module refused its own first link: \"" + bound + "\" "
+                                + WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS, moduleAt));
+                        return;
+                    }
+                    var module = helper.getBlockEntity(modulePos)
+                            instanceof WirelessChannelModuleBlockEntity be ? be : null;
+                    if (module == null) {
+                        helper.fail("no module block entity at the fixture's own position");
+                        return;
+                    }
+                    if (module.livePorts() != 1) {
+                        helper.fail("the first controllerless bind opened " + module.livePorts()
+                                + " ports, expected 1: " + portTable(module));
+                        return;
+                    }
+                    // The fallback, read off AE2 rather than off our own list: the port's only other end has
+                    // to be this block's main node, because there is no controller node to hang it on.
+                    var mainNode = module.getMainNode().getNode();
+                    var port = module.livePortNodes().isEmpty() ? null : module.livePortNodes().get(0);
+                    boolean onMainNode = port != null && mainNode != null
+                            && port.getConnections().stream().anyMatch(edge -> edge.getOtherSide(port) == mainNode);
+                    if (!onMainNode) {
+                        helper.fail("the port is not hanging off the module's own node, so the documented"
+                                + " controllerless fallback did not happen: port=" + (port == null ? "none"
+                                : port.getConnections().size() + " connection(s)") + " table="
+                                + portTable(module));
+                        return;
+                    }
+                    String status = WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS, farOne);
+                    if (status.contains("adHocError=")) {
+                        helper.fail("the ports put the controllerless grid into AE2's ad-hoc error - that is"
+                                + " the failure the 2026-11-14 reviews predicted, and it means a port IS"
+                                + " billed for channels: " + status);
+                        return;
+                    }
+                    if (!status.contains("adHocLimit=8 (this network holds 4 nodes)")) {
+                        helper.fail("the joined controllerless grid is not the four nodes this fixture builds"
+                                + " (module, port, near machine, far machine), so the reading below is not"
+                                + " about this world: " + status);
+                        return;
+                    }
+                    if (chargedDevices(level, new GlobalPos[]{farOne}) != 1) {
+                        helper.fail("the far machine merged into the grid and still has no channel: " + status);
+                        return;
+                    }
+                    // Second satellite: small enough to pack, so it lands on the same outlet and the module
+                    // still holds one port. This is F3 working on the fallback path, not only under a
+                    // controller - the other half of that claim is the packing fixture.
+                    String second = WirelessLinks.bind(level, ModRegistration.WIRELESS_LINKS, moduleAt, farTwo);
+                    if (!second.startsWith("linked ")) {
+                        helper.fail("the second controllerless satellite was refused: \"" + second + "\"");
+                        return;
+                    }
+                    if (module.livePorts() != 1) {
+                        helper.fail("the second satellite opened a new outlet instead of packing: livePorts="
+                                + module.livePorts() + " table=" + portTable(module));
+                        return;
+                    }
+                    NeoECOPrototype.LOGGER.info("controllerless module: table={} farTwo={}",
+                            portTable(module),
+                            WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS, farTwo));
+                    if (chargedDevices(level, farDevices) != 2) {
+                        helper.fail("only " + chargedDevices(level, farDevices) + " of 2 satellites charged"
+                                + " on the controllerless grid: " + portTable(module));
+                        return;
+                    }
+                    links.set(NeoECOPrototypeServerConfig.WIRELESS_MAX_LINKS_PER_DEVICE.getDefault());
+                    clearWirelessLinksAndBillSnapshots(level);
+                    helper.succeed();
+                });
+    }
+
+    /**
      * Small networks share an outlet; a network bigger than the packing ceiling does not.
      *
      * <p>Four satellites of two machines each spend three channels apiece out of a port's 32, so all four land
