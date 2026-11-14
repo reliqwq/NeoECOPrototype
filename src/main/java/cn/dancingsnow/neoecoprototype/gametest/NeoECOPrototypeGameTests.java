@@ -9434,6 +9434,121 @@ public final class NeoECOPrototypeGameTests {
                 });
     }
 
+    /**
+     * The sixth is the ceiling, so the seventh has to be refused out loud.
+     *
+     * <p>Seven one-machine far networks, six bound: each bind takes a port of its own, so six ports are live
+     * and six machines charge. The seventh is the assertion - it must be refused by {@code no_free_port}, and
+     * the two refusals must not be able to trade places. {@code endpoint_full} means the square on the far end
+     * is out of channels; {@code no_free_port} means this module is out of outlets. A player told the first one
+     * when the second fired goes to widen a network that already has room, which is the same mistake the link
+     * cap used to make in the other direction.
+     *
+     * <p>One machine per group is enough and that is the point: the ports run out by being <em>used</em>, not
+     * by being filled, so a fixture that needed 6 x 32 devices would be testing the width gate instead.
+     *
+     * <p>It also renders the refusal through {@code en_us}, which is the only place that comparison exists for
+     * this line - the tap-time guards in {@code wireless_reply_keys} cannot reach a bind.
+     */
+    @GameTest(template = "empty", batch = "wireless_module_port_cap", timeoutTicks = 1800,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void aModuleWithAllSixPortsBusyRefusesASeventhNetwork(GameTestHelper helper) {
+        var level = (ServerLevel) helper.getLevel();
+        clearWirelessLinksAndBillSnapshots(level);
+        var links = cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig
+                .WIRELESS_MAX_LINKS_PER_DEVICE;
+        links.set(0);
+        var fixture = buildPortFixture(helper, WirelessChannelModuleBlockEntity.MAX_PORTS + 1, 1);
+        var devices = java.util.Arrays.copyOf(fixture.devices(),
+                WirelessChannelModuleBlockEntity.MAX_PORTS);
+        waitUntil(helper, 80,
+                () -> portFixtureReady(level, fixture),
+                () -> "the seven-network fixture never reached its premise: "
+                        + portFixtureReading(level, fixture),
+                () -> {
+                    for (int g = 0; g < WirelessChannelModuleBlockEntity.MAX_PORTS; g++) {
+                        String bound = WirelessLinks.bind(level, ModRegistration.WIRELESS_LINKS,
+                                fixture.nearModule(), fixture.hubs()[g]);
+                        if (!bound.startsWith("linked ")) {
+                            helper.fail("network " + (g + 1) + " of "
+                                    + WirelessChannelModuleBlockEntity.MAX_PORTS + " was refused: \"" + bound
+                                    + "\"");
+                            return;
+                        }
+                    }
+                    waitUntil(helper, 60,
+                            () -> {
+                                var module = portModule(helper, fixture);
+                                return module != null && module.livePorts() == 6 && chargedDevices(level,
+                                        devices) == 6;
+                            },
+                            () -> {
+                                var module = portModule(helper, fixture);
+                                return "six binds left " + (module == null ? -1 : module.livePorts())
+                                        + " ports and " + chargedDevices(level, devices)
+                                        + " of 6 machines charged - the ports are supposed to be handed out"
+                                        + " one per network";
+                            },
+                            () -> {
+                                var module = portModule(helper, fixture);
+                                if (module == null) {
+                                    helper.fail("the near module's block entity is gone");
+                                    return;
+                                }
+                                if (hubsOnPorts(level, module, java.util.Arrays.copyOf(fixture.hubs(), 6))
+                                        != 6) {
+                                    helper.fail("only " + hubsOnPorts(level, module,
+                                            java.util.Arrays.copyOf(fixture.hubs(), 6))
+                                            + " of the 6 bound networks sit on a port");
+                                    return;
+                                }
+                                var seventh = WirelessLinks.bindReply(level, ModRegistration.WIRELESS_LINKS,
+                                        fixture.nearModule(),
+                                        fixture.hubs()[WirelessChannelModuleBlockEntity.MAX_PORTS]);
+                                if (seventh.english().startsWith("linked ")) {
+                                    helper.fail("a seventh network was accepted on a module with "
+                                            + module.livePorts() + " busy ports: \"" + seventh.english()
+                                            + "\"");
+                                    return;
+                                }
+                                if (!seventh.english().contains("already carry another network")
+                                        || !seventh.english().contains("all 6 of them")) {
+                                    helper.fail("the refusal did not name the outlets: \"" + seventh.english()
+                                            + "\" ports=" + module.livePorts());
+                                    return;
+                                }
+                                if (seventh.english().contains("channels it can carry")) {
+                                    helper.fail("the port ceiling spoke with the far-end width sentence, so a"
+                                            + " player would go widen a network that already has room: \""
+                                            + seventh.english() + "\"");
+                                    return;
+                                }
+                                var drifted = cardLineDriftedFromLog(helper, seventh);
+                                if (drifted != null) {
+                                    helper.fail("the port refusal's translated line and its log sentence drifted"
+                                            + " apart: " + drifted);
+                                    return;
+                                }
+                                var extra = fixture.hubs()[WirelessChannelModuleBlockEntity.MAX_PORTS];
+                                if (!WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS, extra)
+                                        .contains("wirelessLinks=0 live=0")) {
+                                    helper.fail("the refused seventh network still left a record behind: "
+                                            + WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS,
+                                            extra));
+                                    return;
+                                }
+                                NeoECOPrototype.LOGGER.info(
+                                        "wireless port cap: ports={} charged={} seventh=\"{}\"",
+                                        module.livePorts(), chargedDevices(level, devices),
+                                        seventh.english());
+                                links.set(NeoECOPrototypeServerConfig.WIRELESS_MAX_LINKS_PER_DEVICE
+                                        .getDefault());
+                                clearWirelessLinksAndBillSnapshots(level);
+                                helper.succeed();
+                            });
+                });
+    }
+
     /** Per-group {@code charged/total}, so a cap can be read off the exact port instead of the whole grid. */
     private static String perGroupCharged(ServerLevel level, GlobalPos[] all, int groups, int perGroup) {
         var text = new StringBuilder("groups=[");
