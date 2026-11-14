@@ -549,7 +549,8 @@ public final class WirelessLinks {
             return Reply.of("linked", "linked " + describeLabelled(acting, link) + " | "
                             + readings(result.edge(), result.a(), result.b()),
                     endLabel(acting, link, true), endLabel(acting, link, false),
-                    channelsText(acting, link.a()));
+                    channelsTextOf(tappedNode(acting, link, from, result),
+                            from.equals(link.a()) ? link.a() : link.b()));
         }
         if (result.missingNode() != null) {
             GlobalPos missing = result.missingNode();
@@ -917,6 +918,42 @@ public final class WirelessLinks {
         }
         return Component.translatable("gui.neoecoprototype.wireless_link.channels",
                 node.getMaxChannels(), node.getUsedChannels());
+    }
+
+    /**
+     * The pair the {@code linked} line reports: the device the player tapped, not whichever end sorts first.
+     *
+     * <p>Two readings on 2026-11-14 forced this. {@code Link.of} sorts the pair, so {@code link.a()} is the
+     * smaller coordinate - a module at x=7 and a supplier at x=10 always reported the module, and the same two
+     * blocks reported the supplier if it happened to sit west. The player tapped one of them and the sentence
+     * talked about the other one half the time.
+     *
+     * <p>And on a module the honest number is the port's, not the main node's: the join is measured off
+     * {@code [0=18/32/con=2, 1=18/32/con=2]} in the suite, while the main node keeps answering the ad-hoc-ish
+     * count of the nodes behind it. The port is where the edge lands and where the channels are spent, so a
+     * player asking "what did this link cost me" is asking about the port. A plain device has no port, and its
+     * own node is the right answer there - measured as a stable {@code 8 : 1} on every supplier bind.
+     */
+    private static IGridNode tappedNode(ServerLevel acting, Link link, GlobalPos from, EdgeResult result) {
+        var tapped = from.equals(link.a()) ? link.a() : link.b();
+        var tappedNode = node(levelOf(acting, tapped.dimension()), tapped);
+        if (moduleOf(tappedNode) != null) {
+            // The edge's own ends are the two ports; take the one on the tapped module's grid.
+            for (var end : new IGridNode[]{result.a(), result.b()}) {
+                if (end != null && tappedNode != null && end.getGrid() == tappedNode.getGrid()) {
+                    return end;
+                }
+            }
+        }
+        return tappedNode;
+    }
+
+    /** The {@code channels} line for a node already in hand; nothing in hand is the none-sentence. */
+    private static Component channelsTextOf(@Nullable IGridNode node, GlobalPos fallback) {
+        return node == null
+                ? Component.translatable("gui.neoecoprototype.wireless_link.channels_none", describe(fallback))
+                : Component.translatable("gui.neoecoprototype.wireless_link.channels",
+                        node.getMaxChannels(), node.getUsedChannels());
     }
 
     /** The same two numbers as a plain pair, for a guard or a log line that has no component to send. */
