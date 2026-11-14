@@ -272,6 +272,7 @@
   "item.neoecoprototype.wireless_link_card.balance_none": "卡上还没有记着设备，所以没有可问的网络：先潜行右键一台设备把它记下来。",
   "item.neoecoprototype.wireless_link_card.unmarked": "已放下记着的设备：%s。这张卡只管接，不管拆。",
   "gui.neoecoprototype.wireless_link.teardown_moved": "这张卡还记着 %s。把链路拆掉现在是另一张卡的活——拿简易设备断联卡潜行右键那台设备。",
+  "gui.neoecoprototype.wireless_link.mark_idle": "这张卡还记着 %s，而那台设备身上现在没有无线链路——右键第二台设备就把两台连起来，对着空气右键则清掉这个标记。",
   "gui.neoecoprototype.wireless_link.channels": "拥有 %1$s : 已分配 %2$s",
   "gui.neoecoprototype.wireless_link.channels_none": "%s 这里还没有网络节点，所以没有频道数可报。",
   "item.neoecoprototype.wireless_unlink_card": "简易设备断联卡",

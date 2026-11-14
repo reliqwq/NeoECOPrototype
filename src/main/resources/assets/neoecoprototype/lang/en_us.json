@@ -272,6 +272,7 @@
   "item.neoecoprototype.wireless_link_card.balance_none": "No device is marked yet, so there is no network to ask: sneak-right-click a device with this card first.",
   "item.neoecoprototype.wireless_link_card.unmarked": "Dropped the marked device: %s. This card joins links and no longer takes them off.",
   "gui.neoecoprototype.wireless_link.teardown_moved": "This card still holds %s. Taking links off is another card's job now - sneak-right-click the device with the L1 Device Unlink Card.",
+  "gui.neoecoprototype.wireless_link.mark_idle": "This card still holds %s, and that device carries no wireless link right now - tap a second device to link the two, or right-click the air to drop the mark.",
   "gui.neoecoprototype.wireless_link.channels": "channels %1$s : allocated %2$s",
   "gui.neoecoprototype.wireless_link.channels_none": "%s has no network node yet, so there is no channel count to report",
   "item.neoecoprototype.wireless_unlink_card": "L1 Device Unlink Card",

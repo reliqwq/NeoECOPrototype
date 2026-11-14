@@ -75,6 +75,7 @@ import cn.dancingsnow.neoecoprototype.items.PatternGeneratorItem;
 import cn.dancingsnow.neoecoprototype.items.SimplifyMigrationDriveItem;
 import cn.dancingsnow.neoecoprototype.items.SimplifySmallBulkStorageCellItem;
 import cn.dancingsnow.neoecoprototype.items.SimplifyStructureExpansionCardItem;
+import cn.dancingsnow.neoecoprototype.items.WirelessLinkCardItem;
 import cn.dancingsnow.neoecoprototype.multiblock.calculator.SimplifyComputationClusterCalculator;
 import cn.dancingsnow.neoecoprototype.multiblock.calculator.SimplifyTrinityClusterCalculator;
 import cn.dancingsnow.neoecoprototype.multiblock.definition.SimplifyComputationDefinition;
@@ -9406,13 +9407,48 @@ public final class NeoECOPrototypeGameTests {
                                                         fixture.devices(), 0, 3));
                                     },
                                     () -> {
-                                        links.set(NeoECOPrototypeServerConfig
-                                                .WIRELESS_MAX_LINKS_PER_DEVICE.getDefault());
-                                        clearWirelessLinksAndBillSnapshots(level);
-                                        helper.succeed();
+                                        // The reading that lied, pinned here rather than in its own fixture so
+                                        // it runs against the two ports this phase just built. An unbound port
+                                        // stays open on purpose, so the open count cannot be what the card
+                                        // prints: unbind one and the number has to follow it down to 1/6 while
+                                        // livePorts() stays at 2. In the client on 2026-11-14 six links were
+                                        // unbound one at a time and the card went on answering ports=6/6,
+                                        // which the player read as the module still being occupied.
+                                        WirelessLinks.unlink(level, ModRegistration.WIRELESS_LINKS,
+                                                fixture.hubs()[0]);
+                                        waitUntil(helper, 40,
+                                                () -> {
+                                                    var module = portModule(helper, fixture);
+                                                    return module != null
+                                                            && module.livePorts() == fixture.hubs().length
+                                                            && WirelessLinks.status(level,
+                                                                    ModRegistration.WIRELESS_LINKS,
+                                                                    fixture.nearModule())
+                                                                    .contains("ports=1/6");
+                                                },
+                                                () -> {
+                                                    var module = portModule(helper, fixture);
+                                                    return "one of the two links was unbound but the card did"
+                                                            + " not drop its port count: status="
+                                                            + WirelessLinks.status(level,
+                                                            ModRegistration.WIRELESS_LINKS,
+                                                            fixture.nearModule())
+                                                            + " openPorts=" + (module == null ? "gone"
+                                                            : module.livePorts()) + " busyPorts="
+                                                            + (module == null ? -1 : module.busyPorts())
+                                                            + " portTable=" + (module == null ? "gone"
+                                                            : portTable(module));
+                                                },
+                                                () -> {
+                                                    links.set(NeoECOPrototypeServerConfig
+                                                            .WIRELESS_MAX_LINKS_PER_DEVICE.getDefault());
+                                                    clearWirelessLinksAndBillSnapshots(level);
+                                                    helper.succeed();
+                                                });
                                     }));
                 });
     }
+
 
     private static int livePortsOf(GameTestHelper helper, PortFixture fixture) {
         var module = portModule(helper, fixture);
@@ -9552,7 +9588,9 @@ public final class NeoECOPrototypeGameTests {
         var links = cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig
                 .WIRELESS_MAX_LINKS_PER_DEVICE;
         links.set(0);
-        var fixture = buildPortFixture(helper, WirelessChannelModuleBlockEntity.MAX_PORTS + 1, 1);
+        final int perGroup = 1;
+        var fixture = buildPortFixture(helper,
+                WirelessChannelModuleBlockEntity.MAX_PORTS + 1, perGroup);
         var devices = java.util.Arrays.copyOf(fixture.devices(),
                 WirelessChannelModuleBlockEntity.MAX_PORTS);
         waitUntil(helper, 80,
@@ -9607,7 +9645,7 @@ public final class NeoECOPrototypeGameTests {
                                         fixture.hubs()[WirelessChannelModuleBlockEntity.MAX_PORTS]);
                                 if (seventh.english().startsWith("linked ")) {
                                     helper.fail("a seventh network was accepted on a module with "
-                                            + module.livePorts() + " busy ports: \"" + seventh.english()
+                                            + module.busyPorts() + " busy ports: \"" + seventh.english()
                                             + "\"");
                                     return;
                                 }
@@ -22560,7 +22598,7 @@ public final class NeoECOPrototypeGameTests {
 
     /**
      * The translated layer, pinned from both sides. Every line the two cards hand a player now goes out as
-     * {@code Component.translatable(key, args)} - 35 of them as of 2026-11-14, 28 when the layer landed on
+     * {@code Component.translatable(key, args)} - 36 of them as of 2026-11-14, 28 when the layer landed on
      * 2026-11-04 after a Chinese player read his first English refusal and named it ("有中文有英文") - while the
      * log keeps the English sentence for the guards. Three things can rot here and this checks all three: a key can vanish from one language
      * file; the English text the code builds can drift away from the {@code en_us} value it is supposed to
@@ -22583,7 +22621,7 @@ public final class NeoECOPrototypeGameTests {
                 "wired_already", "one_network",
                 "starvation", "recorded_no_node", "recorded_no_edge", "marked_gone_no_device",
                 "marked_gone_remarked", "controller_no_edge", "controller_verdict", "carries_none",
-                "dim_unloaded", "not_on_network", "no_pathing_service", "teardown_moved",
+                "dim_unloaded", "not_on_network", "no_pathing_service", "teardown_moved", "mark_idle",
                 // Three outcomes the manager and the unlink-by-group path speak. They were missing from this
                 // list when it was cut over to groups, so a key dropped from a language file would only have
                 // been caught by the JUnit scan, which checks presence but never reads the slots in order.
@@ -22735,6 +22773,94 @@ public final class NeoECOPrototypeGameTests {
             }
         }
         return "";
+    }
+
+
+    /**
+     * Tapping the device the card already holds, on both sides of the one fact that changes the answer:
+     * whether that device still carries a link.
+     *
+     * <p>The refusal itself is old (2026-11-04: this tap used to dismantle the device, and it was also the tap
+     * players reached for when they meant to re-mark). What the client found on 2026-11-14 is the second half:
+     * a player unbound every link off a module, tapped it again, and was told four times to go and use the
+     * unlink card on a device that had nothing left to unlink - and nothing in the suite could see that,
+     * because the branch had no fixture at all. So both sentences are checked here, in the order a player
+     * reaches them, and each one is compared against its {@code en_us} value the same way the gated refusals
+     * are: the log and the chat have to stay one story.
+     *
+     * <p>Two interfaces with a block of air between them, because a link needs two grids and the empty
+     * template is three wide - the same footprint the cap fixture uses.
+     */
+    @GameTest(template = "empty", batch = "wireless_marked_tap", timeoutTicks = 600,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void tappingTheMarkedDeviceNamesTheUnlinkCardOnlyWhileItStillCarriesLinks(
+            GameTestHelper helper) {
+        var level = (ServerLevel) helper.getLevel();
+        clearWirelessLinksAndBillSnapshots(level);
+        var hubPos = GlobalPos.of(level.dimension(), helper.absolutePos(new BlockPos(0, 1, 6)));
+        var spokePos = GlobalPos.of(level.dimension(), helper.absolutePos(new BlockPos(2, 1, 6)));
+        helper.setBlock(new BlockPos(0, 1, 6), ModRegistration.SUPERCONDUCTIVE_INTERFACE_BLOCK.get());
+        helper.setBlock(new BlockPos(2, 1, 6), ModRegistration.SUPERCONDUCTIVE_INTERFACE_BLOCK.get());
+        waitUntil(helper, 25,
+                () -> separateNetworks(level, hubPos, spokePos),
+                () -> "the two interfaces never became separate networks: hub="
+                        + nodeSummary(level, hubPos) + " spoke=" + nodeSummary(level, spokePos)
+                        + " - a block entity answers as a device the moment it is placed, but AE2 only builds"
+                        + " its node in onReady, which is what this poll waits for",
+                () -> {
+                    String bound = WirelessLinks.bind(level, ModRegistration.WIRELESS_LINKS, hubPos, spokePos);
+                    if (!bound.startsWith("linked ")) {
+                        helper.fail("the fixture could not build its one link: \"" + bound + "\"");
+                        return;
+                    }
+                    var whileLinked = WirelessLinkCardItem.tapOnMarkedDevice(level, hubPos);
+                    if (!whileLinked.langKey().endsWith("teardown_moved")) {
+                        helper.fail("a device that carries a link was answered with " + whileLinked.langKey()
+                                + " instead of the unlink-card sentence");
+                        return;
+                    }
+                    WirelessLinks.unlink(level, ModRegistration.WIRELESS_LINKS, hubPos);
+                    if (!WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS, hubPos)
+                            .contains("wirelessLinks=0")) {
+                        helper.fail("the unlink left a record behind, so the second tap would not be the"
+                                + " state the player was in: "
+                                + WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS, hubPos));
+                        return;
+                    }
+                    var afterUnlink = WirelessLinkCardItem.tapOnMarkedDevice(level, hubPos);
+                    if (!afterUnlink.langKey().endsWith("mark_idle")) {
+                        helper.fail("a device with no link left was still answered with "
+                                + afterUnlink.langKey() + " - the player has just unlinked it, so naming the"
+                                + " unlink card again is the sentence that got reported: \""
+                                + afterUnlink.english() + "\"");
+                        return;
+                    }
+                    if (afterUnlink.english().equals(whileLinked.english())) {
+                        helper.fail("both taps answer the same sentence, so the branch decides nothing: ["
+                                + afterUnlink.english() + "]");
+                        return;
+                    }
+                    // Neither sentence may invent a gesture: the mark really does drop on a right-click in the
+                    // air, and the link really is gone by the time mark_idle is spoken.
+                    if (!afterUnlink.english().contains("right-click the air")
+                            || !afterUnlink.english().contains("tap a second device")) {
+                        helper.fail("the idle sentence stopped naming what the player can still do: \""
+                                + afterUnlink.english() + "\"");
+                        return;
+                    }
+                    for (var probe : java.util.List.of(whileLinked, afterUnlink)) {
+                        var drifted = cardLineDriftedFromLog(helper, probe);
+                        if (drifted != null) {
+                            helper.fail("the marked-device tap's translated line and its log sentence drifted"
+                                    + " apart: " + drifted);
+                            return;
+                        }
+                    }
+                    NeoECOPrototype.LOGGER.info("marked tap: linked={} idle={}",
+                            whileLinked.langKey(), afterUnlink.langKey());
+                    clearWirelessLinksAndBillSnapshots(level);
+                    helper.succeed();
+                });
     }
 
 

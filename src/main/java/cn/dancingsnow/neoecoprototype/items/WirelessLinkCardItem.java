@@ -78,15 +78,7 @@ public class WirelessLinkCardItem extends Item implements HeldItemUIMenuType.Hel
         GlobalPos held = readEndpoint(card);
         WirelessLinks.Reply report;
         if (held != null && held.equals(clicked)) {
-            // Taking links off moved onto its own card on 2026-11-04. This tap used to be the only way out of
-            // a link, and it was also the tap a player reached for when they meant to re-mark - so the one
-            // gesture that looked like re-marking was the one that dismantled everything on that device. The
-            // card now refuses, keeps its mark, and names the other card.
-            report = WirelessLinks.Reply.of("teardown_moved",
-                    "this card still holds " + WirelessLinks.labelText(serverLevel, clicked)
-                            + "; taking links off is the unlink card's job now - sneak-right-click the device"
-                            + " with that one",
-                    WirelessLinks.label(serverLevel, clicked));
+            report = tapOnMarkedDevice(serverLevel, clicked);
         } else if (WirelessLinks.isController(serverLevel, clicked)) {
             // A controller is the network's knob, never one end of a link: its own node answers
             // getMaxChannels() == 0 (measured in the client as a(max=0,used=0)), so a wireless edge ending
@@ -153,6 +145,38 @@ public class WirelessLinkCardItem extends Item implements HeldItemUIMenuType.Hel
         // sentence stays in the log because that is what the guards and the diagnostics read.
         player.sendSystemMessage(report.asComponent());
         return InteractionResult.CONSUME;
+    }
+
+    /**
+     * What tapping the device this card already holds answers.
+     *
+     * <p>Taking links off moved onto its own card on 2026-11-04: this tap used to be the only way out of a
+     * link, and it was also the tap a player reached for when they meant to re-mark - so the one gesture that
+     * looked like re-marking was the one that dismantled everything on that device. The card refuses and keeps
+     * its mark either way. What it says depends on whether there is anything left to refuse about.
+     *
+     * <p>The second half is the client reading of 2026-11-14: a player unbound all six links off one module
+     * with the unlink card, tapped the module again, and got four copies of "taking links off is the unlink
+     * card's job" about a device that had no links to take off. The advice was not wrong when it was written -
+     * it is wrong once the unlinking has happened, and it never mentioned the gesture that was actually needed
+     * (right-clicking the air drops the mark, see {@link #use}).
+     */
+    public static WirelessLinks.Reply tapOnMarkedDevice(ServerLevel level, GlobalPos clicked) {
+        int carried = WirelessLinks.linksAtEverywhere(level, ModRegistration.WIRELESS_LINKS, clicked);
+        // Capitalised and punctuated exactly as the shipped en_us line, because the fixture that reads this
+        // branch compares the two byte for byte. teardown_moved had been drifting there for ten days: it was
+        // in the key-presence list but never in the byte comparison, so the log said "the unlink card" while
+        // the player read "the L1 Device Unlink Card".
+        String holds = "This card still holds " + WirelessLinks.labelText(level, clicked);
+        return carried > 0
+                ? WirelessLinks.Reply.of("teardown_moved", holds
+                        + ". Taking links off is another card's job now - sneak-right-click the device with"
+                        + " the L1 Device Unlink Card.",
+                        WirelessLinks.label(level, clicked))
+                : WirelessLinks.Reply.of("mark_idle", holds
+                        + ", and that device carries no wireless link right now - tap a second device to link"
+                        + " the two, or right-click the air to drop the mark.",
+                        WirelessLinks.label(level, clicked));
     }
 
     @Override

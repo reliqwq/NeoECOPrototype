@@ -660,6 +660,7 @@ public final class WirelessLinks {
      * size of the thing that already joins them - and the number also separates a real answer from the old
      * refusal, which was written to make a control group readable rather than to tell a player anything
      * (eight identical lines of it in one client session, 2026-10-29).
+     *
      */
     private static int gridNodes(IGrid grid) {
         int nodes = 0;
@@ -877,8 +878,10 @@ public final class WirelessLinks {
                 + " live=" + liveLinksAt(acting, type, endpoint)
                 // A module that has handed out every outlet has to read differently from a plain device with
                 // no outlets at all: the two link counts are identical, and the difference is the whole answer.
+                // Busy, not open: an unbound port stays open on purpose, so the open count would say 6/6 to a
+                // player who has just unbound all six (see WirelessChannelModuleBlockEntity#busyPorts).
                 + (node != null && node.getOwner() instanceof WirelessChannelModuleBlockEntity module
-                        ? " ports=" + module.livePorts() + "/" + WirelessChannelModuleBlockEntity.MAX_PORTS
+                        ? " ports=" + module.busyPorts() + "/" + WirelessChannelModuleBlockEntity.MAX_PORTS
                         : "")
                 + " " + billWords(acting, type)
                 + (node == null ? " (no network node there)" : " " + channelMode(node) + " controller="

@@ -76,8 +76,13 @@ public final class WirelessChannelModuleBlockEntity extends AENetworkedBlockEnti
     }
 
     /**
-     * The port a new link should land on: one that already has channels to spare, otherwise a fresh one while
-     * the module has any left, otherwise nothing.
+     * The port a new link should land on: one that carries nothing but the trunk feeding it, otherwise a
+     * fresh one while the module has any left, otherwise nothing.
+     *
+     * <p>"Carries nothing" is deliberately not "has channels to spare". A port exists so that one network has
+     * its own 32 channels to walk through; put a second edge on it and both networks are back inside the same
+     * bucket, which is the exact thing this block is here to avoid. So a port is one outlet, and the six of
+     * them are six outlets.
      *
      * <p>Ports are opened on demand rather than all six up front. A port nobody uses is not free: it is a node
      * in the grid's node list, so it shows up in the Network Tool's node count, it gets walked by every path
@@ -85,9 +90,17 @@ public final class WirelessChannelModuleBlockEntity extends AENetworkedBlockEnti
      * every module cost six nodes from the moment it was placed.
      */
     public IGridNode portForNewLink() {
-        var existing = firstFreePort();
-        if (existing != null) {
-            return existing;
+        for (var port : ports) {
+            if (!port.isReady()) {
+                continue;
+            }
+            var node = port.getNode();
+            if (node == null) {
+                continue;
+            }
+            if (node.getConnections().size() <= 1) {
+                return node;
+            }
         }
         if (ports.size() >= MAX_PORTS) {
             return null;
@@ -111,6 +124,31 @@ public final class WirelessChannelModuleBlockEntity extends AENetworkedBlockEnti
     /** How many ports this block is holding right now. */
     public int livePorts() {
         return ports.size();
+    }
+
+    /**
+     * How many of the standing ports are carrying something - a port whose only connection is the trunk
+     * feeding it has lost its link and is waiting to be handed out again.
+     *
+     * <p>{@code WirelessLinks#status} prints this rather than {@link #livePorts()}, because the two part
+     * company the moment a player unlinks: an unbound port stays open on purpose (destroying it and rebuilding
+     * it on the next bind would churn the grid's node list every time), so the open count only ever goes up.
+     * Measured in the client on 2026-11-14: after six links were unbound one at a time the card still answered
+     * {@code ports=6/6}, and the report was that the module reads as still occupied. The links were gone - the
+     * very next bind onto the freed square succeeded - so the number was the bug, not the ports.
+     */
+    public int busyPorts() {
+        int busy = 0;
+        for (var port : ports) {
+            if (!port.isReady()) {
+                continue;
+            }
+            var node = port.getNode();
+            if (node != null && node.getConnections().size() > 1) {
+                busy++;
+            }
+        }
+        return busy;
     }
 
     /**
@@ -149,27 +187,6 @@ public final class WirelessChannelModuleBlockEntity extends AENetworkedBlockEnti
             }
         }
         return alive;
-    }
-
-    /**
-     * A standing port that carries nothing but the trunk feeding it, or null.
-     *
-     * <p>"Free" is deliberately not "has channels to spare". A port exists so that one network has its own 32
-     * channels to walk through; put a second edge on it and both networks are back inside the same bucket,
-     * which is the exact thing this block is here to avoid. So a port is one outlet, and the six of them are
-     * six outlets.
-     */
-    private IGridNode firstFreePort() {
-        for (var port : ports) {
-            if (!port.isReady()) {
-                continue;
-            }
-            var node = port.getNode();
-            if (node != null && node.getConnections().size() <= 1) {
-                return node;
-            }
-        }
-        return null;
     }
 
     /**
