@@ -943,7 +943,7 @@ public class ModRegistration {
                     () -> new cn.dancingsnow.neoecoprototype.items.EnergizedEnergyCellBlockItem(
                             ENERGIZED_ENERGY_CELL_512G_BLOCK.get(), new Item.Properties()));
 
-    /** Registered for worlds/tests; withheld from recipes and the creative tab with the two wireless cards. */
+    /** In the creative tab since 2026-11-14; still no recipe, because what a link costs is not settled. */
     public static final Supplier<BlockItem> SUBSYSTEM_CHANNEL_MODULE_ITEM = ITEMS.register(
             "subsystem_channel_module",
             () -> new BlockItem(SUBSYSTEM_CHANNEL_MODULE_BLOCK.get(), new Item.Properties()));
@@ -2002,11 +2002,14 @@ private static Supplier<BlockEntityType<SimplifyStorageVentBlockEntity>> registe
                         output.accept(SIMPLIFY_ENERGY_CELL_ITEM.get());
                         output.accept(ENERGIZED_ENERGY_CELL_16G_ITEM.get());
                         output.accept(ENERGIZED_ENERGY_CELL_512G_ITEM.get());
-                        // The wireless link card is withheld from players this release: no tab entry and no
-                        // recipe, so the only way to hold one is /give. The feature works and is measured in a
-                        // client, but what a link should cost a survival player is still open. Bringing it back
-                        // is this line plus data/neoecoprototype/recipe/processor_assembler/
-                        // wireless_link_card.json - that recipe block is kept in _removed_sources/.
+                        // The wireless family is in the tab as of 2026-11-14 and still has no recipe: a
+                        // pack author can place a module and bind links in creative, while what a link should
+                        // cost a survival player stays open. Bringing the survival route back is this line
+                        // plus data/neoecoprototype/recipe/processor_assembler/wireless_link_card.json - that
+                        // recipe block is kept in _removed_sources/.
+                        output.accept(SUBSYSTEM_CHANNEL_MODULE_ITEM.get());
+                        output.accept(WIRELESS_LINK_CARD.get());
+                        output.accept(WIRELESS_UNLINK_CARD.get());
                         output.accept(SIMPLIFY_STORAGE_CASING_ITEM.get());
                          output.accept(SIMPLIFY_GREEN_ALUMINUM_CASING_ITEM.get());
                         // The cryotheum ore family stays out of the tab: it generates nowhere by default

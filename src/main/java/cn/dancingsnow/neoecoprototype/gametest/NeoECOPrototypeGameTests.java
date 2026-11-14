@@ -5964,6 +5964,68 @@ public final class NeoECOPrototypeGameTests {
     }
 
     /**
+     * The wireless family is in the creative tab as of 2026-11-14, and still has no recipe.
+     *
+     * <p>Both halves are said on purpose. The tab entry is what makes the feature reachable at all for a pack
+     * author - before this it existed only as a registered item you had to {@code /give} yourself, which is not
+     * a thing a player can discover. The missing recipe is the deliberate other half: what a link should cost a
+     * survival player has not been decided, and shipping a craft for it would decide it by accident. That is why
+     * {@code docs/配方总览.md} staying at 176 is the companion guard, and a recipe appearing here without the
+     * overview being updated goes red there.
+     *
+     * <p>Read through the tab generator the client itself uses, with a known member and a known outsider checked
+     * first: a blind or empty read cannot come back green.
+     */
+    @GameTest(template = "empty", templateNamespace = NeoECOPrototype.MOD_ID,
+            batch = "wireless_family_creative")
+    public static void wirelessFamilyIsInCreativeTab(GameTestHelper helper) {
+        var tab = ModRegistration.SIMPLIFY_TAB.get();
+        tab.buildContents(new net.minecraft.world.item.CreativeModeTab.ItemDisplayParameters(
+                net.minecraft.world.flag.FeatureFlags.DEFAULT_FLAGS, true, helper.getLevel().registryAccess()));
+        var contents = tab.getDisplayItems();
+        if (contents.isEmpty()) {
+            helper.fail("the tab generator returned no stacks at all, so membership proves nothing");
+            return;
+        }
+        java.util.function.Predicate<Item> inTab =
+                item -> contents.stream().anyMatch(stack -> stack.getItem() == item);
+        if (!inTab.test(ModRegistration.SIMPLIFY_DRIVE_ITEM.get())) {
+            helper.fail("the drive is missing from the tab, so this reader cannot see membership at all");
+            return;
+        }
+        if (inTab.test(ModRegistration.CRYOTHEUM_ORE_ITEM.get())) {
+            helper.fail("the outsider control is inside the tab, so the membership test is not the tab");
+            return;
+        }
+        var members = java.util.List.of("subsystem_channel_module", "wireless_link_card", "wireless_unlink_card");
+        for (String path : members) {
+            var item = BuiltInRegistries.ITEM.get(
+                    ResourceLocation.fromNamespaceAndPath(NeoECOPrototype.MOD_ID, path));
+            if (!inTab.test(item)) {
+                helper.fail(path + " is not in the creative tab (" + contents.size()
+                        + " stacks scanned), so the release note that says it is would be a lie");
+                return;
+            }
+        }
+        // The survival half, from the other side: none of the three may have a crafting recipe yet.
+        var manager = helper.getLevel().getRecipeManager();
+        for (var holder : manager.getAllRecipesFor(
+                net.minecraft.world.item.crafting.RecipeType.CRAFTING)) {
+            var out = holder.value().getResultItem(helper.getLevel().registryAccess());
+            if (out.isEmpty()) {
+                continue;
+            }
+            var id = BuiltInRegistries.ITEM.getKey(out.getItem());
+            if (NeoECOPrototype.MOD_ID.equals(id.getNamespace()) && members.contains(id.getPath())) {
+                helper.fail(id + " has a crafting recipe (" + holder.id()
+                        + ") while the pricing question is still open");
+                return;
+            }
+        }
+        helper.succeed();
+    }
+
+    /**
      * All five migration disks are reachable from the creative tab. The tab is read through the generator the
      * client itself uses, with a known member and a known outsider checked first, so a blind or empty read
      * cannot come back green.

@@ -20,7 +20,9 @@ import com.lowdragmc.lowdraglib2.gui.ui.elements.Label;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.TextField;
 import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvents;
 import com.lowdragmc.lowdraglib2.gui.ui.event.HoverTooltips;
-import dev.vfyjxf.taffy.style.TaffyPosition;
+import dev.vfyjxf.taffy.style.AlignItems;
+import dev.vfyjxf.taffy.style.FlexDirection;
+import dev.vfyjxf.taffy.style.TaffyDisplay;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
@@ -40,12 +42,20 @@ import java.util.List;
  * <p>Every string goes through the lang files. The rows are built on the server and synced as components, so
  * a Chinese player reads Chinese rows; the block names inside them were already translatable, and the group
  * and state words were not.
+ *
+ * <p>Laid out as flex columns and rows rather than absolute pixels, and with no bevelled frames: the panel is
+ * a light sheet, and the one reading that ever corrected it came from a player looking at it ("按钮看着像禁用").
+ * Nothing here is verifiable headless - the GameTest suite never loads these classes - so the layout claims
+ * below are intent, and the client pass is the reading.
  */
 public final class WirelessLinkManagementUI {
 
     private static final int WIDTH = 340;
     private static final int HEIGHT = 248;
+    /** Primary text: a dark slate-violet, not black, so the sheet keeps its warmth. */
     private static final int COLOR = 0x403e53;
+    /** Secondary text - the second line of a link and the help line - one step lighter, never the same. */
+    private static final int COLOR_SUB = 0x6f6b80;
     /** The palette violet, at three weights: a pale plate, the colour itself, and a pressed shade. */
     private static final int BUTTON_IDLE = 0xff_ee_e6_f7;
     private static final int BUTTON_HOVER = 0xff_d9_c8_f0;
@@ -53,19 +63,34 @@ public final class WirelessLinkManagementUI {
     private static final int BUTTON_EDGE = 0xff_91_5d_cd;
     /** A field sits one shade lighter than a resting button, so the two do not read as the same control. */
     private static final int FIELD_FILL = 0xff_f7_f3_fc;
+    private static final int FIELD_EDGE = 0xff_d9_c8_f0;
+    /** One-pixel rule between the two lines of a link: a divider, not a border around anything. */
+    private static final int HAIRLINE = 0x33_91_5d_cd;
 
     private WirelessLinkManagementUI() {
     }
 
     public static ModularUI create(HeldItemUIMenuType.HeldItemUIHolder holder) {
+        // One flex column with a row gap, instead of the previous ABSOLUTE left/top per element: adding the
+        // fourth button used to mean recomputing the three that were already placed, and nothing about the
+        // help line's position could be derived from what is above it. The sheet stays 340x248 because that
+        // is what fits a scale-4 screen; only the internals are laid out now.
         UIElement root = new UIElement()
-                .layout(layout -> layout.width(WIDTH).height(HEIGHT))
+                .layout(layout -> layout.width(WIDTH).height(HEIGHT)
+                        .display(TaffyDisplay.FLEX).flexDirection(FlexDirection.COLUMN)
+                        .gapRow(6).paddingAll(8))
                 .style(style -> style.backgroundTexture(new ColorRectTexture(0xff_ef_f0_f4)));
 
         root.addChild(label(Component.translatable("gui.neoecoprototype.wireless_manager.title"),
-                Horizontal.CENTER, 8, 6, 324, 14));
-        root.addChild(label(Component.translatable("gui.neoecoprototype.wireless_manager.group"),
-                Horizontal.LEFT, 8, 26, 78, 18));
+                Horizontal.CENTER, 14, COLOR));
+
+        StatusList status = new StatusList(holder);
+
+        // The name and its field are one row: the label keeps a fixed width so the field starts at the same
+        // x on every screen of this family, and the field takes whatever is left.
+        UIElement groupRow = row(20, 8);
+        groupRow.addChild(label(Component.translatable("gui.neoecoprototype.wireless_manager.group"),
+                Horizontal.LEFT, 18, COLOR).layout(layout -> layout.width(78).height(18)));
 
         TextField groupField = new TextField().setAnyString()
                 .setTextValidator(value -> value.codePointCount(0, value.length()) <= 32)
@@ -77,28 +102,24 @@ public final class WirelessLinkManagementUI {
                 .c2sStrategy(SyncStrategy.CHANGED_PERIODIC)
                 .s2cStrategy(SyncStrategy.CHANGED_PERIODIC)
                 .build());
-        groupField.layout(layout -> layout.positionType(TaffyPosition.ABSOLUTE)
-                .left(86).top(25).width(246).height(20));
-        // The same light plate as the buttons: LDLib2's default is a near-black box, which on this sheet reads
-        // as a hole rather than a field. The focus ring stays the library's, so "this is the field you are
-        // typing in" still comes from one place.
-        groupField.style(style -> style.background(plate(FIELD_FILL)));
+        groupField.layout(layout -> layout.flex(1).heightPercent(100));
+        // No slot bevel. LDLib2's own default is a near-black box, which on this light sheet reads as a hole
+        // rather than a field; one shade of fill plus a hairline says "type here" without a second rectangle,
+        // and the focus ring still comes from the library so it stays one story.
+        groupField.style(style -> style.background(new GuiTextureGroup(
+                new ColorRectTexture(FIELD_FILL), new ColorBorderTexture(1, FIELD_EDGE))));
         groupField.textFieldStyle(style -> style.textColor(COLOR).textShadow(false));
-        root.addChild(groupField);
+        groupRow.addChild(groupField);
+        root.addChild(groupRow);
 
-        StatusList status = new StatusList(holder);
-        status.layout(layout -> layout.positionType(TaffyPosition.ABSOLUTE)
-                .left(8).top(72).width(324).height(146));
-        root.addChild(status);
-
-        Button apply = button("gui.neoecoprototype.wireless_manager.apply_group", 8, 52, 100, () -> {
+        Button apply = button("gui.neoecoprototype.wireless_manager.apply_group", () -> {
             if (!(holder.player instanceof ServerPlayer player)) {
                 return;
             }
             ItemStack held = player.getItemInHand(holder.hand);
             String group = WirelessLinks.normalizeGroup(WirelessLinkCardItem.readGroup(held));
             WirelessLinkCardItem.writeGroup(held, group);
-            // No mark means "the links this screen is showing", not "nothing": the list above the button is
+            // No mark means "the links this screen is showing", not "nothing": the list under the buttons is
             // what the player is naming, and a card that has never marked a device still has to be able to
             // name the links it lists. A mark narrows it to that device's links.
             var marked = WirelessLinkCardItem.readEndpoint(held);
@@ -116,13 +137,9 @@ public final class WirelessLinkManagementUI {
             }
             status.refresh();
         });
-        root.addChild(apply);
 
-        Button refresh = button("gui.neoecoprototype.wireless_manager.refresh", 114, 52, 96,
-                status::refresh);
-        root.addChild(refresh);
-
-        Button unlink = button("gui.neoecoprototype.wireless_manager.unlink_group", 216, 52, 116, () -> {
+        Button refresh = button("gui.neoecoprototype.wireless_manager.refresh", status::refresh);
+        Button unlink = button("gui.neoecoprototype.wireless_manager.unlink_group", () -> {
             if (!(holder.player instanceof ServerPlayer player)) {
                 return;
             }
@@ -134,10 +151,17 @@ public final class WirelessLinkManagementUI {
             player.sendSystemMessage(reply.asComponent());
             status.refresh();
         });
-        root.addChild(unlink);
+
+        UIElement buttonRow = row(18, 6);
+        buttonRow.addChildren(apply, refresh, unlink);
+        root.addChild(buttonRow);
+
+        // The list is the part that grows, so it is the one element given the leftover space.
+        status.layout(layout -> layout.widthPercent(100).flex(1));
+        root.addChild(status);
 
         root.addChild(label(Component.translatable("gui.neoecoprototype.wireless_manager.help"),
-                Horizontal.LEFT, 8, 222, 324, 24));
+                Horizontal.LEFT, 24, COLOR_SUB));
         return new ModularUI(UI.of(root), holder.player);
     }
 
@@ -148,11 +172,22 @@ public final class WirelessLinkManagementUI {
                 : Component.literal(group);
     }
 
+    /** One horizontal band of the column: full width, fixed height, its children spaced left to right. */
+    private static UIElement row(int height, int gapBetween) {
+        return new UIElement().layout(layout -> layout.widthPercent(100).height(height)
+                .display(TaffyDisplay.FLEX).flexDirection(FlexDirection.ROW)
+                .gapColumn(gapBetween).alignItems(AlignItems.CENTER));
+    }
+
+    /** The link list: three links, each two lines with a hairline between them. */
     private static final class StatusList extends UIElement {
-        /** Three links fit above the help line; a fourth would push the panel past a scale-4 screen. */
+        /**
+         * Three, and the panel decides that rather than a taste: a row is 18 + 1 + 18 plus a 6 gap, so three
+         * rows need 123 px and the column has 123 left after the title, the field row, the buttons, the help
+         * line, the gaps and the padding. A fourth row would push the sheet past a scale-4 screen.
+         */
         private static final int SLOTS = 3;
-        private static final int SLOT_HEIGHT = 36;
-        private static final int FIRST_SLOT_Y = 20;
+        private static final int LINE_HEIGHT = 18;
 
         private final HeldItemUIMenuType.HeldItemUIHolder holder;
         private final Component[] marked = new Component[1];
@@ -165,17 +200,20 @@ public final class WirelessLinkManagementUI {
             Arrays.fill(head, Component.empty());
             Arrays.fill(tail, Component.empty());
 
-            Label markedLine = label(Component.empty(), Horizontal.LEFT, 0, 0, 324, 18);
+            layout(layout -> layout.heightPercent(100)
+                    .display(TaffyDisplay.FLEX).flexDirection(FlexDirection.COLUMN).gapRow(4));
+
+            Label markedLine = label(Component.empty(), Horizontal.LEFT, LINE_HEIGHT, COLOR);
             markedLine.bind(DataBindingBuilder.componentS2C(() -> marked[0]).build());
             addChild(markedLine);
 
             for (int index = 0; index < SLOTS; index++) {
                 int slot = index;
-                Label top = label(Component.empty(), Horizontal.LEFT, 0, FIRST_SLOT_Y + index * SLOT_HEIGHT, 324, 18);
+                Label top = label(Component.empty(), Horizontal.LEFT, LINE_HEIGHT, COLOR);
                 top.bind(DataBindingBuilder.componentS2C(() -> head[slot]).build());
                 addChild(top);
-                Label bottom = label(Component.empty(), Horizontal.LEFT, 6,
-                        FIRST_SLOT_Y + index * SLOT_HEIGHT + 16, 318, 18);
+                addChild(divider());
+                Label bottom = label(Component.empty(), Horizontal.LEFT, LINE_HEIGHT, COLOR_SUB);
                 bottom.bind(DataBindingBuilder.componentS2C(() -> tail[slot]).build());
                 addChild(bottom);
             }
@@ -221,41 +259,52 @@ public final class WirelessLinkManagementUI {
                                 rows.size() - shown));
             }
         }
+
+        /** A 1 px rule across the row: the two lines of one link read as one item without a box. */
+        private static UIElement divider() {
+            return new UIElement().layout(layout -> layout.widthPercent(100).height(1))
+                    .style(style -> style.backgroundTexture(new ColorRectTexture(HAIRLINE)));
+        }
     }
 
-    private static Label label(Component text, Horizontal alignment, int x, int y, int width, int height) {
+    private static Label label(Component text, Horizontal alignment, int height, int color) {
         Label label = new Label();
         label.setText(text);
+        // NONE rather than WORD_WRAP: a wrapped row changes height mid-list and the panel is a fixed sheet,
+        // which is how the 304 px version managed to cut a dimension id in half. The row content is now sized
+        // by the split into two lines instead.
         label.textStyle(style -> style.textWrap(TextWrap.NONE)
-                .textShadow(false).textColor(COLOR).textAlignHorizontal(alignment));
-        label.layout(layout -> layout.positionType(TaffyPosition.ABSOLUTE)
-                .left(x).top(y).width(width).height(height));
+                .textShadow(false).textColor(color).textAlignHorizontal(alignment));
+        label.layout(layout -> layout.widthPercent(100).height(height));
         return label;
     }
 
     /**
      * A button that belongs to this panel rather than to LDLib2's default dark plate: the screen is a light
      * sheet, and a near-black button on it reads as a disabled control - measured in the client on 2026-11-13,
-     * where he described the row of buttons as the one thing that looked wrong. Three states in our own violet
-     * (the palette's 915DCD): a pale fill at rest, the violet itself under the cursor, and a darker violet while
-     * pressed, so the click is visible without any text change.
+     * where he described the row of buttons as the one thing that looked wrong.
+     *
+     * <p>2026-11-14 restyle: at rest a button is now a flat fill with no outline at all, and the violet edge
+     * only appears under the cursor. That is the borderless sheet the panel wanted, and it keeps the affordance
+     * the 11-13 reading asked for in the one state where it matters - but it is a judgement about how a pale
+     * plate reads on a pale sheet, so the client pass has to confirm the resting row still does not look
+     * disabled. Nothing in the suite can see any of this.
      */
-    private static Button button(String translationKey, int x, int y, int width, Runnable action) {
+    private static Button button(String translationKey, Runnable action) {
         Button button = new Button().setText(Component.translatable(translationKey));
         button.buttonStyle(style -> style
-                .baseTexture(plate(BUTTON_IDLE))
+                .baseTexture(new ColorRectTexture(BUTTON_IDLE))
                 .hoverTexture(plate(BUTTON_HOVER))
                 .pressedTexture(plate(BUTTON_PRESSED)));
         button.textStyle(style -> style.textShadow(false).textColor(COLOR));
-        button.layout(layout -> layout.positionType(TaffyPosition.ABSOLUTE)
-                .left(x).top(y).width(width).height(18));
+        button.layout(layout -> layout.flex(1).heightPercent(100));
         button.setOnServerClick(event -> action.run());
         button.addEventListener(UIEvents.HOVER_TOOLTIPS, event ->
                 event.hoverTooltips = new HoverTooltips(List.of(Component.translatable(translationKey)), null, null, null));
         return button;
     }
 
-    /** One button face: a fill plus a one-pixel outline, both in the same violet family. */
+    /** One hovered or pressed face: a fill plus a one-pixel outline, both in the same violet family. */
     private static IGuiTexture plate(int fill) {
         return GuiTextureGroup.of(
                 new ColorRectTexture(fill),
