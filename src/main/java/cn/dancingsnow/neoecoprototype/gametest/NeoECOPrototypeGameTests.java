@@ -9362,8 +9362,15 @@ public final class NeoECOPrototypeGameTests {
      * <p>A virtual node that outlives its block keeps occupying the controller bucket it hangs off, and the
      * player sees those channels as used-up with nothing on the square to account for them - which is why the
      * ports live on the block entity and are destroyed on both unload paths rather than tracked anywhere the
-     * game could hand them back after the block is gone. This asserts the three observable halves of that: no
-     * port standing, nothing charged behind them, and the saved records still there reporting as not live.
+     * game could hand them back after the block is gone.
+     *
+     * <p>What it takes to actually see that, learned the hard way on 2026-11-14: three of the readings here are
+     * not enough. Commenting out {@code port.destroy()} while still destroying the edges left "our list is
+     * empty", "the controller grid holds no node owned by that block entity" and "nothing charged" all green -
+     * AE2 pushes an unconnected node out of the controller grid by itself, into a grid of one. The nodes cannot
+     * be asked afterwards either: AE2 throws "A node is being used after it has been destroyed". So the fixture
+     * captures the <em>handles</em> before the block goes and demands they no longer hold a node, which is a
+     * thing only {@code destroy()} does.
      */
     @GameTest(template = "empty", batch = "wireless_module_teardown", timeoutTicks = 1800,
             templateNamespace = NeoECOPrototype.MOD_ID)
@@ -9401,12 +9408,35 @@ public final class NeoECOPrototypeGameTests {
                                             + (module == null ? "no block entity" : module.livePorts()));
                                     return;
                                 }
+                                // The handles have to be grabbed before the block goes: afterwards our own list
+                                // is empty by design, so it can only prove we forgot them - and an empty list
+                                // would make the check below a scan that never runs. Measured with the control
+                                // group of 2026-11-14: commenting out port.destroy() while still destroying the
+                                // edges left "our list is empty", "the controller grid attributes no node to
+                                // that block entity" and "nothing charged" all green, because AE2 moves an
+                                // unconnected node out of the controller grid by itself, into a grid of one.
+                                // The nodes cannot be interrogated afterwards either - AE2 throws "A node is
+                                // being used after it has been destroyed" - so what is captured here is the
+                                // handle, and only destroy() empties it.
+                                var captured = module.portHandles();
+                                if (captured.size() != 2) {
+                                    helper.fail("the fixture never had two port handles to track: "
+                                            + captured.size());
+                                    return;
+                                }
                                 helper.destroyBlock(fixture.nearModulePos());
                                 waitUntil(helper, 80,
                                         () -> module.livePorts() == 0 && module.livePortNodes().isEmpty()
+                                                && ghostNodes(level, fixture, module) == 0
+                                                && destroyedHandles(captured) == captured.size()
                                                 && chargedDevices(level, fixture.devices()) == 0,
                                         () -> "breaking the module left " + module.livePorts()
-                                                + " port(s) standing and "
+                                                + " port(s) standing, "
+                                                + ghostNodes(level, fixture, module)
+                                                + " node(s) AE2 still attributes to that block entity, "
+                                                + (captured.size() - destroyedHandles(captured)) + " of "
+                                                + captured.size() + " captured port handles still holding a"
+                                                + " node, and "
                                                 + chargedDevices(level, fixture.devices())
                                                 + " machines still charged - a virtual node that outlives"
                                                 + " its block holds channels the player cannot see the"
@@ -9547,6 +9577,39 @@ public final class NeoECOPrototypeGameTests {
                                 helper.succeed();
                             });
                 });
+    }
+
+    /**
+     * Nodes AE2 still carries that belong to a block entity which is gone. Our own list proving it is empty
+     * is not the same claim - that only shows we forgot the ports - and the control group of 2026-11-14 caught
+     * exactly that: commenting out {@code port.destroy()} while keeping the edge teardown left the whole suite
+     * green, because the assertion never asked AE2.
+     */
+    private static int ghostNodes(ServerLevel level, PortFixture fixture,
+                                  WirelessChannelModuleBlockEntity gone) {
+        var controllerNode = networkNode(level, fixture.controller());
+        if (controllerNode == null || controllerNode.getGrid() == null) {
+            return 0;
+        }
+        int ghosts = 0;
+        for (var node : controllerNode.getGrid().getNodes()) {
+            if (node.getOwner() == gone) {
+                ghosts++;
+            }
+        }
+        return ghosts;
+    }
+
+    /** How many of these handles no longer hold a node - which only {@code destroy()} can do. */
+    private static int destroyedHandles(
+            java.util.List<appeng.api.networking.IManagedGridNode> handles) {
+        int destroyed = 0;
+        for (var handle : handles) {
+            if (!handle.isReady()) {
+                destroyed++;
+            }
+        }
+        return destroyed;
     }
 
     /** Per-group {@code charged/total}, so a cap can be read off the exact port instead of the whole grid. */

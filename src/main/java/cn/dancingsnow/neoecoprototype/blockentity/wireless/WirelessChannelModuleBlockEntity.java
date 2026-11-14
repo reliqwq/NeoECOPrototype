@@ -114,6 +114,19 @@ public final class WirelessChannelModuleBlockEntity extends AENetworkedBlockEnti
     }
 
     /**
+     * The port handles themselves, in creation order, for a caller that has to ask them a question
+     * <em>after</em> the block is gone.
+     *
+     * <p>Needed because AE2 refuses {@code IGridNode.getGrid()} on a destroyed node - it answers
+     * "A node is being used after it has been destroyed" and throws, so a teardown test cannot prove a port
+     * died by interrogating the node it used to own. The handle is the object that carries the destruction:
+     * {@code ManagedGridNode.destroy()} nulls its node, and nothing else in this class does.
+     */
+    public List<IManagedGridNode> portHandles() {
+        return List.copyOf(ports);
+    }
+
+    /**
      * A snapshot of the ports that are still standing, in creation order.
      *
      * <p>AE2 has no "is this node destroyed" query ({@code IGridNode} answers none, and

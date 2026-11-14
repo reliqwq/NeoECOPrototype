@@ -294,6 +294,15 @@ linked 猪咪装配室@-72,-60,14   <-> 模块 | edge=virtual max=32 used=0 a(ma
     需要还原配置也写在最内层（`getDefault()`），别用 `finally`。
     同一条陷阱在探针 `threePortsOnOneControllerEachCarryTheirOwnChannels` 里不存在，因为它只在
     `catch` 里清，不在 `finally`——这也是它能一直绿而我们新写的那条一直"假红"的区别。
+11. **虚拟节点的"没销毁"是看不见的，除非你在拆之前抓住它的句柄。** 控制组量到的：只拆边、不 `port.destroy()`，
+    下面三个观测量**全都仍然绿**——① 我们 BE 自己的端口表为空；② 控制器那张网里再无属于那只 BE 的节点
+    （`ghostNodes=0`）；③ 远端机器 0 频道。因为 AE2 自己会把失去连接的节点从控制器网里推出去，
+    推进一只**只含它自身的孤立网**里，节点并没有消失，只是搬了家。
+    也不能事后去问那只节点：AE2 对已销毁节点的方法直接抛
+    `A node is being used after it has been destroyed`。
+    唯一抓得住的是**拆之前抓住 `IManagedGridNode` 句柄**（不是 `IGridNode`），事后要求 `!isReady()` ——
+    `ManagedGridNode.destroy()` 才会把它的 node 字段清 null，别的都不会。
+    配套要断言"抓到的句柄数 == 2"，否则清完表再抓就是空表，断言变成永不执行的扫描。
 
 ---
 
