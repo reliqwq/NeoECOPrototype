@@ -1,5 +1,6 @@
 package cn.dancingsnow.neoecoprototype.event;
 
+import appeng.api.networking.GridFlags;
 import appeng.api.networking.GridHelper;
 import appeng.api.networking.IGrid;
 import appeng.api.networking.IGridConnection;
@@ -390,6 +391,26 @@ public final class WirelessLinks {
         return bindReply(acting, type, from, to).english();
     }
 
+    /** A module at either endpoint owns the group's default; a card-stored group is the fallback. */
+    public static String groupForLink(ServerLevel acting, GlobalPos marked, GlobalPos clicked, String legacyGroup) {
+        String clickedGroup = moduleGroupAt(acting, clicked);
+        if (!clickedGroup.isEmpty()) {
+            return clickedGroup;
+        }
+        String markedGroup = moduleGroupAt(acting, marked);
+        return markedGroup.isEmpty() ? normalizeGroup(legacyGroup) : markedGroup;
+    }
+
+    private static String moduleGroupAt(ServerLevel acting, GlobalPos at) {
+        ServerLevel level = levelOf(acting, at.dimension());
+        if (level == null || !chunkIsHere(level, at)) {
+            return "";
+        }
+        return level.getBlockEntity(at.pos()) instanceof WirelessChannelModuleBlockEntity module
+                ? module.linkGroup()
+                : "";
+    }
+
     /** {@link #bind} as the card needs it: the same work, plus the key each outcome speaks in. */
     public static Reply bindReply(ServerLevel acting, Supplier<AttachmentType<Data>> type, GlobalPos from,
                                   GlobalPos to) {
@@ -474,7 +495,7 @@ public final class WirelessLinks {
         // link as having no edge at all and build a second one onto a port.
         var moduleA = moduleOf(a);
         if (moduleA != null) {
-            var port = moduleA.portForNewLink(farNodeCount(b));
+            var port = moduleA.portForNewLink(farChannelDemand(b));
             if (port == null) {
                 // "No room on any port" and "not wired into a grid yet" are different answers, and only one of
                 // them tells the player to build a second module.
@@ -485,8 +506,8 @@ public final class WirelessLinks {
         var moduleB = moduleOf(b);
         if (moduleB != null) {
             // Counted from {@code a}, which is port 0 of A's grid by now - the same grid either way, so the
-            // number is A's node count, which is exactly what B's port has to have room for.
-            var port = moduleB.portForNewLink(farNodeCount(a));
+            // demand is A's channel bill, which is exactly what B's port has to have room for.
+            var port = moduleB.portForNewLink(farChannelDemand(a));
             if (port == null) {
                 return moduleB.gridOnline() ? noFreePort(acting, link.b()) : noNodeYet(acting, link.b());
             }
@@ -664,11 +685,9 @@ public final class WirelessLinks {
      * refusal, which was written to make a control group readable rather than to tell a player anything
      * (eight identical lines of it in one client session, 2026-10-29).
      *
-     * <p>Two callers now, and the second one is load-bearing in a different way: {@code farNodeCount} feeds it
-     * to {@code WirelessChannelModuleBlockEntity#portForNewLink}, where this count decides whether a network
-     * shares a port's 32 channels with another network or gets a port to itself. It has to stay AE2's own node
-     * count - not a count of the player's machines - because that is the number the port's arithmetic is
-     * measured against.
+     * <p>Deliberately not the number a port is priced against: {@link #farChannelDemand} counts only the nodes
+     * AE2 bills a channel for, and a grid's node list also carries the cables. This one answers "how big is
+     * the thing that already joins them", which is a sentence about blocks, not about channels.
      */
     private static int gridNodes(IGrid grid) {
         int nodes = 0;
@@ -766,6 +785,34 @@ public final class WirelessLinks {
                         dropped, label(acting, endpoint));
     }
 
+    /** Drops one exact pair, leaving every other link on either endpoint alone. */
+    public static Reply unlinkLinkReply(ServerLevel acting, Supplier<AttachmentType<Data>> type,
+                                        GlobalPos endpointA, GlobalPos endpointB) {
+        Link requested = Link.of(endpointA, endpointB);
+        for (ServerLevel owner : acting.getServer().getAllLevels()) {
+            if (!owner.dimension().equals(requested.ownerDimension()) || !owner.hasData(type.get())) {
+                continue;
+            }
+            Data data = owner.getData(type.get());
+            if (!data.links.contains(requested)) {
+                continue;
+            }
+            IGridConnection held = data.edges.get(requested);
+            boolean provable = isStillBetween(owner, held, requested);
+            if (provable) {
+                held.destroy();
+            }
+            data.drop(requested);
+            data.links.remove(requested);
+            NeoECOPrototype.LOGGER.info("wireless link: unlink exact {} held={} provable={}",
+                    describe(requested), held != null, provable);
+            return Reply.of("dropped", "dropped 1 link at " + labelText(acting, endpointA),
+                    1, label(acting, endpointA));
+        }
+        return Reply.of("carries_none", labelText(acting, endpointA) + " carries no wireless link",
+                label(acting, endpointA));
+    }
+
     /** Drops every link at one endpoint and answers in English - what the log and the guards read. */
     public static String unlink(ServerLevel acting, Supplier<AttachmentType<Data>> type, GlobalPos endpoint) {
         return unlinkReply(acting, type, endpoint).english();
@@ -833,6 +880,103 @@ public final class WirelessLinks {
         rows.sort(java.util.Comparator.comparing((LinkSummary row) -> groupLabel(row.group()), String.CASE_INSENSITIVE_ORDER)
                 .thenComparing(row -> describe(row.a()) + describe(row.b()), String.CASE_INSENSITIVE_ORDER));
         return List.copyOf(rows);
+    }
+
+    /**
+     * One link that lands on this module, with the outlet its edge is actually on.
+     *
+     * @param port the index into the caller's {@code ports} list, or -1 while no edge exists for the link
+     * @param far  the device on the other end
+     */
+    public record ModuleLink(GlobalPos far, int port, String group, boolean live) {
+    }
+
+    /**
+     * Every recorded link that touches {@code moduleAt}, tagged with the outlet carrying it.
+     *
+     * <p>The module panel's right column is one outlet at a time, and the only honest answer to "which outlet
+     * is this link on" is AE2's own edge: {@code data.edges} holds the connection that was built, and its two
+     * ends are the two ports the bind chose. Reading the outlet off the record instead would show a link on
+     * the outlet it was asked for and never got.
+     *
+     * <p>A link with no edge - the far chunk is asleep, or the rebuild pass has not caught up - gets -1 and is
+     * shown on every outlet page rather than on none of them. It has no outlet to be on, and the alternative
+     * is a recorded link the panel cannot reach at all.
+     *
+     * @param ports the module's live port nodes in creation order, passed in so this reads no world of its own
+     */
+    public static List<ModuleLink> linksOnModule(ServerLevel acting, Supplier<AttachmentType<Data>> type,
+                                                 GlobalPos moduleAt, List<IGridNode> ports) {
+        List<ModuleLink> rows = new ArrayList<>();
+        for (ServerLevel owner : acting.getServer().getAllLevels()) {
+            if (!owner.hasData(type.get())) {
+                continue;
+            }
+            Data data = owner.getData(type.get());
+            for (Link link : data.links) {
+                if (!link.a().equals(moduleAt) && !link.b().equals(moduleAt)) {
+                    continue;
+                }
+                IGridConnection edge = data.edges.get(link);
+                rows.add(new ModuleLink(link.a().equals(moduleAt) ? link.b() : link.a(),
+                        portIndexOf(ports, edge), data.group(link), isStillBetween(owner, edge, link)));
+            }
+        }
+        rows.sort(java.util.Comparator
+                .comparing((ModuleLink row) -> groupLabel(row.group()), String.CASE_INSENSITIVE_ORDER)
+                .thenComparing(row -> describe(row.far()), String.CASE_INSENSITIVE_ORDER));
+        return List.copyOf(rows);
+    }
+
+    /** Which of {@code ports} is an end of {@code edge}; -1 for a link that has no edge yet. */
+    private static int portIndexOf(List<IGridNode> ports, @Nullable IGridConnection edge) {
+        if (edge == null) {
+            return -1;
+        }
+        for (int index = 0; index < ports.size(); index++) {
+            var node = ports.get(index);
+            if (node == edge.a() || node == edge.b()) {
+                return index;
+            }
+        }
+        return -1;
+    }
+
+    /** Drops only links in a group that touch one endpoint, leaving same-named groups elsewhere alone. */
+    public static Reply unlinkGroupAtEndpointReply(ServerLevel acting, Supplier<AttachmentType<Data>> type,
+                                                   GlobalPos endpoint, String groupName) {
+        String group = normalizeGroup(groupName);
+        if (group.isEmpty()) {
+            return Reply.of("group_required", "enter a group name before unlinking it");
+        }
+        int removed = 0;
+        for (ServerLevel level : acting.getServer().getAllLevels()) {
+            if (!level.hasData(type.get())) {
+                continue;
+            }
+            Data data = level.getData(type.get());
+            List<Link> matches = data.links.stream()
+                    .filter(link -> link.touches(endpoint) && group.equals(data.group(link)))
+                    .toList();
+            for (Link link : matches) {
+                IGridConnection held = data.edges.get(link);
+                if (isStillBetween(level, held, link)) {
+                    held.destroy();
+                }
+                data.drop(link);
+                data.links.remove(link);
+                removed++;
+            }
+        }
+        NeoECOPrototype.LOGGER.info("wireless link: group unlink '{}' at {} removed={} link(s)",
+                groupLabel(group), describe(endpoint), removed);
+        return removed == 0
+                ? Reply.of("group_empty", "wireless group '" + groupLabel(group)
+                        + "' has no links at " + labelText(acting, endpoint),
+                        groupLabel(group), label(acting, endpoint))
+                : Reply.of("group_unlinked", "wireless group '" + groupLabel(group) + "' removed "
+                        + removed + " link(s) at " + labelText(acting, endpoint),
+                        groupLabel(group), removed);
     }
 
     public static Reply unlinkGroupReply(ServerLevel acting, Supplier<AttachmentType<Data>> type,
@@ -903,8 +1047,9 @@ public final class WirelessLinks {
      * {@code getUsedChannels()} are on the public interface, and the maximum already carries the network's
      * multiplier (measured on 19.2.17: a node without {@code DENSE_CAPACITY} answers {@code 8 x factor}, a
      * dense one {@code 32 x factor}, {@code ChannelMode.INFINITE} short-circuits both to
-     * {@code Integer.MAX_VALUE}). That pair is the whole answer to "how many devices will this link actually
-     * carry", which is why it replaced the seven-field sentence this card used to print on 2026-11-04: the
+     * {@code Integer.MAX_VALUE}). The line also includes the remainder on this node, max minus used; that is
+     * local headroom, not a network-wide total. The pair is the whole answer to "how many devices will this link
+     * actually carry", which is why it replaced the seven-field sentence this card used to print on 2026-11-04: the
      * verdict, the power state and the device count were either not this device's business or already visible
      * in AE2's own panels, and a player asked for the two numbers and nothing else.
      *
@@ -916,8 +1061,7 @@ public final class WirelessLinks {
         if (node == null) {
             return Component.translatable("gui.neoecoprototype.wireless_link.channels_none", describe(at));
         }
-        return Component.translatable("gui.neoecoprototype.wireless_link.channels",
-                node.getMaxChannels(), node.getUsedChannels());
+        return channelsTextOf(node, at);
     }
 
     /**
@@ -950,13 +1094,18 @@ public final class WirelessLinks {
 
     /** The {@code channels} line for a node already in hand; nothing in hand is the none-sentence. */
     private static Component channelsTextOf(@Nullable IGridNode node, GlobalPos fallback) {
-        return node == null
-                ? Component.translatable("gui.neoecoprototype.wireless_link.channels_none", describe(fallback))
-                : Component.translatable("gui.neoecoprototype.wireless_link.channels",
-                        node.getMaxChannels(), node.getUsedChannels());
+        if (node == null) {
+            return Component.translatable("gui.neoecoprototype.wireless_link.channels_none", describe(fallback));
+        }
+        int max = node.getMaxChannels();
+        int used = node.getUsedChannels();
+        String remaining = max == Integer.MAX_VALUE
+                ? "∞"
+                : Integer.toString(Math.max(0, max - used));
+        return Component.translatable("gui.neoecoprototype.wireless_link.channels", max, used, remaining);
     }
 
-    /** The same two numbers as a plain pair, for a guard or a log line that has no component to send. */
+    /** The channel numbers as a plain pair, for a guard or a log line that has no component to send. */
     public static String channelsReading(ServerLevel acting, GlobalPos at) {
         var node = node(acting, at);
         return node == null
@@ -1314,7 +1463,7 @@ public final class WirelessLinks {
                 || controllerNodes(gridA) > 0 || controllerNodes(gridB) > 0) {
             return null;
         }
-        int demand = adHocDemand(gridA) + adHocDemand(gridB);
+        int demand = channelDemand(gridA) + channelDemand(gridB);
         int ceilingA = adHocCeiling(gridA);
         int ceilingB = adHocCeiling(gridB);
         int fits = Math.min(ceilingA, ceilingB);
@@ -1383,12 +1532,16 @@ public final class WirelessLinks {
     }
 
     /**
-     * What AE2's ad-hoc branch would charge for this grid, counted the way it counts: one per node that
-     * requires a channel, with a multiblock's members folded into the single slot the multiblock itself takes
-     * (measured in {@code PathingService#calculateAdHocChannels}). That set is private, so this walks
+     * What AE2 would charge for this grid, counted the way it counts: one per node that requires a channel,
+     * with a multiblock's members folded into the single slot the multiblock itself takes (measured in
+     * {@code PathingService#calculateAdHocChannels}, and the same folding the controlled branch does through
+     * {@code PathingCalculation.multiblocksWithChannel}). That set is private, so this walks
      * {@code IGrid#getNodes()} through public API rather than pretending to know it.
+     *
+     * <p>Two consumers, and they are the same arithmetic asked of two different branches: {@link
+     * #starvationRisk} uses it against the ad-hoc ceiling, {@link #farChannelDemand} against a port's 32.
      */
-    private static int adHocDemand(appeng.api.networking.IGrid grid) {
+    private static int channelDemand(appeng.api.networking.IGrid grid) {
         var counted = new java.util.HashSet<IGridNode>();
         int need = 0;
         for (IGridNode node : grid.getNodes()) {
@@ -1724,6 +1877,8 @@ public final class WirelessLinks {
         if (a == null || b == null) {
             return new EdgeResult(null, null, null, null);
         }
+        int demandA = farChannelDemand(node(acting, link.b()));
+        int demandB = farChannelDemand(node(acting, link.a()));
         data.lastAttemptTick.put(link, acting.getGameTime());
         IGridConnection created;
         try {
@@ -1753,6 +1908,16 @@ public final class WirelessLinks {
         }
         data.edges.put(link, created);
         data.rebuildFailures.remove(link);
+        // The port's own bill is a tick behind the edge, so the block is told what this edge costs it. Read off
+        // the module ends only: a plain device's channels are AE2's business and its own node reports them.
+        var portModuleA = moduleOf(node(acting, link.a()));
+        if (portModuleA != null) {
+            portModuleA.noteChannelsPromised(a, demandA);
+        }
+        var portModuleB = moduleOf(node(acting, link.b()));
+        if (portModuleB != null) {
+            portModuleB.noteChannelsPromised(b, demandB);
+        }
         return new EdgeResult(created, a, b, null);
     }
 
@@ -1765,26 +1930,34 @@ public final class WirelessLinks {
                                           @Nullable IGridNode far) {
         var module = moduleOf(node(acting, at));
         if (module != null) {
-            return module.portForNewLink(farNodeCount(far));
+            return module.portForNewLink(farChannelDemand(far));
         }
         return candidates.isEmpty() ? null : candidates.get(0);
     }
 
     /**
-     * How many nodes the network on the far side of a prospective link has, as AE2 counts them - the number a
-     * port compares against its own remaining channels before it agrees to share.
+     * How many channels the network on the far side of a prospective link will pull out of a port - the number
+     * a port compares against its own remaining channels before it agrees to share.
      *
-     * <p>Unreadable answers come back larger than {@code WirelessChannelModuleBlockEntity#PACKABLE_NETWORK_NODES}
-     * on purpose: a network whose size cannot be measured is never packed onto a port that already carries one,
-     * because the conservative mistake (open another outlet) is visible to the player as a number, while the
-     * optimistic one shows up as devices that stopped working.
+     * <p>Counted as the far grid's nodes carrying {@link GridFlags#REQUIRE_CHANNEL}, because that is what AE2
+     * bills: the pathing pass gives each such node one channel index and reports their total as the
+     * {@code usedChannels} of whatever carrier sits above them. Measured in the suite - a far group of seventeen
+     * interfaces hanging off one module reads 18/32 on the near port, while the same grid holds thirty-five
+     * nodes, because every one of those machines is reached through its own dense cable and a cable is not
+     * billed.
+     *
+     * <p>The first version priced this in total node count plus one. That is the boundary bug the client named
+     * on 2026-11-14: every port read 24/32 with eight channels still free, and the bind was still refused,
+     * because a satellite reached through cables was charged for the cables as well as for the machine.
+     *
+     * <p>Unreadable answers come back as {@link Integer#MAX_VALUE} on purpose: a network whose size cannot be
+     * measured never shares a port that already carries one, because the conservative mistake (open another
+     * outlet) is visible to the player as a number, while the optimistic one shows up as devices that stopped
+     * working.
      */
-    private static int farNodeCount(@Nullable IGridNode far) {
-        if (far == null) {
-            return Integer.MAX_VALUE;
-        }
-        var grid = far.getGrid();
-        return grid == null ? Integer.MAX_VALUE : gridNodes(grid);
+    private static int farChannelDemand(@Nullable IGridNode far) {
+        var grid = far == null ? null : far.getGrid();
+        return grid == null ? Integer.MAX_VALUE : channelDemand(grid);
     }
 
     /**
@@ -1951,6 +2124,16 @@ public final class WirelessLinks {
 
     public static String describe(GlobalPos at) {
         return at.dimension().location() + "@" + at.pos().toShortString();
+    }
+
+    /**
+     * The position alone and written tight - {@code 6,-60,4} rather than {@code 6, -60, 4} - because the module
+     * panel's device rows are 43 pixels wide and the spaced form is 44. The name of what sits there goes in the
+     * row's tooltip, where there is room for it.
+     */
+    public static String coordinates(GlobalPos at) {
+        var position = at.pos();
+        return position.getX() + "," + position.getY() + "," + position.getZ();
     }
 
     public static String describe(Link link) {

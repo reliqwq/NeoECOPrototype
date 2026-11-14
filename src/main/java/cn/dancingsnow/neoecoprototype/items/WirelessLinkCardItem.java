@@ -3,8 +3,6 @@ package cn.dancingsnow.neoecoprototype.items;
 import cn.dancingsnow.neoecoprototype.NeoECOPrototype;
 import cn.dancingsnow.neoecoprototype.event.WirelessLinks;
 import cn.dancingsnow.neoecoprototype.registration.ModRegistration;
-import com.lowdragmc.lowdraglib2.gui.factory.HeldItemUIMenuType;
-import com.lowdragmc.lowdraglib2.gui.ui.ModularUI;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.GlobalPos;
 import net.minecraft.core.component.DataComponents;
@@ -38,7 +36,7 @@ import javax.annotation.Nullable;
  * <p>The card is only the carrier. Once an edge exists the pair lives on the level ({@link WirelessLinks}),
  * so losing the card costs a finished link nothing.</p>
  */
-public class WirelessLinkCardItem extends Item implements HeldItemUIMenuType.HeldItemUI {
+public class WirelessLinkCardItem extends Item {
 
     private static final String TAG_ENDPOINT = "linkCardEndpoint";
     private static final String TAG_GROUP = "linkCardGroup";
@@ -47,17 +45,6 @@ public class WirelessLinkCardItem extends Item implements HeldItemUIMenuType.Hel
 
     public WirelessLinkCardItem(Properties properties) {
         super(properties);
-    }
-
-    @Override
-    public boolean stillValid(HeldItemUIMenuType.HeldItemUIHolder holder) {
-        ItemStack held = holder.player.getItemInHand(holder.hand);
-        return !held.isEmpty() && held.getItem() == this;
-    }
-
-    @Override
-    public ModularUI createUI(HeldItemUIMenuType.HeldItemUIHolder holder) {
-        return WirelessLinkManagementUI.create(holder);
     }
 
     @Override
@@ -134,7 +121,7 @@ public class WirelessLinkCardItem extends Item implements HeldItemUIMenuType.Hel
             }
         } else {
             report = WirelessLinks.bindReply(serverLevel, ModRegistration.WIRELESS_LINKS, held, clicked,
-                    readGroup(card));
+                    WirelessLinks.groupForLink(serverLevel, held, clicked, readGroup(card)));
             // The mark deliberately survives a successful join: one tap on the hub and then one tap per
             // device is how a player wires a hub to several spokes. What brakes that are all in the world's
             // config - links per device, distance, dimensions, and the AE each live link draws per tick -
@@ -191,11 +178,12 @@ public class WirelessLinkCardItem extends Item implements HeldItemUIMenuType.Hel
             return InteractionResultHolder.pass(card);
         }
         if (player.isShiftKeyDown()) {
-            if (player instanceof net.minecraft.server.level.ServerPlayer serverPlayer
-                    && HeldItemUIMenuType.openUI(serverPlayer, hand)) {
-                return InteractionResultHolder.consume(card);
-            }
-            return InteractionResultHolder.pass(card);
+            var held = readEndpoint(card);
+            player.displayClientMessage(held == null
+                            ? Component.translatable("item.neoecoprototype.wireless_link_card.balance_none")
+                            : balanceReport(serverLevel, card),
+                    true);
+            return InteractionResultHolder.consume(card);
         }
         // Plain right-click in mid-air drops the mark and nothing else. This release used to be bundled into
         // "click the marked device again", which also deleted its links - now that the unlink card owns that,

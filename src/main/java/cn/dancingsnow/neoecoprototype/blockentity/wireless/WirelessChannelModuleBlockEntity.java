@@ -1,8 +1,7 @@
 package cn.dancingsnow.neoecoprototype.blockentity.wireless;
 
 import appeng.api.networking.GridFlags;
-import appeng.api.networking.GridHelper;
-import appeng.api.networking.IGridConnection;
+import appeng.api.networking.GridHelper;import appeng.api.networking.IGridConnection;
 import appeng.api.networking.IGridNode;
 import appeng.api.networking.IInWorldGridNodeHost;
 import appeng.api.networking.IManagedGridNode;
@@ -11,6 +10,8 @@ import appeng.blockentity.grid.AENetworkedBlockEntity;
 import appeng.blockentity.networking.ControllerBlockEntity;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.HolderLookup;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import java.util.ArrayList;
@@ -44,9 +45,33 @@ public final class WirelessChannelModuleBlockEntity extends AENetworkedBlockEnti
     public static final int CHANNELS_PER_PORT = 32;
 
     private static final String PORT_TAG = "neoecoprototype-channel-port-";
+    private static final String LINK_GROUP_TAG = "linkGroup";
 
+    private String linkGroup = "";
     private final List<IManagedGridNode> ports = new ArrayList<>();
     private final List<IGridConnection> trunks = new ArrayList<>();
+
+    /**
+     * Channels we handed out against a port that AE2 has not billed yet, and the number of links that promise
+     * was priced at.
+     *
+     * <p>{@code IGridNode.getUsedChannels()} is the right number and it is a tick late: the pathing service
+     * recomputes it on its own schedule, so two binds made before the next pathing pass both read the same
+     * pre-merge figure and both think the port is nearly empty. Measured 2026-11-14 - binding two networks of
+     * seventeen machines back to back left the port at {@code 0/32} while it read {@code con=3}, and the second
+     * network packed on top of the first. AE2 then had 32 channels for 34 billed nodes and quietly left
+     * thirteen machines offline, which is the optimistic mistake this map exists to prevent.
+     *
+     * <p>An entry is dropped as soon as AE2's number catches up with it, and as soon as the port has fewer
+     * links than the promise was struck at - a link left by the unlink card is a link AE2 has to recount, and
+     * trusting the stale promise then would keep a freed port looking full. The mistake that is left is the
+     * visible one: a port that reads fuller than it is for a tick, which costs an outlet, never a channel.
+     */
+    private final java.util.Map<IGridNode, Promise> promised = new java.util.HashMap<>();
+
+    /** What a port was priced at, and how many links hung off it when the price was struck. */
+    private record Promise(int channels, int links) {
+    }
 
     public WirelessChannelModuleBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state) {
         super(type, pos, state);
@@ -76,46 +101,42 @@ public final class WirelessChannelModuleBlockEntity extends AENetworkedBlockEnti
     }
 
     /**
-     * The size of far network that is allowed to share a port with a network already on it.
-     *
-     * <p>Eight, and the number is a bet about growth rather than an AE2 constant: a network of eight or fewer
-     * nodes is a satellite (a few machines behind one interface), and a player who adds machines to it is
-     * adding them to a grid that already has a controller and a power store - it will outgrow the shared 32 and
-     * AE2 will starve some of its devices, which is the failure this rule accepts in exchange for capacity.
-     * Above eight the port stays private, because a network that big is the kind a player keeps building on.
-     *
-     * <p>Measured on 2026-11-14, in the suite's own log line: a group of 17 machines spends 18 of its port's 32
-     * channels ({@code [0=18/32/con=2, 1=18/32/con=2]}), so the arithmetic is AE2's, not an estimate - the one
-     * extra channel is the far network's own end of the edge.
-     */
-    public static final int PACKABLE_NETWORK_NODES = 8;
-
-    /**
      * The port a new link should land on.
      *
      * <p>Two rules, tried in creation order, and the first port that satisfies either one wins:
      * <ol>
      * <li>a port with nothing but its trunk on it - the original rule, one network per outlet;</li>
-     * <li>a port that already carries a network, if the newcomer is at most
-     * {@link #PACKABLE_NETWORK_NODES} nodes and its channels fit in what the port has left.</li>
+     * <li>a port that already carries a network, if the channels the newcomer will draw still fit in what the
+     * port has left.</li>
      * </ol>
      *
-     * <p>Rule 2 is what makes one module worth more than six networks: four 3-node satellites spend 3 channels
-     * each and all land on port 0, so the block absorbs them without opening a second outlet. Rule 1 is what
-     * keeps the promise route D was built for: a 17-machine network fails rule 2 on size alone, so it never
-     * shares a bucket, and the fixture that measures 34 of 34 machines coming up through two ports stays true
-     * whether or not packing is in use.
+     * <p>Rule 2 is priced in channels, and the first two versions of it were priced in node count instead -
+     * first a satellite was "eight or fewer nodes", then the price became {@code farNodes + 1}. Both were
+     * wrong in the same direction. The client on 2026-11-14 killed the first: a player linking a wall of
+     * machines through their cable buses had every bind open its own outlet, six of them, and the card refused
+     * the seventh. The same client killed the second a few hours later, from the other side: every outlet read
+     * {@code 24/32} with eight channels still free and an eight-channel network still refused, because the
+     * count charged each machine's cable as well as the machine.
+     *
+     * <p>What the port is actually charged is one channel per far node that carries
+     * {@link appeng.api.networking.GridFlags#REQUIRE_CHANNEL}, measured rather than assumed: a group of
+     * seventeen machines spends eighteen of a port's thirty-two in the suite
+     * ({@code [0=18/32/con=2, 1=18/32/con=2]}) - the seventeen interfaces plus the module they hang off, and
+     * none of the seventeen dense cables between them. The caller passes that count, so the fit test below is
+     * AE2's own arithmetic and nothing else. A network too big for any outlet still gets one to itself through
+     * rule 1 - the permission to share is what is priced, never the permission to connect.
      *
      * <p>Ports are opened on demand rather than all six up front. A port nobody uses is not free: it is a node
      * in the grid's node list, so it shows up in the Network Tool's node count, it gets walked by every path
      * calculation over that grid, and the block reads as a bigger machine than it is. Six eager ports made
      * every module cost six nodes from the moment it was placed.
      *
-     * @param farNodes how many nodes the network on the other side of the link has, as AE2 counts them; pass a
-     *                 value larger than {@link #PACKABLE_NETWORK_NODES} when it cannot be read, so an unknown
-     *                 network is never packed
+     * @param farChannels how many channels the network on the other side of the link will pull through this
+     *                    port, as AE2 bills them; pass {@link Integer#MAX_VALUE} when it cannot be read, and the
+     *                    port is treated as unable to afford it, so an unknown network only ever lands on an
+     *                    unused one
      */
-    public IGridNode portForNewLink(int farNodes) {
+    public IGridNode portForNewLink(int farChannels) {
         for (var port : ports) {
             if (!port.isReady()) {
                 continue;
@@ -124,10 +145,11 @@ public final class WirelessChannelModuleBlockEntity extends AENetworkedBlockEnti
             if (node == null) {
                 continue;
             }
-            boolean unused = node.getConnections().size() <= 1;
-            boolean hasRoom = farNodes <= PACKABLE_NETWORK_NODES
-                    && node.getUsedChannels() + farNodes <= node.getMaxChannels();
-            if (unused || hasRoom) {
+            if (node.getConnections().size() <= 1) {
+                promised.remove(node);
+                return node;
+            }
+            if (portLoad(node) + (long) farChannels <= node.getMaxChannels()) {
                 return node;
             }
         }
@@ -148,6 +170,68 @@ public final class WirelessChannelModuleBlockEntity extends AENetworkedBlockEnti
         trunks.add(GridHelper.createConnection(upstream, port.getNode()));
         ports.add(port);
         return port.getNode();
+    }
+
+    /**
+     * What a port is carrying right now: AE2's own bill, or the channels we handed out against it if AE2 has
+     * not noticed them yet and the port still has the links they were priced at. See {@link #promised}.
+     */
+    private int portLoad(IGridNode node) {
+        int billed = node.getUsedChannels();
+        int links = node.getConnections().size() - 1;
+        Promise owed = promised.get(node);
+        if (owed == null || owed.links() > links || owed.channels() <= billed) {
+            promised.remove(node);
+            return billed;
+        }
+        return owed.channels();
+    }
+
+    /**
+     * That an edge was just built on {@code port} carrying {@code channels} of its 32. Called by the pass that
+     * creates the edge and by nothing else - {@link #portForNewLink} is a question, so the bind that only
+     * decides whether to refuse does not spend anything.
+     */
+    public void noteChannelsPromised(IGridNode port, int channels) {
+        promised.put(port, new Promise(portLoad(port) + channels,
+                port.getConnections().size() - 1));
+    }
+
+    public String linkGroup() {
+        return linkGroup;
+    }
+
+    public void setLinkGroup(String value) {
+        String normalized = normalizeLinkGroup(value);
+        if (normalized.equals(linkGroup)) {
+            return;
+        }
+        linkGroup = normalized;
+        setChanged();
+        markForUpdate();
+    }
+
+    private static String normalizeLinkGroup(String value) {
+        String normalized = value.codePoints()
+                .filter(codePoint -> !Character.isISOControl(codePoint))
+                .collect(StringBuilder::new, StringBuilder::appendCodePoint, StringBuilder::append)
+                .toString().trim();
+        int length = normalized.codePointCount(0, normalized.length());
+        return length <= 32 ? normalized : normalized.substring(0, normalized.offsetByCodePoints(0, 32));
+    }
+
+    @Override
+    public void saveAdditional(CompoundTag data, HolderLookup.Provider registries) {
+        super.saveAdditional(data, registries);
+        if (!linkGroup.isEmpty()) {
+            data.putString(LINK_GROUP_TAG, linkGroup);
+        }
+    }
+
+    @Override
+    public void loadTag(CompoundTag data, HolderLookup.Provider registries) {
+        super.loadTag(data, registries);
+        linkGroup = normalizeLinkGroup(data.getString(LINK_GROUP_TAG));
     }
 
     /** How many ports this block is holding right now. */
@@ -178,6 +262,26 @@ public final class WirelessChannelModuleBlockEntity extends AENetworkedBlockEnti
             }
         }
         return busy;
+    }
+
+    /** The current AE2 per-port limit, including the active channel-mode multiplier. */
+    public int portChannelCapacity() {
+        var node = getMainNode().getNode();
+        return node == null || node.getGrid() == null ? CHANNELS_PER_PORT : node.getMaxChannels();
+    }
+
+    /** The total channel budget represented by all six module outlets. */
+    public long totalPortCapacity() {
+        return (long) MAX_PORTS * portChannelCapacity();
+    }
+
+    /** Channels currently charged to the module's live ports, as AE2 reports them. */
+    public long totalPortUsed() {
+        long used = 0;
+        for (var node : livePortNodes()) {
+            used += node.getUsedChannels();
+        }
+        return used;
     }
 
     /**
@@ -243,6 +347,7 @@ public final class WirelessChannelModuleBlockEntity extends AENetworkedBlockEnti
     }
 
     private void destroyPorts() {
+        promised.clear();
         // Connections first: AE2 frees the channels an edge was carrying when the edge goes, and a destroyed
         // node with a live edge pointing at it is exactly the ghost this class exists to avoid.
         for (var trunk : trunks) {

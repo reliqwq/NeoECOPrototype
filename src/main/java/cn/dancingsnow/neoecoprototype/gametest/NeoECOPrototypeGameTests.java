@@ -9200,6 +9200,13 @@ public final class NeoECOPrototypeGameTests {
      * nothing about ports whatsoever.
      */
     private static PortFixture buildPortFixture(GameTestHelper helper, int groups, int perGroup) {
+        var sizes = new int[groups];
+        java.util.Arrays.fill(sizes, perGroup);
+        return buildPortFixtureOfSizes(helper, sizes);
+    }
+
+    /** The same fixture with a different machine count per group, so one run can compare two bills. */
+    private static PortFixture buildPortFixtureOfSizes(GameTestHelper helper, int... perGroupSizes) {
         var level = (ServerLevel) helper.getLevel();
         var moduleBlock = ModRegistration.SUBSYSTEM_CHANNEL_MODULE_BLOCK.get();
         var interfaceBlock = ModRegistration.SUPERCONDUCTIVE_INTERFACE_BLOCK.get();
@@ -9214,18 +9221,20 @@ public final class NeoECOPrototypeGameTests {
         helper.setBlock(powerBlockPos, appeng.core.definitions.AEBlocks.CREATIVE_ENERGY_CELL.block());
         helper.setBlock(new BlockPos(1, 1, 0), moduleBlock);
         var nearModulePos = new BlockPos(1, 1, 0);
-        var hubs = new GlobalPos[groups];
-        var devices = new GlobalPos[groups * perGroup];
-        for (int g = 0; g < groups; g++) {
+        var hubs = new GlobalPos[perGroupSizes.length];
+        var devices = new GlobalPos[java.util.Arrays.stream(perGroupSizes).sum()];
+        int written = 0;
+        for (int g = 0; g < perGroupSizes.length; g++) {
             var y = 1 + 2 * g;
             helper.setBlock(new BlockPos(6, y, 0), moduleBlock);
             hubs[g] = GlobalPos.of(level.dimension(), helper.absolutePos(new BlockPos(6, y, 0)));
-            for (int i = 0; i < perGroup; i++) {
+            for (int i = 0; i < perGroupSizes[g]; i++) {
                 placeDenseTrunk(helper, new BlockPos(5, y, i));
                 helper.setBlock(new BlockPos(4, y, i), interfaceBlock);
-                devices[g * perGroup + i] = GlobalPos.of(level.dimension(),
+                devices[written + i] = GlobalPos.of(level.dimension(),
                         helper.absolutePos(new BlockPos(4, y, i)));
             }
+            written += perGroupSizes[g];
         }
         return new PortFixture(GlobalPos.of(level.dimension(), helper.absolutePos(new BlockPos(0, 1, 0))),
                 GlobalPos.of(level.dimension(), helper.absolutePos(nearModulePos)),
@@ -9274,9 +9283,57 @@ public final class NeoECOPrototypeGameTests {
         return true;
     }
 
-    /** What the ready-check above was waiting for, in the form a failure line can be read from. */
-    private static String portFixtureReading(ServerLevel level, PortFixture fixture) {
+    /**
+     * The same premise as {@link #portFixtureReady}, but naming the first thing that is not true. The boolean
+     * answer tells a failure line nothing: "never reached its premise" is nine different worlds and the reader
+     * has to guess which one, which is how a fixture that timed out on one missing node got read as a channel
+     * bug.
+     */
+    @Nullable
+    private static String portFixturePremiseProblem(ServerLevel level, PortFixture fixture) {
         var controllerNode = networkNode(level, fixture.controller());
+        var moduleNode = networkNode(level, fixture.nearModule());
+        if (controllerNode == null) {
+            return "the controller has no node yet: " + nodeSummary(level, fixture.controller());
+        }
+        if (moduleNode == null) {
+            return "the near module has no node yet: " + nodeSummary(level, fixture.nearModule());
+        }
+        if (moduleNode.getGrid() != controllerNode.getGrid()) {
+            return "the near module is not on the controller's grid: " + nodeSummary(level, fixture.nearModule());
+        }
+        if (!gridPowered(controllerNode.getGrid())) {
+            return "the controller grid is not powered";
+        }
+        if (!"CONTROLLER_ONLINE".equals(WirelessLinks.controllerState(level, fixture.controller()))) {
+            return "the controller grid is " + WirelessLinks.controllerState(level, fixture.controller());
+        }
+        var seen = new java.util.ArrayList<appeng.api.networking.IGrid>();
+        for (int g = 0; g < fixture.hubs().length; g++) {
+            var hubNode = networkNode(level, fixture.hubs()[g]);
+            if (hubNode == null) {
+                return "satellite " + (g + 1) + " has no node: " + nodeSummary(level, fixture.hubs()[g]);
+            }
+            if (hubNode.getGrid() == moduleNode.getGrid()) {
+                return "satellite " + (g + 1) + " is already on the near module's grid";
+            }
+            if (seen.contains(hubNode.getGrid())) {
+                return "satellite " + (g + 1) + " shares a grid with an earlier satellite, so the two are"
+                        + " one network and the per-port arithmetic is about a different world";
+            }
+            seen.add(hubNode.getGrid());
+        }
+        for (int d = 0; d < fixture.devices().length; d++) {
+            if (networkNode(level, fixture.devices()[d]) == null) {
+                return "device " + (d + 1) + " of " + fixture.devices().length + " has no node yet: "
+                        + nodeSummary(level, fixture.devices()[d]);
+            }
+        }
+        return null;
+    }
+
+    /** What the ready-check above was waiting for, in the form a failure line can be read from. */
+    private static String portFixtureReading(ServerLevel level, PortFixture fixture) {        var controllerNode = networkNode(level, fixture.controller());
         return "controller=" + nodeSummary(level, fixture.controller()) + " module="
                 + nodeSummary(level, fixture.nearModule()) + " hub0=" + nodeSummary(level, fixture.hubs()[0])
                 + " state=" + WirelessLinks.controllerState(level, fixture.controller()) + " powered="
@@ -9597,17 +9654,18 @@ public final class NeoECOPrototypeGameTests {
     }
 
     /**
-     * Small networks share an outlet; a network bigger than the packing ceiling does not.
+     * Small networks share an outlet; one too wide to fit takes its own.
      *
-     * <p>Four satellites of two machines each spend three channels apiece out of a port's 32, so all four land
-     * on port 0 and the module never opens a second outlet. That is the whole point of packing: the block's
-     * capacity stops being "six networks" and becomes "192 channels", and a player with a dozen one-interface
-     * islands is no longer told to go build another module.
+     * <p>Four satellites of two machines each pull three channels out of a port's 32 (the two interfaces plus
+     * their hub module, and not one channel for the two dense cables each machine is reached through), so all
+     * four land on port 0 and the module never opens a second outlet. That
+     * is the whole point of packing: the block's capacity stops being "six networks" and becomes "192
+     * channels", and a player with a dozen one-interface islands is no longer told to go build another module.
      *
-     * <p>What keeps the promise is the other half, and it is measured by the existing fixtures rather than here:
-     * a 17-machine network reads 18 channels and is refused by the size rule before the arithmetic is ever
-     * consulted, so {@code twoPortsOnOneModuleFeedTwoNetworksPastThirtyTwo} still settles onto two ports and
-     * still charges 34 of 34. Those two fixtures are the reason this one does not need to re-prove privacy.
+     * <p>What keeps the promise is the other half, measured by the fixtures next door rather than here: a
+     * 17-machine network reads 18 channels, so two of them cannot share a 32 and
+     * {@code twoPortsOnOneModuleFeedTwoNetworksPastThirtyTwo} still settles onto two ports and still charges 34
+     * of 34. That is the reason this fixture does not need to re-prove privacy.
      *
      * <p>Own batch: four groups need y up to 7, and two wide fixtures in one batch merge their networks and
      * report a CONTROLLER_CONFLICT that is a collision, not a conclusion.
@@ -9649,9 +9707,9 @@ public final class NeoECOPrototypeGameTests {
                                 var module = portModule(helper, fixture);
                                 return "four " + perGroup + "-machine networks did not settle onto ONE port:"
                                         + " openPorts=" + (module == null ? "gone" : module.livePorts())
-                                        + " (packing ceiling "
-                                        + WirelessChannelModuleBlockEntity.PACKABLE_NETWORK_NODES
-                                        + ", each satellite is " + (perGroup + 1) + " nodes) hubs on ports="
+                                        + " (each satellite is " + (2 * perGroup + 1) + " nodes and spends "
+                                        + (perGroup + 1) + " channels, so ten of them fit a port's 32)"
+                                        + " hubs on ports="
                                         + (module == null ? -1 : hubsOnPorts(level, module, fixture.hubs()))
                                         + " charged=" + chargedDevices(level, fixture.devices()) + "/"
                                         + (groups * perGroup) + " table="
@@ -9660,12 +9718,299 @@ public final class NeoECOPrototypeGameTests {
                                         ModRegistration.WIRELESS_LINKS, fixture.nearModule());
                             },
                             () -> {
-                                links.set(NeoECOPrototypeServerConfig
-                                        .WIRELESS_MAX_LINKS_PER_DEVICE.getDefault());
-                                clearWirelessLinksAndBillSnapshots(level);
-                                helper.succeed();
+                                // The reading that started this: a player linking a wall of machines had every
+                                // bind open its own outlet until the card refused the seventh, because the
+                                // sharing rule used to be priced in node count. A fifth satellite has to land on
+                                // the outlet that is already there - a network that fits must never cost an
+                                // outlet, or "192 channels" is a number on paper only.
+                                helper.setBlock(new BlockPos(8, 9, 0),
+                                        ModRegistration.SUPERCONDUCTIVE_INTERFACE_BLOCK.get());
+                                var latecomer = GlobalPos.of(level.dimension(),
+                                        helper.absolutePos(new BlockPos(8, 9, 0)));
+                                waitUntil(helper, 40,
+                                        () -> networkNode(level, latecomer) != null,
+                                        () -> "the fifth satellite never got a node of its own: "
+                                                + nodeSummary(level, latecomer),
+                                        () -> {
+                                            String bound = WirelessLinks.bind(level,
+                                                    ModRegistration.WIRELESS_LINKS,
+                                                    fixture.nearModule(), latecomer);
+                                            if (!bound.startsWith("linked ")) {
+                                                helper.fail("a network that fits was refused rather than"
+                                                        + " sharing an outlet: \"" + bound + "\" table="
+                                                        + (portModule(helper, fixture) == null ? "gone"
+                                                        : portTable(portModule(helper, fixture))));
+                                                return;
+                                            }
+                                            var module = portModule(helper, fixture);
+                                            if (module == null || module.livePorts() != 1) {
+                                                helper.fail("the fifth satellite opened a new outlet instead of"
+                                                        + " sharing the one that already had room: openPorts="
+                                                        + (module == null ? "gone" : module.livePorts())
+                                                        + " table=" + (module == null ? "gone"
+                                                        : portTable(module)));
+                                                return;
+                                            }
+                                            NeoECOPrototype.LOGGER.info("reuse: table={} latecomer={}",
+                                                    portTable(module),
+                                                    WirelessLinks.status(level,
+                                                            ModRegistration.WIRELESS_LINKS, latecomer));
+                                            if (chargedDevices(level, new GlobalPos[]{latecomer}) != 1) {
+                                                helper.fail("the satellite that shared an outlet has no channel:"
+                                                        + " table=" + portTable(module));
+                                                return;
+                                            }
+                                            links.set(NeoECOPrototypeServerConfig
+                                                    .WIRELESS_MAX_LINKS_PER_DEVICE.getDefault());
+                                            clearWirelessLinksAndBillSnapshots(level);
+                                            helper.succeed();
+                                        });
                             });
                 });
+    }
+
+    /**
+     * A port that is exactly full is still the port a newcomer is handed, and one channel more is not.
+     *
+     * <p>This is the boundary the client named on 2026-11-14: every outlet read {@code 24/32}, eight channels
+     * were still free, and an eight-channel network was refused anyway. The refusal was ours, not AE2's, and
+     * two separate things produced it. Both are measured here rather than argued:
+     * <ol>
+     * <li><b>the price.</b> The share/no-share test used the far grid's <em>total</em> node count plus one, and
+     * a satellite reached through its own dense cable was charged for the cable as well as for the machine. AE2
+     * bills one channel per node carrying {@code REQUIRE_CHANNEL}. Assertion A reads AE2's own settled number
+     * against that count; assertion B binds a satellite whose node count is roughly double its bill and demands
+     * that it still packs - under node-count pricing that bind opens a second outlet, which is exactly what the
+     * player saw;</li>
+     * <li><b>the clock.</b> {@code getUsedChannels()} is AE2's number and it is a tick late, so back-to-back
+     * binds all read the pre-merge figure and all think the port is empty. Measured the same day: binding two
+     * networks of seventeen machines back to back left the port reading {@code 0/32} with {@code con=3}, both
+     * packed, and AE2 then had 32 channels for 34 billed nodes and left thirteen machines offline. Assertions C
+     * and D are the promise map's job: a network that does not fit gets its own outlet instead of a squeeze, and
+     * a network that fits to the last channel gets the port it fits on.</li>
+     * </ol>
+     *
+     * <p>The boundary probe asks {@code portForNewLink} directly instead of binding networks until the count
+     * lands on 32, because the bill per satellite depends on what else is loaded in the test level - a group of
+     * seven interfaces read eight, nine and ten billed channels in three neighbouring fixtures. Deriving
+     * {@code left} from the port itself keeps the boundary exact whatever the fixture is made of.
+     *
+     * <p>Own batch: three groups reach y 5 and the probe opens a fourth port, which must not collide with the
+     * other wide fixtures.
+     */
+    @GameTest(template = "empty", batch = "wireless_port_boundary", timeoutTicks = 1800,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void aPortThatEndsExactlyFullStillTakesTheLastNetwork(GameTestHelper helper) {
+        var level = (ServerLevel) helper.getLevel();
+        clearWirelessLinksAndBillSnapshots(level);
+        var links = cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig
+                .WIRELESS_MAX_LINKS_PER_DEVICE;
+        links.set(0);
+        // Small, then one whose cables double its node count, then a repeat of the big one so a fresh port
+        // exists for the exact-fit probe.
+        var fixture = buildPortFixtureOfSizes(helper, 8, 12, 12);
+        waitUntil(helper, 120,
+                () -> portFixturePremiseProblem(level, fixture) == null,
+                () -> "the boundary fixture never reached its premise: "
+                        + portFixturePremiseProblem(level, fixture) + " | "
+                        + portFixtureReading(level, fixture),
+                () -> {
+                    var bills = new int[fixture.hubs().length];
+                    var stands = new int[fixture.hubs().length];
+                    for (int g = 0; g < fixture.hubs().length; g++) {
+                        var hubNode = networkNode(level, fixture.hubs()[g]);
+                        if (hubNode == null) {
+                            helper.fail("satellite " + (g + 1) + " has no node to count");
+                            return;
+                        }
+                        bills[g] = channelNeedingNodes(hubNode.getGrid());
+                        stands[g] = gridNodeCount(hubNode.getGrid());
+                    }
+                    var moduleForCap = portModule(helper, fixture);
+                    int cap = moduleForCap == null
+                            ? WirelessChannelModuleBlockEntity.CHANNELS_PER_PORT
+                            : moduleForCap.portChannelCapacity();
+                    if (bills[0] + bills[1] > cap || bills[0] + stands[1] <= cap) {
+                        helper.fail("the fixture no longer separates the two prices: binding the second"
+                                + " satellite has to fit when priced by billed channels (" + bills[0] + " + "
+                                + bills[1] + ") and NOT fit when priced by nodes (" + bills[0] + " + "
+                                + stands[1] + ") against a port's " + cap + ". "
+                                + allNodes(networkNode(level, fixture.hubs()[1]).getGrid()));
+                        return;
+                    }
+                    NeoECOPrototype.LOGGER.info("port boundary bills: {} nodes {} for groups 8/12/12",
+                            java.util.Arrays.toString(bills), java.util.Arrays.toString(stands));
+                    String first = WirelessLinks.bind(level, ModRegistration.WIRELESS_LINKS,
+                            fixture.nearModule(), fixture.hubs()[0]);
+                    if (!first.startsWith("linked ")) {
+                        helper.fail("the first network was refused: \"" + first + "\"");
+                        return;
+                    }
+                    waitUntil(helper, 80,
+                            () -> {
+                                var module = portModule(helper, fixture);
+                                return module != null && module.livePorts() == 1
+                                        && !module.livePortNodes().isEmpty()
+                                        && module.livePortNodes().get(0).getUsedChannels() == bills[0];
+                            },
+                            () -> {
+                                var module = portModule(helper, fixture);
+                                var node = module == null || module.livePortNodes().isEmpty()
+                                        ? null : module.livePortNodes().get(0);
+                                return "assertion A: the port did not settle on AE2's bill for the satellite -"
+                                        + " used=" + (node == null ? "no node" : node.getUsedChannels())
+                                        + " billed=" + bills[0] + " standing=" + stands[0] + " table="
+                                        + (module == null ? "gone" : portTable(module));
+                            },
+                            () -> {
+                                var module = portModule(helper, fixture);
+                                String second = WirelessLinks.bind(level, ModRegistration.WIRELESS_LINKS,
+                                        fixture.nearModule(), fixture.hubs()[1]);
+                                if (!second.startsWith("linked ")) {
+                                    helper.fail("assertion B: the twelve-machine satellite was refused outright:"
+                                            + " \"" + second + "\" table=" + portTable(module));
+                                    return;
+                                }
+                                waitUntil(helper, 80,
+                                        () -> module.livePorts() == 1 && module.livePortNodes().get(0)
+                                                .getUsedChannels() == bills[0] + bills[1],
+                                        () -> "assertion B: the satellite that bills " + bills[1]
+                                                + " channels out of " + stands[1] + " nodes did not pack onto the"
+                                                + " port that had room - pricing by node count instead of by"
+                                                + " billed nodes is what this catches: openPorts="
+                                                + module.livePorts() + " used="
+                                                + module.livePortNodes().get(0).getUsedChannels() + " expected="
+                                                + (bills[0] + bills[1]) + " table=" + portTable(module),
+                                        () -> {
+                                            String third = WirelessLinks.bind(level,
+                                                    ModRegistration.WIRELESS_LINKS,
+                                                    fixture.nearModule(), fixture.hubs()[2]);
+                                            if (!third.startsWith("linked ")) {
+                                                helper.fail("assertion C: the third network was refused instead"
+                                                        + " of being given a second outlet: \"" + third
+                                                        + "\" table=" + portTable(module));
+                                                return;
+                                            }
+                                            waitUntil(helper, 80,
+                                                    () -> module.livePorts() == 2,
+                                                    () -> "assertion C: a second " + bills[1]
+                                                            + "-channel network landed on a port that already"
+                                                            + " carries " + (bills[0] + bills[1])
+                                                            + " of 32 instead of opening its own outlet:"
+                                                            + " openPorts=" + module.livePorts() + " table="
+                                                            + portTable(module),
+                                                    () -> probeSecondPort(helper, fixture, module, bills[2],
+                                                            links, level));
+                                        });
+                            });
+                });
+    }
+
+    /**
+     * Assertions D and E: on the port that is only partly used, asking for exactly what is left is granted on
+     * that port, and asking for one channel more is not.
+     *
+     * <p>It waits for AE2 to bill the second port first. Reading {@code left} off a port whose channels have
+     * not been assigned yet gives 32 and turns the boundary probe into a question about an empty outlet - which
+     * is what the first run of this test did, and it passed for the wrong reason.
+     */
+    private static void probeSecondPort(GameTestHelper helper, PortFixture fixture,
+                                        WirelessChannelModuleBlockEntity module, int billed,
+                                        net.neoforged.neoforge.common.ModConfigSpec.IntValue links,
+                                        ServerLevel level) {
+        waitUntil(helper, 80,
+                () -> module.livePortNodes().size() > 1
+                        && module.livePortNodes().get(1).getUsedChannels() == billed,
+                () -> "the second port did not settle on AE2's bill for its satellite, so the boundary below is"
+                        + " not a boundary: used="
+                        + (module.livePortNodes().size() > 1
+                        ? module.livePortNodes().get(1).getUsedChannels() : -1) + " expected=" + billed
+                        + " table=" + portTable(module),
+                () -> {
+                    var node = module.livePortNodes().get(1);
+                    int left = node.getMaxChannels() - node.getUsedChannels();
+                    NeoECOPrototype.LOGGER.info("port boundary probe: port 1 reads {}/{} left={}",
+                            node.getUsedChannels(), node.getMaxChannels(), left);
+                    if (left <= 0 || left >= node.getMaxChannels()) {
+                        helper.fail("the second port is " + node.getUsedChannels() + "/"
+                                + node.getMaxChannels() + ", so there is no partial fill to test the boundary"
+                                + " against: table=" + portTable(module));
+                        return;
+                    }
+                    if (module.portForNewLink(left) != node) {
+                        helper.fail("assertion D: a network needing exactly the " + left + " channels left on a "
+                                + node.getUsedChannels() + "/" + node.getMaxChannels() + " port was not given"
+                                + " that port - this is the 24/32 refusal the client reported. table="
+                                + portTable(module));
+                        return;
+                    }
+                    if (module.portForNewLink(left + 1) == node) {
+                        helper.fail("assertion E: a network needing " + (left + 1) + " channels was packed onto"
+                                + " a port with only " + left + " left, so AE2 will leave some of its machines"
+                                + " without a channel: table=" + portTable(module));
+                        return;
+                    }
+                    links.set(cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig
+                            .WIRELESS_MAX_LINKS_PER_DEVICE.getDefault());
+                    clearWirelessLinksAndBillSnapshots(level);
+                    helper.succeed();
+                });
+    }
+    /** AE2's own bill for a grid: the nodes that carry {@code REQUIRE_CHANNEL}, cables excluded. */
+    private static int channelNeedingNodes(appeng.api.networking.IGrid grid) {
+        int billed = 0;
+        for (var node : grid.getNodes()) {
+            if (node.hasFlag(appeng.api.networking.GridFlags.REQUIRE_CHANNEL)) {
+                billed++;
+            }
+        }
+        return billed;
+    }
+
+    /** Which nodes that bill is made of, for a failure line that has to name them. */
+    private static String billedNodes(appeng.api.networking.IGrid grid) {
+        var text = new StringBuilder("[");
+        boolean first = true;
+        for (var node : grid.getNodes()) {
+            if (!node.hasFlag(appeng.api.networking.GridFlags.REQUIRE_CHANNEL)) {
+                continue;
+            }
+            if (!first) {
+                text.append(", ");
+            }
+            first = false;
+            text.append(node.getOwner() == null ? "?"
+                    : node.getOwner().getClass().getSimpleName()).append("/max=")
+                    .append(node.getMaxChannels())
+                    .append("/used=").append(node.getUsedChannels());
+        }
+        return text.append(']').toString();
+    }
+
+    /** Every node on the grid with its flags, so an unexpected bill can be named. */
+    private static String allNodes(appeng.api.networking.IGrid grid) {
+        var text = new StringBuilder("[");
+        boolean first = true;
+        for (var node : grid.getNodes()) {
+            if (!first) {
+                text.append(", ");
+            }
+            first = false;
+            text.append(node.getOwner() == null ? "?" : node.getOwner().getClass().getSimpleName())
+                    .append(node.hasFlag(appeng.api.networking.GridFlags.REQUIRE_CHANNEL) ? "[REQ]" : "")
+                    .append(node.hasFlag(appeng.api.networking.GridFlags.DENSE_CAPACITY) ? "[DENSE]" : "")
+                    .append(node.hasFlag(appeng.api.networking.GridFlags.MULTIBLOCK) ? "[MULTI]" : "");
+        }
+        return text.append(']').toString();
+    }
+
+    /** Every node AE2 lists for that grid, billed or not - the number the packing test used to be priced by. */
+    private static int gridNodeCount(appeng.api.networking.IGrid grid) {
+        int nodes = 0;
+        for (var node : grid.getNodes()) {
+            nodes++;
+        }
+        return nodes;
     }
 
     private static int livePortsOf(GameTestHelper helper, PortFixture fixture) {
@@ -9792,14 +10137,13 @@ public final class NeoECOPrototypeGameTests {
      * A player told the first one when the second fired goes to widen a network that already has room, which is
      * the same mistake the link cap used to make in the other direction.
      *
-     * <p>Each group has {@code PACKABLE_NETWORK_NODES} machines, and that is what makes this the outlets gate
-     * rather than the width gate. Since 2026-11-14 a network small enough to fit a port's leftover channels
-     * shares it instead of taking one, so the first version of this fixture - one machine per group - now packs
-     * all seven onto port 0 and the refusal never comes. Eight machines plus their hub plus that hub's own port
-     * is ten nodes, ten is above the ceiling, so each of these networks demands an outlet and the sixth is the
-     * last one. Do not shrink the groups back to one: the red that follows is the packing rule working, not a
-     * broken ceiling. {@code smallNetworksShareOnePortWhileBigOnesStillGetTheirOwn} is the fixture that owns the
-     * packed side.
+     * <p>Each group has seventeen machines, and that is what makes this the outlets gate rather than the width
+     * gate. Packing is priced in channels (see {@code portForNewLink}), and seventeen machines plus the module
+     * they hang off is eighteen of a port's thirty-two - so two of these cannot share one, and the fixture
+     * binds six networks, which is six outlets' worth. Seventeen is also what the positive fixture
+     * uses, so the two read the same arithmetic. The first version of this fixture used one machine per group
+     * and stopped being an outlets test the moment packing landed: seven one-machine networks all fit one port
+     * and the refusal never came.
      *
      * <p>It also renders the refusal through {@code en_us}, which is the only place that comparison exists for
      * this line - the tap-time guards in {@code wireless_reply_keys} cannot reach a bind.
@@ -9812,7 +10156,10 @@ public final class NeoECOPrototypeGameTests {
         var links = cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig
                 .WIRELESS_MAX_LINKS_PER_DEVICE;
         links.set(0);
-        final int perGroup = WirelessChannelModuleBlockEntity.PACKABLE_NETWORK_NODES;
+        // 17 machines plus the module they hang off is 18 of a port's 32 channels - the 17 dense cables between
+        // them and that module add nodes and no channels - so two of these cannot share a port: every one of
+        // the six demands an outlet of its own, and the seventh finds none.
+        final int perGroup = 17;
         var fixture = buildPortFixture(helper,
                 WirelessChannelModuleBlockEntity.MAX_PORTS + 1, perGroup);
         var devices = java.util.Arrays.copyOfRange(fixture.devices(), 0,
@@ -9848,10 +10195,10 @@ public final class NeoECOPrototypeGameTests {
                                 return "six binds left " + (module == null ? -1 : module.livePorts())
                                         + " ports and " + chargedDevices(level, devices)
                                         + " of " + WirelessChannelModuleBlockEntity.MAX_PORTS * perGroup
-                                        + " machines charged - a network of " + (perGroup + 2)
-                                        + " nodes is above the packing ceiling ("
-                                        + WirelessChannelModuleBlockEntity.PACKABLE_NETWORK_NODES
-                                        + "), so each of these has to be handed its own outlet. near="
+                                        + " machines charged - a network of " + (2 * perGroup + 1)
+                                        + " nodes spends " + (perGroup + 1) + " channels and one of those"
+                                        + " cannot share a port's 32 with another, so each of these has to be"
+                                        + " handed its own outlet. near="
                                         + WirelessLinks.status(level,
                                         ModRegistration.WIRELESS_LINKS, fixture.nearModule());
                             },
@@ -22870,7 +23217,7 @@ public final class NeoECOPrototypeGameTests {
             // that drops or renumbers one shows a count in the wrong place, and nothing else on the line would
             // look wrong enough to notice.
             var channelsValue = langValue(json, "gui.neoecoprototype.wireless_link.channels");
-            for (int slot = 1; slot <= 2; slot++) {
+            for (int slot = 1; slot <= 3; slot++) {
                 if (!channelsValue.contains("%" + slot + "$s")) {
                     helper.fail("lang/" + lang + ".json's channels line has no %" + slot + "$s, so slot "
                             + slot + " of the pair is never shown: [" + channelsValue + "]");

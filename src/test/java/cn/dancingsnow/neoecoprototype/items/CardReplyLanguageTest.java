@@ -45,6 +45,7 @@ final class CardReplyLanguageTest {
 
     private static final Path LANG_DIR
             = Path.of("src/main/resources/assets/neoecoprototype/lang");
+    private static final Path WIRELESS_MODULE_UI = MAIN.resolve("items/WirelessChannelModuleUI.java");
     private static final String KEY_PREFIX = "gui.neoecoprototype.wireless_link.";
     private static final Pattern REPLY_NAME = Pattern.compile("Reply\\.of\\(\\s*\"([a-z0-9_]+)\"");
     private static final Pattern SLOT = Pattern.compile("%(\\d*)\\$?[sd]");
@@ -103,34 +104,28 @@ final class CardReplyLanguageTest {
         return bare && indexed;
     }
 
-    /**
-     * The manager screen's own labels. Same failure as a card reply and the same reason for a scan: a missing
-     * key draws its dotted name on the panel, which reads as a broken screen rather than a missing translation,
-     * and the panel is only reachable by opening it in a client - so nothing else in the suite would see it.
-     *
-     * <p>The row pair is checked for slot parity on top of mere presence: {@code row_head} and {@code row_tail}
-     * are two halves of one link, and a language that numbers them differently would show the far end where the
-     * group belongs.
-     */
     @Test
-    void everyManagerLabelHasItsKeyInBothLanguages() throws Exception {
-        var source = Files.readString(MAIN.resolve("items/WirelessLinkManagementUI.java"));
+    void everyWirelessModulePanelLabelHasMatchingSlotsInBothLanguages() throws Exception {
+        String source = Files.readString(WIRELESS_MODULE_UI);
         var keys = new LinkedHashSet<String>();
-        Matcher matcher = Pattern.compile("\"(gui\\.neoecoprototype\\.wireless_manager\\.[a-z0-9_]+)\"")
+        Matcher matcher = Pattern.compile("\"(gui\\.neoecoprototype\\.wireless_module\\.[a-z0-9_]+)\"")
                 .matcher(source);
         while (matcher.find()) {
             keys.add(matcher.group(1));
         }
-        // Adding or folding a manager label should be a deliberate edit to this number, not a silent skip.
-        assertEquals(16, keys.size(), "manager labels found: " + keys);
+        assertEquals(28, keys.size(), "wireless module panel labels found: " + keys);
 
         var en = language("en_us");
         var zh = language("zh_cn");
         for (String key : keys) {
-            assertTrue(en.has(key), "en_us.json has no " + key + ", so the manager draws its key on screen");
-            assertTrue(zh.has(key), "zh_cn.json has no " + key + ", so the manager draws its key on screen");
-            assertEquals(slots(en.get(key).getAsString()).toString(), slots(zh.get(key).getAsString()).toString(),
-                    key + " fills different slots per language, so one of them puts a fact in the wrong place");
+            assertTrue(en.has(key), "en_us.json has no " + key + ", so the module panel draws its key");
+            assertTrue(zh.has(key), "zh_cn.json has no " + key + ", so the module panel draws its key");
+            var enSlots = slots(en.get(key).getAsString());
+            var zhSlots = slots(zh.get(key).getAsString());
+            assertEquals(enSlots.toString(), zhSlots.toString(),
+                    key + " fills different slots per language");
+            assertFalse(mixesSlots(enSlots), key + " mixes bare and indexed en_us slots");
+            assertFalse(mixesSlots(zhSlots), key + " mixes bare and indexed zh_cn slots");
         }
     }
 
