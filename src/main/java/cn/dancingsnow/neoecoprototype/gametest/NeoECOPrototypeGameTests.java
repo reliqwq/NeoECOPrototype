@@ -8828,13 +8828,49 @@ public final class NeoECOPrototypeGameTests {
                                     try {
                                         var mergedModule = networkNode(level, moduleAt);
                                         var mergedRemote = networkNode(level, remoteAt);
-                                        var wirelessEdge = mergedModule.getConnections().stream()
-                                                .filter(connection -> !connection.isInWorld()
+                                        // The reading moved, and it moved somewhere stricter: since 2026-11-14 a
+                                        // bind lands on one of the module's virtual ports rather than on the
+                                        // module's own node, so this looks for the edge on a port - and then
+                                        // insists the module node does NOT also carry it. Sliding back onto the
+                                        // shared 32 is precisely the failure shape the ports exist to remove.
+                                        var moduleBe = level.getBlockEntity(helper.absolutePos(moduleBlock))
+                                                instanceof WirelessChannelModuleBlockEntity be ? be : null;
+                                        if (moduleBe == null) {
+                                            helper.fail("the module's block entity is gone after the bind");
+                                            return;
+                                        }
+                                        var wirelessEdge = moduleBe.livePortNodes().stream()
+                                                .flatMap(port -> port.getConnections().stream()
+                                                        .filter(connection -> !connection.isInWorld()
+                                                                && ((connection.a() == port
+                                                                && connection.b() == mergedRemote)
+                                                                || (connection.a() == mergedRemote
+                                                                && connection.b() == port))))
+                                                .findFirst().orElse(null);
+                                        if (wirelessEdge == null) {
+                                            helper.fail("no wireless edge sits on any of the module's "
+                                                    + moduleBe.livePorts() + " virtual ports, so the bind did not"
+                                                    + " land on a port: "
+                                                    + WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS,
+                                                    moduleAt));
+                                            return;
+                                        }
+                                        if (mergedModule.getConnections().stream()
+                                                .anyMatch(connection -> !connection.isInWorld()
                                                         && ((connection.a() == mergedModule
                                                         && connection.b() == mergedRemote)
                                                         || (connection.a() == mergedRemote
-                                                        && connection.b() == mergedModule)))
-                                                .findFirst().orElse(null);
+                                                        && connection.b() == mergedModule)))) {
+                                            helper.fail("the module's own node carries the wireless edge as well,"
+                                                    + " so the link shares its single 32 instead of a port of its"
+                                                    + " own");
+                                            return;
+                                        }
+                                        if (moduleBe.livePorts() != 1) {
+                                            helper.fail("one link opened " + moduleBe.livePorts()
+                                                    + " ports; they are created on demand, one per network");
+                                            return;
+                                        }
                                         int wirelessCapacity = wirelessEdge instanceof appeng.me.GridConnection internal
                                                 ? internal.getMaxChannels() : -1;
                                         if (wirelessCapacity != 32 * factor) {
@@ -9085,8 +9121,8 @@ public final class NeoECOPrototypeGameTests {
      * The near end (one AE2 controller with one subsystem channel module beside it) plus {@code groups}
      * controllerless far networks of {@code perGroup} machines each, stacked in y so they cannot touch.
      */
-    private record PortFixture(GlobalPos nearModule, BlockPos nearModulePos, GlobalPos[] hubs,
-                               GlobalPos[] devices) {
+    private record PortFixture(GlobalPos controller, GlobalPos nearModule, BlockPos nearModulePos,
+                               GlobalPos[] hubs, GlobalPos[] devices) {
     }
 
     /**
@@ -9098,7 +9134,15 @@ public final class NeoECOPrototypeGameTests {
         var level = (ServerLevel) helper.getLevel();
         var moduleBlock = ModRegistration.SUBSYSTEM_CHANNEL_MODULE_BLOCK.get();
         var interfaceBlock = ModRegistration.SUPERCONDUCTIVE_INTERFACE_BLOCK.get();
-        helper.setBlock(new BlockPos(0, 1, 0), appeng.core.definitions.AEBlocks.CONTROLLER.block());
+        var controllerBlockPos = new BlockPos(0, 1, 0);
+        var powerBlockPos = new BlockPos(0, 2, 0);
+        helper.setBlock(controllerBlockPos, appeng.core.definitions.AEBlocks.CONTROLLER.block());
+        // Not decoration: every link this fixture makes is billed at wireless_ae_per_link_per_tick against the
+        // joined grid, and an AE2 grid whose store cannot pay is taken offline - which shows up as "0 of 34
+        // machines charged" and looks exactly like a channel bug. Measured 2026-11-14 with the first version of
+        // this fixture, which had a controller and no power: the sweep logged "1 could not be paid - AE2 takes
+        // a grid offline when its store runs dry" and nothing charged.
+        helper.setBlock(powerBlockPos, appeng.core.definitions.AEBlocks.CREATIVE_ENERGY_CELL.block());
         helper.setBlock(new BlockPos(1, 1, 0), moduleBlock);
         var nearModulePos = new BlockPos(1, 1, 0);
         var hubs = new GlobalPos[groups];
@@ -9114,8 +9158,60 @@ public final class NeoECOPrototypeGameTests {
                         helper.absolutePos(new BlockPos(4, y, i)));
             }
         }
-        return new PortFixture(GlobalPos.of(level.dimension(), helper.absolutePos(nearModulePos)),
+        return new PortFixture(GlobalPos.of(level.dimension(), helper.absolutePos(new BlockPos(0, 1, 0))),
+                GlobalPos.of(level.dimension(), helper.absolutePos(nearModulePos)),
                 nearModulePos, hubs, devices);
+    }
+
+    /**
+     * Everything the port fixtures assume before a single bind: the near module has physically joined the
+     * controller beside it (face-adjacent, no cable - that is the claim
+     * {@code aSubsystemChannelModuleAnchorsAWirelessPathToAController} measures), that grid answers
+     * CONTROLLER_ONLINE, and every far group is its own grid.
+     *
+     * <p>The controller half is not decoration, and the first run of this fixture is what proved it: a port
+     * hangs off the controller node, so binding before the module has joined that grid puts the port on the
+     * module's own controllerless grid, where the merge guard rightly refuses the far network. That refusal
+     * reads as "the feature is broken" unless the premise is waited for and named.
+     */
+    /** The same reading the card's status line prints as {@code powered=} (WirelessLinks' energy service). */
+    private static boolean gridPowered(appeng.api.networking.IGrid grid) {
+        var energy = grid == null ? null : grid.getService(appeng.api.networking.energy.IEnergyService.class);
+        return energy != null && energy.isNetworkPowered();
+    }
+
+    private static boolean portFixtureReady(ServerLevel level, PortFixture fixture) {
+        var controllerNode = networkNode(level, fixture.controller());
+        var moduleNode = networkNode(level, fixture.nearModule());
+        if (controllerNode == null || moduleNode == null
+                || moduleNode.getGrid() != controllerNode.getGrid()
+                || !gridPowered(controllerNode.getGrid())
+                || !"CONTROLLER_ONLINE".equals(WirelessLinks.controllerState(level, fixture.controller()))) {
+            return false;
+        }
+        var seen = new java.util.ArrayList<appeng.api.networking.IGrid>();
+        for (var hub : fixture.hubs()) {
+            var hubNode = networkNode(level, hub);
+            if (hubNode == null || hubNode.getGrid() == moduleNode.getGrid() || seen.contains(hubNode.getGrid())) {
+                return false;
+            }
+            seen.add(hubNode.getGrid());
+        }
+        for (var device : fixture.devices()) {
+            if (networkNode(level, device) == null) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /** What the ready-check above was waiting for, in the form a failure line can be read from. */
+    private static String portFixtureReading(ServerLevel level, PortFixture fixture) {
+        var controllerNode = networkNode(level, fixture.controller());
+        return "controller=" + nodeSummary(level, fixture.controller()) + " module="
+                + nodeSummary(level, fixture.nearModule()) + " hub0=" + nodeSummary(level, fixture.hubs()[0])
+                + " state=" + WirelessLinks.controllerState(level, fixture.controller()) + " powered="
+                + gridPowered(controllerNode == null ? null : controllerNode.getGrid());
     }
 
     /** The module block entity at the near end, read through the position so it survives a re-place. */
@@ -9124,17 +9220,45 @@ public final class NeoECOPrototypeGameTests {
                 instanceof WirelessChannelModuleBlockEntity module ? module : null;
     }
 
-    /** How many of {@code hubs} sit on the other end of one of the near module's virtual ports. */
-    private static int hubsOnPorts(ServerLevel level, WirelessChannelModuleBlockEntity module, GlobalPos[] hubs) {
+    /** Per-port {@code used/max/connections}, so a channel cap can be read off the exact outlet. */
+    private static String portTable(WirelessChannelModuleBlockEntity module) {
+        var text = new StringBuilder("[");
+        int index = 0;
+        for (var port : module.livePortNodes()) {
+            if (index++ > 0) {
+                text.append(", ");
+            }
+            text.append(index - 1).append('=').append(port.getUsedChannels()).append('/')
+                    .append(port.getMaxChannels()).append("/con=").append(port.getConnections().size());
+        }
+        return text.append(']').toString();
+    }
+
+    /**
+     * How many of {@code hubs} sit on the other end of one of the near module's virtual ports.
+     *
+     * <p>Both ends are counted through, because both ends are modules: a bind gives each side a port of its
+     * own, so the wireless edge runs port to port. That is the route D shape and not an accident - a far
+     * network entering through a plain 8-channel machine would be capped by that machine no matter how wide
+     * the near port is.
+     */
+    private static int hubsOnPorts(ServerLevel level, WirelessChannelModuleBlockEntity module,
+                                   GlobalPos[] hubs) {
         int landed = 0;
         for (var hub : hubs) {
             var hubNode = networkNode(level, hub);
             if (hubNode == null) {
                 continue;
             }
+            var farNodes = new java.util.ArrayList<appeng.api.networking.IGridNode>();
+            farNodes.add(hubNode);
+            if (hubNode.getOwner() instanceof WirelessChannelModuleBlockEntity farModule) {
+                farNodes.addAll(farModule.livePortNodes());
+            }
             for (var port : module.livePortNodes()) {
                 for (var connection : port.getConnections()) {
-                    if (connection.a() == hubNode || connection.b() == hubNode) {
+                    if (!connection.isInWorld()
+                            && (farNodes.contains(connection.a()) || farNodes.contains(connection.b()))) {
                         landed++;
                     }
                 }
@@ -9150,11 +9274,17 @@ public final class NeoECOPrototypeGameTests {
      *
      * <p>34 is the number with the discriminating power. Anything that quietly routes both edges onto the
      * module's own node, or onto one shared port, lands 32 of 34 and goes red here rather than in a player's
-     * world - which is the failure mode the whole channel investigation started from.
+     * world.
      *
-     * <p>It also pins the port count at two rather than six: a port is a node in the grid, so opening the
-     * whole ceiling up front would charge the player for outlets they never used and inflate every node
-     * reading the card prints.
+     * <p>It also pins the port count at two rather than six: a port is a node in the grid, so opening the whole
+     * ceiling up front would charge the player for outlets they never used and inflate every node reading the
+     * card prints.
+     *
+     * <p>No try/finally here, and that is deliberate: {@code waitUntil} schedules its checks on later ticks, so
+     * a {@code finally} attached to the outer callback runs the moment that callback returns - long before the
+     * innermost check. The first version of this fixture did exactly that, cleared its own links before the
+     * assertions ever evaluated, and reported "0 of 34, ports with one connection, wirelessLinks=0" as if the
+     * feature were broken. Cleanup therefore happens at the top of each test and in the last action.
      */
     @GameTest(template = "empty", batch = "wireless_module_ports", timeoutTicks = 1800,
             templateNamespace = NeoECOPrototype.MOD_ID)
@@ -9163,64 +9293,60 @@ public final class NeoECOPrototypeGameTests {
         clearWirelessLinksAndBillSnapshots(level);
         var links = cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig
                 .WIRELESS_MAX_LINKS_PER_DEVICE;
-        var savedCap = links.get();
         links.set(0);
         var fixture = buildPortFixture(helper, 2, 17);
         waitUntil(helper, 80,
-                () -> networkNode(level, fixture.nearModule()) != null
-                        && networkNode(level, fixture.hubs()[0]) != null
-                        && networkNode(level, fixture.hubs()[1]) != null
-                        && networkNode(level, fixture.hubs()[0]).getGrid()
-                        != networkNode(level, fixture.hubs()[1]).getGrid()
-                        && networkNode(level, fixture.hubs()[0]).getGrid()
-                        != networkNode(level, fixture.nearModule()).getGrid(),
-                () -> "the near grid and the two far grids never came up as three separate networks: near="
-                        + nodeSummary(level, fixture.nearModule()) + " hub0="
-                        + nodeSummary(level, fixture.hubs()[0]) + " hub1="
-                        + nodeSummary(level, fixture.hubs()[1]),
+                () -> portFixtureReady(level, fixture),
+                () -> "the port fixture never reached its premise (module joined to its controller, powered,"
+                        + " both far groups on their own grids): " + portFixtureReading(level, fixture),
                 () -> {
-                    try {
-                        for (int g = 0; g < fixture.hubs().length; g++) {
-                            String bound = WirelessLinks.bind(level, ModRegistration.WIRELESS_LINKS,
-                                    fixture.nearModule(), fixture.hubs()[g]);
-                            if (!bound.startsWith("linked ")) {
-                                helper.fail("far network " + (g + 1) + " was refused by the module: \"" + bound
-                                        + "\" ports=" + livePortsOf(helper, fixture));
-                                return;
-                            }
-                        }
-                        var module = portModule(helper, fixture);
-                        if (module == null) {
-                            helper.fail("the near module's block entity is gone");
+                    for (int g = 0; g < fixture.hubs().length; g++) {
+                        String bound = WirelessLinks.bind(level, ModRegistration.WIRELESS_LINKS,
+                                fixture.nearModule(), fixture.hubs()[g]);
+                        if (!bound.startsWith("linked ")) {
+                            helper.fail("far network " + (g + 1) + " was refused by the module: \"" + bound
+                                    + "\" ports=" + livePortsOf(helper, fixture));
                             return;
                         }
-                        if (module.livePorts() != fixture.hubs().length) {
-                            helper.fail("two links opened " + module.livePorts()
-                                    + " ports - a port is one outlet per network, and they are not to be"
-                                    + " created in advance of being used");
-                            return;
-                        }
-                        if (hubsOnPorts(level, module, fixture.hubs()) != fixture.hubs().length) {
-                            helper.fail("only " + hubsOnPorts(level, module, fixture.hubs())
-                                    + " of " + fixture.hubs().length + " far networks are reached through a"
-                                    + " virtual port, so an edge landed on the module's own node and shares its"
-                                    + " single 32 again");
-                            return;
-                        }
-                        waitUntil(helper, 80,
-                                () -> chargedDevices(level, fixture.devices()) == fixture.devices().length,
-                                () -> "only " + chargedDevices(level, fixture.devices()) + " of "
-                                        + fixture.devices().length + " machines came up through "
-                                        + module.livePorts() + " ports (" + perGroupCharged(level,
-                                        fixture.devices(), fixture.hubs().length, 17)
-                                        + ") - that is what ONE shared 32-channel bucket does, so the ports are"
-                                        + " not each their own bottleneck. near=" + gridUsed(level,
-                                        fixture.nearModule()),
-                                helper::succeed);
-                    } finally {
-                        links.set(savedCap);
-                        clearWirelessLinksAndBillSnapshots(level);
                     }
+                    waitUntil(helper, 40,
+                            () -> {
+                                var module = portModule(helper, fixture);
+                                return module != null && module.livePorts() == fixture.hubs().length
+                                        && hubsOnPorts(level, module, fixture.hubs()) == fixture.hubs().length;
+                            },
+                            () -> {
+                                var module = portModule(helper, fixture);
+                                return "the two edges did not settle onto two ports: ports="
+                                        + (module == null ? "no block entity" : module.livePorts())
+                                        + " hubs on ports=" + (module == null ? -1
+                                        : hubsOnPorts(level, module, fixture.hubs()))
+                                        + " near=" + WirelessLinks.status(level,
+                                        ModRegistration.WIRELESS_LINKS, fixture.nearModule());
+                            },
+                            () -> waitUntil(helper, 80,
+                                    () -> chargedDevices(level, fixture.devices()) == fixture.devices().length,
+                                    () -> {
+                                        var module = portModule(helper, fixture);
+                                        return "only " + chargedDevices(level, fixture.devices()) + " of "
+                                                + fixture.devices().length + " machines came up through "
+                                                + (module == null ? -1 : module.livePorts()) + " ports ("
+                                                + perGroupCharged(level, fixture.devices(),
+                                                        fixture.hubs().length, 17)
+                                                + ") - that is what ONE shared 32-channel bucket does, so the"
+                                                + " ports are not each their own bottleneck. near gridUsed="
+                                                + gridUsed(level, fixture.nearModule()) + " hub0="
+                                                + nodeSummary(level, fixture.hubs()[0]) + " ports="
+                                                + (module == null ? "gone" : portTable(module)) + " first3="
+                                                + chargedTable(level, java.util.Arrays.copyOfRange(
+                                                        fixture.devices(), 0, 3));
+                                    },
+                                    () -> {
+                                        links.set(NeoECOPrototypeServerConfig
+                                                .WIRELESS_MAX_LINKS_PER_DEVICE.getDefault());
+                                        clearWirelessLinksAndBillSnapshots(level);
+                                        helper.succeed();
+                                    }));
                 });
     }
 
@@ -9246,71 +9372,65 @@ public final class NeoECOPrototypeGameTests {
         clearWirelessLinksAndBillSnapshots(level);
         var links = cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig
                 .WIRELESS_MAX_LINKS_PER_DEVICE;
-        var savedCap = links.get();
         links.set(0);
         var fixture = buildPortFixture(helper, 2, 17);
         waitUntil(helper, 80,
-                () -> networkNode(level, fixture.nearModule()) != null
-                        && networkNode(level, fixture.hubs()[1]) != null
-                        && chargedDevices(level, fixture.devices()) == 0,
-                () -> "the fixture never came up, or came up charged before anything was bound: near="
-                        + nodeSummary(level, fixture.nearModule())
-                        + " hub0=" + nodeSummary(level, fixture.hubs()[0])
-                        + " charged=" + chargedDevices(level, fixture.devices()),
+                () -> portFixtureReady(level, fixture) && chargedDevices(level, fixture.devices()) == 0,
+                () -> "the port fixture never reached its premise, or came up charged before anything was"
+                        + " bound: " + portFixtureReading(level, fixture) + " charged="
+                        + chargedDevices(level, fixture.devices()),
                 () -> {
-                    try {
-                        for (var hub : fixture.hubs()) {
-                            String bound = WirelessLinks.bind(level, ModRegistration.WIRELESS_LINKS,
-                                    fixture.nearModule(), hub);
-                            if (!bound.startsWith("linked ")) {
-                                helper.fail("a link was refused before the teardown could be tested: \""
-                                        + bound + "\"");
-                                return;
-                            }
+                    for (var hub : fixture.hubs()) {
+                        String bound = WirelessLinks.bind(level, ModRegistration.WIRELESS_LINKS,
+                                fixture.nearModule(), hub);
+                        if (!bound.startsWith("linked ")) {
+                            helper.fail("a link was refused before the teardown could be tested: \""
+                                    + bound + "\"");
+                            return;
                         }
-                        waitUntil(helper, 80,
-                                () -> chargedDevices(level, fixture.devices()) == fixture.devices().length,
-                                () -> "nothing to tear down: only " + chargedDevices(level, fixture.devices())
-                                        + " of " + fixture.devices().length + " machines were charged first ("
-                                        + perGroupCharged(level, fixture.devices(), 2, 17) + ")",
-                                () -> {
-                                    var module = portModule(helper, fixture);
-                                    if (module == null || module.livePorts() != 2) {
-                                        helper.fail("the fixture did not reach two live ports: "
-                                                + (module == null ? "no block entity" : module.livePorts()));
-                                        return;
-                                    }
-                                    helper.destroyBlock(fixture.nearModulePos());
-                                    waitUntil(helper, 80,
-                                            () -> module.livePorts() == 0 && module.livePortNodes().isEmpty()
-                                                    && chargedDevices(level, fixture.devices()) == 0,
-                                            () -> "breaking the module left " + module.livePorts()
-                                                    + " port(s) standing and "
-                                                    + chargedDevices(level, fixture.devices())
-                                                    + " machines still charged - a virtual node that outlives"
-                                                    + " its block holds channels the player cannot see the"
-                                                    + " owner of. records at hub0="
-                                                    + WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS,
-                                                    fixture.hubs()[0]),
-                                            () -> {
-                                                var status = WirelessLinks.status(level,
-                                                        ModRegistration.WIRELESS_LINKS, fixture.hubs()[0]);
-                                                if (!status.contains("live=0")) {
-                                                    helper.fail("the saved link still reads as live after the"
-                                                            + " module is gone: " + status);
-                                                    return;
-                                                }
-                                                NeoECOPrototype.LOGGER.info(
-                                                        "wireless port teardown: ports={} charged={} status={}",
-                                                        module.livePorts(),
-                                                        chargedDevices(level, fixture.devices()), status);
-                                                helper.succeed();
-                                            });
-                                });
-                    } finally {
-                        links.set(savedCap);
-                        clearWirelessLinksAndBillSnapshots(level);
                     }
+                    waitUntil(helper, 80,
+                            () -> chargedDevices(level, fixture.devices()) == fixture.devices().length,
+                            () -> "nothing to tear down: only " + chargedDevices(level, fixture.devices())
+                                    + " of " + fixture.devices().length + " machines were charged first ("
+                                    + perGroupCharged(level, fixture.devices(), 2, 17) + ")",
+                            () -> {
+                                var module = portModule(helper, fixture);
+                                if (module == null || module.livePorts() != 2) {
+                                    helper.fail("the fixture did not reach two live ports: "
+                                            + (module == null ? "no block entity" : module.livePorts()));
+                                    return;
+                                }
+                                helper.destroyBlock(fixture.nearModulePos());
+                                waitUntil(helper, 80,
+                                        () -> module.livePorts() == 0 && module.livePortNodes().isEmpty()
+                                                && chargedDevices(level, fixture.devices()) == 0,
+                                        () -> "breaking the module left " + module.livePorts()
+                                                + " port(s) standing and "
+                                                + chargedDevices(level, fixture.devices())
+                                                + " machines still charged - a virtual node that outlives"
+                                                + " its block holds channels the player cannot see the"
+                                                + " owner of. records at hub0="
+                                                + WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS,
+                                                fixture.hubs()[0]),
+                                        () -> {
+                                            var status = WirelessLinks.status(level,
+                                                    ModRegistration.WIRELESS_LINKS, fixture.hubs()[0]);
+                                            if (!status.contains("live=0")) {
+                                                helper.fail("the saved link still reads as live after the"
+                                                        + " module is gone: " + status);
+                                                return;
+                                            }
+                                            NeoECOPrototype.LOGGER.info(
+                                                    "wireless port teardown: ports={} charged={} status={}",
+                                                    module.livePorts(),
+                                                    chargedDevices(level, fixture.devices()), status);
+                                            links.set(NeoECOPrototypeServerConfig
+                                                    .WIRELESS_MAX_LINKS_PER_DEVICE.getDefault());
+                                            clearWirelessLinksAndBillSnapshots(level);
+                                            helper.succeed();
+                                        });
+                            });
                 });
     }
 

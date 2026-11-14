@@ -63,7 +63,8 @@ count > ChannelMode.getAdHocNetworkChannels()  ->  AdHocNetworkError.TOO_MANY_CH
 ⇒ 无控制器网络的天花板是**"吃频道的设备台数"和 `adHocNetworkChannels` 比大小**
 （`DEFAULT` 8、`X2` 16、`X3` 24、`X4` 32），不是每只节点的 8/32 宽度；
 而且**超了不是第 9 台离线，是整网 0 频道**。
-本节上面所有关于 `DENSE_CAPACITY`、落点宽度、端口分桶的话，**都只适用于 `CONTROLLER_ONLINE` 那条分支**。
+本节上面所有关于 `DENSE_CAPACITY`、落点宽度、端口分桶的话，**都只适用于网里有控制器节点那条分支**
+（判据见第 4 节第 9 条：数 `getNodes()` 里的控制器节点，别读 `getControllerState()` 那个缓存字段）。
 
 ### 1.2 实机读数（2026-11-13，dev 客户端，同一存档）
 
@@ -276,6 +277,23 @@ linked 猪咪装配室@-72,-60,14   <-> 模块 | edge=virtual max=32 used=0 a(ma
    `com/fish_dan_`（`integration/dataenergistics/MusicDataEnergisticsPlugin`，implements 它公开的
    `api.entrypoint.DataEnergisticsPlugin`），引用全在它的 `api/` 包内、不碰 `common/**`，
    jar 里 0 个 `data_energistics` 命名空间条目、0 个依赖 jar。
+9. **`getControllerState()` 与 `adHocNetworkError` 是缓存字段，虚拟合并之后会晚一拍；`getNodes()` 不会。**
+   2026-11-14 第一次跑多端口夹具量到的，两条都是产品级误判，不是测试噪声：
+   ① 事前闸 `starvationRisk` 连着绑第二张远端网时被误触发——`stateA=NO_CONTROLLER bootA=false`
+   而 `controllerNodesA=1`，也就是网里明明有控制器，缓存还答没有，于是把一次 AE2 自己下一拍就服务得了的
+   合并拒了。玩家侧现象就是"连点两下第二张网接不上"。
+   ② 事后校验 `starvationVerdict` 读合并后幸存的那个 grid 对象上**合并前**留下的 `adHocError`，
+   4 tick 后把我们刚建的链接拆了（读数：端口只剩 `con=1`、`wirelessLinks=0`）。
+   修法都是同一个口径：**"这条网络走不走 ad-hoc 预算"去数 `grid.getNodes()` 里的
+   `ControllerBlockEntity` 节点（`controllerNodes(grid)`），别问 `getControllerState()`**；
+   `CONTROLLER_CONFLICT` 那一支仍按状态读，因为它问的是多个控制器之间的关系，不是网里有没有控制器。
+10. **夹具里的 `try { ... waitUntil(内层) ... } finally { 清理 }` 是个陷阱，而且它咬的是断言不是产品。**
+    `waitUntil` 把检查排到后面的 tick，外层回调一 return，`finally` 当场就把配置和链接清了——
+    内层断言第一次求值时读到的是"自己刚清完"的世界（`wirelessLinks=0`、端口 `con=1`、`0 of 34`），
+    看起来完全像功能坏了。落法：清理只放在最内层的成功动作里，加上每条测试开头各清一次；
+    需要还原配置也写在最内层（`getDefault()`），别用 `finally`。
+    同一条陷阱在探针 `threePortsOnOneControllerEachCarryTheirOwnChannels` 里不存在，因为它只在
+    `catch` 里清，不在 `finally`——这也是它能一直绿而我们新写的那条一直"假红"的区别。
 
 ---
 
@@ -290,7 +308,7 @@ linked 猪咪装配室@-72,-60,14   <-> 模块 | edge=virtual max=32 used=0 a(ma
 
 | 闸 | 什么时候拒 | 拒的时候说什么 |
 |---|---|---|
-| `WirelessLinks.fullLanding` | `CONTROLLER_ONLINE` 且落点节点 `getUsedChannels() >= getMaxChannels()`（`max <= 0` 的 `CANNOT_CARRY` 节点不算"满"，否则碰到控制器就全拒） | `endpoint_full`：这一格已经把它能承载的 N 个频道全承载了，再接一条拿不到频道 |
+| `WirelessLinks.fullLanding` | 网里有控制器节点（走 `controllerNodes(grid)` 数 `getNodes()`，**不**读 `getControllerState()`——那是缓存字段，虚拟合并之后要晚一拍才更新，2026-11-14 量到；读它会让一个真满的格子被放过），且落点节点 `getUsedChannels() >= getMaxChannels()`（`max <= 0` 的 `CANNOT_CARRY` 节点不算"满"，否则碰到控制器就全拒） | `endpoint_full`：这一格已经把它能承载的 N 个频道全承载了，再接一条拿不到频道 |
 | `WirelessLinks.starvationRisk`（原有） | 两张**都无控制器**的网合并后 ad-hoc 需求 > 较小天花板 | `starvation`：合起来会 0 频道、每台都显示离线 |
 
 读数闸**故意只在受控网络上成立**：无控制器时 `AdHocChannelUpdater` 把同一个全网数写进每个节点，

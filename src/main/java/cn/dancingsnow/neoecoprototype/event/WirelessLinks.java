@@ -1230,7 +1230,14 @@ public final class WirelessLinks {
                     + " with no channels at all";
         }
         if (grid.getPathingService() instanceof appeng.me.service.PathingService service
-                && service.getAdHocNetworkError() != null) {
+                && service.getAdHocNetworkError() != null
+                // The ad-hoc field is only authoritative on a grid AE2 is treating as ad-hoc. A wireless merge
+                // keeps one of the two grid objects and its PathingService with it, so a network that was over
+                // the ad-hoc ceiling a moment ago still reports the error until the next pathing pass - even
+                // though it now has a controller and is not subject to that budget at all. Measured 2026-11-14:
+                // two port links bound cleanly, then this verdict read the stale error four ticks later and
+                // dropped both links, splitting the grids back apart (ports left with one connection each).
+                && controllerNodes(grid) == 0) {
             return "AE2 set adHocError=" + service.getAdHocNetworkError().name() + " on the joined network";
         }
         return null;
@@ -1246,9 +1253,13 @@ public final class WirelessLinks {
     private static Starvation starvationRisk(IGridNode a, IGridNode b) {
         var gridA = a.getGrid();
         var gridB = b.getGrid();
+        // The premise is read off the node list, not off getControllerState(): that answer is a cached field
+        // AE2 recomputes on its own schedule, and a wireless merge does not refresh it in the tick it happens.
+        // Measured 2026-11-14 binding a second far network right after a first - the joined grid reported
+        // state=NO_CONTROLLER with boot=false while holding one ControllerBlockEntity node, and the guard
+        // refused a merge AE2 itself was already serving. The node list has no such lag.
         if (gridA == null || gridB == null
-                || !"NO_CONTROLLER".equals(controllerStateOf(gridA))
-                || !"NO_CONTROLLER".equals(controllerStateOf(gridB))) {
+                || controllerNodes(gridA) > 0 || controllerNodes(gridB) > 0) {
             return null;
         }
         int demand = adHocDemand(gridA) + adHocDemand(gridB);
@@ -1259,6 +1270,21 @@ public final class WirelessLinks {
             return null;
         }
         return new Starvation(demand, fits, ceilingA, ceilingB);
+    }
+
+    /**
+     * How many AE2 controller nodes a grid holds. This is the un-lagged version of "does this network have a
+     * controller": {@code getControllerState()} is cached and only refreshed on AE2's own schedule, so right
+     * after a wireless merge it can still answer NO_CONTROLLER for a grid that already contains one.
+     */
+    private static int controllerNodes(IGrid grid) {
+        int controllers = 0;
+        for (var node : grid.getNodes()) {
+            if (node.getOwner() instanceof appeng.blockentity.networking.ControllerBlockEntity) {
+                controllers++;
+            }
+        }
+        return controllers;
     }
 
     /** The four numbers the merge guard names when it refuses: demand, the binding ceiling, and the two sides. */
@@ -1290,7 +1316,10 @@ public final class WirelessLinks {
         int max = node == null ? 0 : node.getMaxChannels();
         // A CANNOT_CARRY node answers 0, and no width is not the same thing as a full one: refusing on
         // 0 >= 0 would reject every link that touches a controller block.
-        if (grid == null || max <= 0 || !"CONTROLLER_ONLINE".equals(controllerStateOf(grid))) {
+        // The controlled-network test is the node count rather than getControllerState() for the same reason
+        // starvationRisk uses it: after a wireless merge the cached state lags a tick, and reading it there
+        // would let a genuinely full square through - failing open on the one gate whose job is to refuse.
+        if (grid == null || max <= 0 || controllerNodes(grid) == 0) {
             return null;
         }
         int used = node.getUsedChannels();
