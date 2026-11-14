@@ -9309,10 +9309,12 @@ public final class NeoECOPrototypeGameTests {
                             return;
                         }
                     }
-                    waitUntil(helper, 40,
+                    waitUntil(helper, 60,
                             () -> {
                                 var module = portModule(helper, fixture);
                                 return module != null && module.livePorts() == fixture.hubs().length
+                                        && WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS,
+                                                fixture.nearModule()).contains("ports=2/6")
                                         && hubsOnPorts(level, module, fixture.hubs()) == fixture.hubs().length;
                             },
                             () -> {
@@ -9510,14 +9512,20 @@ public final class NeoECOPrototypeGameTests {
                             () -> {
                                 var module = portModule(helper, fixture);
                                 return module != null && module.livePorts() == 6 && chargedDevices(level,
-                                        devices) == 6;
+                                        devices) == 6
+                                        // The instrument has to tell the two "no links here" cases apart: a
+                                        // module whose six outlets are all busy, and a plain device that has
+                                        // none. wirelessLinks=0 live=0 looks identical for both.
+                                        && WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS,
+                                                fixture.nearModule()).contains("ports=6/6");
                             },
                             () -> {
                                 var module = portModule(helper, fixture);
                                 return "six binds left " + (module == null ? -1 : module.livePorts())
                                         + " ports and " + chargedDevices(level, devices)
                                         + " of 6 machines charged - the ports are supposed to be handed out"
-                                        + " one per network";
+                                        + " one per network. near=" + WirelessLinks.status(level,
+                                        ModRegistration.WIRELESS_LINKS, fixture.nearModule());
                             },
                             () -> {
                                 var module = portModule(helper, fixture);

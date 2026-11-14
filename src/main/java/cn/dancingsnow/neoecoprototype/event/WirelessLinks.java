@@ -875,6 +875,11 @@ public final class WirelessLinks {
         return describe(endpoint) + " block=" + blockId(acting, endpoint)
                 + " wirelessLinks=" + linksAtEverywhere(acting, type, endpoint)
                 + " live=" + liveLinksAt(acting, type, endpoint)
+                // A module that has handed out every outlet has to read differently from a plain device with
+                // no outlets at all: the two link counts are identical, and the difference is the whole answer.
+                + (node != null && node.getOwner() instanceof WirelessChannelModuleBlockEntity module
+                        ? " ports=" + module.livePorts() + "/" + WirelessChannelModuleBlockEntity.MAX_PORTS
+                        : "")
                 + " " + billWords(acting, type)
                 + (node == null ? " (no network node there)" : " " + channelMode(node) + " controller="
                 + controllerStateOf(node.getGrid()) + powerWords(node.getGrid())
