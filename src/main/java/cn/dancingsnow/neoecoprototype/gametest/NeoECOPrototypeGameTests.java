@@ -8756,7 +8756,13 @@ public final class NeoECOPrototypeGameTests {
         helper.setBlock(second, ModRegistration.SUPERCONDUCTIVE_INTERFACE_BLOCK.get());
         var level = (net.minecraft.server.level.ServerLevel) helper.getLevel();
         var at = GlobalPos.of(level.dimension(), helper.absolutePos(first));
-        waitUntil(helper, 25,
+        // 60 rather than the 25 this shipped with, because the poll races AE2's own node creation: the block
+        // entity answers as a device the moment it is placed and the node only appears on its first tick, and
+        // the gameTest server runs batches side by side. This does NOT cure the fixture - see the note in the
+        // task list: it goes red about once in six runs and the failure is never the assertion, it is
+        // "Didn't succeed or fail within 400 ticks", i.e. the test never resolved at all. Widening the budget
+        // costs nothing here because the claim is that the number appears, not that it appears fast.
+        waitUntil(helper, 60,
                 () -> {
                     String status = WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS, at);
                     return status.contains("edges=[") && status.contains(" 8/");
@@ -9407,6 +9413,15 @@ public final class NeoECOPrototypeGameTests {
                                                         fixture.devices(), 0, 3));
                                     },
                                     () -> {
+                                        // Read the per-port channel numbers while both ports still carry a
+                                        // network. portTable only ever printed in failure diagnostics, so
+                                        // whether a port can answer "how much of my 32 is used" - the number a
+                                        // headroom-based port picker would need - has never been measured.
+                                        var settled = portModule(helper, fixture);
+                                        NeoECOPrototype.LOGGER.info("wireless port headroom: table={} status={}",
+                                                settled == null ? "gone" : portTable(settled),
+                                                WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS,
+                                                        fixture.nearModule()));
                                         // The reading that lied, pinned here rather than in its own fixture so
                                         // it runs against the two ports this phase just built. An unbound port
                                         // stays open on purpose, so the open count cannot be what the card
@@ -9449,6 +9464,77 @@ public final class NeoECOPrototypeGameTests {
                 });
     }
 
+    /**
+     * Small networks share an outlet; a network bigger than the packing ceiling does not.
+     *
+     * <p>Four satellites of two machines each spend three channels apiece out of a port's 32, so all four land
+     * on port 0 and the module never opens a second outlet. That is the whole point of packing: the block's
+     * capacity stops being "six networks" and becomes "192 channels", and a player with a dozen one-interface
+     * islands is no longer told to go build another module.
+     *
+     * <p>What keeps the promise is the other half, and it is measured by the existing fixtures rather than here:
+     * a 17-machine network reads 18 channels and is refused by the size rule before the arithmetic is ever
+     * consulted, so {@code twoPortsOnOneModuleFeedTwoNetworksPastThirtyTwo} still settles onto two ports and
+     * still charges 34 of 34. Those two fixtures are the reason this one does not need to re-prove privacy.
+     *
+     * <p>Own batch: four groups need y up to 7, and two wide fixtures in one batch merge their networks and
+     * report a CONTROLLER_CONFLICT that is a collision, not a conclusion.
+     */
+    @GameTest(template = "empty", batch = "wireless_port_packing", timeoutTicks = 1800,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void smallNetworksShareOnePortWhileBigOnesStillGetTheirOwn(GameTestHelper helper) {
+        var level = (ServerLevel) helper.getLevel();
+        clearWirelessLinksAndBillSnapshots(level);
+        var links = cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig
+                .WIRELESS_MAX_LINKS_PER_DEVICE;
+        links.set(0);
+        final int groups = 4;
+        final int perGroup = 2;
+        var fixture = buildPortFixture(helper, groups, perGroup);
+        waitUntil(helper, 80,
+                () -> portFixtureReady(level, fixture),
+                () -> "the packing fixture never reached its premise (four separate satellite grids, near"
+                        + " module on its controller, powered): " + portFixtureReading(level, fixture),
+                () -> {
+                    for (int g = 0; g < groups; g++) {
+                        String bound = WirelessLinks.bind(level, ModRegistration.WIRELESS_LINKS,
+                                fixture.nearModule(), fixture.hubs()[g]);
+                        if (!bound.startsWith("linked ")) {
+                            helper.fail("satellite " + (g + 1) + " of " + groups + " was refused: \"" + bound
+                                    + "\" ports=" + livePortsOf(helper, fixture));
+                            return;
+                        }
+                    }
+                    waitUntil(helper, 60,
+                            () -> {
+                                var module = portModule(helper, fixture);
+                                return module != null && module.livePorts() == 1
+                                        && hubsOnPorts(level, module, fixture.hubs()) == groups
+                                        && chargedDevices(level, fixture.devices())
+                                                == groups * perGroup;
+                            },
+                            () -> {
+                                var module = portModule(helper, fixture);
+                                return "four " + perGroup + "-machine networks did not settle onto ONE port:"
+                                        + " openPorts=" + (module == null ? "gone" : module.livePorts())
+                                        + " (packing ceiling "
+                                        + WirelessChannelModuleBlockEntity.PACKABLE_NETWORK_NODES
+                                        + ", each satellite is " + (perGroup + 1) + " nodes) hubs on ports="
+                                        + (module == null ? -1 : hubsOnPorts(level, module, fixture.hubs()))
+                                        + " charged=" + chargedDevices(level, fixture.devices()) + "/"
+                                        + (groups * perGroup) + " table="
+                                        + (module == null ? "gone" : portTable(module))
+                                        + " near=" + WirelessLinks.status(level,
+                                        ModRegistration.WIRELESS_LINKS, fixture.nearModule());
+                            },
+                            () -> {
+                                links.set(NeoECOPrototypeServerConfig
+                                        .WIRELESS_MAX_LINKS_PER_DEVICE.getDefault());
+                                clearWirelessLinksAndBillSnapshots(level);
+                                helper.succeed();
+                            });
+                });
+    }
 
     private static int livePortsOf(GameTestHelper helper, PortFixture fixture) {
         var module = portModule(helper, fixture);
@@ -9567,15 +9653,21 @@ public final class NeoECOPrototypeGameTests {
     /**
      * The sixth is the ceiling, so the seventh has to be refused out loud.
      *
-     * <p>Seven one-machine far networks, six bound: each bind takes a port of its own, so six ports are live
-     * and six machines charge. The seventh is the assertion - it must be refused by {@code no_free_port}, and
-     * the two refusals must not be able to trade places. {@code endpoint_full} means the square on the far end
-     * is out of channels; {@code no_free_port} means this module is out of outlets. A player told the first one
-     * when the second fired goes to widen a network that already has room, which is the same mistake the link
-     * cap used to make in the other direction.
+     * <p>Seven far networks, six bound: each bind takes a port of its own, so six ports are live and every
+     * machine on those six networks charges. The seventh is the assertion - it must be refused by
+     * {@code no_free_port}, and the two refusals must not be able to trade places. {@code endpoint_full} means
+     * the square on the far end is out of channels; {@code no_free_port} means this module is out of outlets.
+     * A player told the first one when the second fired goes to widen a network that already has room, which is
+     * the same mistake the link cap used to make in the other direction.
      *
-     * <p>One machine per group is enough and that is the point: the ports run out by being <em>used</em>, not
-     * by being filled, so a fixture that needed 6 x 32 devices would be testing the width gate instead.
+     * <p>Each group has {@code PACKABLE_NETWORK_NODES} machines, and that is what makes this the outlets gate
+     * rather than the width gate. Since 2026-11-14 a network small enough to fit a port's leftover channels
+     * shares it instead of taking one, so the first version of this fixture - one machine per group - now packs
+     * all seven onto port 0 and the refusal never comes. Eight machines plus their hub plus that hub's own port
+     * is ten nodes, ten is above the ceiling, so each of these networks demands an outlet and the sixth is the
+     * last one. Do not shrink the groups back to one: the red that follows is the packing rule working, not a
+     * broken ceiling. {@code smallNetworksShareOnePortWhileBigOnesStillGetTheirOwn} is the fixture that owns the
+     * packed side.
      *
      * <p>It also renders the refusal through {@code en_us}, which is the only place that comparison exists for
      * this line - the tap-time guards in {@code wireless_reply_keys} cannot reach a bind.
@@ -9588,11 +9680,11 @@ public final class NeoECOPrototypeGameTests {
         var links = cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig
                 .WIRELESS_MAX_LINKS_PER_DEVICE;
         links.set(0);
-        final int perGroup = 1;
+        final int perGroup = WirelessChannelModuleBlockEntity.PACKABLE_NETWORK_NODES;
         var fixture = buildPortFixture(helper,
                 WirelessChannelModuleBlockEntity.MAX_PORTS + 1, perGroup);
-        var devices = java.util.Arrays.copyOf(fixture.devices(),
-                WirelessChannelModuleBlockEntity.MAX_PORTS);
+        var devices = java.util.Arrays.copyOfRange(fixture.devices(), 0,
+                WirelessChannelModuleBlockEntity.MAX_PORTS * perGroup);
         waitUntil(helper, 80,
                 () -> portFixtureReady(level, fixture),
                 () -> "the seven-network fixture never reached its premise: "
@@ -9612,7 +9704,7 @@ public final class NeoECOPrototypeGameTests {
                             () -> {
                                 var module = portModule(helper, fixture);
                                 return module != null && module.livePorts() == 6 && chargedDevices(level,
-                                        devices) == 6
+                                        devices) == WirelessChannelModuleBlockEntity.MAX_PORTS * perGroup
                                         // The instrument has to tell the two "no links here" cases apart: a
                                         // module whose six outlets are all busy, and a plain device that has
                                         // none. wirelessLinks=0 live=0 looks identical for both.
@@ -9623,8 +9715,12 @@ public final class NeoECOPrototypeGameTests {
                                 var module = portModule(helper, fixture);
                                 return "six binds left " + (module == null ? -1 : module.livePorts())
                                         + " ports and " + chargedDevices(level, devices)
-                                        + " of 6 machines charged - the ports are supposed to be handed out"
-                                        + " one per network. near=" + WirelessLinks.status(level,
+                                        + " of " + WirelessChannelModuleBlockEntity.MAX_PORTS * perGroup
+                                        + " machines charged - a network of " + (perGroup + 2)
+                                        + " nodes is above the packing ceiling ("
+                                        + WirelessChannelModuleBlockEntity.PACKABLE_NETWORK_NODES
+                                        + "), so each of these has to be handed its own outlet. near="
+                                        + WirelessLinks.status(level,
                                         ModRegistration.WIRELESS_LINKS, fixture.nearModule());
                             },
                             () -> {

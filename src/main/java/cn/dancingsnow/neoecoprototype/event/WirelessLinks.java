@@ -474,7 +474,7 @@ public final class WirelessLinks {
         // link as having no edge at all and build a second one onto a port.
         var moduleA = moduleOf(a);
         if (moduleA != null) {
-            var port = moduleA.portForNewLink();
+            var port = moduleA.portForNewLink(farNodeCount(b));
             if (port == null) {
                 // "No room on any port" and "not wired into a grid yet" are different answers, and only one of
                 // them tells the player to build a second module.
@@ -484,7 +484,9 @@ public final class WirelessLinks {
         }
         var moduleB = moduleOf(b);
         if (moduleB != null) {
-            var port = moduleB.portForNewLink();
+            // Counted from {@code a}, which is port 0 of A's grid by now - the same grid either way, so the
+            // number is A's node count, which is exactly what B's port has to have room for.
+            var port = moduleB.portForNewLink(farNodeCount(a));
             if (port == null) {
                 return moduleB.gridOnline() ? noFreePort(acting, link.b()) : noNodeYet(acting, link.b());
             }
@@ -661,6 +663,11 @@ public final class WirelessLinks {
      * refusal, which was written to make a control group readable rather than to tell a player anything
      * (eight identical lines of it in one client session, 2026-10-29).
      *
+     * <p>Two callers now, and the second one is load-bearing in a different way: {@code farNodeCount} feeds it
+     * to {@code WirelessChannelModuleBlockEntity#portForNewLink}, where this count decides whether a network
+     * shares a port's 32 channels with another network or gets a port to itself. It has to stay AE2's own node
+     * count - not a count of the player's machines - because that is the number the port's arithmetic is
+     * measured against.
      */
     private static int gridNodes(IGrid grid) {
         int nodes = 0;
@@ -1675,8 +1682,8 @@ public final class WirelessLinks {
         // Nothing to adopt, so a new edge is asked for. On a module end that means a port with channels to
         // spare; running out of those is a capacity answer, not a failure, so it waits rather than counting
         // attempts - the loud version belongs to the bind that created the record.
-        IGridNode a = creationNode(acting, link.a(), onA);
-        IGridNode b = creationNode(acting, link.b(), onB);
+        IGridNode a = creationNode(acting, link.a(), onA, node(acting, link.b()));
+        IGridNode b = creationNode(acting, link.b(), onB, node(acting, link.a()));
         if (a == null || b == null) {
             return new EdgeResult(null, null, null, null);
         }
@@ -1717,12 +1724,30 @@ public final class WirelessLinks {
      * endpoint node. {@code candidates} is already the legal set, so a plain device never re-reads anything.
      */
     @Nullable
-    private static IGridNode creationNode(ServerLevel acting, GlobalPos at, List<IGridNode> candidates) {
+    private static IGridNode creationNode(ServerLevel acting, GlobalPos at, List<IGridNode> candidates,
+                                          @Nullable IGridNode far) {
         var module = moduleOf(node(acting, at));
         if (module != null) {
-            return module.portForNewLink();
+            return module.portForNewLink(farNodeCount(far));
         }
         return candidates.isEmpty() ? null : candidates.get(0);
+    }
+
+    /**
+     * How many nodes the network on the far side of a prospective link has, as AE2 counts them - the number a
+     * port compares against its own remaining channels before it agrees to share.
+     *
+     * <p>Unreadable answers come back larger than {@code WirelessChannelModuleBlockEntity#PACKABLE_NETWORK_NODES}
+     * on purpose: a network whose size cannot be measured is never packed onto a port that already carries one,
+     * because the conservative mistake (open another outlet) is visible to the player as a number, while the
+     * optimistic one shows up as devices that stopped working.
+     */
+    private static int farNodeCount(@Nullable IGridNode far) {
+        if (far == null) {
+            return Integer.MAX_VALUE;
+        }
+        var grid = far.getGrid();
+        return grid == null ? Integer.MAX_VALUE : gridNodes(grid);
     }
 
     /**

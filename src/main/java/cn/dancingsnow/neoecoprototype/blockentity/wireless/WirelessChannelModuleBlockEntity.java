@@ -76,20 +76,46 @@ public final class WirelessChannelModuleBlockEntity extends AENetworkedBlockEnti
     }
 
     /**
-     * The port a new link should land on: one that carries nothing but the trunk feeding it, otherwise a
-     * fresh one while the module has any left, otherwise nothing.
+     * The size of far network that is allowed to share a port with a network already on it.
      *
-     * <p>"Carries nothing" is deliberately not "has channels to spare". A port exists so that one network has
-     * its own 32 channels to walk through; put a second edge on it and both networks are back inside the same
-     * bucket, which is the exact thing this block is here to avoid. So a port is one outlet, and the six of
-     * them are six outlets.
+     * <p>Eight, and the number is a bet about growth rather than an AE2 constant: a network of eight or fewer
+     * nodes is a satellite (a few machines behind one interface), and a player who adds machines to it is
+     * adding them to a grid that already has a controller and a power store - it will outgrow the shared 32 and
+     * AE2 will starve some of its devices, which is the failure this rule accepts in exchange for capacity.
+     * Above eight the port stays private, because a network that big is the kind a player keeps building on.
+     *
+     * <p>Measured on 2026-11-14, in the suite's own log line: a group of 17 machines spends 18 of its port's 32
+     * channels ({@code [0=18/32/con=2, 1=18/32/con=2]}), so the arithmetic is AE2's, not an estimate - the one
+     * extra channel is the far network's own end of the edge.
+     */
+    public static final int PACKABLE_NETWORK_NODES = 8;
+
+    /**
+     * The port a new link should land on.
+     *
+     * <p>Two rules, tried in creation order, and the first port that satisfies either one wins:
+     * <ol>
+     * <li>a port with nothing but its trunk on it - the original rule, one network per outlet;</li>
+     * <li>a port that already carries a network, if the newcomer is at most
+     * {@link #PACKABLE_NETWORK_NODES} nodes and its channels fit in what the port has left.</li>
+     * </ol>
+     *
+     * <p>Rule 2 is what makes one module worth more than six networks: four 3-node satellites spend 3 channels
+     * each and all land on port 0, so the block absorbs them without opening a second outlet. Rule 1 is what
+     * keeps the promise route D was built for: a 17-machine network fails rule 2 on size alone, so it never
+     * shares a bucket, and the fixture that measures 34 of 34 machines coming up through two ports stays true
+     * whether or not packing is in use.
      *
      * <p>Ports are opened on demand rather than all six up front. A port nobody uses is not free: it is a node
      * in the grid's node list, so it shows up in the Network Tool's node count, it gets walked by every path
      * calculation over that grid, and the block reads as a bigger machine than it is. Six eager ports made
      * every module cost six nodes from the moment it was placed.
+     *
+     * @param farNodes how many nodes the network on the other side of the link has, as AE2 counts them; pass a
+     *                 value larger than {@link #PACKABLE_NETWORK_NODES} when it cannot be read, so an unknown
+     *                 network is never packed
      */
-    public IGridNode portForNewLink() {
+    public IGridNode portForNewLink(int farNodes) {
         for (var port : ports) {
             if (!port.isReady()) {
                 continue;
@@ -98,7 +124,10 @@ public final class WirelessChannelModuleBlockEntity extends AENetworkedBlockEnti
             if (node == null) {
                 continue;
             }
-            if (node.getConnections().size() <= 1) {
+            boolean unused = node.getConnections().size() <= 1;
+            boolean hasRoom = farNodes <= PACKABLE_NETWORK_NODES
+                    && node.getUsedChannels() + farNodes <= node.getMaxChannels();
+            if (unused || hasRoom) {
                 return node;
             }
         }
