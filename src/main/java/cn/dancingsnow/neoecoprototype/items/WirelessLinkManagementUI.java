@@ -89,8 +89,15 @@ public final class WirelessLinkManagementUI {
         // The name and its field are one row: the label keeps a fixed width so the field starts at the same
         // x on every screen of this family, and the field takes whatever is left.
         UIElement groupRow = row(20, 8);
+        // Equal box heights do NOT give equal baselines, so the label hugs the text line instead. Measured on
+        // the 2026-11-14 client screenshot (scale 4, panel 340x248): with both boxes at 16 the field's glyphs
+        // start 3.5 px under the label's, because TextField draws its text 4.5 px below its own box top and
+        // Label draws 1 px below its own. 9 is MC's font line height, and it is also what every Label line in
+        // this panel measures, so centring a 9-tall box in the 20-tall row puts the two texts on one line.
+        // The script-metric worry is closed: in the marked line below, which mixes CJK and digits in one draw,
+        // both kinds of glyph have the same ink top (60.00) and digits only differ at the bottom.
         groupRow.addChild(label(Component.translatable("gui.neoecoprototype.wireless_manager.group"),
-                Horizontal.LEFT, 18, COLOR).layout(layout -> layout.width(78).height(18)));
+                Horizontal.LEFT, 16, COLOR).layout(layout -> layout.width(78).height(9)));
 
         TextField groupField = new TextField().setAnyString()
                 .setTextValidator(value -> value.codePointCount(0, value.length()) <= 32)
@@ -102,7 +109,11 @@ public final class WirelessLinkManagementUI {
                 .c2sStrategy(SyncStrategy.CHANGED_PERIODIC)
                 .s2cStrategy(SyncStrategy.CHANGED_PERIODIC)
                 .build());
-        groupField.layout(layout -> layout.flex(1).heightPercent(100));
+        // The box hugs the text instead of the row: TextField exposes no padding or vertical-alignment knob
+        // (measured on TextField$TextFieldStyle - only font/fontSize/textColor/errorColor/cursorColor/textShadow),
+        // so its 16-tall box is the only thing this side can set. Same screenshot: the box lays out at 16 and
+        // the border paints 18 - the extra pixel is under the box, not around the text - so 16 is honest here.
+        groupField.layout(layout -> layout.flex(1).height(16));
         // No slot bevel. LDLib2's own default is a near-black box, which on this light sheet reads as a hole
         // rather than a field; one shade of fill plus a hairline says "type here" without a second rectangle,
         // and the focus ring still comes from the library so it stays one story.
@@ -209,13 +220,21 @@ public final class WirelessLinkManagementUI {
 
             for (int index = 0; index < SLOTS; index++) {
                 int slot = index;
+                // One link is one block: the two lines are a column of their own and the rule goes UNDER the
+                // block. The previous version put the rule between the head and the tail of the same link,
+                // which is the opposite of what it means - the client screenshot of 2026-11-14 showed the
+                // rules reading as separators between links, so the structure now says that out loud instead
+                // of leaving the order to be guessed from pixels.
+                UIElement block = new UIElement().layout(layout -> layout.widthPercent(100).height(37)
+                        .display(TaffyDisplay.FLEX).flexDirection(FlexDirection.COLUMN).gapRow(1));
                 Label top = label(Component.empty(), Horizontal.LEFT, LINE_HEIGHT, COLOR);
                 top.bind(DataBindingBuilder.componentS2C(() -> head[slot]).build());
-                addChild(top);
-                addChild(divider());
+                block.addChild(top);
                 Label bottom = label(Component.empty(), Horizontal.LEFT, LINE_HEIGHT, COLOR_SUB);
                 bottom.bind(DataBindingBuilder.componentS2C(() -> tail[slot]).build());
-                addChild(bottom);
+                block.addChild(bottom);
+                addChild(block);
+                addChild(divider());
             }
             refresh();
         }
