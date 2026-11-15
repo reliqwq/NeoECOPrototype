@@ -51,6 +51,7 @@ public final class NeoECOPrototypeJeiPlugin implements IModPlugin {
     @Override
     public void registerCategories(IRecipeCategoryRegistration registration) {
         registration.addRecipeCategories(new ProcessorAssemblerCategory(registration.getJeiHelpers().getGuiHelper()));
+        registration.addRecipeCategories(new CellUpgradeCategory(registration.getJeiHelpers().getGuiHelper()));
     }
 
     /**
@@ -107,6 +108,16 @@ public final class NeoECOPrototypeJeiPlugin implements IModPlugin {
                 recipes.stream().filter(recipe ->
                         !NeoECOPrototypeServerConfig.isProcessorRecipeDisabled(recipe.result().getItem()))
                         .toList());
+        // AE2's cell upgrades sit in the crafting map but answer isSpecial(), so JEI's own Crafting page skips
+        // them and no other plugin in this pack draws them - see CellUpgradeCategory. Read through the recipe
+        // class rather than a RecipeType handle so this does not depend on which type AE2 files them under.
+        List<appeng.recipes.game.StorageCellUpgradeRecipe> cellUpgrades = level.getRecipeManager()
+                .getRecipes().stream()
+                .map(RecipeHolder::value)
+                .filter(appeng.recipes.game.StorageCellUpgradeRecipe.class::isInstance)
+                .map(appeng.recipes.game.StorageCellUpgradeRecipe.class::cast)
+                .toList();
+        registration.addRecipes(CellUpgradeCategory.TYPE, cellUpgrades);
         registration.addIngredientInfo(ModRegistration.SIMPLIFY_STONECUTTING_ASSEMBLER_ITEM.get(),
                 Component.translatable("jei.neoecoprototype.processor_assembler.encode_hint"));
         // The L1 structures are not added here on purpose. eco's own plugin fills its multiblock page by

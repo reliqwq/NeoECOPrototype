@@ -335,9 +335,11 @@ public class ModRegistration {
     private static final BlockBehaviour.Properties REACTOR_FRAME_PROPS =
             BlockBehaviour.Properties.of().mapColor(MapColor.METAL).strength(4.0F, 6.0F).noOcclusion()
                     .requiresCorrectToolForDrops();
+    // The glass is what a player looks through into the chamber, and it is gated like the rest of the
+    // reactor: vanilla's own glass needs no tool tier, ours needs the stone pick its frame needs.
     private static final BlockBehaviour.Properties REACTOR_GLASS_PROPS =
             BlockBehaviour.Properties.of().mapColor(MapColor.NONE).strength(0.6F).sound(SoundType.GLASS)
-                    .noOcclusion();
+                    .noOcclusion().requiresCorrectToolForDrops();
     // A fresh instance on purpose: Properties.lightLevel mutates the object it is called on, and
     // MACHINE_PROPS is shared by every other machine block.
     private static final BlockBehaviour.Properties REACTOR_CORE_PROPS =
@@ -455,6 +457,7 @@ public class ModRegistration {
     private static final BlockBehaviour.Properties GRETTE_BUD_PROPS = BlockBehaviour.Properties.of()
             .mapColor(MapColor.DIAMOND).noOcclusion().strength(0.5F)
             .sound(net.minecraft.world.level.block.SoundType.SMALL_AMETHYST_BUD)
+            .requiresCorrectToolForDrops()
             .lightLevel(state -> state.getValue(net.minecraft.world.level.block.AmethystClusterBlock.FACING)
                     .getAxis() == net.minecraft.core.Direction.Axis.Y ? 4 : 2);
 
@@ -1222,7 +1225,7 @@ public class ModRegistration {
              ITEMS.register("pigmee_storage_cell",
                      () -> storageCell("pigmee_storage_cell", AEKeyType.items(),
                              SimplifyStorageCellItem::getItemCellType,
-                             SimplifyStorageCellItem.BYTES_2K5, SimplifyStorageCellItem.BYTES_2K5_PER_TYPE));
+                             SimplifyStorageCellItem.BYTES_2K5));
 
     /**
      * 3-type L1 long-capacity item cell. Upgrade through AE2's cell-upgrade recipe.
@@ -1434,61 +1437,61 @@ public class ModRegistration {
              ITEMS.register("simplify_item_storage_cell_1k",
                      () -> storageCell("simplify_item_storage_cell_1k", AEKeyType.items(),
                              SimplifyStorageCellItem::getItemCellType,
-                             SimplifyStorageCellItem.BYTES_1K, 1 << 2));
+                             SimplifyStorageCellItem.BYTES_1K));
 
      public static final Supplier<SimplifyStorageCellItem> SIMPLIFY_ITEM_CELL_16K =
              ITEMS.register("simplify_item_storage_cell_16k",
                      () -> storageCell("simplify_item_storage_cell_16k", AEKeyType.items(),
                              SimplifyStorageCellItem::getItemCellType,
-                             SimplifyStorageCellItem.BYTES_16K, 1 << 6));
+                             SimplifyStorageCellItem.BYTES_16K));
 
      public static final Supplier<SimplifyStorageCellItem> SIMPLIFY_ITEM_CELL_64K =
             ITEMS.register("simplify_item_storage_cell_64k",
                     () -> storageCell("simplify_item_storage_cell_64k", AEKeyType.items(),
                             SimplifyStorageCellItem::getItemCellType,
-                            SimplifyStorageCellItem.BYTES_64K, 1 << 8));
+                            SimplifyStorageCellItem.BYTES_64K));
 
     public static final Supplier<SimplifyStorageCellItem> SIMPLIFY_ITEM_CELL_1M =
             ITEMS.register("simplify_item_storage_cell_1m",
                     () -> storageCell("simplify_item_storage_cell_1m", AEKeyType.items(),
                             SimplifyStorageCellItem::getItemCellType,
-                            SimplifyStorageCellItem.BYTES_1M, 1 << 12));
+                            SimplifyStorageCellItem.BYTES_1M));
 
     public static final Supplier<SimplifyStorageCellItem> SIMPLIFY_ITEM_CELL_4M =
             ITEMS.register("simplify_item_storage_cell_4m",
                     () -> storageCell("simplify_item_storage_cell_4m", AEKeyType.items(),
                             SimplifyStorageCellItem::getItemCellType,
-                            SimplifyStorageCellItem.BYTES_4M, 1 << 14));
+                            SimplifyStorageCellItem.BYTES_4M));
 
     public static final Supplier<SimplifyStorageCellItem> SIMPLIFY_FLUID_CELL_1K =
              ITEMS.register("simplify_fluid_storage_cell_1k",
                      () -> storageCell("simplify_fluid_storage_cell_1k", AEKeyType.fluids(),
                              SimplifyStorageCellItem::getFluidCellType,
-                             SimplifyStorageCellItem.BYTES_1K, 1 << 2));
+                             SimplifyStorageCellItem.BYTES_1K));
 
      public static final Supplier<SimplifyStorageCellItem> SIMPLIFY_FLUID_CELL_16K =
              ITEMS.register("simplify_fluid_storage_cell_16k",
                      () -> storageCell("simplify_fluid_storage_cell_16k", AEKeyType.fluids(),
                              SimplifyStorageCellItem::getFluidCellType,
-                             SimplifyStorageCellItem.BYTES_16K, 1 << 6));
+                             SimplifyStorageCellItem.BYTES_16K));
 
      public static final Supplier<SimplifyStorageCellItem> SIMPLIFY_FLUID_CELL_64K =
             ITEMS.register("simplify_fluid_storage_cell_64k",
                     () -> storageCell("simplify_fluid_storage_cell_64k", AEKeyType.fluids(),
                             SimplifyStorageCellItem::getFluidCellType,
-                            SimplifyStorageCellItem.BYTES_64K, 1 << 8));
+                            SimplifyStorageCellItem.BYTES_64K));
 
     public static final Supplier<SimplifyStorageCellItem> SIMPLIFY_FLUID_CELL_1M =
             ITEMS.register("simplify_fluid_storage_cell_1m",
                     () -> storageCell("simplify_fluid_storage_cell_1m", AEKeyType.fluids(),
                             SimplifyStorageCellItem::getFluidCellType,
-                            SimplifyStorageCellItem.BYTES_1M, 1 << 12));
+                            SimplifyStorageCellItem.BYTES_1M));
 
     public static final Supplier<SimplifyStorageCellItem> SIMPLIFY_FLUID_CELL_4M =
             ITEMS.register("simplify_fluid_storage_cell_4m",
                     () -> storageCell("simplify_fluid_storage_cell_4m", AEKeyType.fluids(),
                             SimplifyStorageCellItem::getFluidCellType,
-                            SimplifyStorageCellItem.BYTES_4M, 1 << 14));
+                            SimplifyStorageCellItem.BYTES_4M));
 
     /**
      * A coloured default name goes on ITEM_NAME, never on CUSTOM_NAME: the first is a display
@@ -1562,9 +1565,11 @@ public class ModRegistration {
     /** One rung of the L1 storage-matrix ladder; the green follows its capacity, not the family. */
     private static SimplifyStorageCellItem storageCell(String itemPath,
             AEKeyType keyType, Supplier<cn.dancingsnow.neoecoae.api.storage.ECOCellType> cellType,
-            long bytes, int bytesPerType) {
+            long bytes) {
         return new SimplifyStorageCellItem(
-                matrixName(itemPath, bytes).stacksTo(1), keyType, cellType, bytes, bytesPerType, 256);
+                matrixName(itemPath, bytes).stacksTo(1), keyType, cellType, bytes,
+                SimplifyStorageCellItem.typeFee(bytes, SimplifyStorageCellItem.MATRIX_TYPES),
+                SimplifyStorageCellItem.MATRIX_TYPES);
     }
 
     public static final Supplier<SimplifyComputationCellItem> SIMPLIFY_COMPUTATION_CELL_1M =

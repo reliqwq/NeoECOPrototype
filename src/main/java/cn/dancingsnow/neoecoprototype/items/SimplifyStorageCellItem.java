@@ -47,11 +47,26 @@ public class SimplifyStorageCellItem extends ECOStorageCellItem {
     /**
      * 2.5 KiB - the deliberately small capacity of the pigmee matrix.
      * 2560 = 2.5 x 1024, so the cell reads as "2.5k" next to eco's k/M/MiB ladder.
-     * The per-type cost keeps the same bytes/256 ratio as every other L1 cell.
      */
     public static final long BYTES_2K5 = 2560L;
-    /** 2560 / 256 types, matching the {@code bytes >> 8} ratio of the other L1 cells. */
-    public static final int BYTES_2K5_PER_TYPE = (int) (BYTES_2K5 >> 8);
+
+    /** The type cap every L1 matrix is written with; {@link #typeFee} prices against it. */
+    public static final int MATRIX_TYPES = 256;
+
+    /**
+     * The one rule for what a type costs: filling the whole type cap spends a fifth of the cell.
+     *
+     * <p>eco bills a type by reserving {@code bytesPerType} for it for the life of the cell
+     * ({@code usedBytes = ceil(amount / 8) + types x bytesPerType}, measured on 21.2.17), so this number is
+     * not a per-item price - it is the price of the type existing at all. Our rungs were written as
+     * {@code bytes / totalTypes}, which reserves the entire cell and leaves a fully typed 1M matrix unable
+     * to hold one single item; eco's own ladder lands at 15.4% of an L4 cell and 3.85% of an L9 one at its
+     * 315 item types. A fifth is the same shape as eco's bottom rung and is what a player asked for on
+     * 2026-11-15. The floor of one byte keeps a small cell from letting types cost nothing.</p>
+     */
+    public static int typeFee(long bytes, int totalTypes) {
+        return (int) Math.max(1L, bytes / (5L * Math.max(1, totalTypes)));
+    }
 
     private final long bytes;
     private final int bytesPerType;
@@ -83,7 +98,7 @@ public class SimplifyStorageCellItem extends ECOStorageCellItem {
     /** Cell with the L1 type layout: 256 types, each costing bytes / 256. */
     public SimplifyStorageCellItem(Item.Properties properties, AEKeyType keyType, Supplier<ECOCellType> cellType,
                                    long bytes) {
-        this(properties, keyType, cellType, bytes, (int) (bytes >> 8), 256);
+        this(properties, keyType, cellType, bytes, typeFee(bytes, MATRIX_TYPES), MATRIX_TYPES);
     }
 
     public SimplifyStorageCellItem(Item.Properties properties, AEKeyType keyType, Supplier<ECOCellType> cellType,

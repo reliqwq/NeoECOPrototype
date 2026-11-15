@@ -58,7 +58,6 @@ public class WirelessUnlinkCardItem extends Item {
             report = WirelessLinks.unlinkReply(serverLevel, ModRegistration.WIRELESS_LINKS, clicked);
         }
         NeoECOPrototype.LOGGER.info("wireless unlink card: {}", report.english());
-        player.sendSystemMessage(report.asComponent());
         return InteractionResult.CONSUME;
     }
 }

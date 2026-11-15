@@ -108,7 +108,15 @@ public final class NeoECOPrototypeClient {
             // 还得继续加载；注册表里那 27 张才是真在用的。
             "l1_small_bulk",
             "l1_pigmee", "l1_concrete", "l1_all_items", "l1_universal", "l1_quantum", "l1_default", "l1_custom",
-            "l0_fe_1k", "l0_spent_waste", "l0_universal", "l0_quantum", "l0_complex_universal");
+            "l0_fe_1k", "l0_spent_waste", "l0_universal", "l0_quantum", "l0_complex_universal",
+            // These ten were handed to eco in onClientSetup but never registered as additional models, so the
+            // drive had no baked model for them at all and the slot drew the missing-texture cube - that is
+            // the 紫黑方块 a player reported on the singularity matrix (the item itself looks right: its hand
+            // model is a separate generated one). DriveCellModelContractTest now checks this list against the
+            // registrations instead of trusting the sentence above.
+            "l1_singularity", "l1_source", "l1r_source",
+            "l0_source_1k", "l0_source_16k", "l0_source_64k",
+            "l1_fe", "l1r_fe", "l1_spent_waste", "l1_complex_universal");
 
     private static ResourceLocation cellModel(String name) {
         return ResourceLocation.fromNamespaceAndPath(NeoECOPrototype.MOD_ID, "block/cell/storage_cell_" + name);

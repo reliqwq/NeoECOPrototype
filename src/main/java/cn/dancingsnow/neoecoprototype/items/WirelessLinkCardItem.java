@@ -121,16 +121,13 @@ public class WirelessLinkCardItem extends Item {
             }
         } else {
             report = WirelessLinks.bindReply(serverLevel, ModRegistration.WIRELESS_LINKS, held, clicked,
-                    WirelessLinks.groupForLink(serverLevel, held, clicked, readGroup(card)));
+                    readGroup(card));
             // The mark deliberately survives a successful join: one tap on the hub and then one tap per
             // device is how a player wires a hub to several spokes. What brakes that are all in the world's
             // config - links per device, distance, dimensions, and the AE each live link draws per tick -
             // and the reply line reads off AE2's own numbers.
         }
         NeoECOPrototype.LOGGER.info("wireless link card: {}", report.english());
-        // The key goes out unrendered, so the client writes the line in the player's own language; the English
-        // sentence stays in the log because that is what the guards and the diagnostics read.
-        player.sendSystemMessage(report.asComponent());
         return InteractionResult.CONSUME;
     }
 
@@ -153,12 +150,12 @@ public class WirelessLinkCardItem extends Item {
         // Capitalised and punctuated exactly as the shipped en_us line, because the fixture that reads this
         // branch compares the two byte for byte. teardown_moved had been drifting there for ten days: it was
         // in the key-presence list but never in the byte comparison, so the log said "the unlink card" while
-        // the player read "the L1 Device Unlink Card".
+        // the player read "the Link Disconnect Card".
         String holds = "This card still holds " + WirelessLinks.labelText(level, clicked);
         return carried > 0
                 ? WirelessLinks.Reply.of("teardown_moved", holds
                         + ". Taking links off is another card's job now - sneak-right-click the device with"
-                        + " the L1 Device Unlink Card.",
+                        + " the Link Disconnect Card.",
                         WirelessLinks.label(level, clicked))
                 : WirelessLinks.Reply.of("mark_idle", holds
                         + ", and that device carries no wireless link right now - tap a second device to link"
@@ -178,11 +175,6 @@ public class WirelessLinkCardItem extends Item {
             return InteractionResultHolder.pass(card);
         }
         if (player.isShiftKeyDown()) {
-            var held = readEndpoint(card);
-            player.displayClientMessage(held == null
-                            ? Component.translatable("item.neoecoprototype.wireless_link_card.balance_none")
-                            : balanceReport(serverLevel, card),
-                    true);
             return InteractionResultHolder.consume(card);
         }
         // Plain right-click in mid-air drops the mark and nothing else. This release used to be bundled into
@@ -195,9 +187,6 @@ public class WirelessLinkCardItem extends Item {
         clearEndpoint(card);
         NeoECOPrototype.LOGGER.info("wireless link card: dropped its mark, it held {}",
                 WirelessLinks.describe(held));
-        player.displayClientMessage(Component.translatable(
-                "item.neoecoprototype.wireless_link_card.unmarked",
-                WirelessLinks.label(serverLevel, held)), true);
         return InteractionResultHolder.consume(card);
     }
 
@@ -255,6 +244,98 @@ public class WirelessLinkCardItem extends Item {
             data.putString(TAG_GROUP, group);
         }
         card.set(DataComponents.CUSTOM_DATA, CustomData.of(data));
+    }
+
+    /** The endpoint a placed device could auto-link to while this card sits in the hotbar. */
+    @Nullable
+    public static GlobalPos markedEndpoint(ItemStack card) {
+        return readEndpoint(card);
+    }
+
+    /** A marked link card the player is carrying, for placement auto-connect. */
+    public record Mark(int slot, GlobalPos endpoint, String group) {
+
+        /** {@link #slot()} for a card worn in our Curios slot rather than lying in the hotbar. */
+        public static final int WORN = -1;
+    }
+
+    /**
+     * Returns the one mark the player is carrying, or empty if there is none or several disagreeing marks.
+     * Main-hand priority matches AE2LT; ambiguity must not silently connect a newly placed block to the wrong
+     * network. The sources are the hotbar (slots 0-8) and, with Curios installed, the cards worn in our own
+     * slot - a card that lives in an accessory slot is exactly the "carry it and forget it" case, and leaving
+     * it out made the player have to move it back into the bar to get auto-connect at all.
+     */
+    public static java.util.Optional<Mark> uniqueMarkedCard(Player player) {
+        var inventory = player.getInventory();
+        int selected = inventory.selected;
+        if (selected >= 0 && selected < 9) {
+            ItemStack held = inventory.getItem(selected);
+            if (held.getItem() instanceof WirelessLinkCardItem) {
+                GlobalPos endpoint = readEndpoint(held);
+                if (endpoint != null) {
+                    return java.util.Optional.of(new Mark(selected, endpoint, readGroup(held)));
+                }
+            }
+        }
+        var candidates = new java.util.ArrayList<Mark>();
+        for (int slot = 0; slot < 9; slot++) {
+            if (slot == selected) {
+                continue;
+            }
+            ItemStack stack = inventory.getItem(slot);
+            if (!(stack.getItem() instanceof WirelessLinkCardItem)) {
+                continue;
+            }
+            GlobalPos endpoint = readEndpoint(stack);
+            if (endpoint != null) {
+                candidates.add(new Mark(slot, endpoint, readGroup(stack)));
+            }
+        }
+        // The optional mod's class is named only inside this branch, so a pack without Curios never resolves
+        // it (AGENTS §4.2), and the worn stacks come back as plain ItemStacks for the same reason.
+        if (net.neoforged.fml.ModList.get().isLoaded("curios")) {
+            for (ItemStack worn : cn.dancingsnow.neoecoprototype.integration.curios.CuriosDollSupport
+                    .wornLinkCards(player)) {
+                GlobalPos endpoint = readEndpoint(worn);
+                if (endpoint != null) {
+                    candidates.add(new Mark(Mark.WORN, endpoint, readGroup(worn)));
+                }
+            }
+        }
+        if (candidates.isEmpty()) {
+            return java.util.Optional.empty();
+        }
+        var first = candidates.get(0);
+        for (Mark other : candidates) {
+            if (!other.endpoint().equals(first.endpoint()) || !other.group().equals(first.group())) {
+                return java.util.Optional.empty();
+            }
+        }
+        return java.util.Optional.of(first);
+    }
+
+    /** Revalidates the exact copy - hotbar slot or worn stack - after the placed node has had a tick to form. */
+    public static boolean stillMarkedOnPlayer(Player player, Mark mark) {
+        if (mark.slot() == Mark.WORN) {
+            if (!net.neoforged.fml.ModList.get().isLoaded("curios")) {
+                return false;
+            }
+            for (ItemStack worn : cn.dancingsnow.neoecoprototype.integration.curios.CuriosDollSupport
+                    .wornLinkCards(player)) {
+                if (mark.endpoint().equals(readEndpoint(worn)) && mark.group().equals(readGroup(worn))) {
+                    return true;
+                }
+            }
+            return false;
+        }
+        if (mark.slot() < 0 || mark.slot() >= 9) {
+            return false;
+        }
+        ItemStack stack = player.getInventory().getItem(mark.slot());
+        return stack.getItem() instanceof WirelessLinkCardItem
+                && mark.endpoint().equals(readEndpoint(stack))
+                && mark.group().equals(readGroup(stack));
     }
 
     /** The endpoint the player marked, or null when the card is empty. */

@@ -22,7 +22,8 @@ import java.util.List;
 import java.util.function.Supplier;
 
 /**
- * Optional Curios integration: the dolls can be worn in the head accessory slot as well as on the head.
+ * Optional Curios integration: dolls can be worn in Curios' head accessory slot, and the link card has its own
+ * dedicated {@code universal_link_card} slot.
  *
  * <p>Curios' own Chinese name for its {@code head} slot is 「首饰」, so that is what a player means by the
  * accessory slot here. Being a curio is two separate registrations: the item has to answer the curio
@@ -45,6 +46,7 @@ import java.util.function.Supplier;
 public final class CuriosDollSupport {
     /** Curios' identifier for the head slot, the one it calls 「首饰」. */
     public static final String HEAD_SLOT = "head";
+    public static final String WIRELESS_LINK_CARD_SLOT = "universal_link_card";
 
     private static final List<Supplier<FumoItem>> DOLLS = List.of(
             ModRegistration.FUMO_DOLL_RELIQWQ_ITEM,
@@ -57,11 +59,12 @@ public final class CuriosDollSupport {
     private CuriosDollSupport() {
     }
 
-    /** Registers all six dolls; called once during common setup, only with Curios present. */
+    /** Registers all six dolls and the link card; called once during common setup, only with Curios present. */
     public static void register() {
         for (Supplier<FumoItem> doll : DOLLS) {
             CuriosApi.registerCurio(doll.get(), DollCurio.INSTANCE);
         }
+        CuriosApi.registerCurio(ModRegistration.WIRELESS_LINK_CARD.get(), WirelessLinkCardCurio.INSTANCE);
     }
 
     /** The doll in the player's head curio slot, or an empty stack. Only the real slot is read, not cosmetic. */
@@ -70,6 +73,31 @@ public final class CuriosDollSupport {
                 .flatMap(handler -> handler.getStacksHandler(HEAD_SLOT))
                 .map(CuriosDollSupport::firstDoll)
                 .orElse(ItemStack.EMPTY);
+    }
+
+    /**
+     * The link cards worn in our own slot, active ones only. Auto-connect reads these the same way it reads a
+     * hotbar copy, because a card that lives in a curio slot is exactly the "carry it and forget it" case the
+     * hotbar rule was written for. Returning plain stacks keeps Curios out of the core class's signature.
+     */
+    public static java.util.List<ItemStack> wornLinkCards(net.minecraft.world.entity.player.Player player) {
+        var out = new java.util.ArrayList<ItemStack>();
+        CuriosApi.getCuriosInventory(player)
+                .flatMap(handler -> handler.getStacksHandler(WIRELESS_LINK_CARD_SLOT))
+                .ifPresent(handler -> {
+                    IDynamicStackHandler stacks = handler.getStacks();
+                    NonNullList<Boolean> active = handler.getActiveStates();
+                    for (int slot = 0; slot < stacks.getSlots(); slot++) {
+                        if (slot >= active.size() || !active.get(slot)) {
+                            continue;
+                        }
+                        ItemStack worn = stacks.getStackInSlot(slot);
+                        if (worn.getItem() instanceof cn.dancingsnow.neoecoprototype.items.WirelessLinkCardItem) {
+                            out.add(worn);
+                        }
+                    }
+                });
+        return out;
     }
 
     private static ItemStack firstDoll(ICurioStacksHandler handler) {
@@ -92,6 +120,10 @@ public final class CuriosDollSupport {
      * The mana a doll carries is the one thing that has to be handed to Curios explicitly; without Ars
      * Nouveau {@link FumoItem#manaGrants} answers empty and this returns Curios' own default.
      */
+    private enum WirelessLinkCardCurio implements ICurioItem {
+        INSTANCE
+    }
+
     private enum DollCurio implements ICurioItem {
         INSTANCE;
 

@@ -1,16 +1,22 @@
 package cn.dancingsnow.neoecoprototype.block.wireless;
 
+import appeng.api.orientation.IOrientationStrategy;
+import appeng.api.orientation.OrientationStrategies;
 import appeng.block.AEBaseEntityBlock;
 import cn.dancingsnow.neoecoprototype.blockentity.wireless.WirelessChannelModuleBlockEntity;
 import cn.dancingsnow.neoecoprototype.items.WirelessChannelModuleUI;
 import com.lowdragmc.lowdraglib2.gui.factory.BlockUIMenuType;
 import com.lowdragmc.lowdraglib2.gui.ui.ModularUI;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Mirror;
+import net.minecraft.world.level.block.Rotation;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.phys.BlockHitResult;
 
 /**
@@ -22,6 +28,22 @@ public final class WirelessChannelModuleBlock extends AEBaseEntityBlock<Wireless
 
     public WirelessChannelModuleBlock(Properties properties) {
         super(properties);
+    }
+
+    @Override
+    public IOrientationStrategy getOrientationStrategy() {
+        return OrientationStrategies.horizontalFacing();
+    }
+
+    @Override
+    protected BlockState rotate(BlockState state, Rotation rotation) {
+        return state.setValue(BlockStateProperties.HORIZONTAL_FACING,
+                rotation.rotate(state.getValue(BlockStateProperties.HORIZONTAL_FACING)));
+    }
+
+    @Override
+    protected BlockState mirror(BlockState state, Mirror mirror) {
+        return state.rotate(mirror.getRotation(state.getValue(BlockStateProperties.HORIZONTAL_FACING)));
     }
 
     @Override

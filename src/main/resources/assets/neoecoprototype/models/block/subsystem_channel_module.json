@@ -1,6 +1,12 @@
 {
-  "parent": "minecraft:block/cube_all",
+  "parent": "minecraft:block/cube",
   "textures": {
-    "all": "neoecoprototype:block/simplify_casing"
+    "particle": "neoecoprototype:block/subsystem_channel_module_side",
+    "north": "neoecoprototype:block/subsystem_channel_module_front",
+    "south": "neoecoprototype:block/subsystem_channel_module_back",
+    "east": "neoecoprototype:block/subsystem_channel_module_side",
+    "west": "neoecoprototype:block/subsystem_channel_module_side",
+    "up": "neoecoprototype:block/subsystem_channel_module_top",
+    "down": "ae2:block/generics/bottom"
   }
 }

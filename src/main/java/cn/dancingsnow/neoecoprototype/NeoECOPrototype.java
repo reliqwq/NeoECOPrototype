@@ -139,6 +139,8 @@ public class NeoECOPrototype {
                                     .NeoECOPrototypeServerConfig.WIRELESS_LINKS)) {
                         return;
                     }
+                    cn.dancingsnow.neoecoprototype.event.WirelessLinks.processAutoConnect(
+                            event.getLevel(), ModRegistration.WIRELESS_LINKS);
                     cn.dancingsnow.neoecoprototype.event.WirelessLinks.sweep(
                             event.getLevel(), ModRegistration.WIRELESS_LINKS);
                 });

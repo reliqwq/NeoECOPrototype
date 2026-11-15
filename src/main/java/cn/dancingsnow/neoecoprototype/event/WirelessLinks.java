@@ -7,6 +7,7 @@ import appeng.api.networking.IGridConnection;
 import appeng.api.networking.IGridNode;
 import cn.dancingsnow.neoecoprototype.NeoECOPrototype;
 import cn.dancingsnow.neoecoprototype.blockentity.wireless.WirelessChannelModuleBlockEntity;
+import cn.dancingsnow.neoecoprototype.items.WirelessLinkCardItem;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.GlobalPos;
 import net.minecraft.core.HolderLookup;
@@ -19,6 +20,7 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.Level;
 import net.neoforged.neoforge.attachment.AttachmentType;
 import net.neoforged.neoforge.attachment.IAttachmentHolder;
@@ -96,6 +98,9 @@ public final class WirelessLinks {
     /** Consecutive refusals before we stop asking and say so once, instead of filling the log forever. */
     private static final int MAX_REBUILD_ATTEMPTS = 5;
 
+    /** AE2 builds an placed block's node on its first tick; retry queued auto-connect for up to this long. */
+    private static final int AUTO_CONNECT_WAIT_TICKS = 20;
+
     private static final String TAG_LINKS = "links";
     private static final String TAG_A = "a";
     private static final String TAG_B = "b";
@@ -104,6 +109,10 @@ public final class WirelessLinks {
     private static final String TAG_GROUP = "group";
 
     private WirelessLinks() {
+    }
+
+    private record PendingAutoConnect(java.util.UUID playerId, GlobalPos marked, int slot, String group,
+                                      long expiresAt) {
     }
 
     /**
@@ -167,6 +176,8 @@ public final class WirelessLinks {
         final List<Link> links = new ArrayList<>();
         final Map<Link, String> groups = new HashMap<>();
         final Map<Link, IGridConnection> edges = new HashMap<>();
+        /** Reverse view for Jade: one server-data read finds the links on this square without scanning all links. */
+        final Map<GlobalPos, Set<Link>> linksByEndpoint = new HashMap<>();
         /** Per-pair bookkeeping for the rebuild throttle; none of it is persisted. */
         final Map<Link, Long> lastAttemptTick = new HashMap<>();
         final Map<Link, Integer> rebuildFailures = new HashMap<>();
@@ -182,6 +193,11 @@ public final class WirelessLinks {
          * confirmation is due. Armed by a successful bind, cleared by {@link #tendVerifies}. Not persisted.
          */
         final Map<Link, Long> verifyUntil = new HashMap<>();
+        /**
+         * A player placed a device while a marked card was in the hotbar. Its AE2 node may not exist until its
+         * first tick, so defer the bind briefly; this is transient per-level state, never saved.
+         */
+        final Map<BlockPos, PendingAutoConnect> pendingAutoConnect = new HashMap<>();
         /**
          * What the last timed pass charged for the links this dimension owns, so the card can print a number
          * that was actually taken rather than a rate. Not persisted: after a reload it is zero until the
@@ -201,6 +217,8 @@ public final class WirelessLinks {
             if (!links.add(link)) {
                 return false;
             }
+            linksByEndpoint.computeIfAbsent(link.a(), ignored -> new HashSet<>()).add(link);
+            linksByEndpoint.computeIfAbsent(link.b(), ignored -> new HashSet<>()).add(link);
             setGroup(link, groupName);
             return true;
         }
@@ -263,6 +281,15 @@ public final class WirelessLinks {
             rebuildFailures.remove(link);
             givenUp.remove(link);
             urgentUntil.remove(link);
+            removeEndpointLink(link.a(), link);
+            removeEndpointLink(link.b(), link);
+        }
+
+        private void removeEndpointLink(GlobalPos endpoint, Link link) {
+            Set<Link> at = linksByEndpoint.get(endpoint);
+            if (at != null && at.remove(link) && at.isEmpty()) {
+                linksByEndpoint.remove(endpoint);
+            }
         }
     }
 
@@ -334,6 +361,13 @@ public final class WirelessLinks {
 
     // ==================== what the card asks for ====================
 
+    /** Whether that square holds a subsystem channel module, which is never an end of a link. */
+    public static boolean moduleAt(ServerLevel acting, GlobalPos at) {
+        ServerLevel level = levelOf(acting, at.dimension());
+        return level != null && chunkIsHere(level, at)
+                && level.getBlockEntity(at.pos()) instanceof WirelessChannelModuleBlockEntity;
+    }
+
     /** True when the block at that position is something AE2 would run a network through. */
     public static boolean isDevice(ServerLevel acting, GlobalPos at) {
         return presence(acting, at) == Presence.AWAKE;
@@ -391,26 +425,6 @@ public final class WirelessLinks {
         return bindReply(acting, type, from, to).english();
     }
 
-    /** A module at either endpoint owns the group's default; a card-stored group is the fallback. */
-    public static String groupForLink(ServerLevel acting, GlobalPos marked, GlobalPos clicked, String legacyGroup) {
-        String clickedGroup = moduleGroupAt(acting, clicked);
-        if (!clickedGroup.isEmpty()) {
-            return clickedGroup;
-        }
-        String markedGroup = moduleGroupAt(acting, marked);
-        return markedGroup.isEmpty() ? normalizeGroup(legacyGroup) : markedGroup;
-    }
-
-    private static String moduleGroupAt(ServerLevel acting, GlobalPos at) {
-        ServerLevel level = levelOf(acting, at.dimension());
-        if (level == null || !chunkIsHere(level, at)) {
-            return "";
-        }
-        return level.getBlockEntity(at.pos()) instanceof WirelessChannelModuleBlockEntity module
-                ? module.linkGroup()
-                : "";
-    }
-
     /** {@link #bind} as the card needs it: the same work, plus the key each outcome speaks in. */
     public static Reply bindReply(ServerLevel acting, Supplier<AttachmentType<Data>> type, GlobalPos from,
                                   GlobalPos to) {
@@ -421,18 +435,15 @@ public final class WirelessLinks {
                                   GlobalPos to, String groupName) {
         String group = normalizeGroup(groupName);
         if (from.equals(to)) {
-            return Reply.of("same_block", "both ends are the same block");
+            return Reply.of("same_block", "cannot link a device to itself");
         }
         int maxLinks = cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig
                 .WIRELESS_MAX_LINKS_PER_DEVICE.get();
         boolean sameWorld = from.dimension().equals(to.dimension());
         if (!sameWorld && !cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig
                 .WIRELESS_ALLOW_CROSS_DIMENSION.get()) {
-            return Reply.of("cross_dim_off", "these two are in different dimensions ("
-                    + from.dimension().location() + " and " + to.dimension().location()
-                    + "), and wireless_allow_cross_dimension is off in this world's config - no cable can do"
-                    + " this either, so the switch keeps it a deliberate choice rather than a default",
-                    from.dimension().location().toString(), to.dimension().location().toString());
+            return Reply.of("cross_dim_off",
+                    "cross-dimension links are off in this world's config");
         }
         int rangeBlocks = cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig
                 .WIRELESS_MAX_RANGE_BLOCKS.get();
@@ -442,10 +453,8 @@ public final class WirelessLinks {
             long dz = from.pos().getZ() - to.pos().getZ();
             long apart = Math.round(Math.sqrt((double) (dx * dx + dy * dy + dz * dz)));
             if (apart > rangeBlocks) {
-                return Reply.of("out_of_range", "these two are " + apart + " blocks apart and"
-                                + " wireless_max_range_blocks is " + rangeBlocks + " in this world's config -"
-                                + " move one closer, or raise the number if you meant a link to reach that far",
-                        apart, rangeBlocks);
+                return Reply.of("out_of_range", "these two are more than " + apart + " blocks apart",
+                        apart);
             }
         }
         Link link = Link.of(from, to);
@@ -458,6 +467,15 @@ public final class WirelessLinks {
             return Reply.of("already_linked", "already linked " + describeLabelled(acting, link),
                     endLabel(acting, link, true), endLabel(acting, link, false));
         }
+        // The module is a hub, not another wireless hop: module-to-module links let players daisy-chain outlet
+        // budgets indefinitely. One module may still be one end, and machines or cable buses remain valid far
+        // ends; only the pair of module blocks is blacklisted.
+        boolean moduleEndpointA = moduleAt(owner, link.a());
+        boolean moduleEndpointB = moduleAt(owner, link.b());
+        if (moduleEndpointA && moduleEndpointB) {
+            return Reply.of("module_to_module",
+                    "a wireless link cannot join two subsystem channel modules - use a cable bus or a machine");
+        }
         if (!presenceIsAwake(owner, link.a()) || !presenceIsAwake(owner, link.b())) {
             GlobalPos dead = presence(owner, link.a()) == Presence.AWAKE ? link.b() : link.a();
             return Reply.of("not_a_device",
@@ -465,21 +483,13 @@ public final class WirelessLinks {
         }
         int onA = linksAtEverywhere(owner, type, link.a());
         if (maxLinks > 0 && onA >= maxLinks) {
-            return Reply.of("at_limit", labelText(acting, link.a()) + " already carries " + onA
-                    + " links and this world's config caps a device at " + maxLinks
-                    + " (wireless_max_links_per_device) - that number is a pack author's choice, not AE2's"
-                    + " ceiling; set it to 0 and the only ceiling left is the channel width of the square"
-                    + " itself",
-                    label(acting, link.a()), onA, maxLinks);
+            return Reply.of("at_limit", "this device is at its link limit (" + onA + " of " + maxLinks
+                    + ") - wireless_max_links_per_device", onA, maxLinks);
         }
         int onB = linksAtEverywhere(owner, type, link.b());
         if (maxLinks > 0 && onB >= maxLinks) {
-            return Reply.of("at_limit", labelText(acting, link.b()) + " already carries " + onB
-                    + " links and this world's config caps a device at " + maxLinks
-                    + " (wireless_max_links_per_device) - that number is a pack author's choice, not AE2's"
-                    + " ceiling; set it to 0 and the only ceiling left is the channel width of the square"
-                    + " itself",
-                    label(acting, link.b()), onB, maxLinks);
+            return Reply.of("at_limit", "this device is at its link limit (" + onB + " of " + maxLinks
+                    + ") - wireless_max_links_per_device", onB, maxLinks);
         }
         IGridNode a = node(owner, link.a());
         IGridNode b = node(owner, link.b());
@@ -514,15 +524,11 @@ public final class WirelessLinks {
             b = port;
         }
         if (physicallyWiredTogether(a, b)) {
-            return Reply.of("wired_already", "those two are already wired together with blocks: a wireless"
-                    + " edge there would carry nothing, and unbinding it would tear out the connection you"
-                    + " built");
+            return Reply.of("wired_already", "those two are already wired together with blocks");
         }
         if (a.getGrid() == b.getGrid()) {
             int nodes = gridNodes(a.getGrid());
-            return Reply.of("one_network", "those two are already on one network of " + nodes
-                            + " nodes, so a wireless edge between them would change nothing - they can already"
-                            + " reach each other through the blocks you laid",
+            return Reply.of("one_network", "those two are already on one network of " + nodes + " nodes",
                     nodes);
         }
         // This pre-check is intentionally limited to two controllerless networks. AE2's own controller
@@ -531,31 +537,22 @@ public final class WirelessLinks {
         // The remaining all-or-nothing case is controllerless ad-hoc capacity.
         Starvation risk = starvationRisk(a, b);
         if (risk != null) {
-            return Reply.of("starvation", "these two networks together need " + risk.demand()
-                    + " channel(s) and the smaller of their two ad-hoc ceilings is " + risk.fits()
-                    + " (this side " + risk.ceilingA() + ", that side " + risk.ceilingB()
-                    + "), and neither has an AE2 controller: the joined network would get zero channels and"
-                    + " every device on it would read offline, so this link is refused - put an AE2 controller"
-                    + " into one of them, or move some devices off one side first",
-                    risk.demand(), risk.fits(), risk.ceilingA(), risk.ceilingB());
+            return Reply.of("starvation", "the joined network needs " + risk.demand()
+                    + " channels and the smaller ad-hoc ceiling is " + risk.fits()
+                    + " - put an AE2 controller in one of them",
+                    risk.demand(), risk.fits());
         }
         Full fullA = fullLanding(a);
         if (fullA != null) {
-            return Reply.of("endpoint_full", labelText(acting, link.a()) + " is already carrying " + fullA.used()
-                    + " of the " + fullA.max() + " channels it can carry, so a wireless edge into it would"
-                    + " get nothing: that square is where the other network has to enter, and AE2 caps an"
-                    + " entry at that number. Move the link onto a subsystem channel module, or onto a dense"
-                    + " cable face, instead of onto this machine",
-                    label(acting, link.a()), fullA.used(), fullA.max());
+            return Reply.of("endpoint_full", "that square is full (" + fullA.used() + " of the " + fullA.max()
+                    + " channels it can carry) - use a subsystem channel module or a dense cable face",
+                    fullA.used(), fullA.max());
         }
         Full fullB = fullLanding(b);
         if (fullB != null) {
-            return Reply.of("endpoint_full", labelText(acting, link.b()) + " is already carrying " + fullB.used()
-                    + " of the " + fullB.max() + " channels it can carry, so a wireless edge into it would"
-                    + " get nothing: that square is where the other network has to enter, and AE2 caps an"
-                    + " entry at that number. Move the link onto a subsystem channel module, or onto a dense"
-                    + " cable face, instead of onto this machine",
-                    label(acting, link.b()), fullB.used(), fullB.max());
+            return Reply.of("endpoint_full", "that square is full (" + fullB.used() + " of the " + fullB.max()
+                    + " channels it can carry) - use a subsystem channel module or a dense cable face",
+                    fullB.used(), fullB.max());
         }
         data.record(link, group);
         // No dirty flag to set: LevelAttachmentsSavedData.isDirty() answers true unconditionally, so a
@@ -567,22 +564,17 @@ public final class WirelessLinks {
             // after a join still showed nothing, so the retired-grid object (batch wireless_tool_stalegrid) is
             // a real effect of a merge but not the whole of what he sees. The status line carries AE2's own
             // machine table below, which is what lets a player compare the tool against the source.
-            return Reply.of("linked", "linked " + describeLabelled(acting, link) + " | "
-                            + readings(result.edge(), result.a(), result.b()),
+            return Reply.of("linked", "linked " + describeLabelled(acting, link) + " ("
+                            + readings(result.edge(), result.a(), result.b()) + ")",
                     endLabel(acting, link, true), endLabel(acting, link, false),
                     channelsTextOf(tappedNode(acting, link, from, result),
                             from.equals(link.a()) ? link.a() : link.b()));
         }
         if (result.missingNode() != null) {
             GlobalPos missing = result.missingNode();
-            return Reply.of("recorded_no_node", "recorded but no network node at " + labelText(acting, missing)
-                    + " - a block counts as a device the moment it is placed, while AE2 only builds its"
-                    + " node when that block first ticks, so binding it again in a moment should work",
-                    label(acting, missing));
+            return Reply.of("recorded_no_node", "recorded, but that square has no network node yet");
         }
-        return Reply.of("recorded_no_edge",
-                "recorded " + describeLabelled(acting, link) + " but no edge was made (see log)",
-                endLabel(acting, link, true), endLabel(acting, link, false));
+        return Reply.of("recorded_no_edge", "recorded, but no edge was made (see log)");
     }
 
     /**
@@ -863,6 +855,23 @@ public final class WirelessLinks {
             }
         }
         return moved;
+    }
+
+    /** Recorded links touching one square, without building the global overview for a Jade tooltip. */
+    public static List<LinkSummary> linksTouching(ServerLevel acting, Supplier<AttachmentType<Data>> type,
+                                                  GlobalPos endpoint) {
+        List<LinkSummary> rows = new ArrayList<>();
+        for (ServerLevel owner : acting.getServer().getAllLevels()) {
+            if (!owner.hasData(type.get())) {
+                continue;
+            }
+            Data data = owner.getData(type.get());
+            for (Link link : data.linksByEndpoint.getOrDefault(endpoint, Set.of())) {
+                rows.add(new LinkSummary(data.group(link), link.a(), link.b(),
+                        isStillBetween(owner, data.edges.get(link), link)));
+            }
+        }
+        return List.copyOf(rows);
     }
 
     public static List<LinkSummary> groupOverview(ServerLevel acting, Supplier<AttachmentType<Data>> type) {
@@ -1231,6 +1240,85 @@ public final class WirelessLinks {
     /** What one timed pass is worth in ticks - public because a bill has to be checkable against it. */
     public static int sweepIntervalTicks() {
         return SWEEP_TICKS;
+    }
+
+    /** Queue a placed block for one server tick, when AE2 has had a chance to build its node. */
+    public static void queueAutoConnect(ServerPlayer player, ServerLevel level, BlockPos placed,
+                                        Supplier<AttachmentType<Data>> type) {
+        // TEMPORARY DIAGNOSTIC 2026-11-15: every exit of the placement path, to be removed once the player's
+        // reproduction names the branch. See the checklist in the session log.
+        if (!cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig.current(
+                cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig.WIRELESS_LINKS)) {
+            NeoECOPrototype.LOGGER.info("wireless auto-connect: refused at {} because the config is off", placed);
+            return;
+        }
+        var mark = WirelessLinkCardItem.uniqueMarkedCard(player);
+        if (mark.isEmpty()) {
+            NeoECOPrototype.LOGGER.info("wireless auto-connect: no unique mark on {} (hotbar or worn link-card slot)"
+                    + " (selected slot {}), so {} is left alone", player.getGameProfile().getName(),
+                    player.getInventory().selected, placed);
+            return;
+        }
+        level.getData(type).pendingAutoConnect.put(placed.immutable(),
+                new PendingAutoConnect(player.getUUID(), mark.get().endpoint(), mark.get().slot(),
+                        mark.get().group(), level.getGameTime() + AUTO_CONNECT_WAIT_TICKS));
+        NeoECOPrototype.LOGGER.info("wireless auto-connect: queued {} for {} at slot {} until tick {}",
+                placed, mark.get().endpoint(), mark.get().slot(),
+                level.getGameTime() + AUTO_CONNECT_WAIT_TICKS);
+    }
+
+    /**
+     * One tick later, pair newly placed devices with the one marked card in the player's hotbar. AE2 constructs
+     * cable-bus and machine nodes on their first tick, so running this in the placement callback is too early.
+     */
+    public static void processAutoConnect(Level level, Supplier<AttachmentType<Data>> type) {
+        if (!(level instanceof ServerLevel acting) || acting.isClientSide || !acting.hasData(type.get())) {
+            return;
+        }
+        Data data = acting.getData(type.get());
+        if (data.pendingAutoConnect.isEmpty()) {
+            return;
+        }
+        long now = acting.getGameTime();
+        for (var entry : List.copyOf(data.pendingAutoConnect.entrySet())) {
+            BlockPos placedPos = entry.getKey();
+            PendingAutoConnect pending = entry.getValue();
+            if (now > pending.expiresAt()) {
+                data.pendingAutoConnect.remove(placedPos);
+                NeoECOPrototype.LOGGER.info("wireless auto-connect: dropped {} at tick {} - the window closed"
+                        + " at {} without a node at {} or at {}", placedPos, now, pending.expiresAt(),
+                        placedPos, pending.marked());
+                continue;
+            }
+            ServerPlayer player = acting.getServer().getPlayerList().getPlayer(pending.playerId());
+            if (player == null || player.serverLevel() != acting) {
+                data.pendingAutoConnect.remove(placedPos);
+                NeoECOPrototype.LOGGER.info("wireless auto-connect: dropped {} - the player who placed it is"
+                        + " gone from this level", placedPos);
+                continue;
+            }
+            if (!WirelessLinkCardItem.stillMarkedOnPlayer(player,
+                    new WirelessLinkCardItem.Mark(pending.slot(), pending.marked(), pending.group()))) {
+                data.pendingAutoConnect.remove(placedPos);
+                NeoECOPrototype.LOGGER.info("wireless auto-connect: dropped {} - the mark read at placement (slot {})"
+                        + " is no longer carried", placedPos, pending.slot());
+                continue;
+            }
+            GlobalPos placed = GlobalPos.of(acting.dimension(), placedPos);
+            if (node(acting, placed) == null || node(acting, pending.marked()) == null) {
+                NeoECOPrototype.LOGGER.info("wireless auto-connect: waiting at tick {} for a node at {} ({})"
+                        + " or at {} ({})", now, placedPos, node(acting, placed) != null,
+                        pending.marked(), node(acting, pending.marked()) != null);
+                continue;
+            }
+            data.pendingAutoConnect.remove(placedPos);
+            var reply = bindReply(acting, type, pending.marked(), placed, pending.group());
+            // Silent on purpose, decided 2026-11-15: placement is not a request, and a line in the chat log for
+            // every block set down would bury the sentences the player did ask for. The tap path still answers;
+            // this outcome is readable in the module panel and in Jade.
+            NeoECOPrototype.LOGGER.info("wireless auto-connect: binding {} <-> {} answered {}",
+                    pending.marked(), placedPos, reply.langKey());
+        }
     }
 
     /**
@@ -1781,8 +1869,8 @@ public final class WirelessLinks {
 
     /** The endpoint has a block and no node yet: AE2 builds nodes on the block's first tick. */
     private static Reply noNodeYet(ServerLevel acting, GlobalPos at) {
-        return Reply.of("no_node_yet", "no network node at " + labelText(acting, at)
-                        + " yet - the block is there but AE2 has not given it a node, so bind it again in a moment",
+        return Reply.of("no_node_yet", labelText(acting, at)
+                        + " has no network node yet - bind again in a moment",
                 label(acting, at));
     }
 
@@ -1793,11 +1881,10 @@ public final class WirelessLinks {
      * the far side is full when it is the near module that ran out of ports goes looking in the wrong network.
      */
     private static Reply noFreePort(ServerLevel acting, GlobalPos at) {
-        return Reply.of("no_free_port", "no channel port on " + labelText(acting, at) + " is free: all "
-                        + WirelessChannelModuleBlockEntity.MAX_PORTS + " of them already carry another network,"
-                        + " so one more through this module would have no outlet of its own - bind that network"
-                        + " through a second subsystem channel module, or unbind one of these first",
-                label(acting, at), WirelessChannelModuleBlockEntity.MAX_PORTS);
+        return Reply.of("no_free_port", "no channel port is free - all "
+                        + WirelessChannelModuleBlockEntity.MAX_PORTS
+                        + " of them already carry another network; add a module or unbind one",
+                WirelessChannelModuleBlockEntity.MAX_PORTS);
     }
 
     /**
@@ -2085,6 +2172,18 @@ public final class WirelessLinks {
             if (node != null) {
                 return node;
             }
+            // CableBusContainer.getGridNode(side) prefers a part's external-facing node, then its centre
+            // cable. A part-only bus has no centre cable, and ordinary parts deliberately return null for
+            // getExternalFacingNode even though their own grid node is valid - ask the hosted part directly.
+            if (host instanceof appeng.api.parts.IPartHost partHost) {
+                var part = partHost.getPart(side);
+                if (part != null) {
+                    var partNode = part.getGridNode();
+                    if (partNode != null) {
+                        return partNode;
+                    }
+                }
+            }
         }
         return null;
     }
@@ -2124,6 +2223,28 @@ public final class WirelessLinks {
 
     public static String describe(GlobalPos at) {
         return at.dimension().location() + "@" + at.pos().toShortString();
+    }
+
+    /**
+     * The item id whose icon stands for the square - the row's picture, as an id rather than a stack because
+     * the panel ships it to the client as a string and a stack has no binding.
+     *
+     * <p>Asked of AE2 first: {@code IGridNode.getVisualRepresentation()} is the same answer the Network Tool
+     * uses for "what is this node", so a cable bus shows its cable and a machine shows itself without this
+     * class knowing any block by name. An empty string means the square has no node to ask.
+     */
+    public static String iconId(ServerLevel acting, GlobalPos at) {
+        var node = node(acting, at);
+        var icon = node == null ? null : node.getVisualRepresentation();
+        if (icon != null) {
+            return icon.getId().toString();
+        }
+        ServerLevel owner = levelOf(acting, at.dimension());
+        if (owner == null || !owner.isLoaded(at.pos()) || owner.getBlockState(at.pos()).isAir()) {
+            return "";
+        }
+        return net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(
+                owner.getBlockState(at.pos()).getBlock().asItem()).toString();
     }
 
     /**
@@ -2188,6 +2309,43 @@ public final class WirelessLinks {
     public static Component labelAnywhere(ServerLevel acting, GlobalPos at) {
         ServerLevel owner = levelOf(acting, at.dimension());
         return label(owner == null ? acting : owner, at);
+    }
+
+    /**
+     * The module panel's hover line for one end of a link: that block's name and its coordinates, and nothing
+     * else. {@link #label} is the same sentence except that it slips the dimension id in when the square lives
+     * in another dimension - true information, but the row already carries the position, and a player reading
+     * six rows does not want {@code minecraft:overworld@} in the middle of each one.
+     */
+    public static Component nameAndCoordinates(ServerLevel acting, GlobalPos at) {
+        ServerLevel owner = levelOf(acting, at.dimension());
+        Level looking = owner == null ? acting : owner;
+        if (!looking.isLoaded(at.pos()) || looking.getBlockState(at.pos()).isAir()) {
+            return Component.literal(coordinates(at));
+        }
+        return looking.getBlockState(at.pos()).getBlock().getName().copy()
+                .append(Component.literal("@" + coordinates(at)));
+    }
+
+    /**
+     * The channel pair of the square itself - the same two numbers {@link #channelsText} spells out in words,
+     * returned as numbers so a panel can put them in a 30-pixel cell. Null while AE2 has no node there: a block
+     * placed a tick ago, an asleep chunk, or a cable bus with no cable in it.
+     */
+    @Nullable
+    public static Channels channelsOf(ServerLevel acting, GlobalPos at) {
+        var node = node(acting, at);
+        return node == null ? null : new Channels(node.getUsedChannels(), node.getMaxChannels());
+    }
+
+    /**
+     * One node's own channel budget.
+     *
+     * <p>Taken off the device's node rather than off the link's edge, because the far end of a link reaching
+     * this module is never another module (module-to-module is refused), so the device's node is the whole
+     * answer to "how many channels does this one take".
+     */
+    public record Channels(long used, long max) {
     }
 
     /** The pair as the log reads it: both ends named with {@link #labelText}, joined by the same arrow. */

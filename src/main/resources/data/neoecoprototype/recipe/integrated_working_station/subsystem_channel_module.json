@@ -1,0 +1,34 @@
+{
+  "type": "neoecoae:integrated_working_station",
+  "energy": 10000,
+  "inputItems": [
+    {
+      "count": 4,
+      "item": "neoecoprototype:simplify_green_aluminum_casing"
+    },
+    {
+      "count": 1,
+      "item": "ae2:level_emitter"
+    },
+    {
+      "count": 1,
+      "item": "ae2:calculation_processor"
+    },
+    {
+      "count": 1,
+      "item": "ae2:controller"
+    },
+    {
+      "count": 1,
+      "item": "ae2:engineering_processor"
+    },
+    {
+      "count": 1,
+      "item": "neoecoae:superconducting_processor"
+    }
+  ],
+  "itemOutput": {
+    "count": 1,
+    "id": "neoecoprototype:subsystem_channel_module"
+  }
+}

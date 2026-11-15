@@ -1,19 +1,29 @@
 {
   "values": [
     "neoecoprototype:chipped_budding_grette",
+    "neoecoprototype:cryotheum_ore",
     "neoecoprototype:damaged_budding_grette",
+    "neoecoprototype:end_cryotheum_ore",
     "neoecoprototype:energized_computation_core",
     "neoecoprototype:energized_computation_threading_core",
     "neoecoprototype:energized_energy_cell_16g",
     "neoecoprototype:energized_energy_cell_512g",
     "neoecoprototype:flawed_budding_grette",
     "neoecoprototype:flawless_budding_grette",
+    "neoecoprototype:grette_cluster",
     "neoecoprototype:grette_crystal_block",
+    "neoecoprototype:large_grette_bud",
+    "neoecoprototype:medium_grette_bud",
+    "neoecoprototype:meteorite_core",
     "neoecoprototype:meteorite_dissociator",
+    "neoecoprototype:music_jukebox",
+    "neoecoprototype:music_recorder",
+    "neoecoprototype:nether_cryotheum_ore",
     "neoecoprototype:reactor_coil",
     "neoecoprototype:reactor_controller",
     "neoecoprototype:reactor_core",
     "neoecoprototype:reactor_frame",
+    "neoecoprototype:reactor_glass",
     "neoecoprototype:simplify_computation_casing",
     "neoecoprototype:simplify_computation_cooling_controller",
     "neoecoprototype:simplify_computation_drive",
@@ -35,6 +45,7 @@
     "neoecoprototype:simplify_energy_cell",
     "neoecoprototype:simplify_fluid_input_hatch",
     "neoecoprototype:simplify_fluid_output_hatch",
+    "neoecoprototype:simplify_green_aluminum_casing",
     "neoecoprototype:simplify_stonecutting_assembler",
     "neoecoprototype:simplify_storage_casing",
     "neoecoprototype:simplify_storage_controller",
@@ -44,6 +55,8 @@
     "neoecoprototype:simplify_trinity_computation_module",
     "neoecoprototype:simplify_trinity_controller",
     "neoecoprototype:simplify_trinity_crafting_module",
-    "neoecoprototype:simplify_trinity_storage_module"
+    "neoecoprototype:simplify_trinity_storage_module",
+    "neoecoprototype:small_grette_bud",
+    "neoecoprototype:subsystem_channel_module"
   ]
 }

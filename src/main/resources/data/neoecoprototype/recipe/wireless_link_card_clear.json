@@ -1,0 +1,11 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    { "item": "neoecoprototype:wireless_link_card" }
+  ],
+  "result": {
+    "count": 1,
+    "id": "neoecoprototype:wireless_link_card"
+  }
+}

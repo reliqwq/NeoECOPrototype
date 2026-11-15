@@ -10,8 +10,6 @@ import appeng.blockentity.grid.AENetworkedBlockEntity;
 import appeng.blockentity.networking.ControllerBlockEntity;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.core.HolderLookup;
-import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import java.util.ArrayList;
@@ -45,9 +43,7 @@ public final class WirelessChannelModuleBlockEntity extends AENetworkedBlockEnti
     public static final int CHANNELS_PER_PORT = 32;
 
     private static final String PORT_TAG = "neoecoprototype-channel-port-";
-    private static final String LINK_GROUP_TAG = "linkGroup";
 
-    private String linkGroup = "";
     private final List<IManagedGridNode> ports = new ArrayList<>();
     private final List<IGridConnection> trunks = new ArrayList<>();
 
@@ -135,6 +131,10 @@ public final class WirelessChannelModuleBlockEntity extends AENetworkedBlockEnti
      *                    port, as AE2 bills them; pass {@link Integer#MAX_VALUE} when it cannot be read, and the
      *                    port is treated as unable to afford it, so an unknown network only ever lands on an
      *                    unused one
+     *
+     * <p>The returned port is a place to build, nothing more: this method creates the node and its trunk
+     * edge, and the caller owns the rest - the link edge itself and the {@link #noteChannelsPromised} that
+     * keeps the next bind from being priced against a bill AE2 has not written yet.
      */
     public IGridNode portForNewLink(int farChannels) {
         for (var port : ports) {
@@ -149,7 +149,9 @@ public final class WirelessChannelModuleBlockEntity extends AENetworkedBlockEnti
                 promised.remove(node);
                 return node;
             }
-            if (portLoad(node) + (long) farChannels <= node.getMaxChannels()) {
+            // A negative ask can only come from a bug upstream of here; treating it as zero keeps it
+            // from being read as "fits anywhere". The Integer.MAX_VALUE sentinel is unaffected.
+            if (portLoad(node) + (long) Math.max(0, farChannels) <= node.getMaxChannels()) {
                 return node;
             }
         }
@@ -167,8 +169,14 @@ public final class WirelessChannelModuleBlockEntity extends AENetworkedBlockEnti
                 .setTagName(PORT_TAG + index)
                 .setFlags(GridFlags.DENSE_CAPACITY);
         port.create(level, worldPosition);
-        trunks.add(GridHelper.createConnection(upstream, port.getNode()));
+        // Tracked before the trunk is built, and in this order on purpose: AE2's
+        // GridConnection.create does not refuse a duplicate edge, it throws IllegalStateException
+        // ("Connection between node [%s] and [%s] on [%s] already exists."), and a node that was created
+        // but never reached `ports` could never be destroyed again - the exact ghost this class exists to
+        // prevent. Adding it first means a throw leaves a tracked port with no trunk, which the next
+        // destroyPorts() (or a rebind through rule 1) cleans up.
         ports.add(port);
+        trunks.add(GridHelper.createConnection(upstream, port.getNode()));
         return port.getNode();
     }
 
@@ -193,45 +201,8 @@ public final class WirelessChannelModuleBlockEntity extends AENetworkedBlockEnti
      * decides whether to refuse does not spend anything.
      */
     public void noteChannelsPromised(IGridNode port, int channels) {
-        promised.put(port, new Promise(portLoad(port) + channels,
+        promised.put(port, new Promise(portLoad(port) + Math.max(0, channels),
                 port.getConnections().size() - 1));
-    }
-
-    public String linkGroup() {
-        return linkGroup;
-    }
-
-    public void setLinkGroup(String value) {
-        String normalized = normalizeLinkGroup(value);
-        if (normalized.equals(linkGroup)) {
-            return;
-        }
-        linkGroup = normalized;
-        setChanged();
-        markForUpdate();
-    }
-
-    private static String normalizeLinkGroup(String value) {
-        String normalized = value.codePoints()
-                .filter(codePoint -> !Character.isISOControl(codePoint))
-                .collect(StringBuilder::new, StringBuilder::appendCodePoint, StringBuilder::append)
-                .toString().trim();
-        int length = normalized.codePointCount(0, normalized.length());
-        return length <= 32 ? normalized : normalized.substring(0, normalized.offsetByCodePoints(0, 32));
-    }
-
-    @Override
-    public void saveAdditional(CompoundTag data, HolderLookup.Provider registries) {
-        super.saveAdditional(data, registries);
-        if (!linkGroup.isEmpty()) {
-            data.putString(LINK_GROUP_TAG, linkGroup);
-        }
-    }
-
-    @Override
-    public void loadTag(CompoundTag data, HolderLookup.Provider registries) {
-        super.loadTag(data, registries);
-        linkGroup = normalizeLinkGroup(data.getString(LINK_GROUP_TAG));
     }
 
     /** How many ports this block is holding right now. */
@@ -267,6 +238,9 @@ public final class WirelessChannelModuleBlockEntity extends AENetworkedBlockEnti
     /** The current AE2 per-port limit, including the active channel-mode multiplier. */
     public int portChannelCapacity() {
         var node = getMainNode().getNode();
+        // The fallback is the plain 32-channel rung, so an offline module reports what a normal
+        // controller would give rather than guessing at the controller type in the wall - it can only
+        // over-read the unlimited rungs, and only while nothing is online to ask.
         return node == null || node.getGrid() == null ? CHANNELS_PER_PORT : node.getMaxChannels();
     }
 
@@ -328,6 +302,11 @@ public final class WirelessChannelModuleBlockEntity extends AENetworkedBlockEnti
      * of its own subtree instead of a second caller on this block's 32. With no controller in the grid there
      * is nothing to widen - an ad-hoc network gets its channel count from a single network-wide branch - so
      * the ports simply ride on our own node and cost nothing but a few extra entries in the node list.
+     *
+     * <p>When the grid has several controllers the widest one is chosen. AE2's controller is a single block,
+     * so "several" means a wall of them, and a wall can mix types: the plain controller bills 32 channels
+     * through one node while the exempted and creative ones report no ceiling at all. Hanging every port off
+     * whichever node the iteration reached first would cap the module at 32 in a grid that could carry more.
      */
     private IGridNode trunkNode() {
         var mainNode = getMainNode().getNode();
@@ -338,12 +317,16 @@ public final class WirelessChannelModuleBlockEntity extends AENetworkedBlockEnti
         if (grid == null) {
             return mainNode;
         }
+        IGridNode widest = null;
         for (var node : grid.getNodes()) {
-            if (node.getOwner() instanceof ControllerBlockEntity) {
-                return node;
+            if (!(node.getOwner() instanceof ControllerBlockEntity)) {
+                continue;
+            }
+            if (widest == null || node.getMaxChannels() > widest.getMaxChannels()) {
+                widest = node;
             }
         }
-        return mainNode;
+        return widest == null ? mainNode : widest;
     }
 
     private void destroyPorts() {

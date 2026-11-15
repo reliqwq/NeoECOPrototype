@@ -63,7 +63,7 @@ final class CardReplyLanguageTest {
     void everyReplyNameHasItsKeyInBothLanguages() throws Exception {
         var names = replyNames();
         // The expected count makes adding or folding a player-facing outcome explicit.
-        assertEquals(34, names.size(), "keyed card replies found: " + names);
+        assertEquals(35, names.size(), "keyed card replies found: " + names);
         var zh = language("zh_cn");
         var en = language("en_us");
         for (String name : names) {
@@ -98,6 +98,69 @@ final class CardReplyLanguageTest {
         }
     }
 
+    /**
+     * The Jade line names the state of the virtual node and nothing else, decided 2026-11-15: the far square's
+     * label came out of the payload, so the tooltip spent its whole line on a position and repeated the same
+     * coordinate twice for a hub. {@code ...wireless_link.peer} is therefore pinned gone - bringing it back
+     * means re-adding the dimension and position to the server payload, which this test would not see.
+     */
+    @Test
+    void wirelessJadeLinesExistInBothLanguagesWithMatchingSlots() throws Exception {
+        var en = language("en_us");
+        var zh = language("zh_cn");
+        for (String name : List.of("live", "waiting", "more")) {
+            String key = "jade.neoecoprototype.wireless_link." + name;
+            assertTrue(en.has(key), "en_us.json has no " + key);
+            assertTrue(zh.has(key), "zh_cn.json has no " + key);
+            assertEquals(slots(en.get(key).getAsString()), slots(zh.get(key).getAsString()),
+                    key + " fills different argument slots in Jade");
+        }
+        assertFalse(en.has("jade.neoecoprototype.wireless_link.peer")
+                || zh.has("jade.neoecoprototype.wireless_link.peer"),
+                "the Jade link line went back to carrying a device label, so the tooltip repeats coordinates"
+                        + " instead of naming the state of the virtual node");
+    }
+
+    /**
+     * A reply line may not reference {@code %2$s} without {@code %1$s}. The card renders these through
+     * {@code String.format}, which answers a skipped index with {@code MissingFormatArgumentException} - the
+     * refusal never reaches the player, and nothing else in the suite looks at the numbering. Shortening the
+     * sentences on 2026-11-15 produced exactly this shape twice in one pass ({@code at_limit} and
+     * {@code endpoint_full} kept the second and third number after the device name was dropped from the first),
+     * so the rule is checked rather than remembered.
+     */
+    @Test
+    void noReplyLineSkipsASlotIndex() throws Exception {
+        var zh = language("zh_cn");
+        var en = language("en_us");
+        List<String> skipped = new ArrayList<>();
+        for (String name : replyNames()) {
+            String key = KEY_PREFIX + name;
+            for (String lang : List.of("en_us", "zh_cn")) {
+                var value = language(lang).has(key) ? language(lang).get(key).getAsString() : "";
+                List<String> indices = new ArrayList<>();
+                Matcher found = SLOT.matcher(value);
+                while (found.find()) {
+                    if (!found.group(1).isEmpty()) {
+                        indices.add(found.group(1));
+                    }
+                }
+                if (indices.isEmpty()) {
+                    continue;
+                }
+                int highest = indices.stream().mapToInt(Integer::parseInt).max().orElse(0);
+                for (int index = 1; index <= highest; index++) {
+                    if (!indices.contains(String.valueOf(index))) {
+                        skipped.add(key + " (" + lang + ") uses %" + index + "$s nowhere but goes up to %"
+                                + highest + "$s");
+                    }
+                }
+            }
+        }
+        assertTrue(skipped.isEmpty(), "a reply line numbers its slots past an argument the card never passes,"
+                + " and String.format throws instead of showing the refusal: " + skipped);
+    }
+
     private static boolean mixesSlots(List<String> found) {
         boolean bare = found.stream().anyMatch(slot -> slot.equals("%s"));
         boolean indexed = found.stream().anyMatch(slot -> !slot.equals("%s"));
@@ -113,7 +176,7 @@ final class CardReplyLanguageTest {
         while (matcher.find()) {
             keys.add(matcher.group(1));
         }
-        assertEquals(28, keys.size(), "wireless module panel labels found: " + keys);
+        assertEquals(22, keys.size(), "wireless module panel labels found: " + keys);
 
         var en = language("en_us");
         var zh = language("zh_cn");

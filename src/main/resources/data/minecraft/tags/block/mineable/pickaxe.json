@@ -16,6 +16,8 @@
     "neoecoprototype:medium_grette_bud",
     "neoecoprototype:meteorite_core",
     "neoecoprototype:meteorite_dissociator",
+    "neoecoprototype:music_jukebox",
+    "neoecoprototype:music_recorder",
     "neoecoprototype:nether_cryotheum_ore",
     "neoecoprototype:reactor_coil",
     "neoecoprototype:reactor_controller",
@@ -57,6 +59,7 @@
     "neoecoprototype:simplify_trinity_crafting_module",
     "neoecoprototype:simplify_trinity_storage_module",
     "neoecoprototype:small_grette_bud",
+    "neoecoprototype:subsystem_channel_module",
     "neoecoprototype:superconductive_interface"
   ]
 }

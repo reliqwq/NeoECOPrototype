@@ -1,1 +1,8 @@
-{"variants":{"":{"model":"neoecoprototype:block/subsystem_channel_module"}}}
+{
+  "variants": {
+    "facing=north": { "model": "neoecoprototype:block/subsystem_channel_module" },
+    "facing=east": { "model": "neoecoprototype:block/subsystem_channel_module", "y": 90 },
+    "facing=south": { "model": "neoecoprototype:block/subsystem_channel_module", "y": 180 },
+    "facing=west": { "model": "neoecoprototype:block/subsystem_channel_module", "y": 270 }
+  }
+}

@@ -13,6 +13,7 @@ import cn.dancingsnow.neoecoprototype.integration.jade.provider.SimplifyComputat
 import cn.dancingsnow.neoecoprototype.integration.jade.provider.SimplifyCraftingHostProvider;
 import cn.dancingsnow.neoecoprototype.integration.jade.provider.SimplifyDriveProvider;
 import cn.dancingsnow.neoecoprototype.integration.jade.provider.SimplifyStorageHostProvider;
+import cn.dancingsnow.neoecoprototype.integration.jade.provider.WirelessLinkProvider;
 import net.minecraft.resources.ResourceLocation;
 import snownee.jade.api.IWailaClientRegistration;
 import snownee.jade.api.IWailaCommonRegistration;
@@ -37,6 +38,7 @@ public class SimplifyJadePlugin implements IWailaPlugin {
                 SimplifyStorageHostProvider.INSTANCE, SimplifyStorageHostBlockEntity.class);
         registration.registerBlockDataProvider(
                 SimplifyCraftingHostProvider.INSTANCE, SimplifyCraftingSystemBlockEntity.class);
+        registration.registerBlockDataProvider(WirelessLinkProvider.INSTANCE, net.minecraft.world.level.block.entity.BlockEntity.class);
     }
 
     @Override
@@ -47,5 +49,6 @@ public class SimplifyJadePlugin implements IWailaPlugin {
         registration.registerBlockComponent(SimplifyStorageHostProvider.INSTANCE, SimplifyStorageControllerBlock.class);
         registration.registerBlockComponent(
                 SimplifyCraftingHostProvider.INSTANCE, SimplifyCraftingSystemBlock.class);
+        registration.registerBlockComponent(WirelessLinkProvider.INSTANCE, net.minecraft.world.level.block.Block.class);
     }
 }

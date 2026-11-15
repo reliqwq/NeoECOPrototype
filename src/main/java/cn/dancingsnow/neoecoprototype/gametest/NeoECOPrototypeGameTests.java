@@ -4790,6 +4790,21 @@ public final class NeoECOPrototypeGameTests {
         helper.succeed();
     }
 
+    @GameTest(template = "empty", batch = "wireless_link_card_curio", timeoutTicks = 100, required = false,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void linkCardFitsItsDedicatedCuriosSlot(GameTestHelper helper) {
+        if (!net.neoforged.fml.ModList.get().isLoaded("curios")) {
+            helper.succeed();
+            return;
+        }
+        String problem = CurioDollTestProbe.wirelessLinkCardProblem((ServerLevel) helper.getLevel());
+        if (problem != null) {
+            helper.fail(problem);
+            return;
+        }
+        helper.succeed();
+    }
+
     /**
      * The L1 shelf colour, checked across the family in both directions: a storage matrix that holds a
      * megabyte or more wears the L1 green, and every smaller rung of the same tag stays plain white, so
@@ -5965,13 +5980,14 @@ public final class NeoECOPrototypeGameTests {
     }
 
     /**
-     * The wireless family is in the creative tab as of 2026-11-14, and still has no recipe.
+     * The wireless family is in the creative tab, and since 2026-11-16 it also has its three crafts.
      *
      * <p>Both halves are said on purpose. The tab entry is what makes the feature reachable at all for a pack
      * author - before this it existed only as a registered item you had to {@code /give} yourself, which is not
-     * a thing a player can discover. The missing recipe is the deliberate other half: what a link should cost a
-     * survival player has not been decided, and shipping a craft for it would decide it by accident. That is why
-     * {@code docs/配方总览.md} staying at 176 is the companion guard, and a recipe appearing here without the
+     * a thing a player can discover. The three crafts are the other half, dictated on 2026-11-16 after the
+     * question "what should a link cost a survival player" had stayed open for two releases: the module comes
+     * out of eco's integrated working station, and each card is shaped around a module it cannot work without.
+     * {@code docs/配方总览.md} reading 180 is the companion guard, so a recipe appearing here without the
      * overview being updated goes red there.
      *
      * <p>Read through the tab generator the client itself uses, with a known member and a known outsider checked
@@ -6008,8 +6024,15 @@ public final class NeoECOPrototypeGameTests {
                 return;
             }
         }
-        // The survival half, from the other side: none of the three may have a crafting recipe yet.
+        // Survival access is the three crafts dictated 2026-11-16, and the crafting table must hold exactly two
+        // of them plus the clear-the-mark recipe: a fourth entry would be an acquisition path nobody priced,
+        // and losing the clear recipe would take the undo off the re-mark gesture.
         var manager = helper.getLevel().getRecipeManager();
+        var wantedCrafts = java.util.List.of(
+                NeoECOPrototype.id("wireless_link_card"),
+                NeoECOPrototype.id("wireless_link_card_clear"),
+                NeoECOPrototype.id("wireless_unlink_card"));
+        var seenCrafts = new java.util.ArrayList<net.minecraft.resources.ResourceLocation>();
         for (var holder : manager.getAllRecipesFor(
                 net.minecraft.world.item.crafting.RecipeType.CRAFTING)) {
             var out = holder.value().getResultItem(helper.getLevel().registryAccess());
@@ -6017,11 +6040,32 @@ public final class NeoECOPrototypeGameTests {
                 continue;
             }
             var id = BuiltInRegistries.ITEM.getKey(out.getItem());
-            if (NeoECOPrototype.MOD_ID.equals(id.getNamespace()) && members.contains(id.getPath())) {
-                helper.fail(id + " has a crafting recipe (" + holder.id()
-                        + ") while the pricing question is still open");
-                return;
+            if (!NeoECOPrototype.MOD_ID.equals(id.getNamespace()) || !members.contains(id.getPath())) {
+                continue;
             }
+            seenCrafts.add(holder.id());
+        }
+        java.util.Collections.sort(seenCrafts);
+        if (!seenCrafts.equals(wantedCrafts)) {
+            helper.fail("the crafting table makes " + seenCrafts + " of the wireless family, expected "
+                    + wantedCrafts);
+            return;
+        }
+        // The module is not a crafting-table recipe at all - it comes out of eco's integrated working station,
+        // which the loop above cannot see - so it is asked for by id. Reading its result through the Recipe
+        // interface keeps this test off eco's recipe class.
+        var moduleRecipe = manager.byKey(
+                NeoECOPrototype.id("integrated_working_station/subsystem_channel_module"));
+        if (moduleRecipe.isEmpty()) {
+            helper.fail("the channel module has no working-station recipe, so the family is in the creative tab "
+                    + "but no player can build the device the cards hang off");
+            return;
+        }
+        var moduleOut = BuiltInRegistries.ITEM.getKey(moduleRecipe.get().value()
+                .getResultItem(helper.getLevel().registryAccess()).getItem());
+        if (!"subsystem_channel_module".equals(moduleOut.getPath())) {
+            helper.fail("the working-station recipe makes " + moduleOut + ", expected the channel module itself");
+            return;
         }
         helper.succeed();
     }
@@ -8641,13 +8685,58 @@ public final class NeoECOPrototypeGameTests {
                 });
     }
 
+    @GameTest(template = "empty", batch = "wireless_card_clear_binding", timeoutTicks = 300,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void craftingAConnectionCardClearsOnlyTheCraftedCopy(GameTestHelper helper) {
+        BlockPos device = new BlockPos(0, 1, 0);
+        helper.setBlock(device, ModRegistration.SUPERCONDUCTIVE_INTERFACE_BLOCK.get());
+        ServerLevel level = (ServerLevel) helper.getLevel();
+        GlobalPos at = GlobalPos.of(level.dimension(), helper.absolutePos(device));
+        var flag = cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig.WIRELESS_LINKS;
+        flag.set(true);
+        try {
+            waitUntil(helper, 12, () -> WirelessLinks.isDevice(level, at),
+                    () -> "the interface never became a network device: " + nodeSummary(level, at), () -> {
+                        ItemStack marked = new ItemStack(ModRegistration.WIRELESS_LINK_CARD.get());
+                        tapWithCard(helper, helper.makeMockPlayer(GameType.CREATIVE), marked, device);
+                        if (!at.equals(WirelessLinkCardItem.markedEndpoint(marked))) {
+                            helper.fail("the fixture could not mark its network device");
+                            return;
+                        }
+                        CraftingInput input = CraftingInput.of(1, 1, List.of(marked));
+                        var recipe = level.getRecipeManager().getRecipeFor(RecipeType.CRAFTING, input, level)
+                                .orElse(null);
+                        if (recipe == null || !recipe.id().equals(NeoECOPrototype.id("wireless_link_card_clear"))) {
+                            helper.fail("one marked connection card did not resolve to the clear-mark recipe: "
+                                    + (recipe == null ? "no recipe" : recipe.id()));
+                            return;
+                        }
+                        ItemStack output = recipe.value().assemble(input, level.registryAccess());
+                        if (!output.is(ModRegistration.WIRELESS_LINK_CARD.get()) || output.getCount() != 1
+                                || WirelessLinkCardItem.markedEndpoint(output) != null) {
+                            helper.fail("the recipe did not return one unmarked connection card");
+                            return;
+                        }
+                        if (!at.equals(WirelessLinkCardItem.markedEndpoint(marked))) {
+                            helper.fail("crafting a blank copy also cleared the input card's mark");
+                            return;
+                        }
+                        var unlinkInput = CraftingInput.of(1, 1,
+                                List.of(new ItemStack(ModRegistration.WIRELESS_UNLINK_CARD.get())));
+                        if (level.getRecipeManager().getRecipeFor(RecipeType.CRAFTING, unlinkInput, level).isPresent()) {
+                            helper.fail("the clear-mark recipe also matches the stateless unlink card");
+                            return;
+                        }
+                        helper.succeed();
+                    });
+        } finally {
+            flag.set(false);
+        }
+    }
+
     /**
-     * Sneak-right-clicking mid-air asks the card to read out its own balance, and the value of this test is
-     * the half that refuses: an empty card must print <em>no</em> number, because there is no world-wide
-     * channel pool to read - AE2 derives capacity from one network-wide {@code ChannelMode} and names no
-     * setter anywhere in its jar (measured on 19.2.17: 0 classes carry {@code setMaxChannels} or
-     * {@code setChannelCapacity}, against 13 that carry {@code getUsedChannels}). A card that has marked a
-     * device does have a network to ask, and that is the line the player gets.
+     * Sneak-right-clicking mid-air asks the card to read out its own balance, and the value of this test is the
+     * network reading itself - no player-facing chat line is sent by this gesture.
      */
     @GameTest(template = "empty", batch = "wireless_link_card", timeoutTicks = 400,
             templateNamespace = NeoECOPrototype.MOD_ID)
@@ -8700,6 +8789,51 @@ public final class NeoECOPrototypeGameTests {
         }
     }
 
+    @GameTest(template = "empty", batch = "wireless_card_clear_binding", timeoutTicks = 400,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void craftingAConnectedCardClearsOnlyTheCraftedCopy(GameTestHelper helper) {
+        var device = new BlockPos(0, 1, 0);
+        helper.setBlock(device, ModRegistration.SUPERCONDUCTIVE_INTERFACE_BLOCK.get());
+        var level = (ServerLevel) helper.getLevel();
+        var at = GlobalPos.of(level.dimension(), helper.absolutePos(device));
+        var player = helper.makeMockPlayer(GameType.CREATIVE);
+        player.setShiftKeyDown(true);
+        var flag = cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig.WIRELESS_LINKS;
+        flag.set(true);
+        try {
+            waitUntil(helper, 12, () -> WirelessLinks.isDevice(level, at),
+                    () -> "the interface never became a network device: " + nodeSummary(level, at), () -> {
+                        var marked = new ItemStack(ModRegistration.WIRELESS_LINK_CARD.get());
+                        tapWithCard(helper, player, marked, device);
+                        if (!at.equals(WirelessLinkCardItem.markedEndpoint(marked))) {
+                            helper.fail("the fixture could not mark its network device");
+                            return;
+                        }
+                        var input = CraftingInput.of(1, 1, List.of(marked));
+                        var recipe = level.getRecipeManager().getRecipeFor(RecipeType.CRAFTING, input, level)
+                                .orElse(null);
+                        if (recipe == null || !recipe.id().equals(NeoECOPrototype.id("wireless_link_card_clear"))) {
+                            helper.fail("one marked connection card did not resolve to the clear-mark recipe: "
+                                    + (recipe == null ? "no recipe" : recipe.id()));
+                            return;
+                        }
+                        ItemStack output = recipe.value().assemble(input, level.registryAccess());
+                        if (!output.is(ModRegistration.WIRELESS_LINK_CARD.get()) || output.getCount() != 1
+                                || WirelessLinkCardItem.markedEndpoint(output) != null) {
+                            helper.fail("the recipe did not return one unmarked connection card");
+                            return;
+                        }
+                        if (!at.equals(WirelessLinkCardItem.markedEndpoint(marked))) {
+                            helper.fail("crafting a blank copy also cleared the input card's mark");
+                            return;
+                        }
+                        helper.succeed();
+                    });
+        } finally {
+            flag.set(false);
+        }
+    }
+
     /**
      * The two places that decode a wireless endpoint both read strings out of saved NBT, so both have to
      * answer "nothing remembered" for a value this game cannot parse. Before that, one hand-edited string
@@ -8739,6 +8873,58 @@ public final class NeoECOPrototypeGameTests {
         }
         helper.succeed();
     }
+
+    /**
+     * What a 1.4.10 world actually has on disk: a link pair with {@code a} and {@code b} and no {@code group}
+     * key, because the group label came afterwards and is only written when it is not empty. Reading that shape
+     * has to give the link back with an empty group - dropping the pair instead would dismantle a saved link
+     * the first time the world loads, and nothing would say so. The write side is checked in the same breath:
+     * a link with no group must not grow a {@code group: ""} entry, because that would rewrite every old
+     * record on a load-save cycle for no reason.
+     */
+    @GameTest(template = "empty", batch = "wireless_link_card", timeoutTicks = 100,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void aLinkRecordWithoutAGroupKeyStillReadsAsALink(GameTestHelper helper) {
+        var level = (ServerLevel) helper.getLevel();
+        var first = new CompoundTag();
+        first.putString("dim", "minecraft:overworld");
+        first.putLong("pos", new net.minecraft.core.BlockPos(4, 5, 6).asLong());
+        var second = new CompoundTag();
+        second.putString("dim", "minecraft:overworld");
+        second.putLong("pos", new net.minecraft.core.BlockPos(7, 8, 9).asLong());
+        var pair = new CompoundTag();
+        pair.put("a", first);
+        pair.put("b", second);
+        var links = new ListTag();
+        links.add(pair);
+        var tag = new CompoundTag();
+        tag.put("links", links);
+
+        var data = WirelessLinks.SERIALIZER.read(null, tag, level.registryAccess());
+        if (data.links().size() != 1) {
+            helper.fail("the pre-group shape did not survive the read: " + data.links().size()
+                    + " link(s), expected 1 - dropping it would dismantle a saved link on first load");
+            return;
+        }
+        var link = data.links().iterator().next();
+        if (!data.group(link).isEmpty()) {
+            helper.fail("a record with no group key read back a group: '" + data.group(link) + "'");
+            return;
+        }
+        var written = WirelessLinks.SERIALIZER.write(data, level.registryAccess());
+        var round = written.getList("links", net.minecraft.nbt.Tag.TAG_COMPOUND).getCompound(0);
+        if (round.contains("group")) {
+            helper.fail("writing a groupless link invented a group entry: " + round);
+            return;
+        }
+        if (round.getCompound("a").getLong("pos") != new net.minecraft.core.BlockPos(4, 5, 6).asLong()
+                || round.getCompound("b").getLong("pos") != new net.minecraft.core.BlockPos(7, 8, 9).asLong()) {
+            helper.fail("the round trip moved an endpoint: " + round);
+            return;
+        }
+        helper.succeed();
+    }
+
 
     /**
      * The face ledger is the number the channel card now reads out, and this test exists to keep it honest:
@@ -8980,10 +9166,9 @@ public final class NeoECOPrototypeGameTests {
      * Where the 8-channel ceiling comes from: the node the wireless edge lands on, not the edge itself.
      *
      * <p>Two identical remote groups of twelve channel-hungry machines, one wireless edge each. In A the
-     * edge lands on an ordinary machine (node max 8); in B it lands on a dense module first (node max 32).
-     * If A tops out at 8 while B carries all twelve, the bottleneck is the landing node - which is why the
-     * card's "mark a device, then the module" gesture caps a far network at 8 whenever that device is not
-     * dense, and why both ends need a module to make the edge worth its own 32.
+     * edge lands on an ordinary machine (node max 8); in B it lands on a dense cable bus (node max 32). If A
+     * tops out at 8 while B carries all twelve, the bottleneck is the landing node - and a bus is the legal
+     * wide far end now that modules themselves cannot be linked together.
      */
     @GameTest(template = "empty", batch = "wireless_endpoint_capacity", timeoutTicks = 900,
             templateNamespace = NeoECOPrototype.MOD_ID)
@@ -8994,11 +9179,10 @@ public final class NeoECOPrototypeGameTests {
         var interfaceBlock = ModRegistration.SUPERCONDUCTIVE_INTERFACE_BLOCK.get();
         var controllerBlock = appeng.core.definitions.AEBlocks.CONTROLLER.block();
 
-        // A: a module on both ends. The far module is what makes the edge worth its 32 - landing the edge on
-        // an ordinary machine instead caps everything behind it at that machine's own 8.
+        // The near side is a module; the wide far landing is a dense cable bus, not a second module.
         helper.setBlock(new BlockPos(0, 1, 0), controllerBlock);
         helper.setBlock(new BlockPos(1, 1, 0), moduleBlock);
-        helper.setBlock(new BlockPos(6, 1, 0), moduleBlock);
+        placeDenseTrunk(helper, new BlockPos(6, 1, 0));
         var direct = new GlobalPos[12];
         for (int i = 0; i < direct.length; i++) {
             var trunk = new BlockPos(5, 1, i);
@@ -9008,24 +9192,24 @@ public final class NeoECOPrototypeGameTests {
         }
 
         var localA = GlobalPos.of(level.dimension(), helper.absolutePos(new BlockPos(1, 1, 0)));
-        var farModule = GlobalPos.of(level.dimension(), helper.absolutePos(new BlockPos(6, 1, 0)));
+        var farBus = GlobalPos.of(level.dimension(), helper.absolutePos(new BlockPos(6, 1, 0)));
         var controllerA = GlobalPos.of(level.dimension(), helper.absolutePos(new BlockPos(0, 1, 0)));
 
         waitUntil(helper, 40,
                 () -> networkNode(level, localA) != null
                         && networkNode(level, controllerA) != null
                         && networkNode(level, direct[0]) != null && networkNode(level, direct[11]) != null
-                        && networkNode(level, farModule) != null
+                        && networkNode(level, farBus) != null
                         && networkNode(level, controllerA).getGrid() == networkNode(level, localA).getGrid()
                         && networkNode(level, direct[0]).getGrid() != networkNode(level, localA).getGrid()
-                        && networkNode(level, farModule).getGrid() == networkNode(level, direct[0]).getGrid()
+                        && networkNode(level, farBus).getGrid() == networkNode(level, direct[0]).getGrid()
                         && appeng.api.networking.pathing.ControllerState.CONTROLLER_ONLINE
                                 == networkNode(level, localA).getGrid().getPathingService().getControllerState(),
                 () -> "the fixture never became a controlled near grid beside a twelve-machine far grid: "
-                        + nodeSummary(level, localA) + " / " + nodeSummary(level, farModule) + " / "
+                        + nodeSummary(level, localA) + " / " + nodeSummary(level, farBus) + " / "
                         + nodeSummary(level, direct[0]) + " / " + nodeSummary(level, direct[11]),
                 () -> {
-                    String bound = WirelessLinks.bind(level, ModRegistration.WIRELESS_LINKS, localA, farModule);
+                    String bound = WirelessLinks.bind(level, ModRegistration.WIRELESS_LINKS, localA, farBus);
                     if (!bound.startsWith("linked ")) {
                         helper.fail("the module refused its link: \"" + bound + "\"");
                         return;
@@ -9226,7 +9410,12 @@ public final class NeoECOPrototypeGameTests {
         int written = 0;
         for (int g = 0; g < perGroupSizes.length; g++) {
             var y = 1 + 2 * g;
-            helper.setBlock(new BlockPos(6, y, 0), moduleBlock);
+            // The far end is a dense cable bus, not a module: a module hands out outlets and is refused as a
+            // link endpoint, and a bus is what a player builds there anyway. It is written straight into the
+            // level like the trunks, because GameTestHelper#setBlock goes through the structure box and left
+            // this square as air on the first attempt. A dense cable is a 32-channel face, so the per-port
+            // arithmetic is unchanged.
+            placeDenseTrunk(helper, new BlockPos(6, y, 0));
             hubs[g] = GlobalPos.of(level.dimension(), helper.absolutePos(new BlockPos(6, y, 0)));
             for (int i = 0; i < perGroupSizes[g]; i++) {
                 placeDenseTrunk(helper, new BlockPos(5, y, i));
@@ -9363,10 +9552,9 @@ public final class NeoECOPrototypeGameTests {
     /**
      * How many of {@code hubs} sit on the other end of one of the near module's virtual ports.
      *
-     * <p>Both ends are counted through, because both ends are modules: a bind gives each side a port of its
-     * own, so the wireless edge runs port to port. That is the route D shape and not an accident - a far
-     * network entering through a plain 8-channel machine would be capped by that machine no matter how wide
-     * the near port is.
+     * <p>The far end is the group's dense cable bus, so only the near side has a port to land on. It used to be
+     * a second module, which gave both ends a port and made the edge run port to port; a module is no longer an
+     * allowed endpoint, and a bus is a 32-channel face of its own, which is the property this counts.
      */
     private static int hubsOnPorts(ServerLevel level, WirelessChannelModuleBlockEntity module,
                                    GlobalPos[] hubs) {
@@ -9378,9 +9566,6 @@ public final class NeoECOPrototypeGameTests {
             }
             var farNodes = new java.util.ArrayList<appeng.api.networking.IGridNode>();
             farNodes.add(hubNode);
-            if (hubNode.getOwner() instanceof WirelessChannelModuleBlockEntity farModule) {
-                farNodes.addAll(farModule.livePortNodes());
-            }
             for (var port : module.livePortNodes()) {
                 for (var connection : port.getConnections()) {
                     if (!connection.isInWorld()
@@ -9795,6 +9980,11 @@ public final class NeoECOPrototypeGameTests {
      * seven interfaces read eight, nine and ten billed channels in three neighbouring fixtures. Deriving
      * {@code left} from the port itself keeps the boundary exact whatever the fixture is made of.
      *
+     * <p>Nothing below assumes a bill. The expected outlet count, the port the boundary is asked of, and the
+     * leftover it is asked against all come out of the three measured bills, so this fixture is the same test
+     * whether the third satellite bills 12 (it then shares the first port to exactly 32/32) or 13 (it opens a
+     * second outlet and the boundary is asked of that one).
+     *
      * <p>Own batch: three groups reach y 5 and the probe opens a fourth port, which must not collide with the
      * other wide fixtures.
      */
@@ -9806,8 +9996,8 @@ public final class NeoECOPrototypeGameTests {
         var links = cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig
                 .WIRELESS_MAX_LINKS_PER_DEVICE;
         links.set(0);
-        // Small, then one whose cables double its node count, then a repeat of the big one so a fresh port
-        // exists for the exact-fit probe.
+        // Small, then one whose cables double its node count, then one channel too large for the first port's
+        // remaining space, so assertions C and D really exercise a second outlet.
         var fixture = buildPortFixtureOfSizes(helper, 8, 12, 12);
         waitUntil(helper, 120,
                 () -> portFixturePremiseProblem(level, fixture) == null,
@@ -9887,54 +10077,74 @@ public final class NeoECOPrototypeGameTests {
                                                     fixture.nearModule(), fixture.hubs()[2]);
                                             if (!third.startsWith("linked ")) {
                                                 helper.fail("assertion C: the third network was refused instead"
-                                                        + " of being given a second outlet: \"" + third
+                                                        + " of being placed: \"" + third
                                                         + "\" table=" + portTable(module));
                                                 return;
                                             }
+                                            // Whether it needed its own outlet is arithmetic on what AE2
+                                            // actually billed, not on how many machines the fixture built: the
+                                            // same third group has billed 12 and 13 in runs of this test, and
+                                            // pinning the second one's number is what made this red.
+                                            int expected = bills[0] + bills[1] + bills[2] > cap ? 2 : 1;
                                             waitUntil(helper, 80,
-                                                    () -> module.livePorts() == 2,
-                                                    () -> "assertion C: a second " + bills[1]
-                                                            + "-channel network landed on a port that already"
-                                                            + " carries " + (bills[0] + bills[1])
-                                                            + " of 32 instead of opening its own outlet:"
-                                                            + " openPorts=" + module.livePorts() + " table="
+                                                    () -> module.livePorts() == expected,
+                                                    () -> "assertion C: bills "
+                                                            + java.util.Arrays.toString(bills)
+                                                            + " against a " + cap + "-channel port mean "
+                                                            + expected + " open port(s), got "
+                                                            + module.livePorts() + ": table="
                                                             + portTable(module),
-                                                    () -> probeSecondPort(helper, fixture, module, bills[2],
-                                                            links, level));
+                                                    () -> probePortBoundary(helper, module, bills, cap, links,
+                                                            level));
                                         });
                             });
                 });
     }
 
     /**
-     * Assertions D and E: on the port that is only partly used, asking for exactly what is left is granted on
-     * that port, and asking for one channel more is not.
+     * Assertions D and E: on the port that carries the third satellite, asking for exactly what is left is
+     * granted there, and one channel more is not.
      *
-     * <p>It waits for AE2 to bill the second port first. Reading {@code left} off a port whose channels have
-     * not been assigned yet gives 32 and turns the boundary probe into a question about an empty outlet - which
-     * is what the first run of this test did, and it passed for the wrong reason.
+     * <p>Which port is asked, and whether the grant still has to be asked at all, follows from the bills. When
+     * the third satellite filled its port to the last channel the grant is the bind that just happened - the
+     * remaining question is only whether one channel more goes elsewhere. Otherwise the pair is asked of the
+     * second outlet, and it waits for AE2 to bill that outlet first: reading {@code left} off a port whose
+     * channels have not been assigned yet gives 32 and turns the boundary into a question about an empty
+     * outlet, which is what the first run of this test did, and it passed for the wrong reason.
      */
-    private static void probeSecondPort(GameTestHelper helper, PortFixture fixture,
-                                        WirelessChannelModuleBlockEntity module, int billed,
-                                        net.neoforged.neoforge.common.ModConfigSpec.IntValue links,
-                                        ServerLevel level) {
+    private static void probePortBoundary(GameTestHelper helper, WirelessChannelModuleBlockEntity module,
+                                          int[] bills, int cap,
+                                          net.neoforged.neoforge.common.ModConfigSpec.IntValue links,
+                                          ServerLevel level) {
+        boolean shared = bills[0] + bills[1] + bills[2] <= cap;
+        int port = shared ? 0 : 1;
+        int used = shared ? bills[0] + bills[1] + bills[2] : bills[2];
+        int outlets = shared ? 1 : 2;
+        int left = cap - used;
         waitUntil(helper, 80,
-                () -> module.livePortNodes().size() > 1
-                        && module.livePortNodes().get(1).getUsedChannels() == billed,
-                () -> "the second port did not settle on AE2's bill for its satellite, so the boundary below is"
-                        + " not a boundary: used="
-                        + (module.livePortNodes().size() > 1
-                        ? module.livePortNodes().get(1).getUsedChannels() : -1) + " expected=" + billed
-                        + " table=" + portTable(module),
+                () -> module.livePorts() == outlets
+                        && module.livePortNodes().size() > port
+                        && module.livePortNodes().get(port).getUsedChannels() == used,
+                () -> "assertion C/D: bills " + java.util.Arrays.toString(bills) + " against a " + cap
+                        + "-channel outlet mean port " + port + " settled at " + used + " on " + outlets
+                        + " outlet(s); the table is " + portTable(module) + " - " + (shared
+                        ? "the third satellite fits to the last channel, so it is granted that port"
+                        : "the third satellite does not fit, so it has to get its own outlet"),
                 () -> {
-                    var node = module.livePortNodes().get(1);
-                    int left = node.getMaxChannels() - node.getUsedChannels();
-                    NeoECOPrototype.LOGGER.info("port boundary probe: port 1 reads {}/{} left={}",
-                            node.getUsedChannels(), node.getMaxChannels(), left);
-                    if (left <= 0 || left >= node.getMaxChannels()) {
-                        helper.fail("the second port is " + node.getUsedChannels() + "/"
-                                + node.getMaxChannels() + ", so there is no partial fill to test the boundary"
-                                + " against: table=" + portTable(module));
+                    var node = module.livePortNodes().get(port);
+                    NeoECOPrototype.LOGGER.info("port boundary probe: port {} reads {}/{} left={}",
+                            port, node.getUsedChannels(), node.getMaxChannels(), left);
+                    if (left <= 0) {
+                        // The grant was the bind itself; only the one-over half is still a question.
+                        if (module.portForNewLink(1) == node) {
+                            helper.fail("assertion E: a network needing one more than the 0 channels left on a"
+                                    + " full port was granted that port: table=" + portTable(module));
+                            return;
+                        }
+                        links.set(cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig
+                                .WIRELESS_MAX_LINKS_PER_DEVICE.getDefault());
+                        clearWirelessLinksAndBillSnapshots(level);
+                        helper.succeed();
                         return;
                     }
                     if (module.portForNewLink(left) != node) {
@@ -13348,31 +13558,139 @@ public final class NeoECOPrototypeGameTests {
     }
 
     /**
-     * eco tables every multiblock member in {@code #minecraft:needs_stone_tool} and calls
-     * {@code requiresCorrectToolForDrops} on seven of its property templates. We had neither: our machine
-     * properties asked for no tool at all, and only the three cryotheum ores appeared in any mining tag - so
-     * an L1 host could be harvested with a wooden pickaxe, and broke at fist speed besides. Both halves are
-     * load-bearing in 1.21.1: the drop gate is data-driven (vanilla's own tag provider defines
-     * {@code INCORRECT_FOR_WOODEN_TOOL} as the three NEEDS_* tags), but a block only reaches that gate if its
-     * properties require a tool in the first place.
+     * Every matrix whose price we write has to leave room for what it claims to hold.
      *
-     * <p>The boundaries below were chosen rather than derived, so they are asserted too: the dolls and the
-     * dissolution fluid stay out of every mining tag, and the growing buds, the reactor glass, the meteorite
-     * core and the three AE2-family blocks are pickaxe-mineable with no level of their own - vanilla amethyst
-     * and glass behaviour for the first group, and for the second a limit we cannot cross: their Properties
-     * come from AE2's no-arg constructors, so {@code requiresCorrectToolForDrops} is not ours to set. The
-     * aluminium casing is iron, because eco tables its alloy casings there and not with the machines.</p>
+     * <p>eco charges a type once, for as long as it is in the cell:
+     * {@code usedBytes = ceil(amount / 8) + types x bytesPerType} (measured on 21.2.17). So {@code bytesPerType}
+     * is not a per-item price, it is the price of a type existing at all - and a cell written as
+     * {@code bytes / totalTypes}, which is what our rungs and the KubeJS builder both did until 2026-11-15,
+     * reserves the whole cell: a fully typed 1M matrix could not hold one single item, which is the complaint
+     * a player filed. The rule now lives in one place, {@code SimplifyStorageCellItem.typeFee}, and says the
+     * cap costs a fifth - the same shape as eco's bottom rung (its 315 item types are 15.4% of an L4 cell and
+     * 3.85% of an L9 one).
+     *
+     * <p>The scan goes through the item registry rather than a list of rungs on purpose: it also covers the
+     * matrices a pack defines through the builder, and a new rung cannot come back over-priced without this
+     * going red. What it cannot see is stated rather than assumed. The numbers are only readable through
+     * {@code IBasicECOCellItem}, and the Omni-backed family implements eco's thinner
+     * {@code IECOStorageCellItem} - the same split that hid those eight cells from the card scan once already
+     * - so they are counted into {@code outsideThisRuler} and reported, not asserted: their per-type price is
+     * Omni Cells' own arithmetic and we set none of it. The flux cells are inside the scan and pass because
+     * they hold exactly one type: their {@code bytes >> 8} fee is a fifth of a fifth.
+     */
+    @GameTest(template = "empty", batch = "matrix_type_fee", timeoutTicks = 100,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void everyMatrixPricesItsTypeCapAtAFifthOrLess(GameTestHelper helper) {
+        var ours = new java.util.ArrayList<String>();
+        var outsideThisRuler = new java.util.ArrayList<String>();
+        for (var id : net.minecraft.core.registries.BuiltInRegistries.ITEM.keySet()) {
+            if (!NeoECOPrototype.MOD_ID.equals(id.getNamespace())) continue;
+            var item = net.minecraft.core.registries.BuiltInRegistries.ITEM.get(id);
+            if (!(item instanceof cn.dancingsnow.neoecoae.api.storage.IBasicECOCellItem cell)) {
+                if (item instanceof cn.dancingsnow.neoecoae.api.storage.IECOStorageCellItem) {
+                    outsideThisRuler.add(id.getPath());
+                }
+                continue;
+            }
+            long bytes = cell.getBytes();
+            int fee = cell.getBytesPerType();
+            int types = cell.getTotalTypes();
+            var line = id.getPath() + "|" + types + "|" + fee + "|" + bytes;
+            if (!item.getClass().getName().startsWith("cn.dancingsnow.neoecoprototype.")) {
+                outsideThisRuler.add(line);
+                continue;
+            }
+            ours.add(line);
+            if (fee < 1) {
+                helper.fail(line + " - a type that costs nothing cannot be metered at all");
+                return;
+            }
+            if (types <= 0 || types > 1_000_000) {
+                continue; // eco's unlimited marker: there is no ceiling to price
+            }
+            var reserved = (double) types * fee;
+            if (reserved > (double) bytes * 0.2001) {
+                helper.fail(line + " reserves "
+                        + Math.round(reserved / (double) bytes * 100.0) + "% of the cell for its type cap, and"
+                        + " the rule gives " + cn.dancingsnow.neoecoprototype.items.SimplifyStorageCellItem
+                        .typeFee(bytes, types) + " per type");
+                return;
+            }
+        }
+        if (ours.size() < 15) {
+            helper.fail("the scan found only " + ours.size() + " of our own cells, so this guard checked"
+                    + " nothing: " + ours);
+            return;
+        }
+        NeoECOPrototype.LOGGER.info("matrix type fee (ours, asserted): {} of {}", ours.size(), ours);
+        NeoECOPrototype.LOGGER.info("matrix type fee (outside this ruler, logged only): {} of {}",
+                outsideThisRuler.size(), outsideThisRuler);
+        helper.succeed();
+    }
+
+    /** Our blocks that belong to no mining tag at all: vanilla's own soft goods and fluids have none. */
+    private static final java.util.Set<String> HAND_MINED_BLOCKS = java.util.Set.of(
+            "neoecoprototype:fumo_doll_kouooki", "neoecoprototype:fumo_doll_reliqwq",
+            "neoecoprototype:fumo_doll_tedxenon", "neoecoprototype:fumo_doll_yang120",
+            "neoecoprototype:fumo_doll_yang120_cpu", "neoecoprototype:fumo_doll_yang120_giant",
+            "neoecoprototype:dissolution_solution", "neoecoprototype:cryotheum_ice_cream",
+            "neoecoprototype:cryotheum_ice_cream_block", "neoecoprototype:workstation_preview");
+
+    /** Our blocks whose {@code Properties} are AE2's, where the tool flag is not ours to set. */
+    private static final java.util.Set<String> AE2_OWNED_PROPS_BLOCKS = java.util.Set.of(
+            "neoecoprototype:simplify_pattern_provider", "neoecoprototype:simplify_powered_me_interface",
+            "neoecoprototype:superconductive_interface");
+
+    /**
+     * Every block a player can place from us needs a stone pickaxe, and nothing of ours needs iron. eco
+     * tables its own members at that rung; until 2026-11-15 ours were spread over three rungs - four sat
+     * above it (the three cryotheum ores and the aluminium casing asked for iron), six sat below it (the
+     * three grette buds, the cluster, the reactor glass, the meteorite core) and three of the newest
+     * machines were in no tier tag at all (the two music blocks and the subsystem channel module).
+     *
+     * <p>Both halves are load-bearing in 1.21.1, and they are checked separately: the level comes from
+     * {@code #minecraft:needs_stone_tool}, but a block only reaches that check when its properties set
+     * {@code requiresCorrectToolForDrops}. So an entry in the tag with no flag gates nothing, and a flag
+     * with no entry drops to any pickaxe.
+     *
+     * <p>The two carve-outs above are asserted, not tolerated. A stone gate on a doll would delete the doll
+     * when someone punches it off a shelf, and on a fluid it would slow the clean-up without ever dropping
+     * the bucket's worth. The three AE2-family blocks are a measured limit, not a choice: AE2's
+     * {@code InterfaceBlock()} and {@code PatternProviderBlock()} build their properties in their own
+     * no-arg constructors (ae2-19.2.17.jar: {@code metalProps -> defaultProps} sets strength, mapColor and
+     * sound and nothing else) and the flag is copied into the blockstate while the block is constructed, so
+     * it is not ours to set without forking AE2's props or injecting into them. They stay pickaxe-mineable
+     * at no tier - a lower bar than stone, never a higher one.
      */
     @GameTest(template = "empty", batch = "mining_levels", timeoutTicks = 100,
             templateNamespace = NeoECOPrototype.MOD_ID)
-    public static void multiblockMembersAreStonePickaxeGated(GameTestHelper helper) {
+    public static void everyPlacedBlockIsStonePickaxeGated(GameTestHelper helper) {
         var stone = tagBlockIds("/data/minecraft/tags/block/needs_stone_tool.json", helper);
         var pick = tagBlockIds("/data/minecraft/tags/block/mineable/pickaxe.json", helper);
-        var iron = tagBlockIds("/data/minecraft/tags/block/needs_iron_tool.json", helper);
-        if (stone == null || pick == null || iron == null) return;
-        if (stone.isEmpty() || pick.isEmpty()) {
-            helper.fail("our mining tags hold nothing (stone=" + stone.size() + ", pickaxe=" + pick.size()
-                    + "), so this guard checked nothing");
+        if (stone == null || pick == null) return;
+        var iron = optionalTagBlockIds("/data/minecraft/tags/block/needs_iron_tool.json");
+        var diamond = optionalTagBlockIds("/data/minecraft/tags/block/needs_diamond_tool.json");
+        var registry = new java.util.TreeSet<String>();
+        for (var id : net.minecraft.core.registries.BuiltInRegistries.BLOCK.keySet()) {
+            if (NeoECOPrototype.MOD_ID.equals(id.getNamespace())) registry.add(id.toString());
+        }
+        if (registry.size() < 70) {
+            helper.fail("the registry scan found only " + registry.size() + " of our blocks, so this guard"
+                    + " checked nothing");
+            return;
+        }
+        var expectedStone = new java.util.TreeSet<>(registry);
+        expectedStone.removeAll(HAND_MINED_BLOCKS);
+        expectedStone.removeAll(AE2_OWNED_PROPS_BLOCKS);
+        var taggedStone = new java.util.TreeSet<>(stone);
+        if (!expectedStone.equals(taggedStone)) {
+            var missing = new java.util.TreeSet<>(expectedStone);
+            missing.removeAll(taggedStone);
+            var extra = new java.util.TreeSet<>(taggedStone);
+            extra.removeAll(expectedStone);
+            helper.fail("needs_stone_tool is not our block list: missing=" + missing + " extra=" + extra
+                    + " (registry=" + registry.size() + ", stone=" + taggedStone.size()
+                    + ", hand-mined=" + HAND_MINED_BLOCKS.size() + ", AE2-owned=" + AE2_OWNED_PROPS_BLOCKS.size() + ")");
             return;
         }
         var outsidePickaxe = new java.util.ArrayList<String>();
@@ -13385,52 +13703,63 @@ public final class NeoECOPrototypeGameTests {
                     + " not a pickaxe block at all");
             return;
         }
+        var expectedPick = new java.util.TreeSet<>(taggedStone);
+        expectedPick.addAll(AE2_OWNED_PROPS_BLOCKS);
+        if (!expectedPick.equals(new java.util.TreeSet<>(pick))) {
+            helper.fail("mineable/pickaxe should be the stone rung plus the three AE2-family blocks ("
+                    + expectedPick.size() + "), got " + pick.size() + " - extra="
+                    + difference(pick, expectedPick) + " missing=" + difference(expectedPick, pick));
+            return;
+        }
         var wrong = new java.util.ArrayList<String>();
         for (var id : stone) {
             var state = net.minecraft.core.registries.BuiltInRegistries.BLOCK
                     .get(net.minecraft.resources.ResourceLocation.parse(id)).defaultBlockState();
             if (!state.requiresCorrectToolForDrops()) {
-                wrong.add(id + " requires no tool");
+                wrong.add(id + " is tagged at the stone rung but its properties require no tool");
             } else if (!state.is(net.minecraft.tags.BlockTags.NEEDS_STONE_TOOL)) {
-                wrong.add(id + " is not gated at runtime");
+                wrong.add(id + " is tagged but not gated at runtime");
             }
         }
         if (!wrong.isEmpty()) {
             helper.fail("stone-rung blocks that do not behave like it: " + wrong);
             return;
         }
-        var leaked = new java.util.ArrayList<String>();
-        for (var name : new String[]{"fumo_doll_kouooki", "fumo_doll_reliqwq", "fumo_doll_tedxenon",
-                "fumo_doll_yang120", "fumo_doll_yang120_cpu", "fumo_doll_yang120_giant",
-                "dissolution_solution"}) {
-            String id = NeoECOPrototype.MOD_ID + ":" + name;
-            if (stone.contains(id) || pick.contains(id) || iron.contains(id)) leaked.add(id);
+        var aboveStone = new java.util.ArrayList<String>();
+        for (var id : registry) {
+            if (iron.contains(id)) aboveStone.add(id + " needs iron");
+            if (diamond.contains(id)) aboveStone.add(id + " needs diamond");
         }
-        if (!leaked.isEmpty()) {
-            helper.fail("blocks that belong to no mining tag turned up in one: " + leaked
-                    + " - the dolls are soft goods and the dissolution solution is a fluid");
-            return;
-        }
-        for (var name : new String[]{"large_grette_bud", "medium_grette_bud", "small_grette_bud",
-                "grette_cluster", "reactor_glass", "meteorite_core",
-                // AE2-family blocks whose Properties come from InterfaceBlock()/PatternProviderBlock()'s
-                // no-arg constructor: requiresCorrectToolForDrops is not ours to set without forking AE2's
-                // props or injecting into it, so they stay pickaxe-only.
-                "simplify_pattern_provider", "simplify_powered_me_interface", "superconductive_interface"}) {
-            String id = NeoECOPrototype.MOD_ID + ":" + name;
-            if (!pick.contains(id) || stone.contains(id) || iron.contains(id)) {
-                helper.fail(id + " should be pickaxe-mineable with no tool level of its own, but pickaxe="
-                        + pick.contains(id) + " stone=" + stone.contains(id) + " iron=" + iron.contains(id));
-                return;
+        for (var id : AE2_OWNED_PROPS_BLOCKS) {
+            var state = net.minecraft.core.registries.BuiltInRegistries.BLOCK
+                    .get(net.minecraft.resources.ResourceLocation.parse(id)).defaultBlockState();
+            if (!pick.contains(id) || stone.contains(id) || iron.contains(id) || diamond.contains(id)) {
+                aboveStone.add(id + " is in a tier tag although AE2's own properties cannot carry the flag");
+            } else if (state.requiresCorrectToolForDrops()) {
+                aboveStone.add(id + " suddenly requires a tool with no tier of its own - AE2 changed its"
+                        + " props, so this block belongs in needs_stone_tool and out of the carve-out");
             }
         }
-        String casing = NeoECOPrototype.MOD_ID + ":simplify_green_aluminum_casing";
-        if (!iron.contains(casing) || stone.contains(casing)) {
-            helper.fail("the aluminium casing belongs in the iron rung with eco's own alloy casings"
-                    + " (iron=" + iron.contains(casing) + ", stone=" + stone.contains(casing) + ")");
+        for (var name : new String[]{"dissolution_solution", "cryotheum_ice_cream",
+                "cryotheum_ice_cream_block"}) {
+            var state = net.minecraft.core.registries.BuiltInRegistries.BLOCK
+                    .get(net.minecraft.resources.ResourceLocation.parse(NeoECOPrototype.MOD_ID + ":" + name))
+                    .defaultBlockState();
+            if (!state.requiresCorrectToolForDrops()) continue;
+            aboveStone.add(name + " is a fluid-shaped block that now demands a tool it never drops to");
+        }
+        if (!aboveStone.isEmpty()) {
+            helper.fail("blocks above the stone rung: " + aboveStone);
             return;
         }
         helper.succeed();
+    }
+
+    private static java.util.TreeSet<String> difference(java.util.Collection<String> from,
+                                                        java.util.Collection<String> minus) {
+        var out = new java.util.TreeSet<>(from);
+        out.removeAll(minus);
+        return out;
     }
 
     /**
@@ -13556,7 +13885,10 @@ public final class NeoECOPrototypeGameTests {
     /** The block ids one of our own mining tags lists, spelled the way the file spells them. */
     private static java.util.List<String> tagBlockIds(String path, GameTestHelper helper) {
         String json = readResource(path, helper);
-        if (json == null) return null;
+        return json == null ? null : tagBlockIdsFrom(json);
+    }
+
+    private static java.util.List<String> tagBlockIdsFrom(String json) {
         var values = com.google.gson.JsonParser.parseString(json).getAsJsonObject().getAsJsonArray("values");
         var ids = new java.util.ArrayList<String>();
         for (var entry : values) {
@@ -13564,6 +13896,19 @@ public final class NeoECOPrototypeGameTests {
                     ? entry.getAsJsonObject().get("id").getAsString() : entry.getAsString());
         }
         return ids;
+    }
+
+    /**
+     * The same read for a tag we deliberately stopped publishing: no file is the answer, not a failure.
+     * Vanilla still ships its own rung, so this only ever asks whether <i>we</i> added anything there.
+     */
+    private static java.util.List<String> optionalTagBlockIds(String path) {
+        try (var stream = NeoECOPrototype.class.getResourceAsStream(path)) {
+            if (stream == null) return java.util.List.of();
+            return tagBlockIdsFrom(new String(stream.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8));
+        } catch (java.io.IOException failure) {
+            return java.util.List.of();
+        }
     }
 
     /**
@@ -22307,6 +22652,237 @@ public final class NeoECOPrototypeGameTests {
                 });
     }
 
+    @GameTest(template = "empty", batch = "wireless_module_facing", timeoutTicks = 100,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void subsystemChannelModuleFacesThePlacer(GameTestHelper helper) {
+        var level = (ServerLevel) helper.getLevel();
+        var player = helper.makeMockPlayer(GameType.CREATIVE);
+        var pos = helper.absolutePos(new BlockPos(1, 1, 1));
+        var hit = new net.minecraft.world.phys.BlockHitResult(
+                net.minecraft.world.phys.Vec3.atCenterOf(pos), Direction.UP, pos, false);
+        var block = ModRegistration.SUBSYSTEM_CHANNEL_MODULE_BLOCK.get();
+        for (float yaw : new float[]{0.0F, 90.0F, 180.0F, 270.0F}) {
+            player.setYRot(yaw);
+            var context = new net.minecraft.world.item.context.BlockPlaceContext(level, player,
+                    net.minecraft.world.InteractionHand.MAIN_HAND,
+                    new ItemStack(ModRegistration.SUBSYSTEM_CHANNEL_MODULE_ITEM.get()), hit);
+            var state = block.getStateForPlacement(context);
+            Direction expected = player.getDirection().getOpposite();
+            if (!state.hasProperty(net.minecraft.world.level.block.state.properties.BlockStateProperties.HORIZONTAL_FACING)
+                    || state.getValue(net.minecraft.world.level.block.state.properties.BlockStateProperties.HORIZONTAL_FACING)
+                    != expected) {
+                helper.fail("the module's front does not face the placer: yaw=" + yaw + " state=" + state
+                        + " expected=" + expected);
+                return;
+            }
+        }
+        helper.succeed();
+    }
+
+    /**
+     * Which card placement auto-connect is allowed to read. The tick that consumes the mark needs a real
+     * player in the server's player list, so it has no headless face - but the selection rule it reads does,
+     * and that rule is the whole decision of whether a freshly placed device joins a network by itself: a held
+     * marked card wins over any other slot, one marked card anywhere in 0-8 is enough, two marks that disagree
+     * answer nothing rather than guessing, and the revalidation after the wait looks at the exact slot it was
+     * read from instead of searching again.
+     */
+    @GameTest(template = "empty", batch = "auto_connect_hotbar", timeoutTicks = 600,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void autoConnectReadsTheHeldMarkOrExactlyOneHotbarMark(GameTestHelper helper) {
+        var hub = new BlockPos(0, 1, 0);
+        var spoke = new BlockPos(0, 1, 8);
+        helper.setBlock(hub, ModRegistration.SUPERCONDUCTIVE_INTERFACE_BLOCK.get());
+        helper.setBlock(spoke, ModRegistration.SUPERCONDUCTIVE_INTERFACE_BLOCK.get());
+        var level = (ServerLevel) helper.getLevel();
+        var hubPos = GlobalPos.of(level.dimension(), helper.absolutePos(hub));
+        var spokePos = GlobalPos.of(level.dimension(), helper.absolutePos(spoke));
+        var player = helper.makeMockPlayer(GameType.CREATIVE);
+        player.setShiftKeyDown(true);
+        waitUntil(helper, 20,
+                () -> WirelessLinks.isDevice(level, hubPos) && WirelessLinks.isDevice(level, spokePos)
+                        && separateNetworks(level, hubPos, spokePos),
+                () -> "the two interfaces never became two separate live nodes: " + nodeSummary(level, hubPos)
+                        + " / " + nodeSummary(level, spokePos),
+                () -> {
+                    var inventory = player.getInventory();
+                    for (int slot = 0; slot < 9; slot++) {
+                        inventory.setItem(slot, ItemStack.EMPTY);
+                    }
+                    inventory.selected = 0;
+                    var hubCard = new ItemStack(ModRegistration.WIRELESS_LINK_CARD.get());
+                    var spokeCard = new ItemStack(ModRegistration.WIRELESS_LINK_CARD.get());
+                    var twinHubCard = new ItemStack(ModRegistration.WIRELESS_LINK_CARD.get());
+                    var flag = cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig.WIRELESS_LINKS;
+                    flag.set(true);
+                    try {
+                    tapWithCard(helper, player, hubCard, hub);
+                    tapWithCard(helper, player, spokeCard, spoke);
+                    tapWithCard(helper, player, twinHubCard, hub);
+                    // The mark first, because every assertion below reads the card: a tap that recorded no
+                    // mark would otherwise show up as "the hotbar offered no mark", which is a different fault.
+                    if (!hubPos.equals(WirelessLinkCardItem.markedEndpoint(hubCard))
+                            || !spokePos.equals(WirelessLinkCardItem.markedEndpoint(spokeCard))) {
+                        helper.fail("the three taps did not leave the cards marked with the devices they were"
+                                + " clicked on, so the hotbar rule below is not being read from real marks");
+                        return;
+                    }
+                    if (linksOf(WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS, hubPos)) != 0
+                            || linksOf(WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS, spokePos)) != 0) {
+                        helper.fail("three separate taps left marks that also recorded links, so the fixture"
+                                + " is not three unlinked cards");
+                        return;
+                    }
+
+                    if (WirelessLinkCardItem.uniqueMarkedCard(player).isPresent()) {
+                        helper.fail("an empty hotbar still handed auto-connect a mark");
+                        return;
+                    }
+
+                    inventory.setItem(3, hubCard);
+                    var alone = WirelessLinkCardItem.uniqueMarkedCard(player);
+                    if (alone.isEmpty() || alone.get().slot() != 3
+                            || !hubPos.equals(alone.get().endpoint())) {
+                        helper.fail("the single marked card in slot 3 was not the answer: " + alone);
+                        return;
+                    }
+                    inventory.setItem(0, spokeCard);
+                    inventory.selected = 3;
+                    var held = WirelessLinkCardItem.uniqueMarkedCard(player);
+                    if (held.isEmpty() || held.get().slot() != 3
+                            || !hubPos.equals(held.get().endpoint())) {
+                        helper.fail("the held marked card did not win over a second mark elsewhere in the"
+                                + " hotbar: " + held);
+                        return;
+                    }
+                    inventory.selected = 0;
+                    var otherHeld = WirelessLinkCardItem.uniqueMarkedCard(player);
+                    if (otherHeld.isEmpty() || otherHeld.get().slot() != 0
+                            || !spokePos.equals(otherHeld.get().endpoint())) {
+                        helper.fail("switching the selection moved the answer with the held card instead of"
+                                + " keeping the held card: " + otherHeld);
+                        return;
+                    }
+                    inventory.selected = 5;
+                    if (WirelessLinkCardItem.uniqueMarkedCard(player).isPresent()) {
+                        helper.fail("two cards marked with two different devices resolved to one of them;"
+                            + " a placement would have joined the wrong network");
+                        return;
+                    }
+
+                    inventory.setItem(0, ItemStack.EMPTY);
+                    inventory.setItem(7, twinHubCard);
+                    inventory.selected = 4;
+                    var twins = WirelessLinkCardItem.uniqueMarkedCard(player);
+                    if (twins.isEmpty() || !hubPos.equals(twins.get().endpoint())) {
+                        helper.fail("two cards holding the same mark read as ambiguous, so the second copy"
+                                + " switched auto-connect off: " + twins);
+                        return;
+                    }
+
+                    var recorded = new WirelessLinkCardItem.Mark(3, hubPos, "");
+                    if (!WirelessLinkCardItem.stillMarkedOnPlayer(player, recorded)) {
+                        helper.fail("the mark read from slot 3 did not revalidate while slot 3 still held it");
+                        return;
+                    }
+                    inventory.setItem(3, new ItemStack(ModRegistration.WIRELESS_LINK_CARD.get()));
+                    if (WirelessLinkCardItem.stillMarkedOnPlayer(player, recorded)) {
+                        helper.fail("a blank card in slot 3 still counted as the recorded mark, so a card"
+                                + " emptied mid-wait would have connected the placed device anyway");
+                        return;
+                    }
+                    inventory.setItem(3, hubCard);
+                    inventory.setItem(4, hubCard);
+                    inventory.setItem(3, ItemStack.EMPTY);
+                    if (WirelessLinkCardItem.stillMarkedOnPlayer(player, recorded)) {
+                        helper.fail("the mark followed the card to another slot instead of staying on the slot"
+                                + " it was read from");
+                        return;
+                    }
+                    helper.succeed();
+                    } finally {
+                        flag.set(false);
+                    }
+                });
+    }
+
+    /**
+     * The same rule with the card worn instead of carried. A player who parks the marked card in our Curios
+     * slot is exactly who auto-connect was written for, and leaving that slot out of the lookup meant the
+     * feature silently required moving the card back into the bar first. Skipped rather than failed when
+     * Curios is not installed, and the ambiguity half is asserted too: a worn mark plus a *different* hotbar
+     * mark must answer "no unique mark", because guessing which of the two the placed device belongs to is
+     * the one mistake this rule cannot take back.
+     */
+    @GameTest(template = "empty", batch = "auto_connect_hotbar", timeoutTicks = 400, required = false,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void aWornMarkFeedsAutoConnectToo(GameTestHelper helper) {
+        if (!net.neoforged.fml.ModList.get().isLoaded("curios")) {
+            helper.succeed();
+            return;
+        }
+        var hub = new BlockPos(0, 1, 0);
+        var spoke = new BlockPos(0, 1, 8);
+        helper.setBlock(hub, ModRegistration.SUPERCONDUCTIVE_INTERFACE_BLOCK.get());
+        helper.setBlock(spoke, ModRegistration.SUPERCONDUCTIVE_INTERFACE_BLOCK.get());
+        var level = (ServerLevel) helper.getLevel();
+        var hubPos = GlobalPos.of(level.dimension(), helper.absolutePos(hub));
+        var spokePos = GlobalPos.of(level.dimension(), helper.absolutePos(spoke));
+        var player = helper.makeMockPlayer(GameType.CREATIVE);
+        player.setShiftKeyDown(true);
+        var flag = cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig.WIRELESS_LINKS;
+        flag.set(true);
+        try {
+            var inventory = player.getInventory();
+            for (int slot = 0; slot < 9; slot++) {
+                inventory.setItem(slot, ItemStack.EMPTY);
+            }
+            inventory.selected = 0;
+            var hubCard = new ItemStack(ModRegistration.WIRELESS_LINK_CARD.get());
+            var spokeCard = new ItemStack(ModRegistration.WIRELESS_LINK_CARD.get());
+            tapWithCard(helper, player, hubCard, hub);
+            tapWithCard(helper, player, spokeCard, spoke);
+            if (!hubPos.equals(WirelessLinkCardItem.markedEndpoint(hubCard))
+                    || !spokePos.equals(WirelessLinkCardItem.markedEndpoint(spokeCard))) {
+                helper.fail("the two taps did not leave marks, so the worn lookup below reads unmarked cards");
+                return;
+            }
+            String problem = CurioDollTestProbe.wearLinkCard(player, hubCard);
+            if (problem != null) {
+                helper.fail(problem);
+                return;
+            }
+            var worn = WirelessLinkCardItem.uniqueMarkedCard(player);
+            if (worn.isEmpty() || worn.get().slot() != WirelessLinkCardItem.Mark.WORN
+                    || !hubPos.equals(worn.get().endpoint())) {
+                helper.fail("a worn marked card with an empty hotbar handed auto-connect nothing: " + worn);
+                return;
+            }
+            if (!WirelessLinkCardItem.stillMarkedOnPlayer(player,
+                    new WirelessLinkCardItem.Mark(WirelessLinkCardItem.Mark.WORN, hubPos, ""))) {
+                helper.fail("the worn mark did not revalidate while it is still worn");
+                return;
+            }
+            inventory.setItem(3, spokeCard);
+            if (WirelessLinkCardItem.uniqueMarkedCard(player).isPresent()) {
+                helper.fail("a worn mark plus a hotbar mark pointing at another device read as unique, so the"
+                        + " placed block would have joined whichever one the scan happened to reach first");
+                return;
+            }
+            inventory.setItem(3, ItemStack.EMPTY);
+            if (WirelessLinkCardItem.uniqueMarkedCard(player).isEmpty()) {
+                helper.fail("clearing the hotbar also lost the worn mark");
+                return;
+            }
+            helper.succeed();
+        } finally {
+            // The mock player is cached per profile and shared with every other test in this JVM, so a card
+            // left worn here would hand the next test an auto-connect it never asked for.
+            CurioDollTestProbe.clearWornLinkCard(player);
+            flag.set(false);
+        }
+    }
+
     /**
      * A card must not be able to die of a broken mark. The gesture has two ends and only one of them is
      * checked: re-marking happens while the card holds nothing, so a card whose marked device was taken away
@@ -23193,7 +23769,7 @@ public final class NeoECOPrototypeGameTests {
                 "channels", "channels_none", "same_block", "owner_dim_unloaded", "cross_dim_off",
                 "out_of_range",
                 "not_a_device", "no_device_at", "at_limit", "endpoint_full", "no_free_port", "no_node_yet",
-                "wired_already", "one_network",
+                "wired_already", "one_network", "module_to_module",
                 "starvation", "recorded_no_node", "recorded_no_edge", "marked_gone_no_device",
                 "marked_gone_remarked", "controller_no_edge", "controller_verdict", "carries_none",
                 "dim_unloaded", "not_on_network", "no_pathing_service", "teardown_moved", "mark_idle",
@@ -23500,7 +24076,7 @@ public final class NeoECOPrototypeGameTests {
                                 + " channels and taken all ten offline");
                         return;
                     }
-                    if (!refused.contains("together need 10 channel(s)") || !refused.contains("is 8")) {
+                    if (!refused.contains("needs 10 channels") || !refused.contains("ceiling is 8")) {
                         helper.fail("the refusal did not name the two numbers the player has to judge it by:"
                                 + " \"" + refused + "\"");
                         return;
@@ -23630,7 +24206,7 @@ public final class NeoECOPrototypeGameTests {
                             return;
                         }
                         String capped = WirelessLinks.bind(level, ModRegistration.WIRELESS_LINKS, a, d);
-                        if (capped.startsWith("linked ") || !capped.contains("caps a device at 2 (")
+                        if (capped.startsWith("linked ") || !capped.contains("link limit (2 of 2)")
                                 || !capped.contains("wireless_max_links_per_device")) {
                             helper.fail("the third link at one device did not hit the configured cap of 2:"
                                     + " \"" + capped + "\"");
@@ -23638,9 +24214,12 @@ public final class NeoECOPrototypeGameTests {
                         }
                         // b and c are on one grid now (the two links above merged them), so the distance case
                         // has to use d, which is still its own network: b<->d is ~4 blocks apart.
+                        // The short sentence (2026-11-15) names the distance and not the config key, so the
+                        // liveness of the gate is carried by the behaviour around it: this same fixture binds
+                        // the same pair before the range drops to 1 and refuses it after.
                         range.set(1);
                         String tooFar = WirelessLinks.bind(level, ModRegistration.WIRELESS_LINKS, b, d);
-                        if (tooFar.startsWith("linked ") || !tooFar.contains("wireless_max_range_blocks is 1")) {
+                        if (tooFar.startsWith("linked ") || !tooFar.contains("more than 4 blocks apart")) {
                             helper.fail("a join 4 blocks apart went through with the range set to 1:"
                                     + " \"" + tooFar + "\"");
                             return;
@@ -23655,14 +24234,18 @@ public final class NeoECOPrototypeGameTests {
                         crossDim.set(false);
                         var otherSide = GlobalPos.of(otherWorld, helper.absolutePos(new BlockPos(0, 1, 0)));
                         String refused = WirelessLinks.bind(level, ModRegistration.WIRELESS_LINKS, a, otherSide);
-                        if (refused.startsWith("linked ") || !refused.contains("different dimensions")) {
+                        if (refused.startsWith("linked ")
+                                || !refused.contains("cross-dimension links are off")) {
                             helper.fail("a cross-dimension join went through with the switch off, or the"
                                     + " refusal did not say why: \"" + refused + "\"");
                             return;
                         }
                         crossDim.set(true);
                         String allowed = WirelessLinks.bind(level, ModRegistration.WIRELESS_LINKS, a, otherSide);
-                        if (allowed.contains("different dimensions")) {
+                        // The switch-off sentence is the thing that must disappear when the switch goes on - the
+                        // short refusal (2026-11-15) no longer says "different dimensions", so that phrase would
+                        // have made this check pass even with the config cached.
+                        if (allowed.contains("cross-dimension links are off")) {
                             helper.fail("the switch was turned on and the same join is still refused for being"
                                     + " cross-dimensional, so the value is cached: \"" + allowed + "\"");
                             return;
@@ -23981,34 +24564,35 @@ public final class NeoECOPrototypeGameTests {
     }
 
     /**
-     * The card is withheld from players this release - no recipe, no creative tab entry, and the red
-     * "not implemented" line on whatever a /give leaves behind. Both halves are pinned, because the failure
-     * mode of a withheld feature is one-sided: the recipe coming back on its own (a data file re-added and
-     * nobody notices the item is craftable again) is as bad as a shipped item losing its red line because a
-     * list was edited in one place only.
+     * The wireless cards are shipped content since 2026-11-16: neither carries the red "not implemented" line
+     * any more, and the withheld shape they were kept in before that - an assembler recipe for the link card,
+     * withdrawn the same week it shipped - stays gone.
+     *
+     * <p>Both halves are the ways this family could come back wrong. The red line lives in one list, so the
+     * guard reads it off the stack instead of trusting that every place was edited; the ghost recipe is a data
+     * file, and a card that is "crafted" by encoding nothing is exactly the thing that should go red here
+     * rather than turn up in a player's JEI page.
      */
-    @GameTest(template = "empty", batch = "wireless_card_hidden", timeoutTicks = 200,
+    @GameTest(template = "empty", batch = "wireless_card_shipped", timeoutTicks = 200,
             templateNamespace = NeoECOPrototype.MOD_ID)
-    public static void theWithheldCardIsNeitherCraftableNorFinished(GameTestHelper helper) {
+    public static void theWirelessCardsAreCraftableAndNotMarked(GameTestHelper helper) {
         var manager = helper.getLevel().getRecipeManager();
-        var recipe = manager.byKey(cn.dancingsnow.neoecoprototype.NeoECOPrototype
-                .id("processor_assembler/wireless_link_card"));
-        if (!recipe.isEmpty()) {
-            helper.fail("a recipe for the wireless link card is registered (" + recipe.get()
-                    + "), so the withheld card is craftable after all");
+        var ghost = manager.byKey(NeoECOPrototype.id("processor_assembler/wireless_link_card"));
+        if (!ghost.isEmpty()) {
+            helper.fail("the withdrawn assembler recipe for the link card is registered again (" + ghost.get()
+                    + ") - the card is crafted in a workbench now");
             return;
         }
-        var card = new ItemStack(ModRegistration.WIRELESS_LINK_CARD.get());
-        if (!cn.dancingsnow.neoecoprototype.tooltip.SimplifyTooltipHandler.isNotImplemented(card)) {
-            helper.fail("the withheld card does not carry the red not-implemented line, so a /give'd one"
-                    + " reads like finished content");
-            return;
-        }
-        var shipped = new ItemStack(ModRegistration.SIMPLIFY_STORAGE_CONTROLLER_ITEM.get());
-        if (cn.dancingsnow.neoecoprototype.tooltip.SimplifyTooltipHandler.isNotImplemented(shipped)) {
-            helper.fail("the withheld list caught " + shipped
-                    + ", which players are meant to be able to build");
-            return;
+        for (var item : List.of(ModRegistration.WIRELESS_LINK_CARD.get(),
+                ModRegistration.WIRELESS_UNLINK_CARD.get(),
+                ModRegistration.SUBSYSTEM_CHANNEL_MODULE_ITEM.get())) {
+            if (cn.dancingsnow.neoecoprototype.tooltip.SimplifyTooltipHandler.isNotImplemented(
+                    new ItemStack(item))) {
+                helper.fail(BuiltInRegistries.ITEM.getKey(item)
+                        + " still carries the red not-implemented line, so a family with recipes reads"
+                        + " like hidden content");
+                return;
+            }
         }
         helper.succeed();
     }
@@ -24129,10 +24713,12 @@ public final class NeoECOPrototypeGameTests {
                         }
                         var extra = GlobalPos.of(level.dimension(), helper.absolutePos(spokes.get(cap)));
                         var refused = WirelessLinks.bindReply(level, ModRegistration.WIRELESS_LINKS, hubPos, extra);
-                        if (!refused.english().contains("caps a device at " + cap + " (")
+                        // The short sentence (2026-11-15) keeps exactly two facts, and these are them: the pair
+                        // of numbers the cap produced, and the config key a pack author has to change.
+                        if (!refused.english().contains("(" + cap + " of " + cap + ")")
                                 || !refused.english().contains("wireless_max_links_per_device")) {
-                            helper.fail("a link past the cap was accepted, or the refusal did not name the"
-                                    + " config it came from: \"" + refused.english() + "\"");
+                            helper.fail("a link past the cap was accepted, or the refusal stopped naming the"
+                                    + " count and the config it came from: \"" + refused.english() + "\"");
                             return;
                         }
                         if (refused.english().contains("channels it can carry")) {
@@ -24220,10 +24806,10 @@ public final class NeoECOPrototypeGameTests {
                 placeDenseTrunk(helper, new BlockPos(3, 1, i));
                 helper.setBlock(new BlockPos(4, 1, i), interfaceBlock);
             }
-            // Far network: one dense module, on its own, no controller.
+            // Far network: one dense bus rather than a second module; module-to-module edges are blacklisted.
             var farAt = GlobalPos.of(level.dimension(),
                     helper.absolutePos(new BlockPos(8, 1, 0)));
-            helper.setBlock(new BlockPos(8, 1, 0), moduleBlock);
+            placeDenseTrunk(helper, new BlockPos(8, 1, 0));
 
             waitUntil(helper, 60,
                     () -> {
@@ -24250,7 +24836,11 @@ public final class NeoECOPrototypeGameTests {
                                     + " was not refused by name: \"" + refused.english() + "\"");
                             return;
                         }
-                        if (refused.english().contains("caps a device at")) {
+                        // The two refusals have to stay tellable apart on screen. The short sentences (2026-11-15)
+                        // dropped the phrase this check used to key on, so it keys on the one the cap line still
+                        // says and the width line still does not: with the cap at 0 the cap sentence must not
+                        // appear here at all.
+                        if (refused.english().contains("at its link limit")) {
                             helper.fail("the bookkeeping cap refused even though it is set to 0:"
                                     + " \"" + refused.english() + "\"");
                             return;
@@ -24722,6 +25312,228 @@ public final class NeoECOPrototypeGameTests {
         return count;
     }
 
+    /** A link between two channel modules is the nesting hop the card blacklist must refuse. */
+    @GameTest(template = "empty", batch = "wireless_module_endpoint_blacklist", timeoutTicks = 400,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void twoChannelModulesCannotBeLinkedTogether(GameTestHelper helper) {
+        var level = (ServerLevel) helper.getLevel();
+        clearWirelessLinksAndBillSnapshots(level);
+        var firstPos = new BlockPos(0, 1, 0);
+        var secondPos = new BlockPos(4, 1, 0);
+        helper.setBlock(firstPos, ModRegistration.SUBSYSTEM_CHANNEL_MODULE_BLOCK.get());
+        helper.setBlock(secondPos, ModRegistration.SUBSYSTEM_CHANNEL_MODULE_BLOCK.get());
+        var first = GlobalPos.of(level.dimension(), helper.absolutePos(firstPos));
+        var second = GlobalPos.of(level.dimension(), helper.absolutePos(secondPos));
+        waitUntil(helper, 40,
+                () -> level.getBlockEntity(helper.absolutePos(firstPos))
+                                instanceof WirelessChannelModuleBlockEntity
+                        && level.getBlockEntity(helper.absolutePos(secondPos))
+                                instanceof WirelessChannelModuleBlockEntity,
+                () -> "the two channel modules were not placed in the fixture",
+                () -> {
+                    var reply = WirelessLinks.bindReply(level, ModRegistration.WIRELESS_LINKS, first, second);
+                    if (!"gui.neoecoprototype.wireless_link.module_to_module".equals(reply.langKey())) {
+                        helper.fail("two channel modules did not hit the nesting blacklist: "
+                                + reply.english());
+                        return;
+                    }
+                    if (WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS, first)
+                            .contains("wirelessLinks=1")) {
+                        helper.fail("the refused module pair was recorded: " + reply.english());
+                        return;
+                    }
+                    helper.succeed();
+                });
+    }
+
+    /**
+     * A cable bus is a device the card can mark and bind, on both ends of the trip.
+     *
+     * <p>The client reported "only a cable bus cannot be connected", which is the one class of block this
+     * feature exists to reach: a wall of machines is reached through its bus, not through one machine on it.
+     * The reading that matters is therefore the whole round trip - mark it, bind it, and then find the edge
+     * landing on it - rather than the presence predicate alone, because {@code presence} answers from a
+     * capability while {@code node} has to walk sides until one answers.
+     *
+     * <p>Two shapes, because a bus answers differently depending on what is plugged into it:
+     * <ul>
+     *   <li>a bus carrying a cable - the ordinary case, and the one the player builds;</li>
+     *   <li>a bus carrying a part whose node is only reachable through {@code getExternalFacingNode}, which is
+     *       the side-based lookup this class deliberately keeps for exactly that reason.</li>
+     * </ul>
+     * A bare bus block with nothing in it is expected to be refused: that square really does carry no network.
+     *
+     * <p>Own batch: the fixture builds one near module and two far squares, and a second wide fixture in the
+     * same batch would merge their networks.
+     */
+    @GameTest(template = "empty", batch = "wireless_bus_endpoint", timeoutTicks = 900,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void aCableBusCanBeMarkedAndBound(GameTestHelper helper) {
+        var level = (ServerLevel) helper.getLevel();
+        clearWirelessLinksAndBillSnapshots(level);
+        var moduleBlock = ModRegistration.SUBSYSTEM_CHANNEL_MODULE_BLOCK.get();
+
+        helper.setBlock(new BlockPos(0, 1, 0), appeng.core.definitions.AEBlocks.CONTROLLER.block());
+        helper.setBlock(new BlockPos(0, 2, 0), appeng.core.definitions.AEBlocks.CREATIVE_ENERGY_CELL.block());
+        helper.setBlock(new BlockPos(1, 1, 0), moduleBlock);
+        // A far network: one dense cable bus of its own, two interfaces hanging off it. The bus is the square
+        // the card will be asked to mark.
+        // The bus is placed the way the other fixtures place cables - a direct level write - because
+        // GameTestHelper#setBlock goes through the structure box and left this square as air.
+        placeDenseTrunk(helper, new BlockPos(6, 1, 0));
+        helper.setBlock(new BlockPos(5, 1, 0), ModRegistration.SUPERCONDUCTIVE_INTERFACE_BLOCK.get());
+        helper.setBlock(new BlockPos(7, 1, 0), ModRegistration.SUPERCONDUCTIVE_INTERFACE_BLOCK.get());
+        for (int z = 1; z <= 2; z++) {
+            placeDenseTrunk(helper, new BlockPos(6, 1, z));
+        }
+
+        var moduleAt = GlobalPos.of(level.dimension(), helper.absolutePos(new BlockPos(1, 1, 0)));
+        var busAt = GlobalPos.of(level.dimension(), helper.absolutePos(new BlockPos(6, 1, 0)));
+
+        waitUntil(helper, 80,
+                () -> networkNode(level, moduleAt) != null
+                        && busNode(level, busAt) != null
+                        && networkNode(level, moduleAt).getGrid() != busNode(level, busAt).getGrid(),
+                () -> "the fixture never became a controlled near grid beside a bus-led far grid: module="
+                        + nodeSummary(level, moduleAt) + " bus=" + busNode(level, busAt)
+                        + " host=" + (appeng.api.networking.GridHelper.getNodeHost(level, busAt.pos()) != null)
+                        + " be=" + level.getBlockEntity(busAt.pos())
+                        + " state=" + level.getBlockState(busAt.pos()),
+                () -> {
+                    // 1. The card's own gate: is this square a device at all?
+                    if (!WirelessLinks.isDevice(level, busAt)) {
+                        helper.fail("the card refuses to mark a cable bus: isDevice=false, although the square"
+                                + " answers a node host and a node - that is the 'only a bus cannot be"
+                                + " connected' report, reproduced");
+                        return;
+                    }
+                    // 2. The bind itself, which is where a side-based lookup would fail.
+                    var reply = WirelessLinks.bindReply(level, ModRegistration.WIRELESS_LINKS, moduleAt, busAt);
+                    if (!reply.english().startsWith("linked ")) {
+                        helper.fail("marking a cable bus works but binding it is refused: \""
+                                + reply.english() + "\"");
+                        return;
+                    }
+                    waitUntil(helper, 60,
+                            () -> busNode(level, busAt) != null
+                                    && busNode(level, busAt).getGrid() == networkNode(level, moduleAt).getGrid(),
+                            () -> "the bus was accepted but the two grids never joined: module="
+                                    + nodeSummary(level, moduleAt) + " bus=" + busNode(level, busAt)
+                                    + " status=" + WirelessLinks.status(level,
+                                    ModRegistration.WIRELESS_LINKS, moduleAt),
+                            () -> {
+                                NeoECOPrototype.LOGGER.info("bus endpoint: module={} bus={} status={}",
+                                        nodeSummary(level, moduleAt), busNode(level, busAt),
+                                        WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS, moduleAt));
+                                helper.succeed();
+                            });
+                });
+    }
+
+    /**
+     * A loop is refused at the edge that would close it, which is what stops modules nesting into each other.
+     *
+     * <p>The report was "the module should be blacklisted, otherwise this nests forever". The mechanism that
+     * already covers it is {@code one_network}: AE2 merges two grids the moment an edge joins them, so by the
+     * time a player binds the edge that would close a triangle, both of its ends are on one {@code IGrid} and
+     * the bind is refused. This fixture proves that on the actual shape rather than on the sentence - three
+     * devices, three links asked for, and the third one has to be the refusal.
+     *
+     * <p>It is deliberately written with plain machines and not with modules: the claim is about the graph, so
+     * the fixture has to be the smallest graph that can have a loop in it. A module version would pass for the
+     * same reason and tell us nothing extra, while dragging in ports, controllers and the channel arithmetic.
+     */
+    @GameTest(template = "empty", batch = "wireless_no_loops", timeoutTicks = 900,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void theEdgeThatWouldCloseALoopIsRefused(GameTestHelper helper) {
+        var level = (ServerLevel) helper.getLevel();
+        clearWirelessLinksAndBillSnapshots(level);
+        var interfaceBlock = ModRegistration.SUPERCONDUCTIVE_INTERFACE_BLOCK.get();
+        helper.setBlock(new BlockPos(0, 1, 0), appeng.core.definitions.AEBlocks.CREATIVE_ENERGY_CELL.block());
+        var corners = new GlobalPos[]{
+                GlobalPos.of(level.dimension(), helper.absolutePos(new BlockPos(1, 1, 0))),
+                GlobalPos.of(level.dimension(), helper.absolutePos(new BlockPos(1, 1, 6))),
+                GlobalPos.of(level.dimension(), helper.absolutePos(new BlockPos(1, 1, 12)))};
+        for (int i = 0; i < corners.length; i++) {
+            var pos = new BlockPos(1, 1, i * 6);
+            helper.setBlock(pos, interfaceBlock);
+        }
+        waitUntil(helper, 40,
+                () -> networkNode(level, corners[0]) != null && networkNode(level, corners[1]) != null
+                        && networkNode(level, corners[2]) != null
+                        && separateNetworks(level, corners[0], corners[1])
+                        && separateNetworks(level, corners[1], corners[2]),
+                () -> "the three corners never became three separate grids: "
+                        + nodeSummary(level, corners[0]) + " / " + nodeSummary(level, corners[1]) + " / "
+                        + nodeSummary(level, corners[2]),
+                () -> {
+                    String first = WirelessLinks.bind(level, ModRegistration.WIRELESS_LINKS, corners[0],
+                            corners[1]);
+                    if (!first.startsWith("linked ")) {
+                        helper.fail("the first edge of the triangle was refused: \"" + first + "\"");
+                        return;
+                    }
+                    waitUntil(helper, 40,
+                            () -> oneNetwork(level, corners[0], corners[1]),
+                            () -> "the first edge never joined its two grids: " + nodeSummary(level, corners[0])
+                                    + " / " + nodeSummary(level, corners[1]),
+                            () -> {
+                                String second = WirelessLinks.bind(level,
+                                        ModRegistration.WIRELESS_LINKS, corners[1], corners[2]);
+                                if (!second.startsWith("linked ")) {
+                                    helper.fail("the second edge of the triangle was refused, so the third"
+                                            + " cannot be the loop-closer: \"" + second + "\"");
+                                    return;
+                                }
+                                waitUntil(helper, 40,
+                                        () -> oneNetwork(level, corners[0], corners[2]),
+                                        () -> "the chain of two edges did not put all three corners on one"
+                                                + " network, so the loop below is not a loop: "
+                                                + nodeSummary(level, corners[0]) + " / "
+                                                + nodeSummary(level, corners[2]),
+                                        () -> {
+                                            var closing = WirelessLinks.bindReply(level,
+                                                    ModRegistration.WIRELESS_LINKS, corners[0], corners[2]);
+                                            if (closing.english().startsWith("linked ")) {
+                                                helper.fail("the edge that closes a loop was accepted, so a"
+                                                        + " player can nest modules indefinitely: \""
+                                                        + closing.english() + "\"");
+                                                return;
+                                            }
+                                            if (!closing.english().contains("already on one network")) {
+                                                helper.fail("the loop was refused, but not by the one-network"
+                                                        + " sentence - a player reading this does not learn why:"
+                                                        + " \"" + closing.english() + "\"");
+                                                return;
+                                            }
+                                            NeoECOPrototype.LOGGER.info("loop refusal: {}", closing.english());
+                                            helper.succeed();
+                                        });
+                            });
+                });
+    }
+
+    /** The node of a cable bus, asked the way a client would have to: the host, then each side. */
+    private static IGridNode busNode(ServerLevel level, GlobalPos at) {
+        var host = appeng.api.networking.GridHelper.getNodeHost(level, at.pos());
+        if (host == null) {
+            return null;
+        }
+        for (var side : net.minecraft.core.Direction.values()) {
+            var node = host.getGridNode(side);
+            if (node != null) {
+                return node;
+            }
+            if (host instanceof appeng.api.parts.IPartHost partHost) {
+                var part = partHost.getPart(side);
+                if (part != null && part.getGridNode() != null) {
+                    return part.getGridNode();
+                }
+            }
+        }
+        return null;
+    }
+
     /** Both endpoints awake, both holding a node, and on two different networks. */
     private static boolean separateNetworks(ServerLevel level, GlobalPos a,
                                             GlobalPos b) {
@@ -24738,8 +25550,22 @@ public final class NeoECOPrototypeGameTests {
     }
 
     private static IGridNode networkNode(ServerLevel level, GlobalPos at) {
-        return level.getBlockEntity(at.pos()) instanceof IGridConnectedBlockEntity connected
-                ? connected.getGridNode() : null;
+        if (level.getBlockEntity(at.pos()) instanceof IGridConnectedBlockEntity connected) {
+            return connected.getGridNode();
+        }
+        // A cable bus is not an IGridConnectedBlockEntity. It exposes its centre cable or a mounted part
+        // through IInWorldGridNodeHost, which is the same fallback the card uses for a marked bus.
+        var host = appeng.api.networking.GridHelper.getNodeHost(level, at.pos());
+        if (host == null) {
+            return null;
+        }
+        for (var side : net.minecraft.core.Direction.values()) {
+            var node = host.getGridNode(side);
+            if (node != null) {
+                return node;
+            }
+        }
+        return null;
     }
 
     private static String nodeSummary(ServerLevel level, GlobalPos at) {

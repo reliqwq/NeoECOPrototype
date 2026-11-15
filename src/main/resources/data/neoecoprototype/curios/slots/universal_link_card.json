@@ -1,0 +1,10 @@
+{
+  "replace": false,
+  "size": 1,
+  "operation": "SET",
+  "order": 900,
+  "icon": "neoecoprototype:slot/empty_universal_link_card",
+  "add_cosmetic": false,
+  "use_native_gui": true,
+  "render_toggle": false
+}

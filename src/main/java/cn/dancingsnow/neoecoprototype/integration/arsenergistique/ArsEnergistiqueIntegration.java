@@ -71,7 +71,7 @@ public final class ArsEnergistiqueIntegration {
         return items.register(id, () -> new SimplifyStorageCellItem(ModRegistration.matrixName(id, bytes).stacksTo(1),
                 ArsEnergistiqueIntegration::sourceKeyType,
                 ArsEnergistiqueIntegration::sourceCellType,
-                bytes, (int) (bytes >> 8), TOTAL_TYPES));
+                bytes, SimplifyStorageCellItem.typeFee(bytes, TOTAL_TYPES), TOTAL_TYPES));
     }
 
     /** arseng's own key type: 1000 source per AE byte, the ratio its own source cells are built on. */

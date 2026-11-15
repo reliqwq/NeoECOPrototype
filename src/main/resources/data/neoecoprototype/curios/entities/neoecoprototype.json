@@ -1,0 +1,4 @@
+{
+  "entities": ["player"],
+  "slots": ["universal_link_card"]
+}

@@ -370,7 +370,7 @@ public final class StorageMatrixBuilder extends ItemBuilder {
                 ? customTotalTypes
                 : type == StorageMatrixDefinition.MatrixType.CHEMICAL
                 ? ChemicalMatrixSupport.totalTypes() : 256;
-        int bytesPerType = (int) Math.max(1L, bytes / totalTypes);
+        int bytesPerType = SimplifyStorageCellItem.typeFee(bytes, totalTypes);
 
         Item item;
         if (omniFamily) {
@@ -379,7 +379,7 @@ public final class StorageMatrixBuilder extends ItemBuilder {
             boolean quantum = material == MatrixMaterials.Kind.QUANTUM;
             item = OmniMatrixSupport.create(createItemProperties().stacksTo(1), quantum, totalTypes, bytes);
             totalTypes = OmniMatrixSupport.typesForDefinition(quantum, totalTypes);
-            bytesPerType = (int) Math.max(1L, bytes / Math.max(1, totalTypes));
+            bytesPerType = SimplifyStorageCellItem.typeFee(bytes, totalTypes);
         } else if (size == StorageMatrixDefinition.MatrixSize.INFINITE) {
             Supplier<AEKey> selectedKey = key;
             // An infinite matrix gets its own invisible cell type rather than the media's: borrowing it

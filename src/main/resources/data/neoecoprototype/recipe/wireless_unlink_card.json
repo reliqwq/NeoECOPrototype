@@ -1,0 +1,27 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "A": {
+      "item": "ae2:certus_quartz_crystal"
+    },
+    "B": {
+      "item": "ae2:quartz_block"
+    },
+    "C": {
+      "item": "ae2:quartz_fiber"
+    },
+    "D": {
+      "item": "neoecoprototype:subsystem_channel_module"
+    }
+  },
+  "pattern": [
+    "ABA",
+    "CDC",
+    "ABA"
+  ],
+  "result": {
+    "count": 1,
+    "id": "neoecoprototype:wireless_unlink_card"
+  }
+}

@@ -137,6 +137,80 @@ final class CurioDollTestProbe {
         return null;
     }
 
+    static String wirelessLinkCardProblem(ServerLevel level) {
+        String slot = cn.dancingsnow.neoecoprototype.integration.curios.CuriosDollSupport.WIRELESS_LINK_CARD_SLOT;
+        if (CuriosApi.getSlot(slot).isEmpty()) {
+            return "Curios has no " + slot + " slot";
+        }
+        TagKey<Item> cardTag = top.theillusivec4.curios.api.CuriosTags.createItemTag(slot);
+        ItemStack linkCard = new ItemStack(ModRegistration.WIRELESS_LINK_CARD.get());
+        if (CuriosApi.getCurio(linkCard).isEmpty()) {
+            return "the link card has no Curios capability";
+        }
+        if (!linkCard.is(cardTag)) {
+            return "the link card is not in the curios:" + slot + " item tag";
+        }
+        var player = FakePlayerFactory.get(level,
+                new com.mojang.authlib.GameProfile(UUID.randomUUID(), "wireless-card-curio"));
+        SlotContext context = new SlotContext(slot, player, 0, false, true);
+        var slotType = CuriosApi.getSlot(slot).orElseThrow();
+        var slotResult = new top.theillusivec4.curios.api.SlotResult(context, linkCard);
+        if (!CuriosApi.testCurioPredicates(slotType.getValidators(), slotResult)) {
+            return "the " + slot + " validator rejects the tagged link card: validators="
+                    + slotType.getValidators() + " cardTags=" + linkCard.getTags()
+                            .map(tag -> tag.location().toString()).toList();
+        }
+        if (!CuriosApi.isStackValid(context, linkCard)) {
+            return "Curios slot validation rejects the link card after its validator passed: slot="
+                    + slotType.getIdentifier() + " validators=" + slotType.getValidators();
+        }
+        if (CuriosApi.isStackValid(context, new ItemStack(ModRegistration.WIRELESS_UNLINK_CARD.get()))) {
+            return "the " + slot + " slot also accepts the unlink card";
+        }
+        ICuriosItemHandler curios = CuriosApi.getCuriosInventory(player).orElse(null);
+        if (curios == null || curios.getStacksHandler(slot).isEmpty()) {
+            return "the test player has no " + slot + " Curios slot";
+        }
+        return null;
+    }
+
+    /**
+     * Wears {@code card} in our own link-card slot for this player, and reads it back to be sure the slot
+     * actually took it. Returns null on success; the auto-connect rule then has a worn mark to find.
+     */
+    static String wearLinkCard(net.minecraft.world.entity.player.Player player, ItemStack card) {
+        String slot = cn.dancingsnow.neoecoprototype.integration.curios.CuriosDollSupport
+                .WIRELESS_LINK_CARD_SLOT;
+        ICuriosItemHandler curios = CuriosApi.getCuriosInventory(player).orElse(null);
+        ICurioStacksHandler handler = curios == null
+                ? null : curios.getStacksHandler(slot).orElse(null);
+        if (handler == null) {
+            return "the test player has no " + slot + " Curios slot to wear the card in";
+        }
+        SlotContext context = new SlotContext(slot, player, 0, false, true);
+        if (!CuriosApi.isStackValid(context, card)) {
+            return "Curios refused the marked card in " + slot;
+        }
+        handler.getStacks().setStackInSlot(0, card.copy());
+        ItemStack back = handler.getStacks().getStackInSlot(0);
+        if (back.isEmpty()) {
+            return "the " + slot + " slot reports empty right after the stack was written into it";
+        }
+        if (cn.dancingsnow.neoecoprototype.items.WirelessLinkCardItem.markedEndpoint(back) == null) {
+            return "the worn copy lost its mark: slot 0 of " + slot + " holds an unmarked card";
+        }
+        return null;
+    }
+
+    /** Takes the card back out of our slot, because the mock player is cached per profile and shared. */
+    static void clearWornLinkCard(net.minecraft.world.entity.player.Player player) {
+        CuriosApi.getCuriosInventory(player)
+                .flatMap(handler -> handler.getStacksHandler(
+                        cn.dancingsnow.neoecoprototype.integration.curios.CuriosDollSupport
+                                .WIRELESS_LINK_CARD_SLOT))
+                .ifPresent(handler -> handler.getStacks().setStackInSlot(0, ItemStack.EMPTY));
+    }
+
     private CurioDollTestProbe() {
     }
 }
