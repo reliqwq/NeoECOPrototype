@@ -120,8 +120,8 @@ __pycache__/
 # 删掉的死源码副本（只作本地留档，不进仓库也不进 jar）
 /_removed_sources/
 
-# 在用的开发约定与别人家的指南全文（工作文件，不进仓库也不进 jar）
-/AGENTS.md
+# 别人家的指南全文（工作文件，不进仓库也不进 jar）。
+# 开发约定 AGENTS.md 以前也在这里：2026-11-16 起它随仓库走，考古段落改放 docs/。
 /参考模组指南/
 
 # ImageGen scratch output (the failed 16x16 pixel-art probe)
