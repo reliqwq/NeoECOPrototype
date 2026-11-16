@@ -25,7 +25,7 @@ The Trinity system folds storage, configuration and crafting into one structure.
 | Minecraft | 1.21.1 |
 | NeoForge | 21.1.251 or a compatible 21.1.x release |
 | Applied Energistics 2 | 19.2.17 or a compatible 19.2.x release |
-| Neo ECO AE Extension | 21.2.10 or a compatible later release |
+| Neo ECO AE Extension | 21.2.17 or a compatible later release |
 | LDLib2 | 2.2.40 or newer - required by this addon and by Neo ECO AE Extension itself |
 | Java | 21 |
 | MegaCells | optional; required when the small bulk matrices are used |
@@ -70,7 +70,7 @@ gradlew.bat build --offline
 
 A build from a fresh clone stops with the names of the jars it is missing, because none of them are redistributed here. The output is `build/libs/neoecoprototype-<version>.jar`, where `<version>` is the literal written in `build.gradle`. Keep `libs/`, `run/`, `build/`, reference checkouts and local world data out of the repository.
 
-Why the dependency floors are written the way they are, including how the Neo ECO AE Extension floor moved from a prerelease range up to `21.2.10`, is recorded in [docs/ae2-extension-playbook.md](docs/ae2-extension-playbook.md). What ships with a release, and how it is published, is in [docs/publishing.md](docs/publishing.md).
+Why the dependency floors are written the way they are, including how the Neo ECO AE Extension floor moved from a prerelease range up to `21.2.17` (the per-floor readings are archived in [docs/eco-floor-history.md](docs/eco-floor-history.md)), is recorded in [docs/ae2-extension-playbook.md](docs/ae2-extension-playbook.md). What ships with a release, and how it is published, is in [docs/publishing.md](docs/publishing.md).
 
 ## Contributing
 

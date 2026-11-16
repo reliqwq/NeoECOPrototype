@@ -165,13 +165,9 @@ CHANGELOG 现在只写玩家看得见的结果。这一节收着那些"以后改
 
 ## 版本下限怎么定
 
-`neoforge.mods.toml` 里 eco 的下限现在写 **`[21.2.10,)`**，与编译基线同数（那条规矩见 AGENTS.md §5：编译基线 = 运行地板）。上限我们**故意不写** —— 写上限会把每一个新 eco 玩家挡在外面。
+现量（2026-11-16）：`neoforge.mods.toml:90` 写 **`[21.2.17,)`**，与编译基线同数——`build.gradle:268` 编的是 `neoecobeta/neoecoae-21.2.17.jar`。那条规矩见 AGENTS.md §5：编译基线 = 运行地板。上限我们**故意不写** —— 写上限会把每一个新 eco 玩家挡在外面。
 
-**这段是历史，保留是因为决策方式还在用。**下限一度停在 `[21.2.1-beta2,)` 而不是 `[21.2.1,)`：`21.2.1-beta1` 把自己声明成 plain `21.2.1`，宽范围恰好收下它；`beta2` 声明真实版本，而预发布版本比较时排在正式版**之下**，于是 `[21.2.1,)` 直接拒绝启动（实测过那句报错）。正式版 `21.2.1` 在 2026-10-07 放出之后下限仍留在 beta2 也是故意的：写成 `[21.2.1,)` 对新增玩家没多买到什么，却会把还拿着 beta2 的人整台游戏挡在启动之外。那条下限当时的实际内容是 `gui.GuiTitleProvider` —— 它在 `21.2.0` 里不存在，而我们的通讯接口与样板总线方块实现了它。
-
-**抬到 21.2.10 的那一笔不是被需求推的，是 §5 那条规矩推的**（2026-10-25 对 21.2.9 与 21.2.10 两份 jar 现量；**当天作者重传过同一个版本号**，现用的是 md5 `444dcfc3fdab`，被换掉的那颗是 `5b607afc4446`，两颗逐条比只有 2 个条目不同，都是 eco 自己的 `recipe/LargeWorkstationRecipeSources` 与它的 `$LightningBorrowing`，我们一颗都没点名，所以下面这些读数对新那颗照样成立）：类级 1498 → 1568（+72 / −2，去掉的两颗 `ExactAmountCollector$AmountVisitor` 与 `LargeWorkstationRecipes$FluidInput` 我们都没点名），我们字节码引用的 106 个 eco 类型全部解析；成员级 `tools/audit_eco_abi.py` 对控制组与被换掉那颗 21.2.10 打印的是同一份清单（10-25 那次 `wc -l` 读到 154 行，读的是相等不是长度；这份工具的输出行数从来随我们的字节码变，别把它当一个固定数）；非类条目 4505 → 4584，去掉的 7 张全是 eco 自己 `working_station/controller_formed` 下的兼容贴图。**唯一真撞上的一处是编译器抓到的**：`NECraftingClusterCalculator.matchingParallelCore` 由 `private` 改成 `protected`，我们同签名的私有静态谓词就变成"静态方法遮蔽实例方法"，改名收场（见 AGENTS.md §15）。同版 eco 开出的 API v1（`api/extension`、`api/multiblock`、`api/power`、`api/storage`、`api/workstation`）我们**没有接**，这是"未勘"不是"无用"。
-
-**抬到 21.2.9 的那一笔，理由是面板换图的三条通道**（2026-10-22 对 21.2.8 与 21.2.9 两份 jar 各 `javap` 一遍现量）：`api.IHostPanelTextureProvider$Part` 在 21.2.8 只有 **5** 个常量、21.2.9 有 **12** 个；`IHostPanelTextureProvider` 的 `getPanelTexture` 在 21.2.8 只有 **1** 个重载、21.2.9 有 **2** 个（五参那条答状态灯/开关/模式按钮，正是我们三个方块要覆写的）。枚举常量不存在是**首次触碰就 `NoSuchFieldError`**，读它们的代码不能声称更旧的地板。另一条同族教训是流体仓界面调 eco 的 `gui/common/FluidHatchUI`（21.2.1 没有这个类）与主机面板两条构造子在 21.2.3 换了参数个数（`StorageHostUI$Config` 13→15、`StorageHostActionUI$Config` 16→13）。
+**每一档地板当年为什么抬、抬级时量到什么，是历史，不在这一页**：见 [eco-floor-history.md](eco-floor-history.md)（`[21.2.1-beta2,)` 为什么不是 `[21.2.1,)`、21.2.9 的面板三通道、21.2.10 那颗被作者重传过的 jar、`matchingParallelCore` 由 private 改 protected 那一撞）。要动地板之前先读它，别把已经付过学费的判断重做一遍。
 
 **判据：别把区间当安全网，也别只量符号面。** 21.2.4 那次类名全在、成员全对、编译干净，运行时仍因 `Config` 参数个数变化断掉。站得住的判据只有"照那份 jar 编译 + 跑套件 + 客户端把界面开一遍"三条一起过。
 
