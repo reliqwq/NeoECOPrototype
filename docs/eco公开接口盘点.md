@@ -112,4 +112,4 @@
 2. ~~验 `ECOBigIntegerStorage` 能不能替掉那个 mixin~~ —— **已验完，替不掉**（见第二节该行）。真要减一个 mixin，对象是 **AE2**，不是 eco。
 3. 验样板总线那条：`AuxiliaryPatternHolder` 的 9 处联动到底在不在（旧记忆写"零读数"，需要一次断言或眼验把它钉成"有"或"没有"）。
 4. 上游稿子两件事：面板贴图四张覆盖不到 + 档位名 `tierName` 写死三档 → 已写成 `NEO_ECO_AE_PR_GUI_TIER_ART.md`，未发送。**11-06 补一条**：那份稿子可以顺手请求把 #153/#154/#155 这类"给附属的接口"登记进 `ECOAddonApi.FEATURES`，这样附属能用一个 `supports(...)` 判，而不是靠版本号区间猜。
-5. `api/me/provider/ECOBatchCapacityProvider` 还没读形状 —— 它和 #152（并行阶梯）可能是同一件事的上游版本，读它比继续催 #152 便宜。
+5. `api/me/provider/ECOBatchCapacityProvider` 还没读形状。**#152 这条线已断**（2026-11-16 现量）：上游 11-12 由第三方账号关单、无 commit 关联，`calculateOverclock` 在 21.2.16 与 21.2.17 逐字节相同（5,087 B / 102 行）⇒ 零交付。F1 的并行阶梯照我们自己的数字定稿，不再等上游；读 `ECOBatchCapacityProvider` 只是为了以后要不要接 eco 自己的批量容量口，不再是「催 #152 的替代品」。
