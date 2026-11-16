@@ -6024,11 +6024,12 @@ public final class NeoECOPrototypeGameTests {
                 return;
             }
         }
-        // Survival access is the three crafts dictated 2026-11-16, and the crafting table must hold exactly two
-        // of them plus the clear-the-mark recipe: a fourth entry would be an acquisition path nobody priced,
-        // and losing the clear recipe would take the undo off the re-mark gesture.
+        // Survival access is the three crafts dictated 2026-11-16, all of them at the crafting table, plus the
+        // clear-the-mark recipe: a fifth entry would be an acquisition path nobody priced, and losing the clear
+        // recipe would take the undo off the re-mark gesture.
         var manager = helper.getLevel().getRecipeManager();
         var wantedCrafts = java.util.List.of(
+                NeoECOPrototype.id("subsystem_channel_module"),
                 NeoECOPrototype.id("wireless_link_card"),
                 NeoECOPrototype.id("wireless_link_card_clear"),
                 NeoECOPrototype.id("wireless_unlink_card"));
@@ -6051,20 +6052,14 @@ public final class NeoECOPrototypeGameTests {
                     + wantedCrafts);
             return;
         }
-        // The module is not a crafting-table recipe at all - it comes out of eco's integrated working station,
-        // which the loop above cannot see - so it is asked for by id. Reading its result through the Recipe
-        // interface keeps this test off eco's recipe class.
-        var moduleRecipe = manager.byKey(
+        // The module moved off eco's integrated working station onto the crafting table on 2026-11-16 (asked
+        // for by name). The workbench keeps recipes that no player is told about, so the old id must be gone
+        // rather than lingering as an unpriced second path to the same item.
+        var staleStation = manager.byKey(
                 NeoECOPrototype.id("integrated_working_station/subsystem_channel_module"));
-        if (moduleRecipe.isEmpty()) {
-            helper.fail("the channel module has no working-station recipe, so the family is in the creative tab "
-                    + "but no player can build the device the cards hang off");
-            return;
-        }
-        var moduleOut = BuiltInRegistries.ITEM.getKey(moduleRecipe.get().value()
-                .getResultItem(helper.getLevel().registryAccess()).getItem());
-        if (!"subsystem_channel_module".equals(moduleOut.getPath())) {
-            helper.fail("the working-station recipe makes " + moduleOut + ", expected the channel module itself");
+        if (staleStation.isPresent()) {
+            helper.fail("the channel module still has a working-station recipe, so the crafting table is not "
+                    + "the only way to build the device the cards hang off");
             return;
         }
         helper.succeed();
