@@ -69,5 +69,5 @@ unlink.
   does not gets an outlet of its own. A port that reads `24/32` will still take a network needing eight.
 - **The far square needs a node.** A cable bus with no cable in it never gets one - plug a cable into the bus.
   A block placed a second ago may need one more tick to build its node before auto-connect can finish.
-- **Each link draws power.** `wireless_ae_per_link_per_tick` in the server config, 0.5 AE/t by default, billed
+- **Each link draws power.** `wireless_ae_per_link_per_tick` in the server config, 50 AE/t by default, billed
   against the joined grid.

@@ -22700,8 +22700,9 @@ public final class NeoECOPrototypeGameTests {
      * link consumes is whatever AE2 gives the two machines at its ends, and the card reports that instead of
      * rationing it, which is why the same reading also asserts {@code wirelessLinks=1 live=1} alongside
      * NO_CONTROLLER: a working link on a controllerless network is the normal case now, not a leaked one.
-     * <p>A link does now cost AE ({@code wireless_ae_per_link_per_tick}, 0.5 AE/t, pinned by the
-     * {@code wireless_price} batch), but a cost is a drain on the network's store and never a refusal, so
+     * <p>A link does now cost AE ({@code wireless_ae_per_link_per_tick}, 50 AE/t by default; the
+     * {@code wireless_price} batch sets its own 0.5 AE/t so its arithmetic stays exact), but a cost is a
+     * drain on the network's store and never a refusal, so
      * this guard stays true with the price on - which is the difference between it and the allowance system
      * it replaced.
      */

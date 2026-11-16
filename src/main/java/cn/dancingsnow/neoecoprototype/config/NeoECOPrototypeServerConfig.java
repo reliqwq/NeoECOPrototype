@@ -99,10 +99,14 @@ public final class NeoECOPrototypeServerConfig {
     /**
      * The energy price of one live link, in AE per tick, billed to the network the link's own end sits on.
      * 0 switches the charge off without switching the feature off.
-     * <p>The default is set from two numbers read off the jars, not invented: our smallest L1 component idles
-     * at 2.0 AE/t ({@code SimplifyPowerProfile}, {@code 16.0 x 1/8}), and AE2's own rate for channels is
-     * 1/128 AE/t per channel per block. 0.5 AE/t per link makes a full hub of four links cost exactly one L1
-     * component - visible to a power budget, not a wall.
+     * <p>Both ends of the range are set from numbers read off our own code, not from taste. Our smallest L1
+     * component idles at 2.0 AE/t ({@code SimplifyPowerProfile}, {@code 16.0 x 1/8}); one energized
+     * superconductive interface generates 4,000 AE/t
+     * ({@code SimplifySuperconductiveInterfaceBlockEntity.GENERATION_RATE}). At 50 AE/t a full six-port channel
+     * module costs 300 AE/t - 150 idle L1 components, 7.5% of one generator: a link has to be paid for on
+     * purpose, and a hub of them is a machine of its own. The ceiling, 16,384 AE/t, sits deliberately above
+     * what two of those generators produce (8,000), so a pack can use this one number to say "creative or
+     * sacrificial".
      * <p>Read live, once per sweep, and the sweep asks {@code IEnergyService.extractAEPower} rather than
      * registering an idle draw: {@code IGridNode} has no setter for idle power (only the impl class
      * {@code appeng.me.GridNode} does), so billing the network is the one route that also works for endpoints
@@ -245,11 +249,11 @@ public final class NeoECOPrototypeServerConfig {
                         "注：已跨维度连上的链路不受开关影响，会保留到玩家主动解除。")
                 .define("wireless_allow_cross_dimension", false);
         WIRELESS_AE_PER_LINK_PER_TICK = builder
-                .comment("AE/t one live link draws from the network at its own end. Default: 0.5 (8 links = 4 AE/t) | Range: 0~1024. 0 = free.",
+                .comment("AE/t one live link draws from the network at its own end. Default: 50 (8 links = 400 AE/t) | Range: 0~16384. 0 = free.",
                         "Note: charged live; a network that cannot pay keeps its links but stalls.",
-                        "每条在线链路每刻消耗的网络 AE。默认 0.5（8 条 = 4 AE/t）| 范围 0~1024。0 = 免费。",
+                        "每条在线链路每刻消耗的网络 AE。默认 50（8 条 = 400 AE/t）| 范围 0~16384。0 = 免费。",
                         "注：每次扫描实时扣费；付不起的网络链路保留，但会停机。")
-                .defineInRange("wireless_ae_per_link_per_tick", 0.5D, 0.0D, 1024.0D);
+                .defineInRange("wireless_ae_per_link_per_tick", 50.0D, 0.0D, 16384.0D);
         DERIVE_PROCESSOR_RECIPES_FROM_INSCRIBER = builder
                 .comment("Derive processor recipes from AE2 inscriber recipes. Default: true.",
                         "Note: with this on, deleting a data file alone does not disable a recipe; use the blacklist below.",
