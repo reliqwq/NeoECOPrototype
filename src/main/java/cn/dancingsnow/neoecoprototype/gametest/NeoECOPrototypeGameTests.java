@@ -13623,6 +13623,126 @@ public final class NeoECOPrototypeGameTests {
         helper.succeed();
     }
 
+    /**
+     * A matrix has to hold one of every type it advertises, and refuse the type after that.
+     *
+     * <p>The test above reads the price off the item; nothing read the consequence, so "will a 256-type matrix
+     * actually take 256 things" kept being answered by hand, one item at a time. This asks the engine the same
+     * question in memory: the first {@code MATRIX_TYPES} distinct keys of a family, one item each, all have to
+     * be taken, and the next new key has to be refused while the cell still has free bytes. That pairing is the
+     * whole point - a refusal with no room left would only prove the byte budget, and an acceptance past the cap
+     * would mean the advertised number is decoration. A second unit of a key already inside has to be taken
+     * after the refusal, which is the other half of eco's accounting: {@code bytesPerType} is charged when a
+     * type appears and never again.</p>
+     *
+     * <p>Control group, run on 2026-11-16: with {@code SimplifyStorageCellItem.typeFee} put back to
+     * {@code bytes / totalTypes} - what the rungs said until 2026-11-15 - this went red naming the rung,
+     * <i>"item 1k took 249 of the 256 distinct types it was offered and then refused one (used=1277 of 1280,
+     * free=3)"</i>. 256 types never fit, which is the player complaint, caught without a world. The same run put
+     * {@code everyMatrixPricesItsTypeCapAtAFifthOrLess} red beside it and nothing else: 2 of 310.</p>
+     *
+     * <p>The reading this also produced, and does not assert: the fluid matrix advertised 256 types in a run whose
+     * fluid registry holds 50, so the fluid ladder can never reach its own cap. That is a number to look at, not a
+     * bug this guard can decide.</p>
+     */
+    @GameTest(template = "empty", batch = "cell_type_cap", timeoutTicks = 100,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void aFullTypeCapHoldsOneOfEveryTypeItAdvertises(GameTestHelper helper) {
+        var cap = cn.dancingsnow.neoecoprototype.items.SimplifyStorageCellItem.MATRIX_TYPES;
+        Object[][] rungs = {
+                {"item 1k", ModRegistration.SIMPLIFY_ITEM_CELL_1K.get(), appeng.api.stacks.AEKeyType.items()},
+                {"item 1m", ModRegistration.SIMPLIFY_ITEM_CELL_1M.get(), appeng.api.stacks.AEKeyType.items()},
+                {"fluid 1k", ModRegistration.SIMPLIFY_FLUID_CELL_1K.get(), appeng.api.stacks.AEKeyType.fluids()},
+        };
+        for (Object[] rung : rungs) {
+            var label = (String) rung[0];
+            var type = (appeng.api.stacks.AEKeyType) rung[2];
+            var cell = cn.dancingsnow.neoecoae.api.storage.ECOStorageCells.getCellInventory(
+                    new ItemStack((net.minecraft.world.item.Item) rung[1]),
+                    (appeng.api.storage.cells.ISaveProvider) null);
+            if (cell == null) {
+                helper.fail(label + " produced no storage inventory, so its type cap could not be asked about");
+                return;
+            }
+            var keys = distinctKeysOf(type, cap + 1);
+            // The item registry has thousands of entries; the fluid one had 50 in the run this was written
+            // against, so a fluid matrix's 256-type cap cannot be reached by fluids at all. Where the medium
+            // runs out first the refusal half of the guard is not measured, and says so, instead of failing
+            // for a fact about the registry.
+            var reachesCap = keys.size() >= cap + 1;
+            if (keys.size() < 10) {
+                helper.fail(label + ": the registry offered only " + keys.size() + " distinct " + type.getId()
+                        + " keys, so this guard would have measured nothing");
+                return;
+            }
+            int ask = reachesCap ? cap : keys.size();
+            int accepted = 0;
+            for (int i = 0; i < ask; i++) {
+                if (cell.insert(keys.get(i), 1L, appeng.api.config.Actionable.MODULATE, null) != 1L) {
+                    break;
+                }
+                accepted++;
+            }
+            var free = cell.getTotalBytes() - cell.getUsedBytes();
+            if (accepted != ask) {
+                helper.fail(label + " took " + accepted + " of the " + ask
+                        + " distinct types it was offered and then refused one (used=" + cell.getUsedBytes()
+                        + " of " + cell.getTotalBytes() + ", free=" + free + ") - the type cap must be the"
+                        + " limit that bites first, not the byte budget");
+                return;
+            }
+            if (free <= 0L) {
+                helper.fail(label + " is byte-full at " + accepted + " types (used=" + cell.getUsedBytes()
+                        + " of " + cell.getTotalBytes() + "), so the refusal below would not be about the cap");
+                return;
+            }
+            if (reachesCap
+                    && cell.insert(keys.get(cap), 1L, appeng.api.config.Actionable.MODULATE, null) != 0L) {
+                helper.fail(label + " accepted type #" + (cap + 1) + " with " + free
+                        + " bytes still free, so nothing is enforcing the advertised " + cap + "-type cap");
+                return;
+            }
+            if (cell.insert(keys.get(0), 1L, appeng.api.config.Actionable.MODULATE, null) != 1L) {
+                helper.fail(label + " refused a second unit of a type it already holds, which means the"
+                        + " per-type reservation is being charged on every insert instead of once");
+                return;
+            }
+            NeoECOPrototype.LOGGER.info("cell_type_cap: {} held all {} types at {} used bytes of {} with"
+                            + " {} free; the cap itself {} measured (the registry offers {} distinct {} keys)",
+                    label, accepted, cell.getUsedBytes(), cell.getTotalBytes(), free,
+                    reachesCap ? "was" : "was NOT", keys.size(), type.getId());
+        }
+        helper.succeed();
+    }
+
+    /** {@code want} distinct keys of one medium, taken off the registries in id order. */
+    private static java.util.List<appeng.api.stacks.AEKey> distinctKeysOf(appeng.api.stacks.AEKeyType type,
+                                                                          int want) {
+        var keys = new java.util.ArrayList<appeng.api.stacks.AEKey>();
+        if (type == appeng.api.stacks.AEKeyType.items()) {
+            for (var item : net.minecraft.core.registries.BuiltInRegistries.ITEM) {
+                var key = appeng.api.stacks.AEItemKey.of(item);
+                if (key != null) {
+                    keys.add(key);
+                    if (keys.size() >= want) {
+                        return keys;
+                    }
+                }
+            }
+        } else if (type == appeng.api.stacks.AEKeyType.fluids()) {
+            for (var fluid : net.minecraft.core.registries.BuiltInRegistries.FLUID) {
+                var key = appeng.api.stacks.AEFluidKey.of(fluid);
+                if (key != null) {
+                    keys.add(key);
+                    if (keys.size() >= want) {
+                        return keys;
+                    }
+                }
+            }
+        }
+        return keys;
+    }
+
     /** Our blocks that belong to no mining tag at all: vanilla's own soft goods and fluids have none. */
     private static final java.util.Set<String> HAND_MINED_BLOCKS = java.util.Set.of(
             "neoecoprototype:fumo_doll_kouooki", "neoecoprototype:fumo_doll_reliqwq",
