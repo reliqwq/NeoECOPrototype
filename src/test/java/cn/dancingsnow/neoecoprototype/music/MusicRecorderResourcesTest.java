@@ -28,8 +28,9 @@ final class MusicRecorderResourcesTest {
     private static final Path DATA = Path.of("src/main/resources/data/neoecoprototype");
     private static final Path SOURCES = Path.of("src/main/java/cn/dancingsnow/neoecoprototype");
 
-    private static final List<String> OUR_FACES = List.of("music_recorder_front", "music_jukebox_front",
-            "music_jukebox_top", "music_jukebox_top_with_record");
+    /** A block with several of its own faces keeps them in a folder named after the block. */
+    private static final List<String> OUR_FACES = List.of("music_recorder_front", "music_jukebox/front",
+            "music_jukebox/top", "music_jukebox/top_with_record");
 
     /** AE2's own casing ramp: the only greys the machines may be built from. */
     private static final List<Integer> AE_CASING = List.of(
@@ -97,9 +98,9 @@ final class MusicRecorderResourcesTest {
         }
         for (Machine machine : List.of(
                 new Machine("music_recorder", "music_recorder_front", "ae2:block/generics/top"),
-                new Machine("music_jukebox", "music_jukebox_front", "music_jukebox_top"),
-                new Machine("music_jukebox_with_record", "music_jukebox_front",
-                        "music_jukebox_top_with_record"))) {
+                new Machine("music_jukebox", "music_jukebox/front", "music_jukebox/top"),
+                new Machine("music_jukebox_with_record", "music_jukebox/front",
+                        "music_jukebox/top_with_record"))) {
             JsonObject textures = json(ASSETS.resolve("models/block/" + machine.model() + ".json"))
                     .getAsJsonObject("textures");
             String top = machine.top().startsWith("ae2:")

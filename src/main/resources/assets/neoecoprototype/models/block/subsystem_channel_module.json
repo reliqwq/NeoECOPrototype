@@ -1,12 +1,12 @@
 {
   "parent": "minecraft:block/cube",
   "textures": {
-    "particle": "neoecoprototype:block/subsystem_channel_module_side",
-    "north": "neoecoprototype:block/subsystem_channel_module_front",
-    "south": "neoecoprototype:block/subsystem_channel_module_back",
-    "east": "neoecoprototype:block/subsystem_channel_module_side",
-    "west": "neoecoprototype:block/subsystem_channel_module_side",
-    "up": "neoecoprototype:block/subsystem_channel_module_top",
+    "particle": "neoecoprototype:block/subsystem_channel_module/side",
+    "north": "neoecoprototype:block/subsystem_channel_module/front",
+    "south": "neoecoprototype:block/subsystem_channel_module/back",
+    "east": "neoecoprototype:block/subsystem_channel_module/side",
+    "west": "neoecoprototype:block/subsystem_channel_module/side",
+    "up": "neoecoprototype:block/subsystem_channel_module/top",
     "down": "ae2:block/generics/bottom"
   }
 }

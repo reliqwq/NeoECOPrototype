@@ -1,12 +1,12 @@
 {
   "parent": "minecraft:block/cube",
   "textures": {
-    "particle": "neoecoprototype:block/music_jukebox_front",
-    "north": "neoecoprototype:block/music_jukebox_front",
+    "particle": "neoecoprototype:block/music_jukebox/front",
+    "north": "neoecoprototype:block/music_jukebox/front",
     "east": "ae2:block/generics/side",
     "south": "ae2:block/generics/back",
     "west": "ae2:block/generics/side",
-    "up": "neoecoprototype:block/music_jukebox_top",
+    "up": "neoecoprototype:block/music_jukebox/top",
     "down": "ae2:block/generics/bottom"
   }
 }
