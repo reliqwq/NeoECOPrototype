@@ -94,16 +94,26 @@ public final class WirelessChannelModuleBlockEntity extends AENetworkedBlockEnti
         super(type, pos, state);
     }
 
+    /** The shipped default, and what a leftover {@code 0} from a 1.4.10-era file now means. */
+    public static final int DEFAULT_RANGE_BLOCKS = 50;
+
     /**
-     * How far a bind may reach from here: the world config's limit doubled once per installed booster, and no
-     * limit at all once the four slots are full. A config of 0 already means "no limit" and stays that way -
-     * the ladder multiplies a limit, it never invents one.
+     * The config value that lifts the limit without booster cards. {@code 0} used to be that value, and a
+     * file written by 1.4.10 still holds it - but that release shipped {@code wireless_links} off, with no
+     * recipe for any wireless item and no module block at all (measured on that tag: 0 recipe files, 0
+     * WirelessChannelModule classes), so a 0 sitting in an existing file cannot be an author tuning a knob
+     * they could never reach. It now means "follow the default", and the top of the declared range is the
+     * explicit way to ask for no limit.
      */
+    public static final int UNLIMITED_RANGE_BLOCKS = 100000;
+
+    /** The bind path's distance gate: a returned 0 means no limit, anything else is a block count. */
     public static int rangeWithBoosters(int configured, int boosters) {
-        if (configured <= 0 || boosters >= MAX_BOOSTERS) {
+        int base = configured <= 0 ? DEFAULT_RANGE_BLOCKS : configured;
+        if (base >= UNLIMITED_RANGE_BLOCKS || boosters >= MAX_BOOSTERS) {
             return 0;
         }
-        return configured << boosters;
+        return base << boosters;
     }
 
     /** The same ladder read off this block, for the bind path that already has the module in hand. */

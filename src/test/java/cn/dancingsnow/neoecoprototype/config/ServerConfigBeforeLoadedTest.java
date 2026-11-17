@@ -102,12 +102,14 @@ class ServerConfigBeforeLoadedTest {
     /**
      * The bind range a player gets with no booster installed is the number the guide and the config comment
      * both name, and the four rungs above it are that number doubled three times and then lifted. The ladder
-     * is arithmetic on this default, so the default and the arithmetic are pinned together.
+     * is arithmetic on this default, so the default and the arithmetic are pinned together - and so is the
+     * spelling of "no limit": 1.4.11 moved it from 0 to 100000 because a 0 in an existing file cannot be read
+     * as an author's choice (that release shipped the switch off, with no wireless recipe and no module).
      */
     @Test
     void theBindRangeShipsAtFiftyBlocksAndTheLadderDoublesIt() {
         assertEquals(50, NeoECOPrototypeServerConfig.WIRELESS_MAX_RANGE_BLOCKS.getDefault(),
-                "the range ships at 50 blocks; 0 means unlimited and is a packager's choice, not a default");
+                "the range ships at 50 blocks; 100000 is the no-limit spelling and 0 follows the default");
         assertEquals(50, WirelessChannelModuleBlockEntity.rangeWithBoosters(50, 0), "no card is no change");
         assertEquals(100, WirelessChannelModuleBlockEntity.rangeWithBoosters(50, 1), "one card doubles it");
         assertEquals(200, WirelessChannelModuleBlockEntity.rangeWithBoosters(50, 2), "two cards double it again");
@@ -115,8 +117,12 @@ class ServerConfigBeforeLoadedTest {
                 + " rung that still names a distance");
         assertEquals(0, WirelessChannelModuleBlockEntity.rangeWithBoosters(50, 4), "four cards lift the gate"
                 + " rather than raising the number");
-        assertEquals(0, WirelessChannelModuleBlockEntity.rangeWithBoosters(0, 2), "a world that turned the"
-                + " limit off stays off whatever is installed");
+        assertEquals(50, WirelessChannelModuleBlockEntity.rangeWithBoosters(0, 0), "a leftover 0 from a"
+                + " 1.4.10-era file follows the default instead of lifting the gate");
+        assertEquals(200, WirelessChannelModuleBlockEntity.rangeWithBoosters(0, 2), "and the ladder still"
+                + " multiplies what the default resolved to");
+        assertEquals(0, WirelessChannelModuleBlockEntity.rangeWithBoosters(100000, 0), "the top of the"
+                + " declared range is the explicit no limit");
     }
 
     /**

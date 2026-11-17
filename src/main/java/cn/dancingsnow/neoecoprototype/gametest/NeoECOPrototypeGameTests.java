@@ -24332,8 +24332,8 @@ public final class NeoECOPrototypeGameTests {
                         range.set(0);
                         String withinRange = WirelessLinks.bind(level, ModRegistration.WIRELESS_LINKS, b, d);
                         if (!withinRange.startsWith("linked ")) {
-                            helper.fail("range 0 is meant to mean unlimited, and the same join was still"
-                                    + " refused: " + withinRange);
+                            helper.fail("a leftover 0 in the config follows the default 50, and this 4"
+                                    + " block join was still refused: " + withinRange);
                             return;
                         }
                         crossDim.set(false);
@@ -27614,6 +27614,24 @@ public final class NeoECOPrototypeGameTests {
     @GameTest(template = "empty", batch = "wireless_booster_range", timeoutTicks = 900,
             templateNamespace = NeoECOPrototype.MOD_ID)
     public static void boosterCardsDoubleTheBindRangeAndFourLiftIt(GameTestHelper helper) {
+        // Read first, before any world fixture: a file written by 1.4.10 still carries
+        // wireless_max_range_blocks = 0, and that release shipped wireless_links off with no recipe for any
+        // wireless item and no module block at all (measured on that tag: 0 recipe files, 0
+        // WirelessChannelModule classes). A 0 in an existing file therefore cannot be an author tuning a knob
+        // they could never reach - it now means "follow the default", and 100000, the top of the declared
+        // range, is the explicit no-limit spelling. Control group: put the old first line of
+        // rangeWithBoosters back and this reddens on its very first rung.
+        int[][] rungs = {{0, 0, 50}, {0, 1, 100}, {0, 2, 200}, {0, 3, 400}, {0, 4, 0},
+                {50, 0, 50}, {50, 3, 400}, {100000, 0, 0}, {1, 4, 0}};
+        for (int[] rung : rungs) {
+            int got = WirelessChannelModuleBlockEntity.rangeWithBoosters(rung[0], rung[1]);
+            if (got != rung[2]) {
+                helper.fail("rangeWithBoosters(" + rung[0] + ", " + rung[1] + ") = " + got + ", expected "
+                        + rung[2] + " - a config 0 follows the default 50, 100000 is no limit, and four"
+                        + " boosters still lift whatever the base was");
+                return;
+            }
+        }
         bindRangeLadder(helper, false);
     }
 
@@ -27627,6 +27645,7 @@ public final class NeoECOPrototypeGameTests {
     public static void threeBoostersStillRefuseTheTwelveBlockJoin(GameTestHelper helper) {
         bindRangeLadder(helper, true);
     }
+
 
     private static void bindRangeLadder(GameTestHelper helper, boolean stopAtThreeBoosters) {
         var level = (ServerLevel) helper.getLevel();
