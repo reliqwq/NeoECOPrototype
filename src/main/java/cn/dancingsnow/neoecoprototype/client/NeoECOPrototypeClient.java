@@ -93,6 +93,13 @@ public final class NeoECOPrototypeClient {
                 ResourceLocation.fromNamespaceAndPath(NeoECOPrototype.MOD_ID, "part/pattern_provider"));
     }
 
+    public static void registerMigrationDriveHighlights() {
+        net.neoforged.neoforge.common.NeoForge.EVENT_BUS.addListener(
+                cn.dancingsnow.neoecoprototype.client.render.LinkOutline::onClientTick);
+        net.neoforged.neoforge.common.NeoForge.EVENT_BUS.addListener(
+                cn.dancingsnow.neoecoprototype.client.render.LinkOutline::onStage);
+    }
+
     /**
      * Every in-drive cell model we hand to eco. The same list must be registered as an additional
      * model or the item renders nothing, so it lives here once instead of in two places.

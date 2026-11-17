@@ -39,6 +39,7 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.level.block.state.properties.Property;
 import org.jetbrains.annotations.Nullable;
 
@@ -179,6 +180,49 @@ public class SimplifyStructureExpansionCardItem extends Item {
             return ModRegistration.NAME_THEME_TIER_L6;
         }
         return 0;
+    }
+
+    public record EligibleUpgrade(MultiBlockDefinition target, AABB bounds) {
+    }
+
+    public final @Nullable EligibleUpgrade eligibleTierTarget(
+            MultiBlockBuildController.Host host, Player player) {
+        Level level = host.getBuildLevel();
+        BlockPos pos = host.getBuildPosition();
+        if (level == null || host.isBuildInProgress() || !host.canPlayerInteract(player)) {
+            return null;
+        }
+        MultiBlockDefinition current = host.getBuildDefinition();
+        if (current == null || largestSatisfiedLength(host, level, pos, current,
+                current.getExpandMax()).length() != current.getExpandMax()) {
+            return null;
+        }
+        MultiBlockDefinition target = targetOf(current);
+        if (target == null || anchorTarget(host, level, pos, target) == null) {
+            return null;
+        }
+        MultiBlockPlacementPlan targetPlan = preview(host, level, pos, target, current.getExpandMax());
+        Classified swap = classify(targetPlan,
+                plannedByPosition(preview(host, level, pos, current, current.getExpandMax())), level, true);
+        if (swap.foreign() != null) {
+            return null;
+        }
+        double minX = pos.getX();
+        double minY = pos.getY();
+        double minZ = pos.getZ();
+        double maxX = pos.getX() + 1.0D;
+        double maxY = pos.getY() + 1.0D;
+        double maxZ = pos.getZ() + 1.0D;
+        for (var block : targetPlan.getAllBlocks()) {
+            BlockPos plannedPos = block.worldPos();
+            minX = Math.min(minX, plannedPos.getX());
+            minY = Math.min(minY, plannedPos.getY());
+            minZ = Math.min(minZ, plannedPos.getZ());
+            maxX = Math.max(maxX, plannedPos.getX() + 1.0D);
+            maxY = Math.max(maxY, plannedPos.getY() + 1.0D);
+            maxZ = Math.max(maxZ, plannedPos.getZ() + 1.0D);
+        }
+        return new EligibleUpgrade(target, new AABB(minX, minY, minZ, maxX, maxY, maxZ));
     }
 
     /** What to tell the player when {@link #targetOf} came back with nothing. */

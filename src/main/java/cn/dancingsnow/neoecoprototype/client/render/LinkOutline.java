@@ -1,6 +1,7 @@
 package cn.dancingsnow.neoecoprototype.client.render;
 
 import cn.dancingsnow.neoecoprototype.NeoECOPrototype;
+import cn.dancingsnow.neoecoprototype.items.SimplifyMigrationDriveItem;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
@@ -17,15 +18,14 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 
 /**
- * A box drawn around one square in the world for a few seconds - the panel's "highlight" action.
+ * Depth-independent world outlines for selected wireless endpoints and migration-drive target structures.
  *
  * <p>The mod this was modelled on (ExtendedAE) delegates to Glodium's outline renderer: a 3px line box with
  * depth testing disabled, drawn at {@link RenderLevelStageEvent.Stage#AFTER_PARTICLES}. Matching that render
@@ -40,14 +40,20 @@ import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
  * <p>The marks are keyed by dimension and position and carry their own expiry, so nothing can outlive the
  * moment it was asked for - the same shape the repo allows for per-square client state.
  */
-@EventBusSubscriber(modid = NeoECOPrototype.MOD_ID, value = Dist.CLIENT)
 public final class LinkOutline {
 
     /** Six seconds at the normal 20 ticks per second. */
     public static final int DEFAULT_TICKS = 120;
 
+    private static final int DRIVE_SCAN_RADIUS = 16;
+    private static final long DRIVE_SCAN_INTERVAL = 5;
+    private static final long DRIVE_MARK_TICKS = DRIVE_SCAN_INTERVAL + 2;
+    private static final int LINK_COLOR = 0xFFFF0000;
+
     private static final List<Mark> MARKS = new ArrayList<>();
     private static final RenderType OUTLINE = createOutlineType();
+    private static long lastDriveScan = -DRIVE_SCAN_INTERVAL;
+    private static boolean driveScanReported;
 
     private LinkOutline() {
     }
@@ -67,7 +73,10 @@ public final class LinkOutline {
                 VertexFormat.Mode.LINES, 65536, false, false, state);
     }
 
-    private record Mark(ResourceKey<Level> dimension, BlockPos pos, long until) {
+    private record Mark(ResourceKey<Level> dimension, AABB bounds, long until, int color, boolean drive) {
+    }
+
+    private record DriveTarget(AABB bounds, int color) {
     }
 
     /**
@@ -105,14 +114,87 @@ public final class LinkOutline {
             return;
         }
         long until = level.getGameTime() + ticks;
-        MARKS.removeIf(mark -> mark.dimension().equals(dimension) && mark.pos().equals(pos));
-        MARKS.add(new Mark(dimension, pos.immutable(), until));
+        var bounds = new AABB(pos).inflate(0.002D);
+        MARKS.removeIf(mark -> !mark.drive() && mark.dimension().equals(dimension)
+                && mark.bounds().equals(bounds));
+        MARKS.add(new Mark(dimension, bounds, until, LINK_COLOR, false));
     }
 
-    @SubscribeEvent
+    public static void onClientTick(ClientTickEvent.Post event) {
+        var minecraft = Minecraft.getInstance();
+        var level = minecraft.level;
+        var player = minecraft.player;
+        if (level == null || player == null
+                || !(player.getMainHandItem().getItem() instanceof SimplifyMigrationDriveItem drive)) {
+            clearDriveHighlights();
+            lastDriveScan = -DRIVE_SCAN_INTERVAL;
+            driveScanReported = false;
+            return;
+        }
+        if (level.getGameTime() - lastDriveScan < DRIVE_SCAN_INTERVAL) {
+            return;
+        }
+        lastDriveScan = level.getGameTime();
+
+        var origin = player.blockPosition();
+        var targets = new ArrayList<DriveTarget>();
+        int loadedChunks = 0;
+        int candidateHosts = 0;
+        int minChunkX = (origin.getX() - DRIVE_SCAN_RADIUS) >> 4;
+        int maxChunkX = (origin.getX() + DRIVE_SCAN_RADIUS) >> 4;
+        int minChunkZ = (origin.getZ() - DRIVE_SCAN_RADIUS) >> 4;
+        int maxChunkZ = (origin.getZ() + DRIVE_SCAN_RADIUS) >> 4;
+        for (int chunkX = minChunkX; chunkX <= maxChunkX; chunkX++) {
+            for (int chunkZ = minChunkZ; chunkZ <= maxChunkZ; chunkZ++) {
+                LevelChunk chunk = level.getChunkSource().getChunk(chunkX, chunkZ, false);
+                if (chunk == null) {
+                    continue;
+                }
+                loadedChunks++;
+                for (var blockEntity : chunk.getBlockEntities().values()) {
+                    if (!(blockEntity instanceof cn.dancingsnow.neoecoae.multiblock.placement
+                            .MultiBlockBuildController.Host host)) {
+                        continue;
+                    }
+                    candidateHosts++;
+                    BlockPos pos = blockEntity.getBlockPos();
+                    if (pos.distToCenterSqr(origin.getX() + 0.5D, origin.getY() + 0.5D,
+                            origin.getZ() + 0.5D) > (double) DRIVE_SCAN_RADIUS * DRIVE_SCAN_RADIUS) {
+                        continue;
+                    }
+                    var target = drive.eligibleTierTarget(host, player);
+                    if (target != null) {
+                        int color = SimplifyMigrationDriveItem.targetTierColor(target.target());
+                        if (color != 0) {
+                            targets.add(new DriveTarget(target.bounds(), color));
+                        }
+                    }
+                }
+            }
+        }
+        replaceDriveHighlights(level.dimension(), targets, level.getGameTime() + DRIVE_MARK_TICKS);
+        if (!driveScanReported) {
+            NeoECOPrototype.LOGGER.info("migration drive highlight scan: drive={} position={} loadedChunks={}"
+                            + " candidateHosts={} targets={}", drive.rung(), origin, loadedChunks, candidateHosts,
+                    targets.size());
+            driveScanReported = true;
+        }
+    }
+
+    private static void clearDriveHighlights() {
+        MARKS.removeIf(Mark::drive);
+    }
+
+    private static void replaceDriveHighlights(ResourceKey<Level> dimension, List<DriveTarget> targets, long until) {
+        clearDriveHighlights();
+        for (DriveTarget target : targets) {
+            MARKS.add(new Mark(dimension, target.bounds(), until, target.color(), true));
+        }
+    }
+
     public static void onStage(RenderLevelStageEvent event) {
         if (MARKS.isEmpty()
-                || event.getStage() != RenderLevelStageEvent.Stage.AFTER_PARTICLES) {
+                || event.getStage() != RenderLevelStageEvent.Stage.AFTER_BLOCK_ENTITIES) {
             return;
         }
         var level = Minecraft.getInstance().level;
@@ -139,10 +221,10 @@ public final class LinkOutline {
             if (!mark.dimension().equals(level.dimension())) {
                 continue;
             }
-            // Match Glodium/EAE: red, width 3, depth-independent and a hair outside the square.
-            AABB box = new AABB(mark.pos()).inflate(0.002);
-            net.minecraft.client.renderer.LevelRenderer.renderLineBox(pose, lines, box,
-                    1.0F, 0.0F, 0.0F, 1.0F);
+            int color = mark.color();
+            net.minecraft.client.renderer.LevelRenderer.renderLineBox(pose, lines, mark.bounds(),
+                    ((color >> 16) & 0xFF) / 255.0F, ((color >> 8) & 0xFF) / 255.0F,
+                    (color & 0xFF) / 255.0F, 1.0F);
         }
         pose.popPose();
         buffers.endBatch(OUTLINE);

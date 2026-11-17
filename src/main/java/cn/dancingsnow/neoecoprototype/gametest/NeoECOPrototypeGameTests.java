@@ -18404,11 +18404,25 @@ public final class NeoECOPrototypeGameTests {
                         + ", expected " + defName(expected46));
                 return;
             }
+            if (next46 != null && SimplifyMigrationDriveItem.targetTierColor(next46)
+                    != ModRegistration.NAME_THEME_TIER_L6) {
+                helper.fail("the L4 disk highlights " + path + " with color "
+                        + Integer.toHexString(SimplifyMigrationDriveItem.targetTierColor(next46))
+                        + " instead of the L6 color");
+                return;
+            }
             var expected69 = "6".equals(tier) ? l9 : null;
             var next69 = SimplifyMigrationDriveItem.rungTarget(sixToNine, def);
             if (next69 != expected69) {
                 helper.fail("the L6 disk on " + path + " answered " + defName(next69)
                         + ", expected " + defName(expected69));
+                return;
+            }
+            if (next69 != null && SimplifyMigrationDriveItem.targetTierColor(next69)
+                    != ModRegistration.NAME_THEME_TIER_L9) {
+                helper.fail("the L6 disk highlights " + path + " with color "
+                        + Integer.toHexString(SimplifyMigrationDriveItem.targetTierColor(next69))
+                        + " instead of the L9 color");
                 return;
             }
             var expectedCreative = "9".equals(tier) ? null : l9;
@@ -18445,10 +18459,16 @@ public final class NeoECOPrototypeGameTests {
                 helper.fail("eco ships no " + entry.getValue() + " or its L9, so this row is my lookup");
                 return;
             }
-            if (SimplifyMigrationDriveItem.rungTarget(oneToFour, entry.getKey()) != l4) {
+            var targetL4 = SimplifyMigrationDriveItem.rungTarget(oneToFour, entry.getKey());
+            if (targetL4 != l4) {
                 helper.fail("the L1 disk on our " + entry.getValue() + " host answered "
-                        + defName(SimplifyMigrationDriveItem.rungTarget(oneToFour, entry.getKey()))
-                        + ", expected " + defName(l4));
+                        + defName(targetL4) + ", expected " + defName(l4));
+                return;
+            }
+            if (SimplifyMigrationDriveItem.targetTierColor(targetL4) != ModRegistration.NAME_THEME_TIER_L4) {
+                helper.fail("the L1 disk's target " + entry.getValue() + " uses color "
+                        + Integer.toHexString(SimplifyMigrationDriveItem.targetTierColor(targetL4))
+                        + " instead of L4 blue");
                 return;
             }
             if (SimplifyMigrationDriveItem.rungTarget(straightToNine, entry.getKey()) != l9) {

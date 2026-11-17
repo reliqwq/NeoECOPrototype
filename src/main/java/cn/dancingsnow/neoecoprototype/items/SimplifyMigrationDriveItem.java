@@ -133,6 +133,25 @@ public final class SimplifyMigrationDriveItem extends SimplifyStructureExpansion
         return rung.target(current);
     }
 
+    public static int targetTierColor(@Nullable MultiBlockDefinition target) {
+        if (target == NEMultiBlocks.getStorageSystemDefinition(ECOTier.L4)
+                || target == NEMultiBlocks.getComputationSystemDefinition(ECOTier.L4)
+                || target == NEMultiBlocks.getCraftingSystemDefinition(ECOTier.L4)) {
+            return ModRegistration.NAME_THEME_TIER_L4;
+        }
+        if (target == NEMultiBlocks.getStorageSystemDefinition(ECOTier.L6)
+                || target == NEMultiBlocks.getComputationSystemDefinition(ECOTier.L6)
+                || target == NEMultiBlocks.getCraftingSystemDefinition(ECOTier.L6)) {
+            return ModRegistration.NAME_THEME_TIER_L6;
+        }
+        if (target == NEMultiBlocks.getStorageSystemDefinition(ECOTier.L9)
+                || target == NEMultiBlocks.getComputationSystemDefinition(ECOTier.L9)
+                || target == NEMultiBlocks.getCraftingSystemDefinition(ECOTier.L9)) {
+            return ModRegistration.NAME_THEME_TIER_L9;
+        }
+        return 0;
+    }
+
     /**
      * Which refusal a disk would show for the machine standing there. The table guard needs this because
      * "already on the top" is a claim about the tier, and printing it on a machine that could still climb

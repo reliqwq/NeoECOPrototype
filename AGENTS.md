@@ -37,7 +37,7 @@ Neo ECO AE Extension（下称 eco）的 **L1 超前期扩展**：给 eco 的 L4 
 | Minecraft | 1.21.1 | — |
 | NeoForge | 21.1.251 | — |
 | AE2 | 19.2.17，地板 `[19.2.17,)`；编译 = 运行 = 同一颗 | `build.gradle`、`neoforge.mods.toml` |
-| Neo ECO AE Extension | **21.2.17**（编译基线）／地板 `[21.2.17,)`——编译基线 = 运行地板，见 §5 | `build.gradle:268`、`neoforge.mods.toml:90` |
+| Neo ECO AE Extension | **21.2.18**（编译基线）／地板 `[21.2.18,)`——编译基线 = 运行地板，见 §5 | `build.gradle:268`、`neoforge.mods.toml:90` |
 | LDLib2 | 2.2.40，**硬依赖**，地板 `[2.2.40,)`（抄 eco 自己那条，不是我们挑的） | `build.gradle` |
 | 数据能源（Data Energistics） | 3.4.0，**可选**，只有 `compileOnly`；dev 运行期 2026-11-12 起不装 | `build.gradle:291` |
 | 闪电科技 ae2lt + thunderbolt | 2.1.4-beta3 / 2.0.3，`runtimeOnly`，我们 0 处 Java 引用 | `build.gradle:304` |
@@ -52,11 +52,11 @@ Neo ECO AE Extension（下称 eco）的 **L1 超前期扩展**：给 eco 的 L4 
 
 1. 类级——我们字节码点名的 eco 类型，逐个对目标 jar 的条目表；
 2. 成员级——`tools/audit_eco_abi.py`；
-3. **构造子级**——只比构造子描述符（`tools/audit_eco_ctors.py`，2026-11-16 现量：**我们点名 67 条，对 21.2.17 = 0 缺**）。
+3. **构造子级**——只比构造子描述符（`tools/audit_eco_ctors.py`，2026-11-17 现量：**我们点名 67 条，对 21.2.17 和 21.2.18 都是 0 缺**）。
 
 第 3 把不能省：成员级尺子结构上看不见"record 多一个分量"，因为 javap 把构造子印在类名下、`<init>` 永不匹配——而 record 加分量正是 `NoSuchMethodError` 那一类。尺子之外还要**照那份 jar 重编 + 跑套件 + 客户端开一遍界面**，三件齐全才算跟过。
 
-**jar 身份只认逐条目 name + CRC + length**（`unzip -v` 三列排序后 diff）；md5 会因 zip 时间戳假报"不是同一颗"。换 eco 基线时 `build.gradle` 点名的**文件名一起改**：现在是 `neoecobeta/neoecoae-21.2.17.jar`（带 `-sources.jar`）。
+**jar 身份只认逐条目 name + CRC + length**（`unzip -v` 三列排序后 diff）；md5 会因 zip 时间戳假报"不是同一颗"。换 eco 基线时 `build.gradle` 点名的**文件名一起改**：现在是 `neoecobeta/neoecoae-21.2.18.jar`（带 `-sources.jar`）。
 
 **数据能源这条线是"编译地板 / 运行基线"曾经分开的历史原因**：DE 3.4.0 自己 required `ae2 [19.2.18,)` + `ldlib2 [2.2.44,)` + `ae2wtlib`，那两条区间是把 dev 运行期顶上去的唯一原因。11-12 起它不在 dev 运行期，编译与运行重新合成一颗；音乐那一族本来就整族对玩家隐藏。**接回来是三步，少一件就是启动期依赖报错**：① 恢复那行 `runtimeOnly`；② ae2 / ldlib2 的 `runtimeOnly` 回到 19.2.18 / 2.2.44；③ 去掉 `run/mods/` 里那颗 jar 的 `.disabled` 后缀（改名，不是删除）——原文见 `build.gradle:288-290`。
 

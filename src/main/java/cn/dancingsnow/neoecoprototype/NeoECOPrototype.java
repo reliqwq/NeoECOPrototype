@@ -44,6 +44,7 @@ public class NeoECOPrototype {
         // see NeoECOPrototypeClient#registerPartModels for the player-reported startup crash this fixes.
         if (net.neoforged.fml.loading.FMLEnvironment.dist == net.neoforged.api.distmarker.Dist.CLIENT) {
             cn.dancingsnow.neoecoprototype.client.NeoECOPrototypeClient.registerPartModels();
+            cn.dancingsnow.neoecoprototype.client.NeoECOPrototypeClient.registerMigrationDriveHighlights();
         }
         container.registerConfig(net.neoforged.fml.config.ModConfig.Type.SERVER, NeoECOPrototypeServerConfig.SPEC);
 
