@@ -67,6 +67,27 @@ final class WirelessLinkGroupTest {
      * non-empty and a stored "" would come back as "no group" through a different path than it left by.
      */
     @Test
+    void mostRecentLinksKeepTheirAppendOrderAcrossPersistence() {
+        var dimension = ResourceKey.create(Registries.DIMENSION,
+                ResourceLocation.withDefaultNamespace("overworld"));
+        var data = new WirelessLinks.Data();
+        var recorded = new java.util.ArrayList<WirelessLinks.Link>();
+        for (int index = 0; index < 20; index++) {
+            var a = GlobalPos.of(dimension, new net.minecraft.core.BlockPos(index * 2, 1, 0));
+            var b = GlobalPos.of(dimension, new net.minecraft.core.BlockPos(index * 2 + 1, 1, 0));
+            var link = WirelessLinks.linkOf(a, b);
+            recorded.add(link);
+            data.record(link, "");
+        }
+
+        var restored = WirelessLinks.SERIALIZER.read(null, WirelessLinks.SERIALIZER.write(data, null), null);
+        assertEquals(16, WirelessLinks.mostRecent(restored, 16).size());
+        assertEquals(recorded.subList(4, 20).reversed(), WirelessLinks.mostRecent(restored, 16));
+        assertEquals(recorded.subList(0, 4), restored.links().subList(0, 4));
+        assertTrue(WirelessLinks.mostRecent(restored, 0).isEmpty());
+    }
+
+    @Test
     void setGroupRenamesAndClearsAnExistingLink() {
         var dimension = ResourceKey.create(Registries.DIMENSION,
                 ResourceLocation.withDefaultNamespace("overworld"));

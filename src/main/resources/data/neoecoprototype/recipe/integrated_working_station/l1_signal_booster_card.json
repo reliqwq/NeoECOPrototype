@@ -1,0 +1,26 @@
+{
+  "type": "neoecoae:integrated_working_station",
+  "energy": 10000,
+  "inputItems": [
+    {
+      "count": 6,
+      "item": "ae2:wireless_booster"
+    },
+    {
+      "count": 3,
+      "item": "neoecoae:storage_interface"
+    },
+    {
+      "count": 3,
+      "item": "neoecoae:computation_interface"
+    },
+    {
+      "count": 3,
+      "item": "neoecoae:crafting_interface"
+    }
+  ],
+  "itemOutput": {
+    "count": 1,
+    "id": "neoecoprototype:l1_signal_booster_card"
+  }
+}

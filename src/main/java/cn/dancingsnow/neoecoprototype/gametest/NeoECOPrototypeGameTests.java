@@ -3606,19 +3606,17 @@ public final class NeoECOPrototypeGameTests {
     }
 
     /**
-     * The things about a doll that are invisible to the compiler: the extra effect it has to hand out, the
-     * tooltip line that describes it (it was silently missing once, and "没回血" was really "没说"), that
-     * all four carry stats at all, that each blockstate turns with the facing it was set down in, and that
-     * a placed or worn doll actually moves a creeper. Reads everything through the mod classloader, so it
-     * costs no plot and touches no world.
+     * The things about a doll that are invisible to the compiler: the extra effects it hands out, that all
+     * four carry stats, that each blockstate turns with the facing it was set down in, and that a placed or
+     * worn doll actually moves a creeper. Reads everything through the mod classloader, so it costs no plot
+     * and touches no world.
      */
     @GameTest(template = "empty", templateNamespace = NeoECOPrototype.MOD_ID)
     public static void namedDollsGrantWhatTheyAdvertiseAndScareCreepers(GameTestHelper helper) {
         ItemStack stack = new ItemStack(ModRegistration.FUMO_DOLL_TEDXENON_ITEM.get());
         var extras = cn.dancingsnow.neoecoprototype.item.decoration.FumoItem.extraEffects(stack);
-        // The tooltip lines are built from this same list, so what is asserted here is what a player is
-        // promised - and the levels matter twice over: FumoEquipmentEffects hands this amplifier straight
-        // to the MobEffectInstance, and describe() writes it into the name.
+        // The effect levels are passed straight to MobEffectInstance; the displayed effect name carries the
+        // same level for a readable assertion here.
         if (extras.size() != 2) {
             helper.fail("TedXenon's doll hands out " + extras.size() + " effects, expected 2: " + extras);
             return;
@@ -3662,18 +3660,6 @@ public final class NeoECOPrototypeGameTests {
             if (cn.dancingsnow.neoecoprototype.item.decoration.FumoItem
                     .statsOf(new ItemStack(doll.get())) == null) {
                 helper.fail(doll.get() + " is in the creative tab as a doll but carries no stats");
-                return;
-            }
-        }
-        // The tooltip line is built from this key with the effect's own display name; if the key is
-        // gone the doll stops advertising what it does and there is no error anywhere to notice.
-        for (String lang : new String[]{"en_us", "zh_cn"}) {
-            String json = readResource("/assets/neoecoprototype/lang/" + lang + ".json", helper);
-            if (json == null) {
-                return;
-            }
-            if (!json.contains("fumo_reliqwq.worn_extra")) {
-                helper.fail("lang/" + lang + ".json has no fumo_reliqwq.worn_extra key");
                 return;
             }
         }
@@ -4515,51 +4501,6 @@ public final class NeoECOPrototypeGameTests {
             return;
         }
         int sweepBudget = (int) Math.round(configuredRate * 5.0D);
-
-        // The line the tooltip shows carries no number at all: the rate is a server key, and a dedicated
-        // client never loads one, so a number here would have to be hard-coded and could drift.
-        String chargeKey = "block.neoecoprototype.fumo_reliqwq.worn_charge";
-        String chargeLine = Component.translatable(chargeKey).getString();
-        var tedTooltip = new ItemStack(ModRegistration.FUMO_DOLL_TEDXENON_ITEM.get())
-                .getTooltipLines(net.minecraft.world.item.Item.TooltipContext.EMPTY, null,
-                        net.minecraft.world.item.TooltipFlag.Default.NORMAL);
-        if (tedTooltip.stream().noneMatch(line -> line.getString().equals(chargeLine))) {
-            helper.fail("TedXenon's tooltip has no line equal to '" + chargeLine + "', it has "
-                    + tedTooltip.stream().map(Component::getString).toList());
-            return;
-        }
-        for (var rate : rates) {
-            if (rate.aePerTick() > 0.0D) {
-                continue;
-            }
-            var lines = new ItemStack(rate.doll().get())
-                    .getTooltipLines(net.minecraft.world.item.Item.TooltipContext.EMPTY, null,
-                            net.minecraft.world.item.TooltipFlag.Default.NORMAL);
-            if (lines.stream().anyMatch(line -> line.getString().equals(chargeLine))) {
-                helper.fail(rate.doll().get() + " advertises charging, but its rate is zero, so the line"
-                        + " and the sweep disagree");
-                return;
-            }
-        }
-        for (String lang : new String[]{"en_us", "zh_cn"}) {
-            String json = readResource("/assets/neoecoprototype/lang/" + lang + ".json", helper);
-            if (json == null) {
-                return;
-            }
-            var table = com.google.gson.JsonParser.parseString(json).getAsJsonObject();
-            if (!table.has(chargeKey)) {
-                helper.fail("lang/" + lang + ".json has no " + chargeKey + " key");
-                return;
-            }
-            String text = table.get(chargeKey).getAsString();
-            // The tooltip passes no argument now, so a placeholder left in either language would render
-            // wrong or throw; the key has to be a plain sentence.
-            if (text.contains("%")) {
-                helper.fail("lang/" + lang + ".json still writes a placeholder into " + chargeKey + " ('"
-                        + text + "'), but the tooltip passes no argument any more");
-                return;
-            }
-        }
 
         // The cadence itself has to fire once in five wearer ticks: always false is a doll that never pays
         // out, always true is forty-one capability lookups every tick.
@@ -20278,28 +20219,32 @@ public final class NeoECOPrototypeGameTests {
         var level = helper.getLevel();
         java.util.function.Function<String, Item> ecoItem = name ->
                 BuiltInRegistries.ITEM.get(ResourceLocation.fromNamespaceAndPath("neoecoae", name));
-        record Rung(String file, Item drive, int energy, String computation, String crafting,
-                    String component) {
+        record Rung(String file, Item drive, Item prerequisite, int energy, String computation,
+                    String crafting, String component) {
         }
         var rungs = java.util.List.of(
-                new Rung("migration_drive_1_4", ModRegistration.MIGRATION_DRIVE_1_4.get(), 16000,
+                new Rung("migration_drive_1_4", ModRegistration.MIGRATION_DRIVE_1_4.get(),
+                        ModRegistration.MIGRATION_DRIVE_EMPTY.get(), 16000,
                         "computation_parallel_core_l4", "crafting_parallel_core_l4",
                         "eco_cell_component_16m"),
-                new Rung("migration_drive_4_6", ModRegistration.MIGRATION_DRIVE_4_6.get(), 160000,
+                new Rung("migration_drive_4_6", ModRegistration.MIGRATION_DRIVE_4_6.get(),
+                        ModRegistration.MIGRATION_DRIVE_1_4.get(), 160000,
                         "computation_parallel_core_l6", "crafting_parallel_core_l6",
                         "eco_cell_component_64m"),
-                new Rung("migration_drive_6_9", ModRegistration.MIGRATION_DRIVE_6_9.get(), 640000,
+                new Rung("migration_drive_6_9", ModRegistration.MIGRATION_DRIVE_6_9.get(),
+                        ModRegistration.MIGRATION_DRIVE_4_6.get(), 640000,
                         "computation_parallel_core_l9", "crafting_parallel_core_l9",
                         "eco_cell_component_256m"));
-        var empty = ModRegistration.MIGRATION_DRIVE_EMPTY.get();
         for (var rung : rungs) {
             var core = ecoItem.apply(rung.computation());
             var craftCore = ecoItem.apply(rung.crafting());
             var component = ecoItem.apply(rung.component());
-            if (core == Items.AIR || craftCore == Items.AIR || component == Items.AIR) {
-                helper.fail("one of the eco ingredients the " + rung.file() + " recipe names is not in the"
-                        + " item registry: " + rung.computation() + "=" + core + ", " + rung.crafting() + "="
-                        + craftCore + ", " + rung.component() + "=" + component);
+            if (rung.prerequisite() == Items.AIR || core == Items.AIR || craftCore == Items.AIR
+                    || component == Items.AIR) {
+                helper.fail("one of the ingredients the " + rung.file() + " recipe names is not in the"
+                        + " item registry: prerequisite=" + rung.prerequisite() + ", " + rung.computation()
+                        + "=" + core + ", " + rung.crafting() + "=" + craftCore + ", "
+                        + rung.component() + "=" + component);
                 return;
             }
             var id = NeoECOPrototype.id("integrated_working_station/" + rung.file());
@@ -20316,9 +20261,9 @@ public final class NeoECOPrototypeGameTests {
                 return;
             }
             var expected = new java.util.TreeMap<String, Integer>();
-            expected.put(BuiltInRegistries.ITEM.getKey(empty).toString(), 1);
-            expected.put(BuiltInRegistries.ITEM.getKey(core).toString(), 4);
-            expected.put(BuiltInRegistries.ITEM.getKey(craftCore).toString(), 4);
+            expected.put(BuiltInRegistries.ITEM.getKey(rung.prerequisite()).toString(), 1);
+            expected.put(BuiltInRegistries.ITEM.getKey(core).toString(), 8);
+            expected.put(BuiltInRegistries.ITEM.getKey(craftCore).toString(), 8);
             expected.put(BuiltInRegistries.ITEM.getKey(component).toString(), 11);
             var bill = new java.util.TreeMap<String, Integer>();
             for (var sized : recipe.inputItems()) {
@@ -20336,20 +20281,27 @@ public final class NeoECOPrototypeGameTests {
                 return;
             }
             var full = new cn.dancingsnow.neoecoae.recipe.IntegratedWorkingStationRecipe.Input(
-                    java.util.List.of(new ItemStack(empty), new ItemStack(core, 4),
-                            new ItemStack(craftCore, 4), new ItemStack(component, 11)),
+                    java.util.List.of(new ItemStack(rung.prerequisite()), new ItemStack(core, 8),
+                            new ItemStack(craftCore, 8), new ItemStack(component, 11)),
                     net.neoforged.neoforge.fluids.FluidStack.EMPTY);
-            var oneShort = new cn.dancingsnow.neoecoae.recipe.IntegratedWorkingStationRecipe.Input(
-                    java.util.List.of(new ItemStack(empty), new ItemStack(core, 4),
-                            new ItemStack(craftCore, 4), new ItemStack(component, 10)),
+            var oneCoreShort = new cn.dancingsnow.neoecoae.recipe.IntegratedWorkingStationRecipe.Input(
+                    java.util.List.of(new ItemStack(rung.prerequisite()), new ItemStack(core, 7),
+                            new ItemStack(craftCore, 8), new ItemStack(component, 11)),
+                    net.neoforged.neoforge.fluids.FluidStack.EMPTY);
+            var missingPrerequisite = new cn.dancingsnow.neoecoae.recipe.IntegratedWorkingStationRecipe.Input(
+                    java.util.List.of(new ItemStack(core, 8), new ItemStack(craftCore, 8),
+                            new ItemStack(component, 11)),
                     net.neoforged.neoforge.fluids.FluidStack.EMPTY);
             boolean exact = recipe.matches(full, level);
-            boolean shortBill = recipe.matches(oneShort, level);
-            NeoECOPrototype.LOGGER.info("drive recipe {}: {} AE, bill = {}, exact accepted = {}, one component"
-                    + " short accepted = {}", id, recipe.energy(), bill, exact, shortBill);
-            if (!exact || shortBill) {
+            boolean shortBill = recipe.matches(oneCoreShort, level);
+            boolean missingPrerequisiteAccepted = recipe.matches(missingPrerequisite, level);
+            NeoECOPrototype.LOGGER.info("drive recipe {}: {} AE, bill = {}, exact accepted = {}, one core"
+                    + " short accepted = {}, missing prerequisite accepted = {}", id, recipe.energy(), bill,
+                    exact, shortBill, missingPrerequisiteAccepted);
+            if (!exact || shortBill || missingPrerequisiteAccepted) {
                 helper.fail("the workstation does not read the " + rung.file() + " bill as " + bill
-                        + ": exact = " + exact + ", one component short = " + shortBill);
+                        + ": exact = " + exact + ", one core short = " + shortBill
+                        + ", missing prerequisite accepted = " + missingPrerequisiteAccepted);
                 return;
             }
         }
@@ -27480,6 +27432,158 @@ public final class NeoECOPrototypeGameTests {
                 .forEach(ItemEntity::discard);
     }
 
+    @GameTest(template = "empty", batch = "wireless_booster_slots",
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void l1SignalBoosterCardShipsItsNameAndTexture(GameTestHelper helper) {
+        var item = ModRegistration.L1_SIGNAL_BOOSTER_CARD.get();
+        var id = ResourceLocation.fromNamespaceAndPath(NeoECOPrototype.MOD_ID, "l1_signal_booster_card");
+        if (BuiltInRegistries.ITEM.get(id) != item) {
+            helper.fail(id + " is not the registered L1 signal booster card");
+            return;
+        }
+        String model = readShippedResource(ResourceLocation.fromNamespaceAndPath(NeoECOPrototype.MOD_ID,
+                "models/item/l1_signal_booster_card.json"));
+        if (model == null) {
+            helper.fail("the L1 signal booster card has no item model");
+            return;
+        }
+        var texture = firstLayerTexture(model);
+        if (!"neoecoprototype:item/l1_signal_booster_card".equals(texture)
+                || readShippedResource(ResourceLocation.fromNamespaceAndPath(NeoECOPrototype.MOD_ID,
+                        "textures/item/l1_signal_booster_card.png")) == null) {
+            helper.fail("the L1 signal booster card model points at an absent texture: " + texture);
+            return;
+        }
+        for (String lang : new String[]{"en_us", "zh_cn"}) {
+            String json = readResource("/assets/neoecoprototype/lang/" + lang + ".json", helper);
+            if (json == null) {
+                return;
+            }
+            var keys = com.google.gson.JsonParser.parseString(json).getAsJsonObject();
+            String itemName = keys.has("item.neoecoprototype.l1_signal_booster_card")
+                    ? keys.get("item.neoecoprototype.l1_signal_booster_card").getAsString() : "";
+            String available = keys.has("gui.neoecoprototype.wireless_module.available_upgrade")
+                    ? keys.get("gui.neoecoprototype.wireless_module.available_upgrade").getAsString() : "";
+            if (itemName.isBlank() || available.isBlank()) {
+                helper.fail("lang/" + lang + ".json is missing the L1 card name or upgrade-slot hint");
+                return;
+            }
+            if (lang.equals("zh_cn") && !available.equals("可用升级：L1信号增幅卡")) {
+                helper.fail("the Chinese upgrade-slot hint is \"" + available
+                        + "\", expected \"可用升级：L1信号增幅卡\"");
+                return;
+            }
+        }
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty", batch = "wireless_booster_slots", timeoutTicks = 100,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void l1SignalBoosterCardHasItsIntegratedWorkstationRecipe(GameTestHelper helper) {
+        var level = helper.getLevel();
+        var id = NeoECOPrototype.id("integrated_working_station/l1_signal_booster_card");
+        if (cn.dancingsnow.neoecoae.recipe.LargeWorkstationRecipes.getById(level, id) == null) {
+            helper.fail("eco's workstation decoder did not load " + id);
+            return;
+        }
+        var holder = level.getRecipeManager().byKey(id);
+        if (holder.isEmpty() || !(holder.get().value()
+                instanceof cn.dancingsnow.neoecoae.recipe.IntegratedWorkingStationRecipe recipe)) {
+            helper.fail("no integrated working station recipe is registered for " + id);
+            return;
+        }
+        var interfaces = List.of("storage_interface", "computation_interface", "crafting_interface").stream()
+                .map(name -> BuiltInRegistries.ITEM.get(ResourceLocation.fromNamespaceAndPath("neoecoae", name)))
+                .toList();
+        if (interfaces.stream().anyMatch(item -> item == Items.AIR)) {
+            helper.fail("eco's storage, computation, or crafting communication interface is absent: "
+                    + interfaces);
+            return;
+        }
+        var expected = new java.util.TreeMap<String, Integer>();
+        expected.put(BuiltInRegistries.ITEM.getKey(appeng.core.definitions.AEItems.WIRELESS_BOOSTER.asItem())
+                .toString(), 6);
+        for (var item : interfaces) {
+            expected.put(BuiltInRegistries.ITEM.getKey(item).toString(), 3);
+        }
+        var bill = new java.util.TreeMap<String, Integer>();
+        for (var sized : recipe.inputItems()) {
+            var choices = sized.ingredient().getItems();
+            bill.put(choices.length == 1
+                            ? BuiltInRegistries.ITEM.getKey(choices[0].getItem()).toString()
+                            : "<ingredient with " + choices.length + " alternatives>",
+                    sized.count());
+        }
+        var full = new cn.dancingsnow.neoecoae.recipe.IntegratedWorkingStationRecipe.Input(
+                java.util.List.of(new ItemStack(appeng.core.definitions.AEItems.WIRELESS_BOOSTER.asItem(), 6),
+                        new ItemStack(interfaces.get(0), 3), new ItemStack(interfaces.get(1), 3),
+                        new ItemStack(interfaces.get(2), 3)),
+                net.neoforged.neoforge.fluids.FluidStack.EMPTY);
+        var oneInterfaceShort = new cn.dancingsnow.neoecoae.recipe.IntegratedWorkingStationRecipe.Input(
+                java.util.List.of(new ItemStack(appeng.core.definitions.AEItems.WIRELESS_BOOSTER.asItem(), 6),
+                        new ItemStack(interfaces.get(0), 2), new ItemStack(interfaces.get(1), 3),
+                        new ItemStack(interfaces.get(2), 3)),
+                net.neoforged.neoforge.fluids.FluidStack.EMPTY);
+        boolean exact = recipe.matches(full, level);
+        boolean shortRejected = !recipe.matches(oneInterfaceShort, level);
+        if (!bill.equals(expected) || !recipe.itemOutput().is(ModRegistration.L1_SIGNAL_BOOSTER_CARD.get())
+                || recipe.energy() != 10000 || !exact || !shortRejected) {
+            helper.fail("L1 signal booster recipe reads bill=" + bill + ", output=" + recipe.itemOutput()
+                    + ", energy=" + recipe.energy() + ", exact=" + exact + ", one-interface-short-rejected="
+                    + shortRejected + "; expected " + expected + " -> "
+                    + ModRegistration.L1_SIGNAL_BOOSTER_CARD.get() + " at 10000 AE");
+            return;
+        }
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty", batch = "wireless_recent_cleanup",
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void recentWirelessCleanupSelectsTheNewestSixteenLinks(GameTestHelper helper) {
+        var level = (ServerLevel) helper.getLevel();
+        var data = level.getData(ModRegistration.WIRELESS_LINKS);
+        int existingLinks = data.links().size();
+        var recorded = new ArrayList<WirelessLinks.Link>();
+        for (int index = 0; index < 20; index++) {
+            var a = GlobalPos.of(level.dimension(), helper.absolutePos(new BlockPos(index * 2, 1, 0)));
+            var b = GlobalPos.of(level.dimension(), helper.absolutePos(new BlockPos(index * 2 + 1, 1, 0)));
+            var link = WirelessLinks.Link.of(a, b);
+            data.record(link, "");
+            recorded.add(link);
+        }
+        var newest = WirelessLinks.mostRecent(data, 16);
+        if (newest.size() != 16) {
+            helper.fail("the cleanup selected " + newest.size() + " links instead of 16");
+            return;
+        }
+        for (int index = 0; index < 16; index++) {
+            if (!newest.get(index).equals(recorded.get(19 - index))) {
+                helper.fail("cleanup position " + index + " selected " + newest.get(index)
+                        + " instead of the newest link " + recorded.get(19 - index));
+                return;
+            }
+        }
+        if (!WirelessLinks.mostRecent(data, 16).contains(recorded.get(4))
+                || WirelessLinks.mostRecent(data, 16).contains(recorded.get(3))) {
+            helper.fail("the 16-link cutoff did not retain exactly the four oldest links");
+            return;
+        }
+        int removed = WirelessLinks.unlinkMostRecent(level, ModRegistration.WIRELESS_LINKS, 16);
+        if (removed != 16 || data.links().size() != existingLinks + 4
+                || !data.links().containsAll(recorded.subList(0, 4))) {
+            helper.fail("recent cleanup removed " + removed + " links and left " + data.links().size()
+                    + ", expected " + (existingLinks + 4) + " with the four newest fixture links removed");
+            return;
+        }
+        int fixtureLinksRemoved = WirelessLinks.unlinkMostRecent(level, ModRegistration.WIRELESS_LINKS, 4);
+        if (fixtureLinksRemoved != 4 || data.links().size() != existingLinks) {
+            helper.fail("the cleanup fixture removed " + fixtureLinksRemoved + " remaining links and left "
+                    + data.links().size() + ", expected its original " + existingLinks);
+            return;
+        }
+        helper.succeed();
+    }
+
     /**
      * The booster ladder, read off the gate rather than off a table: with the world config at 1 block, a
      * module 3 blocks from a device is refused with no card and with one card, and accepted with two - so the
@@ -27593,7 +27697,7 @@ public final class NeoECOPrototypeGameTests {
         }
         for (int slot = 0; slot < want; slot++) {
             var left = inventory.insertItem(slot,
-                    new ItemStack(appeng.core.definitions.AEItems.WIRELESS_BOOSTER), false);
+                    new ItemStack(ModRegistration.L1_SIGNAL_BOOSTER_CARD.get()), false);
             if (!left.isEmpty()) {
                 NeoECOPrototype.LOGGER.error("booster slot {} refused its card: {}", slot, left);
             }
@@ -27601,9 +27705,8 @@ public final class NeoECOPrototypeGameTests {
     }
 
     /**
-     * What the four slots accept and what they keep. A fuzzy card is an AE2 upgrade card too, so a filter
-     * that only checked "is this a card" would take it and buy the player nothing; and a fifth booster has to
-     * come back out, because the ladder is four rungs deep by decision, not by accident.
+     * What the four slots accept and what they keep. A fuzzy card and AE2's old wireless booster are both
+     * different upgrades, so only the new L1 card may enter; a fifth card has to come back out as well.
      */
     @GameTest(template = "empty", batch = "wireless_booster_slots", timeoutTicks = 400,
             templateNamespace = NeoECOPrototype.MOD_ID)
@@ -27621,9 +27724,15 @@ public final class NeoECOPrototypeGameTests {
             helper.fail("the booster column took a fuzzy card, which buys no range at all");
             return;
         }
+        var oldBooster = inventory.insertItem(0,
+                new ItemStack(appeng.core.definitions.AEItems.WIRELESS_BOOSTER), false);
+        if (oldBooster.isEmpty()) {
+            helper.fail("the booster column accepted AE2's old wireless booster instead of the registered L1 card");
+            return;
+        }
         for (int slot = 0; slot < WirelessChannelModuleBlockEntity.MAX_BOOSTERS; slot++) {
             if (!inventory.insertItem(slot,
-                    new ItemStack(appeng.core.definitions.AEItems.WIRELESS_BOOSTER), false).isEmpty()) {
+                    new ItemStack(ModRegistration.L1_SIGNAL_BOOSTER_CARD.get()), false).isEmpty()) {
                 helper.fail("booster slot " + slot + " refused a wireless booster");
                 return;
             }
@@ -27640,7 +27749,7 @@ public final class NeoECOPrototypeGameTests {
         // The cap is the column's own length, so the fifth card has to be refused by the last slot being
         // full rather than by a fifth slot existing - maxStackSize is 1 for exactly that reason.
         var secondInLast = inventory.insertItem(WirelessChannelModuleBlockEntity.MAX_BOOSTERS - 1,
-                new ItemStack(appeng.core.definitions.AEItems.WIRELESS_BOOSTER), false);
+                new ItemStack(ModRegistration.L1_SIGNAL_BOOSTER_CARD.get()), false);
         if (secondInLast.isEmpty()) {
             helper.fail("a full booster slot stacked a second card, so four cards do not mean four rungs");
             return;
@@ -27684,7 +27793,7 @@ public final class NeoECOPrototypeGameTests {
         var drops = new java.util.ArrayList<ItemStack>();
         module.addAdditionalDrops(level, pos, drops);
         long cards = drops.stream()
-                .filter(stack -> stack.is(appeng.core.definitions.AEItems.WIRELESS_BOOSTER.asItem()))
+                .filter(stack -> stack.is(ModRegistration.L1_SIGNAL_BOOSTER_CARD.get().asItem()))
                 .count();
         if (cards != 2) {
             helper.fail("breaking a module holding two boosters dropped " + cards

@@ -9,10 +9,9 @@ import appeng.api.networking.IManagedGridNode;
 import appeng.api.util.AECableType;
 import appeng.blockentity.grid.AENetworkedBlockEntity;
 import appeng.blockentity.networking.ControllerBlockEntity;
-import appeng.core.definitions.AEItems;
 import appeng.util.inv.AppEngInternalInventory;
 import appeng.util.inv.InternalInventoryHost;
-import appeng.util.inv.filter.AEItemDefinitionFilter;
+import appeng.util.inv.filter.IAEItemFilter;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
@@ -51,14 +50,20 @@ public final class WirelessChannelModuleBlockEntity extends AENetworkedBlockEnti
     /** AE2's own per-node ceiling at {@code ChannelMode.X4}, quoted so the javadoc above stays checkable. */
     public static final int CHANNELS_PER_PORT = 32;
 
-    /** Four of AE2's wireless booster cards: the ladder is 50 / 100 / 200 / 400 / unlimited. */
+    /** Four L1 signal booster cards: the ladder is 50 / 100 / 200 / 400 / unlimited. */
     public static final int MAX_BOOSTERS = 4;
 
     private static final String PORT_TAG = "neoecoprototype-channel-port-";
     private static final String BOOSTERS_TAG = "neoecoprototype-wireless-boosters";
 
     private final AppEngInternalInventory boosters = new AppEngInternalInventory(
-            this, MAX_BOOSTERS, 1, new AEItemDefinitionFilter(AEItems.WIRELESS_BOOSTER));
+            this, MAX_BOOSTERS, 1, new IAEItemFilter() {
+                @Override
+                public boolean allowInsert(InternalInventory inventory, int slot, ItemStack stack) {
+                    return stack.is(cn.dancingsnow.neoecoprototype.registration.ModRegistration
+                            .L1_SIGNAL_BOOSTER_CARD.get());
+                }
+            });
 
     private final List<IManagedGridNode> ports = new ArrayList<>();
     private final List<IGridConnection> trunks = new ArrayList<>();

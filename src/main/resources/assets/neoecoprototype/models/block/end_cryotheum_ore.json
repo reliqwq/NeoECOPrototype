@@ -1,6 +1,6 @@
 {
   "parent": "minecraft:block/cube_all",
   "textures": {
-    "all": "minecraft:block/end_stone"
+    "all": "neoecoprototype:block/end_cryotheum_ore"
   }
 }

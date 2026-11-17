@@ -4,14 +4,14 @@
   "inputItems": [
     {
       "count": 1,
-      "item": "neoecoprototype:migration_drive_empty"
+      "item": "neoecoprototype:migration_drive_1_4"
     },
     {
-      "count": 4,
+      "count": 8,
       "item": "neoecoae:computation_parallel_core_l6"
     },
     {
-      "count": 4,
+      "count": 8,
       "item": "neoecoae:crafting_parallel_core_l6"
     },
     {

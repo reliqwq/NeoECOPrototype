@@ -16,6 +16,7 @@ If you have never used eco: think of these as **longer-buildable AE2 versions wi
 | Automating processors from patterns | [L1 Processor Assembler](processor_assembler.md) - processors before you have an inscriber |
 | Running our processor recipes on eco's large station | [L1 Processor Assembly Card](processor_assembly_card.md) - the same family on eco's big station, patterns at 64x |
 | Upgrade AE2 providers and interfaces to L1 | [AE2 to L1 Upgrade Cards](ae2_upgrade_cards.md) - convert blocks or cable parts and keep their data |
+| Upgrade a full-size machine to its next tier | [Flash Ascension Drives](flash_ascension_drives.md) - upgrade storage, computation, or crafting in place |
 | Bulk storage of a few resources | [Small Bulk Matrices](small_bulk_matrices.md) - 3 types, 10 with the expansion card |
 | Keeping FE inside the network | [FE Storage Matrices](flux_storage.md) - 1K / 1M / 4M, needs AppliedFlux |
 | Parking a block of charge in the grid | [Energized Energy Cells](energized_energy_cells.md) |

@@ -1,7 +1,6 @@
 package cn.dancingsnow.neoecoprototype.item.decoration;
 
 import cn.dancingsnow.neoecoprototype.NeoECOPrototype;
-import net.minecraft.ChatFormatting;
 import net.minecraft.core.Holder;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
@@ -16,7 +15,6 @@ import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Equipable;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.component.ItemAttributeModifiers;
 import net.minecraft.world.level.block.Block;
 
@@ -176,28 +174,4 @@ public class FumoItem extends BlockItem implements Equipable {
         return modifiers.build();
     }
 
-    @Override
-    public void appendHoverText(ItemStack stack, Item.TooltipContext context, List<Component> tooltip,
-                                TooltipFlag flag) {
-        super.appendHoverText(stack, context, tooltip, flag);
-        DollStats stats = statsOf(stack);
-        if (stats == null) return;
-        // What these lines promise is exactly what FumoEquipmentEffects#onPlayerTick grants.
-        tooltip.add(Component.translatable("block.neoecoprototype.fumo_reliqwq.worn_hint")
-                .withStyle(ChatFormatting.GRAY));
-        for (DollEffect extra : stats.extraEffects()) {
-            // Named after the effect itself, so a future DollStats entry needs no new lang key and the
-            // line cannot drift from what FumoEquipmentEffects actually applies - the level comes from the
-            // same number that is handed to the MobEffectInstance.
-            tooltip.add(Component.translatable("block.neoecoprototype.fumo_reliqwq.worn_extra",
-                            extra.describe())
-                    .withStyle(ChatFormatting.GRAY));
-        }
-        if (stats.chargeAEPerTick() > 0.0D) {
-            // No number on this line: the rate is a server config key, and a dedicated client never loads
-            // one, so quoting it here would mean hard-coding a value the server may have changed.
-            tooltip.add(Component.translatable("block.neoecoprototype.fumo_reliqwq.worn_charge")
-                    .withStyle(ChatFormatting.GRAY));
-        }
-    }
 }

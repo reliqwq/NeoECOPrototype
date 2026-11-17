@@ -1,6 +1,6 @@
 {
   "parent": "minecraft:block/cube_all",
   "textures": {
-    "all": "minecraft:block/nether_gold_ore"
+    "all": "neoecoprototype:block/nether_cryotheum_ore"
   }
 }

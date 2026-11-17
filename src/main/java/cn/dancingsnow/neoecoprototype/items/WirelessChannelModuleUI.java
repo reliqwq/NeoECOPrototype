@@ -43,10 +43,11 @@ import java.util.List;
 import javax.annotation.Nullable;
 
 /**
- * The subsystem channel module's panel, laid into a hand-drawn 177x247 plate.
+ * The subsystem channel module's panel, laid into a hand-drawn 177x247 plate, with the booster deck hanging
+ * off the plate's right edge as a second hand-drawn strip.
  *
  * <p>Every widget is absolutely positioned onto a recess the art already draws, and every widget's own
- * background is {@link IGuiTexture#EMPTY}: the plate is the whole picture, so a second bevel under a label
+ * background is {@link IGuiTexture#EMPTY}: the pictures are the whole screen, so a second bevel under a label
  * would read as a second panel. Only two things are painted by code - the selection tint on a device row and
  * the hover tint on a button - and both are translucent so the recess still shows through.
  *
@@ -148,20 +149,25 @@ public final class WirelessChannelModuleUI {
     private static final int INFO_USED_TEXT_WIDTH = 35;
 
     /** The middle column's two button rows: a pager over the device list, then the three actions. */
-    /** Measured off the plate: each cell is 16x14 and they sit at x 67, 83, 99. */
-    private static final int MID_BUTTON_WIDTH = 16;
-    private static final int MID_BUTTON_HEIGHT = 14;
+    private static final int MID_PAGER_WIDTH = 14;
+    private static final int MID_PAGER_HEIGHT = 14;
     private static final int MID_PAGER_Y = 94;
-    /**
-     * The action row's recess is y 117-132 and the painted icons inside it are 123-130 (centre 126.5), so a
-     * 14-tall hit box at 118 centres two pixels above the art. Two pixels down puts the box centre exactly on
-     * the icon mass; the box then runs 120-133, one pixel past the recess's bottom edge, which is the cheaper
-     * error because the hover tint is painted inside the box, not inside the recess.
-     */
-    private static final int MID_ACTION_Y = 120;
     private static final int MID_PAGER_PREV_X = 67;
-    private static final int MID_PAGER_PAGE_X = 83;
-    private static final int MID_PAGER_NEXT_X = 99;
+    private static final int MID_PAGER_PAGE_X = 82;
+    private static final int MID_PAGER_NEXT_X = 97;
+    private static final int MID_ACTION_HEIGHT = 14;
+    private static final int MID_ACTION_Y = 118;
+    private static final int MID_ACTION_HIGHLIGHT_X = 67;
+    private static final int MID_ACTION_HIGHLIGHT_WIDTH = 15;
+    private static final int MID_ACTION_REFRESH_X = 82;
+    private static final int MID_ACTION_REFRESH_WIDTH = 14;
+    private static final int MID_ACTION_DELETE_X = 97;
+    private static final int MID_ACTION_DELETE_WIDTH = 14;
+    private static final float DEVICE_PAGE_FONT = 6;
+    private static final int NODE_DETAILS_X = 121;
+    private static final int NODE_DETAILS_Y = 24;
+    private static final int NODE_DETAILS_WIDTH = 17;
+    private static final int NODE_DETAILS_HEIGHT = 8;
 
     /** Eight device rows, 47x12, fifteen pixels apart. */
     private static final int DEVICE_X = 122;
@@ -191,64 +197,50 @@ public final class WirelessChannelModuleUI {
     private static final int SLOT_PADDING = 1;
 
     /**
-     * The booster column, attached to the plate's right edge on the same AE2 toolbar strip the guide chip
-     * hangs on. The coordinate the hand-off named (x=175) is the plate's own right frame: measured, column
-     * 175 of {@code wireless_channel_module.png} is the highlight line and 176 is the dark outline, so a cell
-     * placed there paints over the frame and reads as detached. The strip therefore starts at 177 - one past
-     * the outline - and the slots sit inside it at 179.
+     * The booster column, attached to the plate's right edge: a hand-drawn deck of four cards, 23x90, drawn
+     * once at native size. It starts at 175, the plate's own highlight column: measured, columns 175 and 176
+     * of {@code wireless_channel_module.png} are the highlight line (242,242,242) and the dark outline
+     * (65,63,84), and the deck repaints both - its first column is the same white, its last is the same dark,
+     * so the highlight runs on unbroken and the deck closes itself against the screen beyond the plate.
      *
-     * <p>The strip is sliced rather than stretched: {@code vertical_buttons_bg.png} is a nine-slice whose rows
-     * 0-1 are the top cap, 2-21 are one cell's body, and 22-25 are the shadow band, so four cells are
-     * 2 + 20x4 + 4 = 86 tall and nothing is resampled.
+     * <p>Each card is an 18x17 face - a white frame around a recess at local x=1..16 - and the faces start six
+     * rows down and repeat every twenty. The slot widget is an 18-pixel box with one pixel of padding, so a
+     * slot at a face's own origin lands the 16x16 booster exactly on the drawn recess.
      */
-    private static final int BOOSTER_X = 177;
-    private static final int BOOSTER_SLOT_X = BOOSTER_X + 2;
+    private static final ResourceLocation BOOSTER_DECK =
+            NeoECOPrototype.id("textures/gui/wireless_channel_boosters.png");
+    private static final int BOOSTER_X = 175;
     private static final int BOOSTER_Y = 0;
-    private static final int STRIP_CAP_TOP = 2;
-    private static final int STRIP_BODY = 20;
-    private static final int STRIP_CAP_BOTTOM = 4;
-    private static final ColorRectTexture BOOSTER_RECESS = new ColorRectTexture(0xFF_ADB0C4);
+    private static final int BOOSTER_WIDTH = 23;
+    private static final int BOOSTER_HEIGHT = 90;
+    private static final int BOOSTER_CELL_TOP = 6;
+    private static final int BOOSTER_CELL_PITCH = 20;
 
     /** A pale wash over the selected device row, per the hand-off spec. */
     private static final ColorRectTexture SELECTED_TINT = new ColorRectTexture(0x55_FF_FF_FF);
-    private static final ColorRectTexture HOVER_TINT = new ColorRectTexture(0x22_FF_FF_FF);
-    private static final ColorRectTexture PRESSED_TINT = new ColorRectTexture(0x33_FF_FF_FF);
+    private static final ColorRectTexture HOVER_TINT = new ColorRectTexture(0x66_9C_D3_FF);
+    private static final ColorRectTexture PRESSED_TINT = new ColorRectTexture(0x66_9C_D3_FF);
 
     /**
-     * The guide chip hangs off the plate's left edge on AE2's own toolbar strip, the way AE2's interface
-     * screens do it: {@code vertical_buttons_bg.png} is 21x26 with its inner cell at x=2..20, y=2..21 and a
-     * shadow band along the bottom, and the HELP glyph in {@code states.png} (u=176, v=0) inks x=5..10,
-     * y=4..12 of its 16x16 cell, so the cell centre is the chip's position. The strip's own background is
-     * RGB 203,204,212 - the same colour this plate is filled with.
+     * The guide chip is one hand-drawn picture per pointer state: 22x30 of strip, button box and HELP glyph
+     * already composed, with the second state 32 pixels to the right on the same sheet. The hand-off names
+     * the two placements as source-to-panel pairs - the idle frame's (20, 1) and the hovered frame's (52, 1)
+     * both land on the plate's (1, 1) - so the frame's own corner sits at (-19, 0) and only the pointer swaps
+     * which frame is drawn. The frame repaints the plate's three own colours (highlight white, fill, outline
+     * dark) and AE2's two button fills, so the chip reads as part of the machine and its pointer blue is the
+     * blue every other AE2 machine answers with.
+     *
+     * <p>Its bounds are the whole frame, not just the box inside it, so the strip's three-pixel border and
+     * shadow band are part of the hit target as well - at that size the difference is a few pixels nobody
+     * aims at, and a button that is smaller than the thing the player sees reads as a dead edge.
      */
-    private static final ResourceLocation AE2_TOOLBAR_BG
-            = ResourceLocation.fromNamespaceAndPath("ae2", "textures/gui/sprites/vertical_buttons_bg.png");
-    private static final ResourceLocation AE2_STATE_ICONS
-            = ResourceLocation.fromNamespaceAndPath("ae2", "textures/guis/states.png");
-    private static final int TOOLBAR_X = -22;
-    private static final int TOOLBAR_Y = 2;
-    private static final int TOOLBAR_WIDTH = 21;
-    private static final int TOOLBAR_HEIGHT = 26;
-    /**
-     * AE2's button box, whose left edge is the coordinate the hand-off names (-18). It is 16x16, the same
-     * square as the glyph: the strip's inner cell is only 19 wide, so an 18-wide box starting at -18 would
-     * hang one pixel past the strip's own outline (measured: local x=4..22 against a cell that ends at 20).
-     */
-    private static final int BUTTON_X = -18;
-    private static final int BUTTON_Y = TOOLBAR_Y + 4;
-    private static final int BUTTON_SIZE = 16;
-    private static final int GUIDE_U = 176;
-
-    /**
-     * AE2's two button states as flat fills, measured off AE2's own sheets: {@code button.png} fills with
-     * RGB 154,159,180 and {@code button_highlighted.png} with 156,211,255, whose pressed shade is 112,140,186.
-     * They cannot be drawn as sprites here - AE2 ships both as one 200x20 nine-slice with a 3 pixel border,
-     * and a 20x20 cut out of it is a left edge plus fill, not a button - so the strip's own outline stays
-     * visible around a flat cell painted in the same colours.
-     */
-    private static final ColorRectTexture AE2_BUTTON_BASE = new ColorRectTexture(0xFF_9A9FB4);
-    private static final ColorRectTexture AE2_BUTTON_HOVER = new ColorRectTexture(0xFF_9CD3FF);
-    private static final ColorRectTexture AE2_BUTTON_PRESSED = new ColorRectTexture(0xFF_708CBA);
+    private static final ResourceLocation GUIDE_CHIP =
+            NeoECOPrototype.id("textures/gui/wireless_channel_guide_button.png");
+    private static final int GUIDE_CHIP_X = -19;
+    private static final int GUIDE_CHIP_Y = 0;
+    private static final int GUIDE_CHIP_WIDTH = 22;
+    private static final int GUIDE_CHIP_HEIGHT = 30;
+    private static final int GUIDE_CHIP_HOVER_U = 32;
 
     /**
      * Where the chip takes the player: AE2's guide id, and our own page inside it. Pages are found by the
@@ -257,7 +249,7 @@ public final class WirelessChannelModuleUI {
      */
     private static final ResourceLocation AE2_GUIDE_ID = ResourceLocation.fromNamespaceAndPath("ae2", "guide");
     private static final ResourceLocation GUIDE_PAGE =
-            NeoECOPrototype.id("neoecoprototype_intro/subsystem_channel_module");
+            NeoECOPrototype.id("neoecoprototype_intro/subsystem_channel_module.md");
 
     private WirelessChannelModuleUI() {
     }
@@ -304,39 +296,34 @@ public final class WirelessChannelModuleUI {
         }
         root.addChild(panel.moduleLamp());
         root.addChild(panel.infoTooltip());
-        root.addChild(pagerArrow(MID_PAGER_PREV_X, MID_PAGER_Y, MID_BUTTON_WIDTH, MID_BUTTON_HEIGHT,
+        root.addChild(pagerArrow(MID_PAGER_PREV_X, MID_PAGER_Y, MID_PAGER_WIDTH, MID_PAGER_HEIGHT,
                 "gui.neoecoprototype.wireless_module.tip_prev", () -> panel.turnDevicePage(-1)));
-        // The page counter is a fraction, not a reading: blue like the other channel numbers and one step
-        // smaller, so it stops competing with the two numbers the row is actually about.
         root.addChild(bound(() -> panel.devicePageText, Horizontal.CENTER,
-                MID_PAGER_PAGE_X, MID_PAGER_Y + 3, MID_BUTTON_WIDTH, TITLE_HEIGHT, TEXT_USED, INFO_FONT,
+                MID_PAGER_PAGE_X, MID_PAGER_Y + 3, MID_PAGER_WIDTH, TITLE_HEIGHT, TEXT_USED, DEVICE_PAGE_FONT,
                 TextWrap.NONE));
-        root.addChild(pagerArrow(MID_PAGER_NEXT_X, MID_PAGER_Y, MID_BUTTON_WIDTH, MID_BUTTON_HEIGHT,
+        root.addChild(pagerArrow(MID_PAGER_NEXT_X, MID_PAGER_Y, MID_PAGER_WIDTH, MID_PAGER_HEIGHT,
                 "gui.neoecoprototype.wireless_module.tip_next", () -> panel.turnDevicePage(1)));
+        root.addChild(label(Component.translatable("gui.neoecoprototype.wireless_module.node_details"),
+                Horizontal.CENTER, NODE_DETAILS_X, NODE_DETAILS_Y, NODE_DETAILS_WIDTH, NODE_DETAILS_HEIGHT,
+                COLOR, 7));
 
-        // The art paints the three icons, so each action is only a hit box with its sentence on hover.
-        root.addChild(actionButton(MID_PAGER_PREV_X, MID_ACTION_Y,
+        root.addChild(actionButton(MID_ACTION_HIGHLIGHT_X, MID_ACTION_Y, MID_ACTION_HIGHLIGHT_WIDTH,
                 "gui.neoecoprototype.wireless_module.tip_highlight", panel::highlightSelected));
-        root.addChild(actionButton(MID_PAGER_PAGE_X, MID_ACTION_Y,
+        root.addChild(actionButton(MID_ACTION_REFRESH_X, MID_ACTION_Y, MID_ACTION_REFRESH_WIDTH,
                 "gui.neoecoprototype.wireless_module.tip_refresh", panel::refresh));
-        root.addChild(actionButton(MID_PAGER_NEXT_X, MID_ACTION_Y,
+        root.addChild(actionButton(MID_ACTION_DELETE_X, MID_ACTION_Y, MID_ACTION_DELETE_WIDTH,
                 "gui.neoecoprototype.wireless_module.tip_unlink", panel::unlinkSelected));
 
-        // The guide chip hangs off the plate's left edge on AE2's own toolbar strip: the strip paints the
-        // outline, the button paints AE2's two cell states, and the HELP glyph goes on top of both.
-        root.addChild(guideToolbar());
+        // The guide chip hangs off the plate's left edge: strip, button box and HELP glyph in one picture per
+        // pointer state, so there is nothing left to compose over it.
         root.addChild(guideButton(panel::openGuidePage));
-        root.addChild(guideChip());
         root.addChild(panel.guideChipPulse());
 
-        // Four wireless booster cards, in the column AE2 keeps for upgrades. What they buy is the bind range:
-        // the config's limit doubled per card installed, and no limit once all four are in.
-        root.addChild(filled(SpriteTexture.of(AE2_TOOLBAR_BG).setSprite(0, 0, TOOLBAR_WIDTH, STRIP_CAP_TOP),
-                BOOSTER_X, BOOSTER_Y, TOOLBAR_WIDTH, STRIP_CAP_TOP));
-        root.addChild(filled(SpriteTexture.of(AE2_TOOLBAR_BG)
-                        .setSprite(0, STRIP_CAP_TOP + STRIP_BODY, TOOLBAR_WIDTH, STRIP_CAP_BOTTOM),
-                BOOSTER_X, BOOSTER_Y + STRIP_CAP_TOP + STRIP_BODY * WirelessChannelModuleBlockEntity.MAX_BOOSTERS,
-                TOOLBAR_WIDTH, STRIP_CAP_BOTTOM));
+        // Four L1 signal booster cards, in the column AE2 keeps for upgrades. What they buy is the bind range:
+        // the config's limit doubled per card installed, and no limit once all four are in. The deck is one
+        // texture drawn at its own size - the four faces are already in it, so nothing here is composed.
+        root.addChild(filled(SpriteTexture.of(BOOSTER_DECK).setSprite(0, 0, BOOSTER_WIDTH, BOOSTER_HEIGHT),
+                BOOSTER_X, BOOSTER_Y, BOOSTER_WIDTH, BOOSTER_HEIGHT));
         for (int index = 0; index < WirelessChannelModuleBlockEntity.MAX_BOOSTERS; index++) {
             addBoosterCell(root, module, index);
         }
@@ -416,17 +403,22 @@ public final class WirelessChannelModuleUI {
     }
 
     /**
-     * The button under the glyph. Its three fills are AE2's own measured cell colours, so the pointer's blue
-     * is the same blue every other AE2 machine gives - the plate's light grey would read as "nothing happened".
+     * The chip. Both states are the same 21x29 frame, so the pointer swaps one picture for another and the
+     * strip around the button - the part that has to stay put - is pixel-identical between them. Pressed
+     * reuses the hovered frame: the art carries no third state.
      */
     private static Button guideButton(Runnable action) {
         Button button = new Button().noText();
         button.buttonStyle(style -> style
-                .baseTexture(AE2_BUTTON_BASE)
-                .hoverTexture(AE2_BUTTON_HOVER)
-                .pressedTexture(AE2_BUTTON_PRESSED));
+                .baseTexture(SpriteTexture.of(GUIDE_CHIP)
+                        .setSprite(0, 0, GUIDE_CHIP_WIDTH, GUIDE_CHIP_HEIGHT))
+                .hoverTexture(SpriteTexture.of(GUIDE_CHIP)
+                        .setSprite(GUIDE_CHIP_HOVER_U, 0, GUIDE_CHIP_WIDTH, GUIDE_CHIP_HEIGHT))
+                .pressedTexture(SpriteTexture.of(GUIDE_CHIP)
+                        .setSprite(GUIDE_CHIP_HOVER_U, 0, GUIDE_CHIP_WIDTH, GUIDE_CHIP_HEIGHT)));
         button.layout(layout -> layout.positionType(TaffyPosition.ABSOLUTE)
-                .left(BUTTON_X).top(BUTTON_Y).width(BUTTON_SIZE).height(BUTTON_SIZE).paddingAll(0));
+                .left(GUIDE_CHIP_X).top(GUIDE_CHIP_Y)
+                .width(GUIDE_CHIP_WIDTH).height(GUIDE_CHIP_HEIGHT).paddingAll(0));
         button.setOnServerClick(event -> action.run());
         button.addEventListener(UIEvents.HOVER_TOOLTIPS, event ->
                 event.hoverTooltips = new HoverTooltips(
@@ -435,43 +427,14 @@ public final class WirelessChannelModuleUI {
         return button;
     }
 
-    /**
-     * AE2's toolbar strip, drawn at its native 21x26 so its nine-slice borders never have to be scaled.
-     * It is the same light grey the plate is filled with, which is what lets the chip look built into the
-     * machine rather than floating over the world behind it.
-     */
-    private static UIElement guideToolbar() {
-        UIElement strip = new UIElement();
-        strip.setAllowHitTest(false);
-        strip.layout(layout -> layout.positionType(TaffyPosition.ABSOLUTE)
-                .left(TOOLBAR_X).top(TOOLBAR_Y).width(TOOLBAR_WIDTH).height(TOOLBAR_HEIGHT));
-        strip.style(style -> style.backgroundTexture(SpriteTexture.of(AE2_TOOLBAR_BG)
-                .setSprite(0, 0, TOOLBAR_WIDTH, TOOLBAR_HEIGHT)));
-        return strip;
-    }
-
-    /**
-     * AE2's help chip, painted straight from AE2's state sheet. It is not a button style: the hit box over it
-     * has to stay invisible, so the strip's own outline is the only bevel the cell shows.
-     */
-    private static UIElement guideChip() {
-        UIElement chip = new UIElement();
-        chip.setAllowHitTest(false);
-        chip.layout(layout -> layout.positionType(TaffyPosition.ABSOLUTE)
-                .left(BUTTON_X).top(BUTTON_Y).width(BUTTON_SIZE).height(BUTTON_SIZE));
-        chip.style(style -> style.backgroundTexture(
-                SpriteTexture.of(AE2_STATE_ICONS).setSprite(GUIDE_U, 0, BUTTON_SIZE, BUTTON_SIZE)));
-        return chip;
-    }
-
-    private static Button actionButton(int x, int y, String tooltipKey, Runnable action) {
+    private static Button actionButton(int x, int y, int width, String tooltipKey, Runnable action) {
         Button button = new Button().noText();
         button.buttonStyle(style -> style
                 .baseTexture(IGuiTexture.EMPTY)
                 .hoverTexture(HOVER_TINT)
                 .pressedTexture(PRESSED_TINT));
         button.layout(layout -> layout.positionType(TaffyPosition.ABSOLUTE)
-                .left(x).top(y).width(MID_BUTTON_WIDTH).height(MID_BUTTON_HEIGHT).paddingAll(0));
+                .left(x).top(y).width(width).height(MID_ACTION_HEIGHT).paddingAll(0));
         button.setOnServerClick(event -> action.run());
         button.addEventListener(UIEvents.HOVER_TOOLTIPS, event ->
                 event.hoverTooltips = new HoverTooltips(List.of(Component.translatable(tooltipKey)),
@@ -563,20 +526,22 @@ public final class WirelessChannelModuleUI {
     }
 
     /**
-     * One booster cell: the plate's fill, AE2's recess inside it, then the slot itself. The three are separate
-     * widgets because the slot paints nothing of its own once its background is cleared, and the recess has to
-     * sit under the item rather than over it.
+     * One booster cell: the deck already paints the card and its recess, so the widget adds nothing but the
+     * slot itself. Its one pixel of padding is what lands the 16x16 booster on the drawn recess.
      */
     private static void addBoosterCell(UIElement root, WirelessChannelModuleBlockEntity module, int index) {
-        int bodyTop = BOOSTER_Y + STRIP_CAP_TOP + index * STRIP_BODY;
-        root.addChild(filled(SpriteTexture.of(AE2_TOOLBAR_BG).setSprite(0, STRIP_CAP_TOP,
-                TOOLBAR_WIDTH, STRIP_BODY), BOOSTER_X, bodyTop, TOOLBAR_WIDTH, STRIP_BODY));
-        root.addChild(filled(BOOSTER_RECESS, BOOSTER_SLOT_X + SLOT_PADDING, bodyTop + 1,
-                SLOT_SIZE - 2 * SLOT_PADDING, SLOT_SIZE - 2 * SLOT_PADDING));
+        int cellTop = BOOSTER_Y + BOOSTER_CELL_TOP + index * BOOSTER_CELL_PITCH;
         ItemSlot widget = new ItemSlot(new Slot(module.boosterInventory().toContainer(), index, 0, 0));
         widget.style(style -> style.backgroundTexture(IGuiTexture.EMPTY));
+        widget.slotStyle(style -> style.hoverOverlay(HOVER_TINT));
+        widget.addEventListener(UIEvents.HOVER_TOOLTIPS, event -> {
+            var availableUpgrade = Component.translatable("gui.neoecoprototype.wireless_module.available_upgrade");
+            event.hoverTooltips = event.hoverTooltips == null
+                    ? new HoverTooltips(List.of(availableUpgrade), null, null, null)
+                    : event.hoverTooltips.append(availableUpgrade);
+        });
         widget.layout(layout -> layout.positionType(TaffyPosition.ABSOLUTE)
-                .left(BOOSTER_SLOT_X).top(bodyTop).width(SLOT_SIZE).height(SLOT_SIZE)
+                .left(BOOSTER_X).top(cellTop).width(SLOT_SIZE).height(SLOT_SIZE)
                 .paddingAll(SLOT_PADDING));
         root.addChild(widget);
     }

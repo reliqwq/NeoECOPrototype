@@ -967,6 +967,9 @@ public class ModRegistration {
             ITEMS.register("wireless_unlink_card",
                     () -> new WirelessUnlinkCardItem(new Item.Properties().stacksTo(1)));
 
+    public static final Supplier<Item> L1_SIGNAL_BOOSTER_CARD = ITEMS.register(
+            "l1_signal_booster_card", () -> new Item(new Item.Properties()));
+
     public static final Supplier<BlockItem> SIMPLIFY_STORAGE_CASING_ITEM =
             ITEMS.register("simplify_storage_casing",
                     () -> new BlockItem(SIMPLIFY_STORAGE_CASING_BLOCK.get(), new Item.Properties()));
@@ -2013,6 +2016,7 @@ private static Supplier<BlockEntityType<SimplifyStorageVentBlockEntity>> registe
                         // plus data/neoecoprototype/recipe/processor_assembler/wireless_link_card.json - that
                         // recipe block is kept in _removed_sources/.
                         output.accept(SUBSYSTEM_CHANNEL_MODULE_ITEM.get());
+                        output.accept(L1_SIGNAL_BOOSTER_CARD.get());
                         output.accept(WIRELESS_LINK_CARD.get());
                         output.accept(WIRELESS_UNLINK_CARD.get());
                         output.accept(SIMPLIFY_STORAGE_CASING_ITEM.get());

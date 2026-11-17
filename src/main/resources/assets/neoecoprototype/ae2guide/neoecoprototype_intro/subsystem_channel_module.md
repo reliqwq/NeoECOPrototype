@@ -2,12 +2,13 @@
 navigation:
   title: ECOP Network Subsystem Channel Core
   icon: neoecoprototype:subsystem_channel_module
-  position: 26
+  position: 100
   parent: neoecoprototype_intro/index.md
 item_ids:
   - neoecoprototype:subsystem_channel_module
   - neoecoprototype:wireless_link_card
   - neoecoprototype:wireless_unlink_card
+  - neoecoprototype:l1_signal_booster_card
 ---
 
 # ECOP Network Subsystem Channel Core
@@ -50,8 +51,8 @@ Right-click the Wireless Communication Core to open its panel:
   installed, a card in an accessory slot also triggers auto-connect. If cards marked for different networks are
   present, the target is not guessed.
 - **Distance limit.** The default range is 50 blocks. The core's right-hand upgrade slots accept
-  <ItemLink id="ae2:wireless_booster" /> (a wireless booster): each doubles the range to 100, 200, then 400 blocks;
-  four boosters remove the limit. Changing the range does not break links already established.
+  <ItemLink id="neoecoprototype:l1_signal_booster_card" />: each doubles the range to 100, 200, then 400 blocks;
+  four cards remove the limit. Changing the range does not break links already established.
 - **Power use.** Each active link draws 50 AE/t by default from the joined network.
 - **The core is a hub, not a wireless hop.** It can link to a machine or a dense cable bus, but two cores cannot
   link to each other.

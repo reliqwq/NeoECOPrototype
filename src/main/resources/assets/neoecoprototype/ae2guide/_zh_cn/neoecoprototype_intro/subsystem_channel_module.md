@@ -2,12 +2,13 @@
 navigation:
   title: ECOP 网络子系统频道通讯核心
   icon: neoecoprototype:subsystem_channel_module
-  position: 26
+  position: 100
   parent: neoecoprototype_intro/index.md
 item_ids:
   - neoecoprototype:subsystem_channel_module
   - neoecoprototype:wireless_link_card
   - neoecoprototype:wireless_unlink_card
+  - neoecoprototype:l1_signal_booster_card
 ---
 
 # ECOP 网络子系统频道通讯核心
@@ -26,8 +27,6 @@ ECOP 提供方便快捷的无线方案。将 **ECOP 网络子系统频道通讯�
 2. 手持 <ItemLink id="neoecoprototype:wireless_link_card" />，Shift+右键无线通讯核心进行标记。
 3. 再 Shift+右键任意网络设备，建立无线连接。
 
-远端优先使用密集线缆总线：它本身承载 32 个频道；连接机器时，可用频道数受该机器自身容量限制。
-
 ## 界面查看
 
 右键无线通讯核心打开面板：
@@ -40,10 +39,7 @@ ECOP 提供方便快捷的无线方案。将 **ECOP 网络子系统频道通讯�
 
 ## 必读规则
 
-- **放卡自动连。** 放置网络设备时，若快捷栏里有已标记的链路复用连接卡，设备节点建好后会自动连接到卡片标记的出口。安装 Curios 后，卡片放在饰品栏位也会触发自动连接；快捷栏里有多张指向不同网络的卡时，不会猜要连接哪一张。
-- **距离限制。** 默认 50 格。无线通讯核心右侧升级槽可放 <ItemLink id="ae2:wireless_booster" />（无线增强卡）：每张使范围翻倍，依次为 100、200、400 格；放满 4 张后不再限制距离。调整范围不会断开已经建立的链路。
+- **放卡自动连。** 放置网络设备时，若快捷栏里有已标记的链路复用连接卡，设备节点建好后会自动连接到卡片标记的出口。安装 Curios 后，卡片放在饰品栏位也会触发自动连接。
+- **距离限制。** 默认 50 格。无线通讯核心右侧升级槽可放 <ItemLink id="neoecoprototype:l1_signal_booster_card" />：每张使范围翻倍，依次为 100、200、400 格；放满 4 张后不再限制距离。调整范围不会断开已经建立的链路。
 - **耗电。** 默认每条在线链路消耗 50 AE/t，由连接后的网络承担。
-- **核心是中心，不是无线中继。** 核心可以连接机器或密集线缆总线，两台核心不能互连。
 - **会连成环的链路会被拒绝。** AE2 建立链路时会合并网络；若两端已在同一张网，闭环链路不会建立。
-- **远端必须有节点。** 没有插线的线缆总线没有节点；新放置的设备可能需要等待一个 tick，待 AE2 建好节点后才能自动连接。
-- **出口能共用时会优先共用。** 剩余频道足够的网络会并入同一出口；不够时才使用另一只出口。

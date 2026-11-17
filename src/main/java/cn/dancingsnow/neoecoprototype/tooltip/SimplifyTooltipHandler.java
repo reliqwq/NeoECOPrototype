@@ -27,12 +27,6 @@ public final class SimplifyTooltipHandler {
             "item.neoecoprototype.pigmee_storage_matrix_housing.desc";
     private static final String CONCRETE_CELL_KEY =
             "item.neoecoprototype.simplify_concrete_storage_cell.desc";
-    private static final String SINGULARITY_CELL_KEY =
-            "item.neoecoprototype.simplify_singularity_cell.desc";
-    private static final String SKY_STONE_DUST_CELL_KEY =
-            "item.neoecoprototype.simplify_sky_stone_dust_cell.desc";
-    private static final String SOURCE_GROWING_CELL_KEY =
-            "item.neoecoprototype.simplify_source_growing_cell.desc";
     private static final String ALL_ITEMS_CELL_KEY =
             "item.neoecoprototype.all_items_creative_cell.desc";
     private static final String PATTERN_GENERATOR_KEY =
@@ -47,9 +41,7 @@ public final class SimplifyTooltipHandler {
             "item.neoecoprototype.simplify_structure_expansion_card.desc";
     /** Same reason: the bag is the only place a refund goes when the inventory is already full. */
     private static final String BACKUP_DRIVE_KEY = "item.neoecoprototype.backup_drive.desc";
-    /** Each disk says what the swap costs, what comes back, and the one thing it does not carry over. */
-    private static final String MIGRATION_DRIVE_KEY =
-            "item.neoecoprototype.migration_drive.desc";
+    /** The rung drives carry no description; the creative disk keeps one purple line and nothing else. */
     private static final String MIGRATION_DRIVE_CREATIVE_KEY =
             "item.neoecoprototype.migration_drive_creative.desc";
     /** Trinity is implemented but withheld from players; every one of its parts says so in red. */
@@ -59,7 +51,11 @@ public final class SimplifyTooltipHandler {
     public static void onItemTooltip(ItemTooltipEvent event) {
         ItemStack stack = event.getItemStack();
         String key = descriptionKey(stack);
-        if (key != null) {
+        if (MIGRATION_DRIVE_CREATIVE_KEY.equals(key)) {
+            // Same purple the disk's name wears, so the line reads as part of the item rather than a note.
+            event.getToolTip().add(Component.translatable(key)
+                    .withStyle(style -> style.withColor(ModRegistration.NAME_THEME_TIER_L9)));
+        } else if (key != null) {
             // One component per line: the renderer draws a newline inside a component as a glyph box
             // instead of breaking the row. getString() resolves through the client language, which is
             // the only one there is here - ItemTooltipEvent never fires on a dedicated server.
@@ -109,16 +105,6 @@ public final class SimplifyTooltipHandler {
         if (stack.is(ModRegistration.SIMPLIFY_CONCRETE_STORAGE_CELL.get())) {
             return CONCRETE_CELL_KEY;
         }
-        if (stack.is(ModRegistration.SIMPLIFY_SINGULARITY_CELL.get())) {
-            return SINGULARITY_CELL_KEY;
-        }
-        if (stack.is(ModRegistration.SIMPLIFY_SKY_STONE_DUST_CELL.get())) {
-            return SKY_STONE_DUST_CELL_KEY;
-        }
-        if (ModRegistration.OPTIONAL_SOURCE_GROWING_CELL != null
-                && stack.is(ModRegistration.OPTIONAL_SOURCE_GROWING_CELL.get())) {
-            return SOURCE_GROWING_CELL_KEY;
-        }
         if (stack.is(ModRegistration.ALL_ITEMS_CREATIVE_CELL.get())) {
             return ALL_ITEMS_CELL_KEY;
         }
@@ -140,9 +126,10 @@ public final class SimplifyTooltipHandler {
         if (stack.is(ModRegistration.BACKUP_DRIVE.get())) {
             return BACKUP_DRIVE_KEY;
         }
-        if (stack.getItem() instanceof cn.dancingsnow.neoecoprototype.items.SimplifyMigrationDriveItem drive) {
-            return drive.rung() == cn.dancingsnow.neoecoprototype.items.SimplifyMigrationDriveItem.Rung
-                    .STRAIGHT_TO_NINE ? MIGRATION_DRIVE_CREATIVE_KEY : MIGRATION_DRIVE_KEY;
+        if (stack.getItem() instanceof cn.dancingsnow.neoecoprototype.items.SimplifyMigrationDriveItem drive
+                && drive.rung() == cn.dancingsnow.neoecoprototype.items.SimplifyMigrationDriveItem.Rung
+                .STRAIGHT_TO_NINE) {
+            return MIGRATION_DRIVE_CREATIVE_KEY;
         }
         return null;
     }

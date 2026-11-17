@@ -116,6 +116,22 @@ public class NeoECOPrototype {
         modBus.addListener(NeoECOPrototype::commonSetup);
         modBus.addListener(NeoECOPrototype::registerCapabilities);
         modBus.addListener(NeoECOPrototype::registerPartCapabilities);
+        net.neoforged.neoforge.common.NeoForge.EVENT_BUS.addListener(
+                (net.neoforged.neoforge.event.RegisterCommandsEvent event) ->
+                        event.getDispatcher().register(net.minecraft.commands.Commands.literal("neoecoprototype")
+                                .then(net.minecraft.commands.Commands.literal("wireless")
+                                        .then(net.minecraft.commands.Commands.literal("clear_recent_nodes")
+                                                .requires(source -> source.hasPermission(2))
+                                                .executes(context -> {
+                                                    var source = context.getSource();
+                                                    int removed = cn.dancingsnow.neoecoprototype.event.WirelessLinks
+                                                            .unlinkMostRecent(source.getLevel(),
+                                                                    ModRegistration.WIRELESS_LINKS, 16);
+                                                    source.sendSuccess(() -> net.minecraft.network.chat.Component
+                                                            .translatable("commands.neoecoprototype.wireless"
+                                                                    + ".clear_recent_nodes", removed), true);
+                                                    return removed;
+                                                })))));
         // The C1 host parks measured blockstate bits in a static table keyed by dimension, so the entries
         // outlive an integrated server unless something clears them -- and one client process can open
         // several saves in a row.

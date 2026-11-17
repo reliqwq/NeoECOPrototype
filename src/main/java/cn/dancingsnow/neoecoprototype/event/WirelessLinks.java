@@ -799,6 +799,34 @@ public final class WirelessLinks {
                         dropped, label(acting, endpoint));
     }
 
+    /** The newest recorded links first; the serialized list preserves the same append order after reload. */
+    public static List<Link> mostRecent(Data data, int limit) {
+        int first = Math.max(0, data.links.size() - Math.max(0, limit));
+        List<Link> newest = new ArrayList<>(data.links.subList(first, data.links.size()));
+        java.util.Collections.reverse(newest);
+        return List.copyOf(newest);
+    }
+
+    /** Removes the newest recorded links owned by this dimension, preserving the older insertion order. */
+    public static int unlinkMostRecent(ServerLevel acting, Supplier<AttachmentType<Data>> type, int limit) {
+        if (limit <= 0 || !acting.hasData(type.get())) {
+            return 0;
+        }
+        Data data = acting.getData(type.get());
+        List<Link> newest = mostRecent(data, limit);
+        for (Link link : newest) {
+            IGridConnection held = data.edges.get(link);
+            if (isStillBetween(acting, held, link)) {
+                held.destroy();
+            }
+            data.drop(link);
+            data.links.remove(link);
+        }
+        NeoECOPrototype.LOGGER.info("wireless link: cleared {} most recent link(s) in {}",
+                newest.size(), acting.dimension().location());
+        return newest.size();
+    }
+
     /** Drops one exact pair, leaving every other link on either endpoint alone. */
     public static Reply unlinkLinkReply(ServerLevel acting, Supplier<AttachmentType<Data>> type,
                                         GlobalPos endpointA, GlobalPos endpointB) {
