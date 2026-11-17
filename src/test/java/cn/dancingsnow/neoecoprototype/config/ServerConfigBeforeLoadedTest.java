@@ -1,5 +1,6 @@
 package cn.dancingsnow.neoecoprototype.config;
 
+import cn.dancingsnow.neoecoprototype.blockentity.wireless.WirelessChannelModuleBlockEntity;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -96,6 +97,26 @@ class ServerConfigBeforeLoadedTest {
         assertEquals(NeoECOPrototypeServerConfig.PROCESSOR_ASSEMBLER_MAX_RUNS_PER_CYCLE_DEFAULT,
                 NeoECOPrototypeServerConfig.PROCESSOR_ASSEMBLER_MAX_RUNS_PER_CYCLE.getDefault(),
                 "the key's own default has to match the constant the jar ships with");
+    }
+
+    /**
+     * The bind range a player gets with no booster installed is the number the guide and the config comment
+     * both name, and the four rungs above it are that number doubled three times and then lifted. The ladder
+     * is arithmetic on this default, so the default and the arithmetic are pinned together.
+     */
+    @Test
+    void theBindRangeShipsAtFiftyBlocksAndTheLadderDoublesIt() {
+        assertEquals(50, NeoECOPrototypeServerConfig.WIRELESS_MAX_RANGE_BLOCKS.getDefault(),
+                "the range ships at 50 blocks; 0 means unlimited and is a packager's choice, not a default");
+        assertEquals(50, WirelessChannelModuleBlockEntity.rangeWithBoosters(50, 0), "no card is no change");
+        assertEquals(100, WirelessChannelModuleBlockEntity.rangeWithBoosters(50, 1), "one card doubles it");
+        assertEquals(200, WirelessChannelModuleBlockEntity.rangeWithBoosters(50, 2), "two cards double it again");
+        assertEquals(400, WirelessChannelModuleBlockEntity.rangeWithBoosters(50, 3), "three cards is the last"
+                + " rung that still names a distance");
+        assertEquals(0, WirelessChannelModuleBlockEntity.rangeWithBoosters(50, 4), "four cards lift the gate"
+                + " rather than raising the number");
+        assertEquals(0, WirelessChannelModuleBlockEntity.rangeWithBoosters(0, 2), "a world that turned the"
+                + " limit off stays off whatever is installed");
     }
 
     /**

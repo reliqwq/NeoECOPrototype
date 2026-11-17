@@ -1,5 +1,6 @@
 package cn.dancingsnow.neoecoprototype.blockentity.wireless;
 
+import appeng.api.inventories.InternalInventory;
 import appeng.api.networking.GridFlags;
 import appeng.api.networking.GridHelper;import appeng.api.networking.IGridConnection;
 import appeng.api.networking.IGridNode;
@@ -8,8 +9,16 @@ import appeng.api.networking.IManagedGridNode;
 import appeng.api.util.AECableType;
 import appeng.blockentity.grid.AENetworkedBlockEntity;
 import appeng.blockentity.networking.ControllerBlockEntity;
+import appeng.core.definitions.AEItems;
+import appeng.util.inv.AppEngInternalInventory;
+import appeng.util.inv.InternalInventoryHost;
+import appeng.util.inv.filter.AEItemDefinitionFilter;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.HolderLookup;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import java.util.ArrayList;
@@ -34,7 +43,7 @@ import java.util.List;
  * see, so both unload paths destroy every port and the next bind rebuilds them from nothing.
  */
 public final class WirelessChannelModuleBlockEntity extends AENetworkedBlockEntity
-        implements IInWorldGridNodeHost {
+        implements IInWorldGridNodeHost, InternalInventoryHost {
 
     /** AE2 prices a dense face at 32 channels and a cube has six faces: that is where the arithmetic stops. */
     public static final int MAX_PORTS = 6;
@@ -42,7 +51,14 @@ public final class WirelessChannelModuleBlockEntity extends AENetworkedBlockEnti
     /** AE2's own per-node ceiling at {@code ChannelMode.X4}, quoted so the javadoc above stays checkable. */
     public static final int CHANNELS_PER_PORT = 32;
 
+    /** Four of AE2's wireless booster cards: the ladder is 50 / 100 / 200 / 400 / unlimited. */
+    public static final int MAX_BOOSTERS = 4;
+
     private static final String PORT_TAG = "neoecoprototype-channel-port-";
+    private static final String BOOSTERS_TAG = "neoecoprototype-wireless-boosters";
+
+    private final AppEngInternalInventory boosters = new AppEngInternalInventory(
+            this, MAX_BOOSTERS, 1, new AEItemDefinitionFilter(AEItems.WIRELESS_BOOSTER));
 
     private final List<IManagedGridNode> ports = new ArrayList<>();
     private final List<IGridConnection> trunks = new ArrayList<>();
@@ -71,6 +87,72 @@ public final class WirelessChannelModuleBlockEntity extends AENetworkedBlockEnti
 
     public WirelessChannelModuleBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state) {
         super(type, pos, state);
+    }
+
+    /**
+     * How far a bind may reach from here: the world config's limit doubled once per installed booster, and no
+     * limit at all once the four slots are full. A config of 0 already means "no limit" and stays that way -
+     * the ladder multiplies a limit, it never invents one.
+     */
+    public static int rangeWithBoosters(int configured, int boosters) {
+        if (configured <= 0 || boosters >= MAX_BOOSTERS) {
+            return 0;
+        }
+        return configured << boosters;
+    }
+
+    /** The same ladder read off this block, for the bind path that already has the module in hand. */
+    public int rangeBlocks(int configured) {
+        return rangeWithBoosters(configured, boosterCount());
+    }
+
+    public int boosterCount() {
+        int count = 0;
+        for (int slot = 0; slot < boosters.size(); slot++) {
+            if (!boosters.getStackInSlot(slot).isEmpty()) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    /** The panel's booster column binds to this; the filter above is what keeps every other card out. */
+    public InternalInventory boosterInventory() {
+        return boosters;
+    }
+
+    @Override
+    public void saveChangedInventory(AppEngInternalInventory inventory) {
+        setChanged();
+    }
+
+    @Override
+    public boolean isClientSide() {
+        return level != null && level.isClientSide();
+    }
+
+    @Override
+    public void saveAdditional(CompoundTag tag, HolderLookup.Provider registries) {
+        super.saveAdditional(tag, registries);
+        boosters.writeToNBT(tag, BOOSTERS_TAG, registries);
+    }
+
+    @Override
+    public void loadTag(CompoundTag tag, HolderLookup.Provider registries) {
+        super.loadTag(tag, registries);
+        boosters.readFromNBT(tag, BOOSTERS_TAG, registries);
+    }
+
+    /** Breaking the module gives the cards back, the way the recorder gives its discs back. */
+    @Override
+    public void addAdditionalDrops(Level level, BlockPos pos, List<ItemStack> drops) {
+        super.addAdditionalDrops(level, pos, drops);
+        for (int slot = 0; slot < boosters.size(); slot++) {
+            ItemStack stack = boosters.extractItem(slot, Integer.MAX_VALUE, false);
+            if (!stack.isEmpty()) {
+                drops.add(stack);
+            }
+        }
     }
 
     @Override

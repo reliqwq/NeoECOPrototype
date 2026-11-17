@@ -69,5 +69,9 @@ unlink.
   does not gets an outlet of its own. A port that reads `24/32` will still take a network needing eight.
 - **The far square needs a node.** A cable bus with no cable in it never gets one - plug a cable into the bus.
   A block placed a second ago may need one more tick to build its node before auto-connect can finish.
+- **A link has a distance.** `wireless_max_range_blocks` in the server config, 50 blocks by default, measured
+  between the two squares at the moment the link is made; lowering it never cuts a link already recorded. The
+  module's own right-hand column takes four <ItemLink id="ae2:wireless_booster" />, and each one doubles the
+  distance - 100, then 200, then 400 - with the fourth lifting the limit entirely.
 - **Each link draws power.** `wireless_ae_per_link_per_tick` in the server config, 50 AE/t by default, billed
   against the joined grid.

@@ -190,6 +190,18 @@ public final class WirelessChannelModuleUI {
     private static final int SLOT_SIZE = 18;
     private static final int SLOT_PADDING = 1;
 
+    /**
+     * The booster column, hanging off the plate's right edge the way AE2 hangs its upgrade slots off the
+     * right of an interface. The plate has nothing painted there - measured: every column from x=177 on in
+     * {@code wireless_channel_module.png} is fully transparent - so each cell draws its own two rectangles,
+     * in the two colours AE2's slot is cut from: the plate's fill behind a recess of RGB 173,176,196.
+     */
+    private static final int BOOSTER_X = 175;
+    private static final int BOOSTER_Y = 0;
+    private static final int BOOSTER_PITCH = 18;
+    private static final ColorRectTexture BOOSTER_BACKING = new ColorRectTexture(0xFF_CBCCD4);
+    private static final ColorRectTexture BOOSTER_RECESS = new ColorRectTexture(0xFF_ADB0C4);
+
     /** A pale wash over the selected device row, per the hand-off spec. */
     private static final ColorRectTexture SELECTED_TINT = new ColorRectTexture(0x55_FF_FF_FF);
     private static final ColorRectTexture HOVER_TINT = new ColorRectTexture(0x22_FF_FF_FF);
@@ -309,6 +321,12 @@ public final class WirelessChannelModuleUI {
         root.addChild(guideButton(panel::openGuidePage));
         root.addChild(guideChip());
         root.addChild(panel.guideChipPulse());
+
+        // Four wireless booster cards, in the column AE2 keeps for upgrades. What they buy is the bind range:
+        // the config's limit doubled per card installed, and no limit once all four are in.
+        for (int index = 0; index < WirelessChannelModuleBlockEntity.MAX_BOOSTERS; index++) {
+            addBoosterCell(root, module, index);
+        }
 
         // Right column: the device rows, each a click target with a bound name and a bound selection tint.
         for (int index = 0; index < DEVICES_PER_PAGE; index++) {
@@ -529,6 +547,33 @@ public final class WirelessChannelModuleUI {
         widget.layout(layout -> layout.positionType(TaffyPosition.ABSOLUTE)
                 .left(x).top(y).width(SLOT_SIZE).height(SLOT_SIZE).paddingAll(SLOT_PADDING));
         return widget;
+    }
+
+    /**
+     * One booster cell: the plate's fill, AE2's recess inside it, then the slot itself. The three are separate
+     * widgets because the slot paints nothing of its own once its background is cleared, and the recess has to
+     * sit under the item rather than over it.
+     */
+    private static void addBoosterCell(UIElement root, WirelessChannelModuleBlockEntity module, int index) {
+        int y = BOOSTER_Y + index * BOOSTER_PITCH;
+        root.addChild(filled(BOOSTER_BACKING, BOOSTER_X, y, SLOT_SIZE, SLOT_SIZE));
+        root.addChild(filled(BOOSTER_RECESS, BOOSTER_X + SLOT_PADDING, y + SLOT_PADDING,
+                SLOT_SIZE - 2 * SLOT_PADDING, SLOT_SIZE - 2 * SLOT_PADDING));
+        ItemSlot widget = new ItemSlot(new Slot(module.boosterInventory().toContainer(), index, 0, 0));
+        widget.style(style -> style.backgroundTexture(IGuiTexture.EMPTY));
+        widget.layout(layout -> layout.positionType(TaffyPosition.ABSOLUTE)
+                .left(BOOSTER_X).top(y).width(SLOT_SIZE).height(SLOT_SIZE).paddingAll(SLOT_PADDING));
+        root.addChild(widget);
+    }
+
+    /** A flat coloured box, used where the plate has no art to sit a widget on. */
+    private static UIElement filled(IGuiTexture texture, int x, int y, int width, int height) {
+        UIElement element = new UIElement();
+        element.setAllowHitTest(false);
+        element.layout(layout -> layout.positionType(TaffyPosition.ABSOLUTE)
+                .left(x).top(y).width(width).height(height));
+        element.style(style -> style.backgroundTexture(texture));
+        return element;
     }
 
     /**

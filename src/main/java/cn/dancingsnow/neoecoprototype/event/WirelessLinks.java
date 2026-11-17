@@ -431,6 +431,29 @@ public final class WirelessLinks {
         return bindReply(acting, type, from, to, "");
     }
 
+    /**
+     * The bind range this pair gets: the world config's limit doubled once per wireless booster in whichever
+     * end is a subsystem channel module, and no limit at all once that module holds all four. A module is
+     * never an end of a link, so the ladder is read off the module beside the marked square rather than off
+     * the two squares being joined - and with no module in the pair the config answers alone.
+     */
+    private static int rangeLimit(ServerLevel acting, GlobalPos from, GlobalPos to) {
+        int configured = cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig
+                .WIRELESS_MAX_RANGE_BLOCKS.get();
+        return WirelessChannelModuleBlockEntity.rangeWithBoosters(configured,
+                Math.max(boostersAt(acting, from), boostersAt(acting, to)));
+    }
+
+    /** How many boosters the module on that square carries, or zero when it is not a module. */
+    private static int boostersAt(ServerLevel acting, GlobalPos at) {
+        ServerLevel level = levelOf(acting, at.dimension());
+        if (level == null || !chunkIsHere(level, at)
+                || !(level.getBlockEntity(at.pos()) instanceof WirelessChannelModuleBlockEntity module)) {
+            return 0;
+        }
+        return module.boosterCount();
+    }
+
     public static Reply bindReply(ServerLevel acting, Supplier<AttachmentType<Data>> type, GlobalPos from,
                                   GlobalPos to, String groupName) {
         String group = normalizeGroup(groupName);
@@ -445,8 +468,7 @@ public final class WirelessLinks {
             return Reply.of("cross_dim_off",
                     "cross-dimension links are off in this world's config");
         }
-        int rangeBlocks = cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig
-                .WIRELESS_MAX_RANGE_BLOCKS.get();
+        int rangeBlocks = rangeLimit(acting, from, to);
         if (rangeBlocks > 0 && sameWorld) {
             long dx = from.pos().getX() - to.pos().getX();
             long dy = from.pos().getY() - to.pos().getY();

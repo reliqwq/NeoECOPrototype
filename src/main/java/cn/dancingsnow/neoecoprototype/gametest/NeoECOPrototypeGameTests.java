@@ -27463,6 +27463,220 @@ public final class NeoECOPrototypeGameTests {
                 .forEach(ItemEntity::discard);
     }
 
+    /**
+     * The booster ladder, read off the gate rather than off a table: with the world config at 1 block, a
+     * module 3 blocks from a device is refused with no card and with one card, and accepted with two - so the
+     * limit really is doubled per installed card and the doubling is read live. The second pair sits 17 blocks
+     * away, which three cards (limit 8) still refuse and four cards lift entirely: 17 sits past the 16 a fourth doubling would still name, which is the only way to tell
+     * "no limit" apart from "a bigger number".
+     */
+    @GameTest(template = "empty", batch = "wireless_booster_range", timeoutTicks = 900,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void boosterCardsDoubleTheBindRangeAndFourLiftIt(GameTestHelper helper) {
+        bindRangeLadder(helper, false);
+    }
+
+    /**
+     * The rung under the lift, kept as its own test rather than only as a step inside the one above: the same
+     * fixture stopping at three cards. It has to refuse the 17-block join, or the "four cards lift it" reading
+     * would only be proving that a long distance is allowed for some other reason.
+     */
+    @GameTest(template = "empty", batch = "wireless_booster_range", timeoutTicks = 900,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void threeBoostersStillRefuseTheTwelveBlockJoin(GameTestHelper helper) {
+        bindRangeLadder(helper, true);
+    }
+
+    private static void bindRangeLadder(GameTestHelper helper, boolean stopAtThreeBoosters) {
+        var level = (ServerLevel) helper.getLevel();
+        var moduleBlock = ModRegistration.SUBSYSTEM_CHANNEL_MODULE_BLOCK.get();
+        var iface = ModRegistration.SUPERCONDUCTIVE_INTERFACE_BLOCK.get();
+        helper.setBlock(new BlockPos(0, 1, 0), moduleBlock);
+        helper.setBlock(new BlockPos(3, 1, 0), iface);
+        helper.setBlock(new BlockPos(17, 1, 0), iface);
+        var moduleAt = GlobalPos.of(level.dimension(), helper.absolutePos(new BlockPos(0, 1, 0)));
+        var nearAt = GlobalPos.of(level.dimension(), helper.absolutePos(new BlockPos(3, 1, 0)));
+        var farAt = GlobalPos.of(level.dimension(), helper.absolutePos(new BlockPos(17, 1, 0)));
+        var module = level.getBlockEntity(moduleAt.pos()) instanceof WirelessChannelModuleBlockEntity be
+                ? be : null;
+        if (module == null) {
+            helper.fail("no module block entity at " + moduleAt.pos() + ", so there is no booster slot to"
+                    + " fill and the ladder cannot be read at all");
+            return;
+        }
+        var range = cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig
+                .WIRELESS_MAX_RANGE_BLOCKS;
+        var saved = range.getDefault();
+        waitUntil(helper, 40,
+                () -> networkNode(level, nearAt) != null && networkNode(level, farAt) != null
+                        && separateNetworks(level, moduleAt, nearAt)
+                        && separateNetworks(level, moduleAt, farAt),
+                () -> "the three squares never became three separate grids: module="
+                        + nodeSummary(level, moduleAt) + " near=" + nodeSummary(level, nearAt)
+                        + " far=" + nodeSummary(level, farAt),
+                () -> {
+                    try {
+                        range.set(1);
+                        fillBoosters(module, 0);
+                        if (!refusedForDistance(level, moduleAt, nearAt, 3)) {
+                            helper.fail("a 3 block join went through with the config at 1 and no booster"
+                                    + " installed");
+                            return;
+                        }
+                        fillBoosters(module, 1);
+                        if (!refusedForDistance(level, moduleAt, nearAt, 3)) {
+                            helper.fail("a 3 block join went through with one booster, although the limit"
+                                    + " should still be 2 blocks");
+                            return;
+                        }
+                        fillBoosters(module, 2);
+                        String third = WirelessLinks.bind(level, ModRegistration.WIRELESS_LINKS, moduleAt,
+                                nearAt);
+                        if (third.contains("more than")) {
+                            helper.fail("two boosters should raise the limit from 1 to 4 blocks, and the 3"
+                                    + " block join was still refused for distance: " + third);
+                            return;
+                        }
+                        fillBoosters(module, 3);
+                        if (!refusedForDistance(level, moduleAt, farAt, 17)) {
+                            helper.fail("three boosters give 8 blocks, and the 17 block join was not refused"
+                                    + " for distance");
+                            return;
+                        }
+                        if (stopAtThreeBoosters) {
+                            helper.succeed();
+                            return;
+                        }
+                        fillBoosters(module, 4);
+                        String lifted = WirelessLinks.bind(level, ModRegistration.WIRELESS_LINKS, moduleAt,
+                                farAt);
+                        if (lifted.contains("more than")) {
+                            helper.fail("four boosters are meant to lift the distance gate, and the 17 block"
+                                    + " join still heard the distance refusal: " + lifted);
+                            return;
+                        }
+                        helper.succeed();
+                    } finally {
+                        range.set(saved);
+                    }
+                });
+    }
+
+    /** True when the join was refused and the refusal named the distance, not some later gate. */
+    private static boolean refusedForDistance(ServerLevel level, GlobalPos from, GlobalPos to, int apart) {
+        String answer = WirelessLinks.bind(level, ModRegistration.WIRELESS_LINKS, from, to);
+        return answer.contains("more than " + apart + " blocks apart");
+    }
+
+    /** Puts the module's booster column at exactly that many cards, whatever it held before. */
+    private static void fillBoosters(WirelessChannelModuleBlockEntity module, int want) {
+        var inventory = module.boosterInventory();
+        for (int slot = 0; slot < WirelessChannelModuleBlockEntity.MAX_BOOSTERS; slot++) {
+            inventory.extractItem(slot, Integer.MAX_VALUE, false);
+        }
+        for (int slot = 0; slot < want; slot++) {
+            var left = inventory.insertItem(slot,
+                    new ItemStack(appeng.core.definitions.AEItems.WIRELESS_BOOSTER), false);
+            if (!left.isEmpty()) {
+                NeoECOPrototype.LOGGER.error("booster slot {} refused its card: {}", slot, left);
+            }
+        }
+    }
+
+    /**
+     * What the four slots accept and what they keep. A fuzzy card is an AE2 upgrade card too, so a filter
+     * that only checked "is this a card" would take it and buy the player nothing; and a fifth booster has to
+     * come back out, because the ladder is four rungs deep by decision, not by accident.
+     */
+    @GameTest(template = "empty", batch = "wireless_booster_slots", timeoutTicks = 400,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void onlyFourWirelessBoostersFillTheBoosterColumn(GameTestHelper helper) {
+        var level = (ServerLevel) helper.getLevel();
+        helper.setBlock(new BlockPos(0, 1, 0), ModRegistration.SUBSYSTEM_CHANNEL_MODULE_BLOCK.get());
+        var at = GlobalPos.of(level.dimension(), helper.absolutePos(new BlockPos(0, 1, 0)));
+        if (!(level.getBlockEntity(at.pos()) instanceof WirelessChannelModuleBlockEntity module)) {
+            helper.fail("no module block entity at " + at.pos());
+            return;
+        }
+        var inventory = module.boosterInventory();
+        var fuzzy = inventory.insertItem(0, new ItemStack(appeng.core.definitions.AEItems.FUZZY_CARD), false);
+        if (fuzzy.isEmpty()) {
+            helper.fail("the booster column took a fuzzy card, which buys no range at all");
+            return;
+        }
+        for (int slot = 0; slot < WirelessChannelModuleBlockEntity.MAX_BOOSTERS; slot++) {
+            if (!inventory.insertItem(slot,
+                    new ItemStack(appeng.core.definitions.AEItems.WIRELESS_BOOSTER), false).isEmpty()) {
+                helper.fail("booster slot " + slot + " refused a wireless booster");
+                return;
+            }
+        }
+        if (module.boosterCount() != WirelessChannelModuleBlockEntity.MAX_BOOSTERS) {
+            helper.fail("four cards went in and the module counts " + module.boosterCount());
+            return;
+        }
+        if (inventory.size() != WirelessChannelModuleBlockEntity.MAX_BOOSTERS) {
+            helper.fail("the column has " + inventory.size() + " slots while MAX_BOOSTERS says "
+                    + WirelessChannelModuleBlockEntity.MAX_BOOSTERS + ", so the ladder is not four rungs");
+            return;
+        }
+        // The cap is the column's own length, so the fifth card has to be refused by the last slot being
+        // full rather than by a fifth slot existing - maxStackSize is 1 for exactly that reason.
+        var secondInLast = inventory.insertItem(WirelessChannelModuleBlockEntity.MAX_BOOSTERS - 1,
+                new ItemStack(appeng.core.definitions.AEItems.WIRELESS_BOOSTER), false);
+        if (secondInLast.isEmpty()) {
+            helper.fail("a full booster slot stacked a second card, so four cards do not mean four rungs");
+            return;
+        }
+        helper.succeed();
+    }
+
+    /**
+     * The column is saved, and the cards come back when the block is broken. Both halves matter on their own:
+     * a range that resets on a reload reads as a machine that stopped working, and a broken module that eats
+     * four boosters is a bug a player only finds once, late.
+     */
+    @GameTest(template = "empty", batch = "wireless_booster_slots", timeoutTicks = 400,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void boostersAreSavedAndDroppedWithTheModule(GameTestHelper helper) {
+        var level = (ServerLevel) helper.getLevel();
+        helper.setBlock(new BlockPos(0, 1, 0), ModRegistration.SUBSYSTEM_CHANNEL_MODULE_BLOCK.get());
+        var pos = helper.absolutePos(new BlockPos(0, 1, 0));
+        if (!(level.getBlockEntity(pos) instanceof WirelessChannelModuleBlockEntity module)) {
+            helper.fail("no module block entity at " + pos);
+            return;
+        }
+        fillBoosters(module, 2);
+        if (module.boosterCount() != 2) {
+            helper.fail("the fixture could not install two boosters, it has " + module.boosterCount());
+            return;
+        }
+        var tag = new net.minecraft.nbt.CompoundTag();
+        module.saveAdditional(tag, level.registryAccess());
+        fillBoosters(module, 0);
+        if (module.boosterCount() != 0) {
+            helper.fail("clearing the column before the reload test left " + module.boosterCount()
+                    + " cards behind");
+            return;
+        }
+        module.loadTag(tag, level.registryAccess());
+        if (module.boosterCount() != 2) {
+            helper.fail("the saved column came back with " + module.boosterCount() + " cards, not 2");
+            return;
+        }
+        var drops = new java.util.ArrayList<ItemStack>();
+        module.addAdditionalDrops(level, pos, drops);
+        long cards = drops.stream()
+                .filter(stack -> stack.is(appeng.core.definitions.AEItems.WIRELESS_BOOSTER.asItem()))
+                .count();
+        if (cards != 2) {
+            helper.fail("breaking a module holding two boosters dropped " + cards
+                    + " of them; the rest of the column is gone");
+            return;
+        }
+        helper.succeed();
+    }
+
     /** Fails with the position and what is actually there, and answers whether it matched. */
     private static boolean blockIs(GameTestHelper helper, BlockPos absolute, Block expected, String what) {
         var state = helper.getLevel().getBlockState(absolute);

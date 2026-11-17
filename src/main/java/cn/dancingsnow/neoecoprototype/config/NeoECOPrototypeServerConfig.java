@@ -237,11 +237,13 @@ public final class NeoECOPrototypeServerConfig {
                         + "或合并两张无控制器网会把两边都压成 0 频道时，链路才被拒绝。")
                 .defineInRange("wireless_max_links_per_device", 0, 0, 32);
         WIRELESS_MAX_RANGE_BLOCKS = builder
-                .comment("Max distance between two devices, in blocks between the squares. Default: 0 (no limit) | Range: 0~100000.",
+                .comment("Max distance between two devices, in blocks between the squares. Default: 50 | Range: 0~100000. 0 = no limit.",
                         "Note: applied on bind; lowering it will not break existing links.",
-                        "建立连接的最大距离（格对格）。默认 0（不限）| 范围 0~100000。",
-                        "注：仅对新建链路生效，调小不会断开已有链路。")
-                .defineInRange("wireless_max_range_blocks", 0, 0, 100000);
+                        "Note: a subsystem channel module on either end doubles this once per wireless booster it holds, and four of them lift the limit.",
+                        "建立连接的最大距离（格对格）。默认 50 | 范围 0~100000。0 = 不限。",
+                        "注：仅对新建链路生效，调小不会断开已有链路。",
+                        "注：链路任一侧的子系统频道通讯模块每插一张无线增强卡，本值翻倍；插满 4 张则不限距离。")
+                .defineInRange("wireless_max_range_blocks", 50, 0, 100000);
         WIRELESS_ALLOW_CROSS_DIMENSION = builder
                 .comment("Whether links may join devices in different dimensions. Default: false.",
                         "Note: links already joined across dimensions stay until a player unbinds them.",
