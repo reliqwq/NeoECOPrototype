@@ -230,6 +230,7 @@ gametest/     测试。探针类单独成文件。
 - **`src/main/resources/assets` 里不许出现 `neoecoae:` 引用**（`.github/workflows/repository-checks.yml` 用 grep 拦，命中即红）。所以"借 eco 的贴图/模型"这条路在资源侧走不通；要借只能走代码引用运行依赖，而那会把可选依赖变必需 —— 默认答案是**自己画一张**。
 - 同一份 CI 还跑 `git diff --check`。
 - 第三方素材先量授权：LICENSE 常只覆盖代码，素材可能是署名第三人且无授权。
+- **判"死贴图"的尺子要把四个引用根一起数**，11-17 那次每漏一个就误判一张：① java 里的字面量与拼名；② `assets/**/screens/*.json` 的 `"texture"`（`textures/gui/simplify_assembler.png` 就这样活着）；③ `data/neoecoprototype/curios/slots/*.json` 的 `"icon"`（`textures/slot/empty_universal_link_card.png`）；④ 随 jar 打包的内置回退资源包 `src/main/resources/legacy_art/` 自己的 blockstate/model（它引用改名前的 `block/aluminum_alloy_casing`；这条不挡住删除 —— 那份包是从 tag 切出来的自足切片，但它会让"闭包扫不到"这句话扫错对象）。同型坑：给标识符长度设下限会漏掉 `gui/tier/l1.png`（两张 tier 枚举的 `getCPUOverlayTexture()` 返回它）。
 
 ---
 
