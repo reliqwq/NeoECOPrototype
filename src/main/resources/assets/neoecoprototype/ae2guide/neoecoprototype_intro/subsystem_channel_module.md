@@ -16,62 +16,47 @@ item_ids:
   <BlockImage id="neoecoprototype:subsystem_channel_module" scale="4"></BlockImage>
 </Row>
 
-The **ECOP Network Subsystem Channel Core** is an AE2 device that hands out **six outlets of 32 channels each** to networks
-that are not physically connected to it. A wireless link joins one outlet to a machine or a dense cable bus
-somewhere else, and everything behind that square joins your network as if a cable ran to it.
+## Introduction
 
-## What it is for
-
-An <ItemLink id="ae2:controller" /> pays 32 channels per face, and a dense cable carries 32. When a base grows
-past that, the usual answer is another controller or a longer cable run. The module is the third answer: put one
-next to your controller, and it gives you six more 32-channel faces that reach anywhere in the world.
-
-Six outlets, 32 channels each - **192 channels** from one block.
+ECOP provides a quick and convenient wireless solution. Connect the **ECOP Network Subsystem Channel Core** (the
+**Wireless Communication Core** for short) to an ME controller network, then use a
+<ItemLink id="neoecoprototype:wireless_link_card" /> to bind devices. It provides six wireless outlets, each with
+the channel capacity of one ME controller face: **6 × 32 = 192 channels**.
 
 ## Building it
 
-1. Place the module so it touches your controller or its dense cable. It has to be on a powered network with a
-   controller for the outlets to be worth anything: without one, AE2 gives the whole network ad-hoc channels
-   and the outlets do not count separately.
-2. Mark a machine or a dense cable bus with the <ItemLink id="neoecoprototype:wireless_link_card" /> - right-click
-   the square once to mark it.
-3. Right-click the module with the same card. The two squares are joined and the module opens an outlet for it.
+1. Place the Wireless Communication Core so it touches the ME controller or its dense cable, joining the
+   controller network.
+2. Hold the <ItemLink id="neoecoprototype:wireless_link_card" /> and sneak-right-click the core to mark it.
+3. Sneak-right-click any network device to establish the wireless link.
 
-A **dense cable bus** is the better far end: it is a 32-channel face of its own, so the link's width is not
-capped by a machine. A machine works too and enters at that machine's own width.
+A dense cable bus is the better far end: it carries 32 channels, while a machine endpoint is limited by that
+machine's own channel capacity.
 
-## Reading the panel
+## Panel overview
 
-Right-click the module to open it. The three columns are one reading in order:
+Right-click the Wireless Communication Core to open its panel:
 
-| Column | What it shows |
-|--------|---------------|
-| Left | The six outlets. The chip is the outlet, the lamp is its state: green = channels left, blue = carrying a network, red = its 32 are used up. Click a row to choose it. |
-| Middle | The whole module: `used/192`, what is left, the dimension, and the outlet selector. Hover the first reading for the module's state - **idle** (fewer than six outlets carry a network), **healthy** (all six do), **congested** (all 192 are spent). |
-| Right | The links on the chosen outlet. Each row is the far block's icon and its position; hover for the whole name. |
+| Column | Purpose |
+|--------|---------|
+| Left - Select a node | Select an outlet and inspect the channel usage of its current network. |
+| Middle - Overview | See the core's total channel usage, remaining channels, and dimension. |
+| Right - Precise controls | Highlight both ends of the selected link, refresh channel status, or disconnect the selected device. |
 
-The three buttons under the middle column work on the selected row: highlight both ends, re-read the panel, and
-unlink.
+## Rules to know
 
-## Rules worth knowing
-
-- **A module is a hub, not a wireless hop.** It can link to a machine or a dense cable bus, but two modules cannot
-  link to each other: that would let their outlet budgets be chained over and over.
-- **A link that would close a loop is refused.** AE2 merges two networks the moment an edge joins them, so the
-  edge that would close a triangle finds both ends already on one network and is turned away.
-- **Auto-connect on placement.** If a marked <ItemLink id="neoecoprototype:wireless_link_card" /> is anywhere in
-  your hotbar when you place a network device, the link is made automatically after AE2 builds that device's
-  node. If two different marked cards are in the hotbar, nothing is guessed - keep just the card for the network
-  you want to join.
-- **Jade shows the link.** Look at either connected device or cable bus: one line per state, with `×N` after it
-  when several links are in that state. The remote square is not named - the card's manager lists that.
-- **An outlet shares when it can.** A network that fits in what an outlet has left is packed onto it; one that
-  does not gets an outlet of its own. A port that reads `24/32` will still take a network needing eight.
-- **The far square needs a node.** A cable bus with no cable in it never gets one - plug a cable into the bus.
-  A block placed a second ago may need one more tick to build its node before auto-connect can finish.
-- **A link has a distance.** `wireless_max_range_blocks` in the server config, 50 blocks by default, measured
-  between the two squares at the moment the link is made; lowering it never cuts a link already recorded. The
-  module's own right-hand column takes four <ItemLink id="ae2:wireless_booster" />, and each one doubles the
-  distance - 100, then 200, then 400 - with the fourth lifting the limit entirely.
-- **Each link draws power.** `wireless_ae_per_link_per_tick` in the server config, 50 AE/t by default, billed
-  against the joined grid.
+- **Auto-connect on placement.** If a marked <ItemLink id="neoecoprototype:wireless_link_card" /> is in your hotbar,
+  a placed network device automatically connects to its marked outlet after AE2 creates its node. When Curios is
+  installed, a card in an accessory slot also triggers auto-connect. If cards marked for different networks are
+  present, the target is not guessed.
+- **Distance limit.** The default range is 50 blocks. The core's right-hand upgrade slots accept
+  <ItemLink id="ae2:wireless_booster" /> (a wireless booster): each doubles the range to 100, 200, then 400 blocks;
+  four boosters remove the limit. Changing the range does not break links already established.
+- **Power use.** Each active link draws 50 AE/t by default from the joined network.
+- **The core is a hub, not a wireless hop.** It can link to a machine or a dense cable bus, but two cores cannot
+  link to each other.
+- **Loops are refused.** AE2 merges networks when a link is made, so a link that would close a loop is rejected.
+- **The far square needs a node.** A cable bus without a cable has no node. A newly placed device may need another
+  tick before AE2 creates its node and auto-connect can finish.
+- **Outlets share when they can.** A network that fits in an outlet's remaining capacity shares it; one that does
+  not gets its own outlet.
