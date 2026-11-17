@@ -10,6 +10,7 @@ import java.nio.file.Path;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * The channel module is one directional cube whose top face carries art that points somewhere: the blockstate
@@ -55,9 +56,15 @@ class ChannelModuleTopFaceTest {
                 "this block is one cube; more elements mean the guard below is checking the wrong element");
         JsonObject faces = model.getAsJsonArray("elements").get(0).getAsJsonObject().getAsJsonObject("faces");
         assertEquals(6, faces.size(), "faces present: " + faces.keySet());
-        assertEquals(2, faces.getAsJsonObject("up").get("rotation").getAsInt(),
-                "the top face is not turned 180 degrees, so the art's own direction lands on the wrong side"
-                        + " of the block");
+        int rotation = faces.getAsJsonObject("up").get("rotation").getAsInt();
+        // Minecraft's parser takes degrees and rejects anything else outright - "rotation": 2 parses as a
+        // model error, the block loses every face, and the guard below would have been green reading the 2
+        // back out of the same file it wrote. So the legal set is asserted before the value is.
+        assertTrue(rotation == 0 || rotation == 90 || rotation == 180 || rotation == 270,
+                "the up face carries rotation " + rotation + ", which Minecraft's model parser rejects: only"
+                        + " 0/90/180/270 are allowed, and a rejected model renders the block missing-texture");
+        assertEquals(180, rotation, "the top face is not turned 180 degrees, so the art's own direction lands"
+                + " on the wrong side of the block");
         for (String face : new String[]{"down", "north", "south", "east", "west"}) {
             assertFalse(faces.getAsJsonObject(face).has("rotation"),
                     face + " now carries a rotation too, which this block's art does not ask for");
