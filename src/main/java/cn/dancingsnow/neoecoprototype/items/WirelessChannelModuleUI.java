@@ -191,15 +191,22 @@ public final class WirelessChannelModuleUI {
     private static final int SLOT_PADDING = 1;
 
     /**
-     * The booster column, hanging off the plate's right edge the way AE2 hangs its upgrade slots off the
-     * right of an interface. The plate has nothing painted there - measured: every column from x=177 on in
-     * {@code wireless_channel_module.png} is fully transparent - so each cell draws its own two rectangles,
-     * in the two colours AE2's slot is cut from: the plate's fill behind a recess of RGB 173,176,196.
+     * The booster column, attached to the plate's right edge on the same AE2 toolbar strip the guide chip
+     * hangs on. The coordinate the hand-off named (x=175) is the plate's own right frame: measured, column
+     * 175 of {@code wireless_channel_module.png} is the highlight line and 176 is the dark outline, so a cell
+     * placed there paints over the frame and reads as detached. The strip therefore starts at 177 - one past
+     * the outline - and the slots sit inside it at 179.
+     *
+     * <p>The strip is sliced rather than stretched: {@code vertical_buttons_bg.png} is a nine-slice whose rows
+     * 0-1 are the top cap, 2-21 are one cell's body, and 22-25 are the shadow band, so four cells are
+     * 2 + 20x4 + 4 = 86 tall and nothing is resampled.
      */
-    private static final int BOOSTER_X = 175;
+    private static final int BOOSTER_X = 177;
+    private static final int BOOSTER_SLOT_X = BOOSTER_X + 2;
     private static final int BOOSTER_Y = 0;
-    private static final int BOOSTER_PITCH = 18;
-    private static final ColorRectTexture BOOSTER_BACKING = new ColorRectTexture(0xFF_CBCCD4);
+    private static final int STRIP_CAP_TOP = 2;
+    private static final int STRIP_BODY = 20;
+    private static final int STRIP_CAP_BOTTOM = 4;
     private static final ColorRectTexture BOOSTER_RECESS = new ColorRectTexture(0xFF_ADB0C4);
 
     /** A pale wash over the selected device row, per the hand-off spec. */
@@ -324,6 +331,12 @@ public final class WirelessChannelModuleUI {
 
         // Four wireless booster cards, in the column AE2 keeps for upgrades. What they buy is the bind range:
         // the config's limit doubled per card installed, and no limit once all four are in.
+        root.addChild(filled(SpriteTexture.of(AE2_TOOLBAR_BG).setSprite(0, 0, TOOLBAR_WIDTH, STRIP_CAP_TOP),
+                BOOSTER_X, BOOSTER_Y, TOOLBAR_WIDTH, STRIP_CAP_TOP));
+        root.addChild(filled(SpriteTexture.of(AE2_TOOLBAR_BG)
+                        .setSprite(0, STRIP_CAP_TOP + STRIP_BODY, TOOLBAR_WIDTH, STRIP_CAP_BOTTOM),
+                BOOSTER_X, BOOSTER_Y + STRIP_CAP_TOP + STRIP_BODY * WirelessChannelModuleBlockEntity.MAX_BOOSTERS,
+                TOOLBAR_WIDTH, STRIP_CAP_BOTTOM));
         for (int index = 0; index < WirelessChannelModuleBlockEntity.MAX_BOOSTERS; index++) {
             addBoosterCell(root, module, index);
         }
@@ -555,18 +568,20 @@ public final class WirelessChannelModuleUI {
      * sit under the item rather than over it.
      */
     private static void addBoosterCell(UIElement root, WirelessChannelModuleBlockEntity module, int index) {
-        int y = BOOSTER_Y + index * BOOSTER_PITCH;
-        root.addChild(filled(BOOSTER_BACKING, BOOSTER_X, y, SLOT_SIZE, SLOT_SIZE));
-        root.addChild(filled(BOOSTER_RECESS, BOOSTER_X + SLOT_PADDING, y + SLOT_PADDING,
+        int bodyTop = BOOSTER_Y + STRIP_CAP_TOP + index * STRIP_BODY;
+        root.addChild(filled(SpriteTexture.of(AE2_TOOLBAR_BG).setSprite(0, STRIP_CAP_TOP,
+                TOOLBAR_WIDTH, STRIP_BODY), BOOSTER_X, bodyTop, TOOLBAR_WIDTH, STRIP_BODY));
+        root.addChild(filled(BOOSTER_RECESS, BOOSTER_SLOT_X + SLOT_PADDING, bodyTop + 1,
                 SLOT_SIZE - 2 * SLOT_PADDING, SLOT_SIZE - 2 * SLOT_PADDING));
         ItemSlot widget = new ItemSlot(new Slot(module.boosterInventory().toContainer(), index, 0, 0));
         widget.style(style -> style.backgroundTexture(IGuiTexture.EMPTY));
         widget.layout(layout -> layout.positionType(TaffyPosition.ABSOLUTE)
-                .left(BOOSTER_X).top(y).width(SLOT_SIZE).height(SLOT_SIZE).paddingAll(SLOT_PADDING));
+                .left(BOOSTER_SLOT_X).top(bodyTop).width(SLOT_SIZE).height(SLOT_SIZE)
+                .paddingAll(SLOT_PADDING));
         root.addChild(widget);
     }
 
-    /** A flat coloured box, used where the plate has no art to sit a widget on. */
+    /** A flat coloured box or sprite slice, used where the plate has no art to sit a widget on. */
     private static UIElement filled(IGuiTexture texture, int x, int y, int width, int height) {
         UIElement element = new UIElement();
         element.setAllowHitTest(false);

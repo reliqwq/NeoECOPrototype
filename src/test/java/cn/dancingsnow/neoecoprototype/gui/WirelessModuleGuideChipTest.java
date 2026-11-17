@@ -157,6 +157,35 @@ class WirelessModuleGuideChipTest {
                 .getKey();
     }
 
+    /**
+     * The booster column has to start one column past the plate's own right frame, because the frame is the
+     * thing that makes the two read as one panel. The frame's position is measured out of the shipped plate
+     * rather than written down here, so repainting the plate moves the assertion with it.
+     */
+    @Test
+    void theBoosterColumnStartsOnePastThePlatesOwnFrame() throws Exception {
+        BufferedImage plate = ImageIO.read(PLATE.toFile());
+        int lastPainted = -1;
+        for (int x = plate.getWidth() - 1; x >= 0; x--) {
+            boolean painted = false;
+            for (int y = 0; y < 200; y += 7) {
+                if ((plate.getRGB(x, y) >>> 24) != 0) {
+                    painted = true;
+                    break;
+                }
+            }
+            if (painted) {
+                lastPainted = x;
+                break;
+            }
+        }
+        int boosterX = Integer.parseInt(group(Files.readString(UI), "BOOSTER_X\\s*=\\s*(\\d+)")[0]);
+        assertEquals(lastPainted + 1, boosterX,
+                "the plate's last painted column is " + lastPainted + " but the booster column starts at "
+                        + boosterX + ", so it either covers the frame or leaves a gap");
+        assertTrue(boosterX + 21 <= 256, "the column runs past the plate file's canvas");
+    }
+
     private static String[] group(String source, String regex) {
         Matcher matcher = Pattern.compile(regex, Pattern.DOTALL).matcher(source);
         assertTrue(matcher.find(), "the module panel no longer contains " + regex
