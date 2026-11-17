@@ -4,8 +4,8 @@
   ],
   "type": "neoecoprototype:processor_assembler",
   "ingredients": [
-    { "item": "ae2lt:overload_circuit_board" },
-    { "tag": "c:dusts/redstone" },
+    { "item": "ae2lt:overload_crystal" },
+    { "item": "minecraft:redstone" },
     { "tag": "c:silicon" }
   ],
   "result": { "id": "ae2lt:overload_processor", "count": 1 }

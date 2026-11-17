@@ -1317,9 +1317,10 @@ public final class NeoECOPrototypeGameTests {
      * {@code neoforge:conditions}, so a gated recipe - the whole shape of a crossover recipe - had no code
      * face before 2026-11-12, and the file could be deleted or mistyped without anything noticing.
      *
-     * <p>Both branches assert. With ae2lt loaded the recipe has to reach the manager, match the three
-     * materials the file names and hand back exactly one overload processor; without it the recipe has to be
-     * absent, which is what makes the gate meaningful rather than decorative. The loaded branch is the one
+     * <p>Both branches assert. With ae2lt loaded the recipe has to reach the manager, match overload crystal +
+     * redstone + silicon (and refuse the circuit board, which belongs to the derived path), and hand back
+     * exactly one overload processor; without it the recipe has to be absent, which is what makes the gate
+     * meaningful rather than decorative. The loaded branch is the one
      * that runs by default now; the absent branch is a control run with the two lightning
      * {@code runtimeOnly} lines commented out.</p>
      */
@@ -1341,9 +1342,6 @@ public final class NeoECOPrototypeGameTests {
                 "the overload processor must be crafted by our assembler, not by a copy of some other"
                         + " recipe type: " + recipe.getClass().getName());
         var assembled = (cn.dancingsnow.neoecoprototype.recipe.ProcessorAssemblerRecipe) recipe;
-        var circuitBoard = net.minecraft.core.registries.BuiltInRegistries.ITEM
-                .getKey(net.minecraft.core.registries.BuiltInRegistries.ITEM.get(
-                        ResourceLocation.fromNamespaceAndPath("ae2lt", "overload_circuit_board")));
         var processor = net.minecraft.core.registries.BuiltInRegistries.ITEM.get(
                 ResourceLocation.fromNamespaceAndPath("ae2lt", "overload_processor"));
         helper.assertTrue(processor != net.minecraft.world.item.Items.AIR,
@@ -1351,19 +1349,38 @@ public final class NeoECOPrototypeGameTests {
                         + " output would be air");
         // Matched through the recipe's own one-to-one helper rather than a CraftingInput: an assembler job
         // is inserted in any order, and that unordered matching is the half a player can trip over.
-        var stack = new ItemStack[]{
+        var crystal = new ItemStack[]{
+                new ItemStack(net.minecraft.core.registries.BuiltInRegistries.ITEM
+                        .get(ResourceLocation.fromNamespaceAndPath("ae2lt", "overload_crystal"))),
+                new ItemStack(Items.REDSTONE),
+                new ItemStack(net.minecraft.core.registries.BuiltInRegistries.ITEM
+                        .get(ResourceLocation.fromNamespaceAndPath("ae2", "silicon")))};
+        helper.assertTrue(assembled.matches(crystal),
+                "the assembler's overload recipe does not match overload crystal + redstone + silicon, which"
+                        + " is what docs/processor-assembler-recipes.md and both guide tables promise");
+        // The circuit board is the other path and must stay the other path: ae2lt's own press recipe is what
+        // puts the board into a pattern, and the derivation unfolds that. If the declared recipe ever starts
+        // accepting the board too, the two lines in the doc are one line and the crossover saves nothing.
+        var board = new ItemStack[]{
                 new ItemStack(net.minecraft.core.registries.BuiltInRegistries.ITEM
                         .get(ResourceLocation.fromNamespaceAndPath("ae2lt", "overload_circuit_board"))),
                 new ItemStack(Items.REDSTONE),
                 new ItemStack(net.minecraft.core.registries.BuiltInRegistries.ITEM
                         .get(ResourceLocation.fromNamespaceAndPath("ae2", "silicon")))};
-        helper.assertTrue(assembled.matches(stack),
-                "the assembler's overload recipe does not match circuit board + redstone + silicon"
-                        + " (board id " + circuitBoard + ")");
+        helper.assertTrue(!assembled.matches(board),
+                "the declared crossover recipe also takes the circuit board, so the documented pair of paths"
+                        + " is really one path");
+        var derivedOverload = cn.dancingsnow.neoecoprototype.recipe.ProcessorAssemblerRecipes
+                .derived(helper.getLevel(), List.of(assembled)).stream()
+                .filter(candidate -> candidate.result().is(processor))
+                .findFirst();
+        helper.assertTrue(derivedOverload.isPresent() && derivedOverload.orElseThrow().matches(board),
+                "nothing derives the press-material path any more, so a pattern encoded from ae2lt's own"
+                        + " inscriber recipe has no recipe to run: derived=" + derivedOverload);
         var output = recipe.getResultItem(helper.getLevel().registryAccess());
         helper.assertTrue(output.is(processor) && output.getCount() == 1,
                 "the overload recipe must hand back exactly one ae2lt:overload_processor, got " + output);
-        NeoECOPrototype.LOGGER.info("lightning processor recipe: board={} matches=1 out={}", circuitBoard,
+        NeoECOPrototype.LOGGER.info("lightning processor recipe: declared=crystal derived=board out={}",
                 output.getItem());
         helper.succeed();
     }
