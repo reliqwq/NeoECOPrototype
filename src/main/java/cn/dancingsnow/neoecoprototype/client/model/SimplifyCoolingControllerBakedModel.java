@@ -23,6 +23,18 @@ import java.util.List;
  * at all, and the geometry then comes only from {@link #renderFixed}, called by our fixed block entity
  * renderer with a buffer source that recomputes each vertex's light from the world. The unformed variant is
  * left alone, so it keeps drawing the way any ordinary block does.
+ *
+ * <p>Splitting the two halves on {@code isShade} - 60 body faces to the terrain layer, 4 emissive faces to the
+ * lit pass - was tried on 2026-11-17 to make the block appear in a GuideME scene at all, and the player's
+ * read of the result was that the faces came out painted the wrong way round. It went back the same hour, so
+ * the terrain layer is not a substitute for this model: only {@link #renderFixed} draws it correctly.
+ *
+ * <p>That is also why the member is an empty cell in a GuideME scene, and no scene data can fix it:
+ * {@code AddSectionGeometryEvent}, the only door into {@code FixedBlockEntityRenderers}, is fired from
+ * {@code SectionRenderDispatcher}, while GuideME's scene renderer calls
+ * {@code BlockRenderDispatcher.renderBatched} directly. Both computation scenes already carry the controller's
+ * block entity (measured 2026-11-17: 30 blocks with block-entity data in each, the controller among them), so
+ * re-saving the structure changes nothing - the pass simply is not asked.
  */
 public final class SimplifyCoolingControllerBakedModel extends BakedModelWrapper<BakedModel> {
     private static final Direction[] DIRECTIONS = Direction.values();
