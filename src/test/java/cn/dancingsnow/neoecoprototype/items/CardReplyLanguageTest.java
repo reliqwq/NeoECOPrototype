@@ -176,7 +176,7 @@ final class CardReplyLanguageTest {
         while (matcher.find()) {
             keys.add(matcher.group(1));
         }
-        assertEquals(22, keys.size(), "wireless module panel labels found: " + keys);
+        assertEquals(23, keys.size(), "wireless module panel labels found: " + keys);
 
         var en = language("en_us");
         var zh = language("zh_cn");

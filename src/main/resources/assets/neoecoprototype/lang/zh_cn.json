@@ -401,6 +401,7 @@
   "gui.neoecoprototype.wireless_module.tip_highlight": "高亮选中链路的两端",
   "gui.neoecoprototype.wireless_module.tip_refresh": "重新读取端口与链路",
   "gui.neoecoprototype.wireless_module.tip_unlink": "断开选中的链路",
+  "gui.neoecoprototype.wireless_module.tip_guide": "打开这台机器的指南页",
   "gui.neoecoprototype.wireless_module.tip_prev": "上一页",
   "gui.neoecoprototype.wireless_module.tip_next": "下一页",
   "gui.neoecoprototype.wireless_module.port_current": "节点%1$s",

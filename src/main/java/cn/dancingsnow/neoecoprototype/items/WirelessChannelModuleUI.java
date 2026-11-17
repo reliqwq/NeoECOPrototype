@@ -23,6 +23,9 @@ import com.lowdragmc.lowdraglib2.gui.ui.elements.Label;
 import com.lowdragmc.lowdraglib2.gui.ui.event.HoverTooltips;
 import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvents;
 import dev.vfyjxf.taffy.style.TaffyPosition;
+import guideme.GuidesCommon;
+import guideme.PageAnchor;
+import net.minecraft.client.Minecraft;
 import net.minecraft.core.GlobalPos;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.chat.Component;
@@ -192,6 +195,51 @@ public final class WirelessChannelModuleUI {
     private static final ColorRectTexture HOVER_TINT = new ColorRectTexture(0x22_FF_FF_FF);
     private static final ColorRectTexture PRESSED_TINT = new ColorRectTexture(0x33_FF_FF_FF);
 
+    /**
+     * The guide chip hangs off the plate's left edge on AE2's own toolbar strip, the way AE2's interface
+     * screens do it: {@code vertical_buttons_bg.png} is 21x26 with its inner cell at x=2..20, y=2..21 and a
+     * shadow band along the bottom, and the HELP glyph in {@code states.png} (u=176, v=0) inks x=5..10,
+     * y=4..12 of its 16x16 cell, so the cell centre is the chip's position. The strip's own background is
+     * RGB 203,204,212 - the same colour this plate is filled with.
+     */
+    private static final ResourceLocation AE2_TOOLBAR_BG
+            = ResourceLocation.fromNamespaceAndPath("ae2", "textures/gui/sprites/vertical_buttons_bg.png");
+    private static final ResourceLocation AE2_STATE_ICONS
+            = ResourceLocation.fromNamespaceAndPath("ae2", "textures/guis/states.png");
+    private static final int TOOLBAR_X = -22;
+    private static final int TOOLBAR_Y = 2;
+    private static final int TOOLBAR_WIDTH = 21;
+    private static final int TOOLBAR_HEIGHT = 26;
+    /**
+     * AE2's button box, whose left edge is the coordinate the hand-off names (-18). It is 16x16, the same
+     * square as the glyph: the strip's inner cell is only 19 wide, so an 18-wide box starting at -18 would
+     * hang one pixel past the strip's own outline (measured: local x=4..22 against a cell that ends at 20).
+     */
+    private static final int BUTTON_X = -18;
+    private static final int BUTTON_Y = TOOLBAR_Y + 4;
+    private static final int BUTTON_SIZE = 16;
+    private static final int GUIDE_U = 176;
+
+    /**
+     * AE2's two button states as flat fills, measured off AE2's own sheets: {@code button.png} fills with
+     * RGB 154,159,180 and {@code button_highlighted.png} with 156,211,255, whose pressed shade is 112,140,186.
+     * They cannot be drawn as sprites here - AE2 ships both as one 200x20 nine-slice with a 3 pixel border,
+     * and a 20x20 cut out of it is a left edge plus fill, not a button - so the strip's own outline stays
+     * visible around a flat cell painted in the same colours.
+     */
+    private static final ColorRectTexture AE2_BUTTON_BASE = new ColorRectTexture(0xFF_9A9FB4);
+    private static final ColorRectTexture AE2_BUTTON_HOVER = new ColorRectTexture(0xFF_9CD3FF);
+    private static final ColorRectTexture AE2_BUTTON_PRESSED = new ColorRectTexture(0xFF_708CBA);
+
+    /**
+     * Where the chip takes the player: AE2's guide id, and our own page inside it. Pages are found by the
+     * guide folder rather than the namespace, so {@code assets/neoecoprototype/ae2guide/**} is part of the
+     * same book as AE2's pages - the id of a page is its namespace plus its path under that folder.
+     */
+    private static final ResourceLocation AE2_GUIDE_ID = ResourceLocation.fromNamespaceAndPath("ae2", "guide");
+    private static final ResourceLocation GUIDE_PAGE =
+            NeoECOPrototype.id("neoecoprototype_intro/subsystem_channel_module");
+
     private WirelessChannelModuleUI() {
     }
 
@@ -201,11 +249,14 @@ public final class WirelessChannelModuleUI {
 
         UIElement root = new UIElement()
                 .layout(layout -> layout.width(WIDTH).height(HEIGHT))
-                .style(style -> style.backgroundTexture(
+                // The guide chip sits left of the plate, so the root must not clip what falls outside it.
+                .style(style -> style.overflowVisible(true).backgroundTexture(
                         SpriteTexture.of(TEXTURE).setSprite(0, 0, WIDTH, HEIGHT)));
 
+        // Left aligned like every AE2 machine's title: the plate's header band is 161 wide, and a centred
+        // string of this length reads as floating rather than as the name of the block.
         root.addChild(label(Component.translatable("gui.neoecoprototype.wireless_module.title"),
-                Horizontal.CENTER, TITLE_X, TITLE_Y, TITLE_WIDTH, TITLE_HEIGHT, COLOR, 9));
+                Horizontal.LEFT, TITLE_X, TITLE_Y, TITLE_WIDTH, TITLE_HEIGHT, COLOR, 9));
 
         // Left column: six outlet lines, each a click target, then the selector under it. Choosing an outlet is
         // what the right column then lists, so the column is a selector first and a read-out second.
@@ -221,17 +272,16 @@ public final class WirelessChannelModuleUI {
                 "gui.neoecoprototype.wireless_module.tip_next_port", () -> panel.turnPortSelection(1)));
 
         // Middle column: used/available/dimension, then the device pager, then the three actions.
-        // The green box goes in before the labels so the text it carries paints on top of it.
-        root.addChild(panel.availableBox());
         for (int index = 0; index < INFO_Y.length; index++) {
             int line = index;
-            // The first two lines carry a square at their left edge, so their text starts after it; the
-            // dimension line has nothing in front of it and keeps the full recess width.
-            boolean lamped = index != 2;
+            // The used line starts after the state lamp at the recess's left edge, and the available line
+            // keeps the same text box so the two numbers land in one column; the dimension line has nothing
+            // to align with and takes the full recess width.
+            boolean numbered = index != 2;
             root.addChild(bound(() -> panel.infoLines[line],
-                    lamped ? Horizontal.RIGHT : Horizontal.CENTER,
-                    lamped ? INFO_USED_TEXT_X : INFO_TEXT_X, INFO_Y[index] + 4,
-                    lamped ? INFO_USED_TEXT_WIDTH : INFO_TEXT_WIDTH, 8, COLOR, INFO_FONT, TextWrap.NONE));
+                    numbered ? Horizontal.RIGHT : Horizontal.CENTER,
+                    numbered ? INFO_USED_TEXT_X : INFO_TEXT_X, INFO_Y[index] + 4,
+                    numbered ? INFO_USED_TEXT_WIDTH : INFO_TEXT_WIDTH, 8, COLOR, INFO_FONT, TextWrap.NONE));
         }
         root.addChild(panel.moduleLamp());
         root.addChild(panel.infoTooltip());
@@ -252,6 +302,13 @@ public final class WirelessChannelModuleUI {
                 "gui.neoecoprototype.wireless_module.tip_refresh", panel::refresh));
         root.addChild(actionButton(MID_PAGER_NEXT_X, MID_ACTION_Y,
                 "gui.neoecoprototype.wireless_module.tip_unlink", panel::unlinkSelected));
+
+        // The guide chip hangs off the plate's left edge on AE2's own toolbar strip: the strip paints the
+        // outline, the button paints AE2's two cell states, and the HELP glyph goes on top of both.
+        root.addChild(guideToolbar());
+        root.addChild(guideButton(panel::openGuidePage));
+        root.addChild(guideChip());
+        root.addChild(panel.guideChipPulse());
 
         // Right column: the device rows, each a click target with a bound name and a bound selection tint.
         for (int index = 0; index < DEVICES_PER_PAGE; index++) {
@@ -325,6 +382,55 @@ public final class WirelessChannelModuleUI {
                 event.hoverTooltips = new HoverTooltips(List.of(Component.translatable(tooltipKey)),
                         null, null, null));
         return button;
+    }
+
+    /**
+     * The button under the glyph. Its three fills are AE2's own measured cell colours, so the pointer's blue
+     * is the same blue every other AE2 machine gives - the plate's light grey would read as "nothing happened".
+     */
+    private static Button guideButton(Runnable action) {
+        Button button = new Button().noText();
+        button.buttonStyle(style -> style
+                .baseTexture(AE2_BUTTON_BASE)
+                .hoverTexture(AE2_BUTTON_HOVER)
+                .pressedTexture(AE2_BUTTON_PRESSED));
+        button.layout(layout -> layout.positionType(TaffyPosition.ABSOLUTE)
+                .left(BUTTON_X).top(BUTTON_Y).width(BUTTON_SIZE).height(BUTTON_SIZE).paddingAll(0));
+        button.setOnServerClick(event -> action.run());
+        button.addEventListener(UIEvents.HOVER_TOOLTIPS, event ->
+                event.hoverTooltips = new HoverTooltips(
+                        List.of(Component.translatable("gui.neoecoprototype.wireless_module.tip_guide")),
+                        null, null, null));
+        return button;
+    }
+
+    /**
+     * AE2's toolbar strip, drawn at its native 21x26 so its nine-slice borders never have to be scaled.
+     * It is the same light grey the plate is filled with, which is what lets the chip look built into the
+     * machine rather than floating over the world behind it.
+     */
+    private static UIElement guideToolbar() {
+        UIElement strip = new UIElement();
+        strip.setAllowHitTest(false);
+        strip.layout(layout -> layout.positionType(TaffyPosition.ABSOLUTE)
+                .left(TOOLBAR_X).top(TOOLBAR_Y).width(TOOLBAR_WIDTH).height(TOOLBAR_HEIGHT));
+        strip.style(style -> style.backgroundTexture(SpriteTexture.of(AE2_TOOLBAR_BG)
+                .setSprite(0, 0, TOOLBAR_WIDTH, TOOLBAR_HEIGHT)));
+        return strip;
+    }
+
+    /**
+     * AE2's help chip, painted straight from AE2's state sheet. It is not a button style: the hit box over it
+     * has to stay invisible, so the strip's own outline is the only bevel the cell shows.
+     */
+    private static UIElement guideChip() {
+        UIElement chip = new UIElement();
+        chip.setAllowHitTest(false);
+        chip.layout(layout -> layout.positionType(TaffyPosition.ABSOLUTE)
+                .left(BUTTON_X).top(BUTTON_Y).width(BUTTON_SIZE).height(BUTTON_SIZE));
+        chip.style(style -> style.backgroundTexture(
+                SpriteTexture.of(AE2_STATE_ICONS).setSprite(GUIDE_U, 0, BUTTON_SIZE, BUTTON_SIZE)));
+        return chip;
     }
 
     private static Button actionButton(int x, int y, String tooltipKey, Runnable action) {
@@ -509,6 +615,39 @@ public final class WirelessChannelModuleUI {
     }
 
     /**
+     * The guide chip's client half: when the counter moves, this client opens our module page in AE2's
+     * guidebook. Same shape as {@link OutlinePulse} - opening a page is a client action while every panel
+     * click arrives on the server, and the counter is the value so a second press still fires.
+     */
+    private static final class GuidePulse extends UIElement implements IBindable<String> {
+        private String last = "";
+
+        private GuidePulse() {
+            setAllowHitTest(false);
+            layout(layout -> layout.positionType(TaffyPosition.ABSOLUTE)
+                    .left(0).top(0).width(1).height(1));
+        }
+
+        @Override
+        public String getValue() {
+            return last;
+        }
+
+        @Override
+        public IDataSource<String> setValue(@Nullable String value) {
+            if (value == null || value.isEmpty() || value.equals(last)) {
+                return this;
+            }
+            last = value;
+            Player viewer = Minecraft.getInstance().player;
+            if (viewer != null) {
+                GuidesCommon.openGuide(viewer, AE2_GUIDE_ID, PageAnchor.page(GUIDE_PAGE));
+            }
+            return this;
+        }
+    }
+
+    /**
      * The row's hover text, which is the far block's whole name - the row itself has 43 pixels, enough for the
      * position and nothing else. A widget of its own because the name is a {@link Component} and the icon is a
      * string, and one element can only be bound to one of them.
@@ -542,43 +681,6 @@ public final class WirelessChannelModuleUI {
             row.style(style -> style.tooltips(value));
             return this;
         }
-    }
-
-    /**
-     * The green button behind the available-channels line: the state sheet's own green cell, the same square
-     * the outlet lamps and the module lamp are cut from.
-     *
-     * <p>It paints only while that line has something to say. On an ad-hoc network, or a controller group AE2
-     * reads as broken, there is no pool to report and {@code infoLines[1]} is empty - a green light over
-     * nothing would read as a number that failed to arrive rather than as a number that does not exist.
-     */
-    private static final class AvailableBox extends UIElement implements IBindable<Component> {
-        private Component last = Component.empty();
-
-        private AvailableBox() {
-            setAllowHitTest(false);
-            layout(layout -> layout.positionType(TaffyPosition.ABSOLUTE)
-                    .left(INFO_TEXT_X - 1).top(INFO_Y[1])
-                    .width(LAMP_WIDTH).height(LAMP_HEIGHT));
-            style(style -> style.backgroundTexture(IGuiTexture.EMPTY));
-        }
-
-        @Override
-        public Component getValue() {
-            return last;
-        }
-
-        @Override
-        public IDataSource<Component> setValue(@Nullable Component value) {
-            boolean shown = value != null && !value.getString().isEmpty();
-            last = shown ? value : Component.empty();
-            style(style -> style.backgroundTexture(shown ? GREEN_BUTTON : IGuiTexture.EMPTY));
-            return this;
-        }
-
-        /** The green cell of {@code wireless_channel_state.png} - {@code LAMP_FREE}'s sprite. */
-        private static final IGuiTexture GREEN_BUTTON = SpriteTexture.of(OUTLET_STATE)
-                .setSprite(LAMP_FREE * LAMP_WIDTH, 0, LAMP_WIDTH, LAMP_HEIGHT);
     }
 
     /**
@@ -651,6 +753,9 @@ public final class WirelessChannelModuleUI {
          */
         private String highlightPulse = "";
         private int highlightTick;
+        /** The guide chip's own counter: one press, one new string, one client that opens the page. */
+        private String guidePulse = "";
+        private int guideSeq;
         /** The whole module's lamp state, and the lang key that names it under the reading. */
         private int moduleLampState = LAMP_FREE;
         private String moduleStateKey = "idle";
@@ -832,13 +937,6 @@ public final class WirelessChannelModuleUI {
             return lamp;
         }
 
-        /** The green button in front of the available line, riding the same component the line is bound to. */
-        private UIElement availableBox() {
-            AvailableBox box = new AvailableBox();
-            box.bind(DataBindingBuilder.componentS2C(() -> infoLines[1]).build());
-            return box;
-        }
-
         /**
          * The three read-outs. The pool only means something while AE2 meters the outlets separately, so an
          * ad-hoc grid says so rather than adding six zeroes into a capacity the network cannot spend.
@@ -955,6 +1053,21 @@ public final class WirelessChannelModuleUI {
             OutlinePulse pulse = new OutlinePulse();
             pulse.bind(DataBindingBuilder.stringS2C(() -> highlightPulse).build());
             return pulse;
+        }
+
+        /**
+         * The widget that turns the guide counter into an open page on this client only - the other players
+         * looking at the same module keep their screen.
+         */
+        private UIElement guideChipPulse() {
+            GuidePulse pulse = new GuidePulse();
+            pulse.bind(DataBindingBuilder.stringS2C(() -> guidePulse).build());
+            return pulse;
+        }
+
+        /** The chip's press: no world effect, no reply, just a number for the client that asked. */
+        private void openGuidePage() {
+            guidePulse = Integer.toString(++guideSeq);
         }
 
         /** The selected device as a page-local slot number, which is what each row compares itself to. */

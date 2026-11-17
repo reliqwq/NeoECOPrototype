@@ -401,6 +401,7 @@
   "gui.neoecoprototype.wireless_module.tip_highlight": "Highlight both ends of the selected link",
   "gui.neoecoprototype.wireless_module.tip_refresh": "Re-read outlets and links",
   "gui.neoecoprototype.wireless_module.tip_unlink": "Unlink the selected link",
+  "gui.neoecoprototype.wireless_module.tip_guide": "Open this module's guide page",
   "gui.neoecoprototype.wireless_module.tip_prev": "Previous page",
   "gui.neoecoprototype.wireless_module.tip_next": "Next page",
   "gui.neoecoprototype.wireless_module.port_current": "N%1$s",
