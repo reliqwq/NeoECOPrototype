@@ -1,6 +1,7 @@
 package cn.dancingsnow.neoecoprototype;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -30,13 +31,20 @@ final class RecipeOverviewContractTest {
         long declaredRecipes = declaredCount(HEADER_COUNT, overview, "recipe overview header count is missing");
         long tableRecipes = declaredCount(TABLE_TOTAL, overview, "recipe overview table total is missing");
         long jarRecipes;
+        boolean gameTestClassShipped;
         try (var jar = new ZipFile(Path.of(System.getProperty("neoecoprototype.test.jar")).toFile())) {
-            jarRecipes = jar.stream().filter(entry -> !entry.isDirectory())
-                    .map(entry -> entry.getName())
+            var entries = jar.stream().filter(entry -> !entry.isDirectory())
+                    .map(entry -> entry.getName()).toList();
+            jarRecipes = entries.stream()
                     .filter(name -> name.startsWith("data/neoecoprototype/recipe/") && name.endsWith(".json"))
                     .count();
+            gameTestClassShipped = entries.contains(
+                    "cn/dancingsnow/neoecoprototype/gametest/NeoECOPrototypeGameTests.class");
         }
 
+        assertTrue(!gameTestClassShipped,
+                "the release jar ships NeoECOPrototypeGameTests: players never run the suite, and a pack"
+                        + " that wants it gets it from runGameTestServer through the source set, not from the jar");
         assertEquals(recipeFiles, listedRecipes,
                 "recipe overview rows must match the bundled recipe JSON files");
         assertEquals(recipeFiles, declaredRecipes,
