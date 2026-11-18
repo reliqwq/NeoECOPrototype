@@ -26,6 +26,10 @@ import org.junit.jupiter.api.Test;
  * checked by the game: eco loads them and the bath matches through {@code SizedFluidIngredient}. So this
  * reads both, and reads the rungs upstream ships straight out of the eco jar to keep the ladder claim honest
  * instead of quoting the numbers I typed when I wrote the file.
+ *
+ * <p>Only the powder snow rung is tag-open. The ice cream rung stays a hard fluid id by reliqwq's ruling of
+ * 2026-11-18 - "我们这个是特殊的冰淇淋" - so do not "unify" the two files: the dessert is one of ours and no
+ * other pack's equivalent is meant to be able to drive a bath at rung 8.</p>
  */
 class PowderSnowCoolantLineTest {
     private static final Path OUR_COOLING = Path.of("src/main/resources/data/neoecoprototype/recipe/cooling");
