@@ -5079,7 +5079,8 @@ public final class NeoECOPrototypeGameTests {
                     + " checked nothing");
             return;
         }
-        for (String sprite : List.of("dissolution_solution_still", "dissolution_solution_flow")) {
+        for (String sprite : List.of("dissolution_solution_still", "dissolution_solution_flow",
+                "cryotheum_ice_cream_block")) {
             var texture = ResourceLocation.fromNamespaceAndPath(NeoECOPrototype.MOD_ID, "block/" + sprite);
             if (!stitched.contains(texture.toString())) {
                 helper.fail(texture + " is not listed by any blocks.json, so the fluid and its bucket get"

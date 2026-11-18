@@ -113,7 +113,8 @@ final class HandRegisteredFluidTextureContractTest {
             }
         }
         assertFalse(sprites.isEmpty(), "no block/ sprite name is built in NeoECOPrototypeClient's static"
-                + " initialiser, so this rule checked nothing. The fluid extensions used to name four.");
+                + " initialiser, so this rule checked nothing. The fluid extensions name three today - the"
+                + " dissolution pair and the ice cream block face the coolant shares with its block.");
 
         if (!Files.isRegularFile(BLOCK_ATLAS)) {
             fail(BLOCK_ATLAS + " is not there, so no fluid sprite can be stitched into the block atlas.");

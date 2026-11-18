@@ -10,11 +10,7 @@
     },
     {
       "type": "single",
-      "resource": "neoecoprototype:block/cryotheum_ice_cream_still"
-    },
-    {
-      "type": "single",
-      "resource": "neoecoprototype:block/cryotheum_ice_cream_flow"
+      "resource": "neoecoprototype:block/cryotheum_ice_cream_block"
     }
   ]
 }

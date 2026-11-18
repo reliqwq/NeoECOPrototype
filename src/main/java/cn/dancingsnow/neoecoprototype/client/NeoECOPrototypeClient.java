@@ -382,10 +382,13 @@ public final class NeoECOPrototypeClient {
             ResourceLocation.fromNamespaceAndPath(NeoECOPrototype.MOD_ID, "block/dissolution_solution_still");
     private static final ResourceLocation DISSOLUTION_FLOWING =
             ResourceLocation.fromNamespaceAndPath(NeoECOPrototype.MOD_ID, "block/dissolution_solution_flow");
-    private static final ResourceLocation ICE_CREAM_STILL =
-            ResourceLocation.fromNamespaceAndPath(NeoECOPrototype.MOD_ID, "block/cryotheum_ice_cream_still");
-    private static final ResourceLocation ICE_CREAM_FLOWING =
-            ResourceLocation.fromNamespaceAndPath(NeoECOPrototype.MOD_ID, "block/cryotheum_ice_cream_flow");
+    /**
+     * The coolant has no drawing of its own: TedXenon's 2026-11-18 delivery gave us the ice cream block face
+     * and nothing else, and reliqwq put the fluid on that same face rather than keep a stale pair. Still and
+     * flowing share it, which costs nothing - neither sprite ever animated.
+     */
+    private static final ResourceLocation ICE_CREAM_SURFACE =
+            ResourceLocation.fromNamespaceAndPath(NeoECOPrototype.MOD_ID, "block/cryotheum_ice_cream_block");
 
     @SubscribeEvent
     public static void onRegisterClientExtensions(RegisterClientExtensionsEvent event) {
@@ -407,12 +410,12 @@ public final class NeoECOPrototypeClient {
         event.registerFluidType(new IClientFluidTypeExtensions() {
             @Override
             public ResourceLocation getStillTexture() {
-                return ICE_CREAM_STILL;
+                return ICE_CREAM_SURFACE;
             }
 
             @Override
             public ResourceLocation getFlowingTexture() {
-                return ICE_CREAM_FLOWING;
+                return ICE_CREAM_SURFACE;
             }
         }, ModRegistration.CRYOTHEUM_ICE_CREAM_FLUID_TYPE.get());
     }

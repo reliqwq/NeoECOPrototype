@@ -57,6 +57,40 @@ class IceCreamItemFacesTest {
                 "the bucket does not show TedXenon's container art");
     }
 
+    /**
+     * The coolant fluid draws TedXenon's block face now (reliqwq, 2026-11-18: "用那个冰淇淋方块"), so the two
+     * fluid pngs must be gone and the block face must be the name the atlas and the fluid model both use.
+     * Nothing on the server side notices a fluid whose sprite is unlisted - it renders as the missing sprite.
+     */
+    @Test
+    void theCoolantFluidIsHerBlockFaceAndNothingNamesTheRetiredPair() throws IOException {
+        for (String retired : new String[]{"cryotheum_ice_cream_still", "cryotheum_ice_cream_flow"}) {
+            assertTrue(!Files.exists(ASSETS.resolve("textures/block/" + retired + ".png")),
+                    "textures/block/" + retired + ".png is unreferenced now and must not ship");
+        }
+        String atlas = Files.readString(
+                Path.of("src/main/resources/assets/minecraft/atlases/blocks.json"), StandardCharsets.UTF_8);
+        assertTrue(atlas.contains("neoecoprototype:block/cryotheum_ice_cream_block"),
+                "the block atlas does not stitch the face the coolant now uses, so the fluid and its bucket"
+                        + " get no sprite");
+        String fluidModel = Files.readString(ASSETS.resolve("models/block/cryotheum_ice_cream.json"),
+                StandardCharsets.UTF_8);
+        assertTrue(fluidModel.contains("neoecoprototype:block/cryotheum_ice_cream_block"),
+                "the coolant's own block model still breaks into a particle that no longer exists");
+        try (var paths = Files.walk(Path.of("src/main"))) {
+            for (Path path : paths.filter(Files::isRegularFile).toList()) {
+                String name = path.getFileName().toString();
+                if (!(name.endsWith(".java") || name.endsWith(".json") || name.endsWith(".mcmeta"))) {
+                    continue;
+                }
+                String text = Files.readString(path, StandardCharsets.UTF_8);
+                assertTrue(!text.contains("cryotheum_ice_cream_still")
+                                && !text.contains("cryotheum_ice_cream_flow"),
+                        path + " still names one of the two fluid faces the block face replaced");
+            }
+        }
+    }
+
     /** The other half: nothing may still point at the layered glass this delivery retired. */
     @Test
     void theLayeredSundaeGlassIsGoneFromEveryReferenceRoot() throws IOException {
