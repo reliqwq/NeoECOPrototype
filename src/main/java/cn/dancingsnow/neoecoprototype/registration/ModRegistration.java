@@ -513,10 +513,13 @@ public class ModRegistration {
      * eaten}, and drinking it hands the bottle back ({@code usingConvertsTo}), so the container is not a
      * slow leak in a player's stock. It sits at cooked chicken's rung on purpose - the guard compares it
      * against vanilla's own number rather than against this line. The icon is
-     * {@code sundae_glass.png}: hand-drawn and finalized by our developer from the community concept in
-     * PR #17, keeping that concept's slate (74,95,110) outline rather than eco's deep-sea blue (12,63,104)
-     * and its cream highlights, which are new to the family. Swapping the flavour means replacing that file
-     * and the model's {@code layer0}, nothing else.
+     * {@code item/cryotheum_ice_cream.png}, TedXenon's flat redraw of 2026-11-18; it replaced a layered jar
+     * our developer had drawn from the community concept in PR #17 (retired, kept on the machine under
+     * {@code _removed_textures/}). The bucket pairs with it through the {@code neoforge:fluid_container} loader's {@code base}
+     * slot ({@code item/cryotheum_ice_cream_bucket.png}), so her grey pail is the container and the fill
+     * inside it is still our animated fluid - the loader only paints where its mask says liquid sits, rows 3
+     * to 9, which is why her scoop above the rim survives the tint. Swapping the flavour means replacing
+     * those two files, nothing else.
      *
      * <p>What it does to the drinker is two things and now carries no tooltip line: four minutes of fire
      * resistance ({@code 4800} ticks, probability 1.0) plus {@link CryotheumIceCreamItem#FREEZE_TICKS} ticks
