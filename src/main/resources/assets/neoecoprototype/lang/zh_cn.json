@@ -250,6 +250,7 @@
   "block.neoecoprototype.cryotheum_ice_cream": "极寒凛冰冰淇淋",
   "fluid_type.neoecoprototype.cryotheum_ice_cream": "极寒凛冰冰淇淋",
   "fluid_type.neoecoprototype.powder_snow": "液态细雪",
+  "tag.fluid.c.powder_snow": "液态细雪",
   "block.neoecoprototype.cryotheum_ice_cream_block": "极寒凛冰冰淇淋块",
   "item.neoecoprototype.cryotheum_ice_cream_bucket": "极寒凛冰冰淇淋桶",
   "block.neoecoprototype.meteorite_core": "陨石核心",

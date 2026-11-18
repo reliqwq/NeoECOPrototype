@@ -125,6 +125,38 @@ class PowderSnowCoolantLineTest {
         }
     }
 
+    /**
+     * A tag the viewers cannot name is a tag that shows up as {@code #c:powder_snow} in JEI and one ERROR
+     * line in EMI's log - which is exactly what the client run of 2026-11-19 caught. Fluid tags are the one
+     * family nobody else names for us: upstream's lang covers the item and block tags we share with it
+     * ({@code tag.item.c.budding_blocks} is eco's line, not ours), so this rule watches the fluid dir and
+     * leaves the rest alone.
+     */
+    @Test
+    void everyFluidTagWeShipIsNamedInBothLanguages() throws IOException {
+        var en = read(Path.of("src/main/resources/assets/neoecoprototype/lang/en_us.json"));
+        var zh = read(Path.of("src/main/resources/assets/neoecoprototype/lang/zh_cn.json"));
+        var named = new java.util.ArrayList<String>();
+        try (var paths = java.nio.file.Files.walk(Path.of("src/main/resources/data"))) {
+            for (Path tag : paths.filter(java.nio.file.Files::isRegularFile).toList()) {
+                String id = tag.toString().replace('\\', '/');
+                int at = id.indexOf("/tags/fluid/");
+                if (at < 0) {
+                    continue;
+                }
+                String namespace = id.substring("src/main/resources/data/".length(), id.indexOf('/', at));
+                String path = id.substring(at + "/tags/fluid/".length(), id.length() - ".json".length())
+                        .replace('/', '.');
+                String key = "tag.fluid." + namespace + "." + path;
+                named.add(key);
+                assertTrue(en.has(key), key + " has no en_us line, so the viewers print the raw tag id");
+                assertTrue(zh.has(key), key + " has no zh_cn line, so the Chinese client prints the raw tag id");
+            }
+        }
+        assertTrue(!named.isEmpty(), "no fluid tag json under src/main/resources/data at all - this rule"
+                + " matched nothing, so re-check where 1.21 puts fluid tags before trusting a green here");
+    }
+
     private static List<Path> listOurs() throws IOException {
         try (var paths = Files.list(OUR_COOLING)) {
             var found = paths.filter(path -> path.getFileName().toString().endsWith(".json")).sorted().toList();
