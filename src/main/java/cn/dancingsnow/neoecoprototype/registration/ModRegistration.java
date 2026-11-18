@@ -798,6 +798,46 @@ public class ModRegistration {
                 .block(() -> CRYOTHEUM_ICE_CREAM_FLUID_BLOCK.get())
                 .bucket(() -> CRYOTHEUM_ICE_CREAM_BUCKET.get());
     }
+
+    // ====== 原版细雪的流体形式：只进储罐与细雪桶，不在世界里成形 ======
+
+    /**
+     * Powder snow as a fluid, so it can be pumped into a coolant bath and carried in a bucket. It has no
+     * block, and that absence is the whole enforcement: {@code BaseFlowingFluid.Properties.block} is
+     * {@code @Nullable} (21.1.251, L43-44), {@code createLegacyBlock} answers {@code Blocks.AIR} when it is
+     * unset (L126-128), and {@code FluidType.canBePlacedInLevel} - final, and the first thing
+     * {@code FluidUtil.tryPlaceFluid} consults (L468) - is nothing but {@code !getBlockForFluidState(...).isAir()}
+     * (L772). A pump, a dispenser or any other generic pour therefore refuses it with no mixin and no
+     * override. That is reliqwq's rule of 2026-11-18: the fluid may make a powder snow bucket, it may not be
+     * poured into the world as a block.
+     *
+     * <p>The container is vanilla's own powder snow bucket, because {@code FluidUtil.getFilledBucket} hands
+     * out whatever the fluid type names - an iron bucket at a tank outlet comes back a snow bucket. Reading
+     * it back is ours to supply: {@code SolidBucketItem} extends {@code BlockItem}, not {@code BucketItem},
+     * so NeoForge's exact-class fallback never covers it and a plain {@code FluidBucketWrapper} would report
+     * no fluid at all - the 1000 mB would leave the tank and land nowhere, the same failure the dessert's
+     * bucket had. See {@code PowderSnowBucketFluidHandler}. Placing the bucket still puts down vanilla's
+     * snow: that route is {@code BlockItem#useOn} and it never asks a fluid handler.
+     */
+    public static final Supplier<net.neoforged.neoforge.fluids.FluidType> POWDER_SNOW_FLUID_TYPE =
+            FLUID_TYPES.register("powder_snow",
+                    // No density or viscosity on purpose: those two only ever reach an entity standing in the
+                    // fluid, and this one can never be in the world to be stood in.
+                    () -> new net.neoforged.neoforge.fluids.FluidType(
+                            net.neoforged.neoforge.fluids.FluidType.Properties.create()));
+    public static final Supplier<net.minecraft.world.level.material.FlowingFluid> POWDER_SNOW_FLUID =
+            FLUIDS.register("powder_snow",
+                    () -> new net.neoforged.neoforge.fluids.BaseFlowingFluid.Source(powderSnowProps()));
+    public static final Supplier<net.minecraft.world.level.material.FlowingFluid> FLOWING_POWDER_SNOW =
+            FLUIDS.register("flowing_powder_snow",
+                    () -> new net.neoforged.neoforge.fluids.BaseFlowingFluid.Flowing(powderSnowProps()));
+
+    private static net.neoforged.neoforge.fluids.BaseFlowingFluid.Properties powderSnowProps() {
+        return new net.neoforged.neoforge.fluids.BaseFlowingFluid.Properties(
+                () -> POWDER_SNOW_FLUID_TYPE.get(), () -> POWDER_SNOW_FLUID.get(),
+                () -> FLOWING_POWDER_SNOW.get())
+                .bucket(() -> net.minecraft.world.item.Items.POWDER_SNOW_BUCKET);
+    }
     public static final Supplier<BlockItem> FLAWED_BUDDING_GRETTE_ITEM = ITEMS.register("flawed_budding_grette",
             () -> new BlockItem(FLAWED_BUDDING_GRETTE.get(), new Item.Properties()));
     public static final Supplier<BlockItem> CHIPPED_BUDDING_GRETTE_ITEM =

@@ -389,6 +389,14 @@ public final class NeoECOPrototypeClient {
      */
     private static final ResourceLocation ICE_CREAM_SURFACE =
             ResourceLocation.fromNamespaceAndPath(NeoECOPrototype.MOD_ID, "block/cryotheum_ice_cream_block");
+    /**
+     * The powder snow coolant is powder snow, so it is drawn as powder snow: the sprite is the vanilla block's
+     * own, named here at runtime rather than copied into our jar. Nothing of ours references it as a model
+     * texture because the fluid has no block form, so our blocks.json stitches it explicitly - the guard in
+     * the suite reads the namespace out of this string and checks both halves.
+     */
+    private static final ResourceLocation POWDER_SNOW_SURFACE =
+            ResourceLocation.parse("minecraft:block/powder_snow");
 
     @SubscribeEvent
     public static void onRegisterClientExtensions(RegisterClientExtensionsEvent event) {
@@ -418,6 +426,17 @@ public final class NeoECOPrototypeClient {
                 return ICE_CREAM_SURFACE;
             }
         }, ModRegistration.CRYOTHEUM_ICE_CREAM_FLUID_TYPE.get());
+        event.registerFluidType(new IClientFluidTypeExtensions() {
+            @Override
+            public ResourceLocation getStillTexture() {
+                return POWDER_SNOW_SURFACE;
+            }
+
+            @Override
+            public ResourceLocation getFlowingTexture() {
+                return POWDER_SNOW_SURFACE;
+            }
+        }, ModRegistration.POWDER_SNOW_FLUID_TYPE.get());
     }
 }
 

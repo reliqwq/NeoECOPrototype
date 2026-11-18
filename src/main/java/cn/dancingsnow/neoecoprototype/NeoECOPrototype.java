@@ -220,6 +220,12 @@ public class NeoECOPrototype {
         event.registerItem(Capabilities.FluidHandler.ITEM,
                 (stack, context) -> new net.neoforged.neoforge.fluids.capability.wrappers.FluidBucketWrapper(stack),
                 ModRegistration.CRYOTHEUM_ICE_CREAM_BUCKET.get());
+        // The powder snow bucket needs the same explicit call: SolidBucketItem is a BlockItem, so the
+        // exact-class fallback above never sees it and it would otherwise report no fluid at all.
+        event.registerItem(Capabilities.FluidHandler.ITEM,
+                (stack, context) -> new cn.dancingsnow.neoecoprototype.items.PowderSnowBucketFluidHandler(
+                        stack, ModRegistration.POWDER_SNOW_FLUID::get),
+                net.minecraft.world.item.Items.POWDER_SNOW_BUCKET);
         // Trinity's crafting module must accept products back from the machines it feeds,
         // otherwise a crafting job can push ingredients out but never recover its output.
         event.registerBlock(Capabilities.ItemHandler.BLOCK,

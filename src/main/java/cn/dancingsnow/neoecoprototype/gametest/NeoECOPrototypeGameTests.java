@@ -20074,6 +20074,155 @@ public final class NeoECOPrototypeGameTests {
                 + " back an item that holds nothing: " + unnamed);
     }
 
+
+    /**
+     * Powder snow's fluid form has no block and asks for none.
+     *
+     * <p>Two readings, and they are the same fact: {@code BaseFlowingFluid} keeps its block supplier
+     * {@code @Nullable}, so {@code createLegacyBlock} answers {@code Blocks.AIR} - and
+     * {@code FluidType.canBePlacedInLevel}, which is final and is the first thing
+     * {@code FluidUtil.tryPlaceFluid} consults (L468), is nothing but
+     * {@code !getBlockForFluidState(...).isAir()}. So the refusal a pump or a dispenser gets cannot drift away
+     * from the absence of a block, and there is no second gate to keep in step. reliqwq's rule of 2026-11-18:
+     * the fluid may make a powder snow bucket, it may not be poured into the world as a block.</p>
+     *
+     * <p>Water is the control on the placement call. Without it a green would only mean the gate answers
+     * false for everything, which is not the claim - vanilla's water must still be placeable upstream.</p>
+     */
+    @GameTest(template = "empty", batch = "powder_snow_fluid", timeoutTicks = 200,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void liquidPowderSnowHasNoBlockFormAndRefusesTheWorld(GameTestHelper helper) {
+        var level = helper.getLevel();
+        var where = new net.minecraft.core.BlockPos(8, 8, 8);
+        var fluid = ModRegistration.POWDER_SNOW_FLUID.get();
+        var ourStack = new net.neoforged.neoforge.fluids.FluidStack(fluid, 1000);
+
+        var legacy = fluid.defaultFluidState().createLegacyBlock();
+        if (!legacy.isAir()) {
+            helper.fail("powder snow's fluid still builds a block state (" + legacy
+                    + "), so a pump that pours it gets a block in the world");
+            return;
+        }
+        if (ModRegistration.POWDER_SNOW_FLUID_TYPE.get().canBePlacedInLevel(level, where, ourStack)) {
+            helper.fail("canBePlacedInLevel answers true for powder snow's fluid, which is the gate every"
+                    + " generic pour route asks first");
+            return;
+        }
+        if (!net.minecraft.world.level.material.Fluids.WATER.getFluidType().canBePlacedInLevel(level, where,
+                new net.neoforged.neoforge.fluids.FluidStack(net.minecraft.world.level.material.Fluids.WATER,
+                        1000))) {
+            helper.fail("the ruler is blind: vanilla's own water is refused by canBePlacedInLevel too, so the"
+                    + " reading above says nothing about our fluid");
+            return;
+        }
+        var filled = net.neoforged.neoforge.fluids.FluidUtil.getFilledBucket(ourStack);
+        if (!filled.is(net.minecraft.world.item.Items.POWDER_SNOW_BUCKET)) {
+            helper.fail("1000 mB of powder snow's fluid fills " + itemName(filled)
+                    + " rather than vanilla's powder snow bucket");
+            return;
+        }
+        helper.succeed();
+    }
+
+    /**
+     * The powder snow bucket is the fluid's container in both directions, and it does not swallow water.
+     *
+     * <p>{@code SolidBucketItem} extends {@code BlockItem}, so NeoForge's item-fluid fallback - which matches
+     * {@code getClass() == BucketItem.class} exactly - never reaches it, and nothing else tells the game what
+     * the bucket holds. {@code PowderSnowBucketFluidHandler} is that reading: 1000 mB of our fluid in, an
+     * iron bucket once it has been handed over. The last block asks the bucket to take water and expects
+     * nothing back. The refusal is the parent's - {@code fill} stops while {@code getFluid()} reports a full
+     * bucket - so the block is not evidence about a {@code canFillFluidType} we do not override; it is the
+     * claim that a snow bucket at a water pump cannot become coolant. It does go red: stub {@code getFluid()}
+     * back to the parent and water walks in.</p>
+     */
+    @GameTest(template = "empty", batch = "powder_snow_fluid", timeoutTicks = 200,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void snowBucketCarriesTheCoolantAndRefusesWater(GameTestHelper helper) {
+        var carried = millilitresIn(new ItemStack(net.minecraft.world.item.Items.POWDER_SNOW_BUCKET));
+        if (carried != 1000) {
+            helper.fail("a powder snow bucket reports " + carried + " mB rather than 1000 mB of "
+                    + ModRegistration.POWDER_SNOW_FLUID.get()
+                    + " - a 1000 mB draw from a tank would leave the tank and land nowhere");
+            return;
+        }
+        if (millilitresIn(new ItemStack(net.minecraft.world.item.Items.WATER_BUCKET)) != 1000) {
+            helper.fail("the ruler is blind: vanilla's water bucket reports no millilitres either, so the"
+                    + " reading above is not evidence about our handler");
+            return;
+        }
+
+        var draining = new ItemStack(net.minecraft.world.item.Items.POWDER_SNOW_BUCKET);
+        var handler = net.neoforged.neoforge.fluids.FluidUtil.getFluidHandler(draining);
+        if (handler.isEmpty()) {
+            helper.fail("the powder snow bucket answers no item fluid handler at all");
+            return;
+        }
+        var drawn = handler.get().drain(1000,
+                net.neoforged.neoforge.fluids.capability.IFluidHandler.FluidAction.EXECUTE);
+        if (drawn.isEmpty() || !drawn.is(ModRegistration.POWDER_SNOW_FLUID.get()) || drawn.getAmount() != 1000) {
+            helper.fail("draining the snow bucket gave " + drawn + " rather than 1000 mB of our fluid");
+            return;
+        }
+        var leftover = handler.get().getContainer().getItem();
+        if (leftover != net.minecraft.world.item.Items.BUCKET) {
+            helper.fail("handing the coolant over left the player holding " + leftover
+                    + " rather than a plain iron bucket");
+            return;
+        }
+
+        var filling = new ItemStack(net.minecraft.world.item.Items.POWDER_SNOW_BUCKET);
+        int accepted = net.neoforged.neoforge.fluids.FluidUtil.getFluidHandler(filling).orElseThrow()
+                .fill(new net.neoforged.neoforge.fluids.FluidStack(
+                        net.minecraft.world.level.material.Fluids.WATER, 1000),
+                        net.neoforged.neoforge.fluids.capability.IFluidHandler.FluidAction.EXECUTE);
+        if (accepted != 0) {
+            helper.fail("the snow bucket took " + accepted + " mB of water, and every reading of it afterwards"
+                    + " is ours - so a pump could swap infinite water for third-rung coolant");
+            return;
+        }
+        helper.succeed();
+    }
+
+    /**
+     * The rung itself, read off the recipe the game loaded rather than off our JSON: the bath has to accept a
+     * fluid the {@code c:} tag names and refuse one it does not, and it has to load at the third rung's pair
+     * of numbers.
+     */
+    @GameTest(template = "empty", batch = "powder_snow_fluid", timeoutTicks = 200,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void powderSnowCoolingRungMatchesItsOwnTag(GameTestHelper helper) {
+        var level = helper.getLevel();
+        var loaded = recipeByName(helper, level, "cooling/powder_snow");
+        if (!(loaded instanceof cn.dancingsnow.neoecoae.recipe.CoolingRecipe rung)) {
+            helper.fail("cooling/powder_snow loaded as " + loaded.getClass().getName()
+                    + " rather than eco's CoolingRecipe");
+            return;
+        }
+        var ourBath = new net.neoforged.neoforge.fluids.FluidStack(ModRegistration.POWDER_SNOW_FLUID.get(),
+                rung.inputAmount());
+        if (!rung.matches(new cn.dancingsnow.neoecoae.recipe.CoolingRecipe.Input(ourBath,
+                net.neoforged.neoforge.fluids.FluidStack.EMPTY), level)) {
+            helper.fail("eco's bath refuses " + ourBath + " even though the rung asks for the tag that fluid"
+                    + " is in - tag and recipe disagree");
+            return;
+        }
+        if (rung.matches(new cn.dancingsnow.neoecoae.recipe.CoolingRecipe.Input(
+                new net.neoforged.neoforge.fluids.FluidStack(net.minecraft.world.level.material.Fluids.WATER,
+                        rung.inputAmount()), net.neoforged.neoforge.fluids.FluidStack.EMPTY), level)) {
+            helper.fail("the powder snow rung also matches water, so it is not gated by the tag at all");
+            return;
+        }
+        NeoECOPrototype.LOGGER.info("powder snow rung: coolant {}, overclock {}", rung.coolant(),
+                rung.maxOverclock());
+        if (rung.coolant() != 11000 || rung.maxOverclock() != 8) {
+            helper.fail("the rung loaded as coolant " + rung.coolant() + " and overclock "
+                    + rung.maxOverclock() + ", not the third rung's 11000 and 8");
+            return;
+        }
+        helper.succeed();
+    }
+
     /**
      * The dessert's fluid has a survival route that never touches a bucket.
      *

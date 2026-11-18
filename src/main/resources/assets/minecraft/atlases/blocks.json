@@ -11,6 +11,10 @@
     {
       "type": "single",
       "resource": "neoecoprototype:block/cryotheum_ice_cream_block"
+    },
+    {
+      "type": "single",
+      "resource": "minecraft:block/powder_snow"
     }
   ]
 }

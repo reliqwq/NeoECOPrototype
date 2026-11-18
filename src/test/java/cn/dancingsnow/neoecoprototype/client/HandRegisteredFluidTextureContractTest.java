@@ -1,5 +1,6 @@
 package cn.dancingsnow.neoecoprototype.client;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -93,8 +94,10 @@ final class HandRegisteredFluidTextureContractTest {
     }
 
     /**
-     * The names the client hands over have to be both a file and a stitch-listed sprite, and this reads
-     * them out of {@code <clinit>} rather than repeating them, so a renamed constant cannot drop out.
+     * The names the client hands over have to both resolve and be stitch-listed, and this reads them out of
+     * {@code <clinit>} rather than repeating them, so a renamed constant cannot drop out. A name may point at
+     * another namespace (the powder snow coolant is drawn with vanilla's sprite), which changes only where the
+     * png is looked for - the rule stays "it resolves and somebody lists it".
      */
     @Test
     void everyFluidSpriteTheClientNamesShipsAndIsStitchedListed() throws Exception {
@@ -107,31 +110,43 @@ final class HandRegisteredFluidTextureContractTest {
 
         var sprites = new TreeSet<String>();
         for (AbstractInsnNode node : staticInit.instructions) {
-            if (node instanceof LdcInsnNode constant && constant.cst instanceof String text
-                    && text.startsWith("block/")) {
-                sprites.add(text);
+            if (node instanceof LdcInsnNode constant && constant.cst instanceof String text) {
+                if (text.startsWith("block/")) {
+                    sprites.add(NAMESPACE + ":" + text);
+                } else if (text.startsWith("minecraft:block/")) {
+                    sprites.add(text);
+                }
             }
         }
-        assertFalse(sprites.isEmpty(), "no block/ sprite name is built in NeoECOPrototypeClient's static"
-                + " initialiser, so this rule checked nothing. The fluid extensions name three today - the"
-                + " dissolution pair and the ice cream block face the coolant shares with its block.");
+        assertEquals(4, sprites.size(), "the fluid extensions name four sprites today - the dissolution pair,"
+                + " the ice cream block face and vanilla's powder snow face. Found " + sprites
+                + ": a sprite the client names has gone unread, so this rule checked less than it thinks.");
 
         if (!Files.isRegularFile(BLOCK_ATLAS)) {
             fail(BLOCK_ATLAS + " is not there, so no fluid sprite can be stitched into the block atlas.");
         }
         String stitched = Files.readString(BLOCK_ATLAS);
         for (String sprite : sprites) {
-            Path png = TEXTURES.resolve(sprite + ".png");
-            if (!Files.isRegularFile(png)) {
-                fail(png + " does not exist. The client hands " + NAMESPACE + ":" + sprite
-                        + " to the atlas lookup, and a name with no file behind it is the purple-black bucket.");
+            String namespace = sprite.substring(0, sprite.indexOf(':'));
+            String path = sprite.substring(sprite.indexOf(':') + 1);
+            if (NAMESPACE.equals(namespace)) {
+                Path png = TEXTURES.resolve(path + ".png");
+                if (!Files.isRegularFile(png)) {
+                    fail(png + " does not exist. The client hands " + sprite
+                            + " to the atlas lookup, and a name with no file behind it is the purple-black bucket.");
+                }
+                if (Files.size(png) == 0) {
+                    fail(png + " is empty, which reaches the screen the same way as no file at all.");
+                }
+            } else {
+                var url = HandRegisteredFluidTextureContractTest.class.getResource(
+                        "/assets/" + namespace + "/textures/" + path + ".png");
+                assertNotNull(url, sprite + " is handed to the atlas lookup by the client but no jar on the"
+                        + " classpath carries it - the reference is not a copy, so it has to be there at runtime.");
             }
-            if (Files.size(png) == 0) {
-                fail(png + " is empty, which reaches the screen the same way as no file at all.");
-            }
-            if (!stitched.contains(NAMESPACE + ":" + sprite)) {
-                fail(NAMESPACE + ":" + sprite + " is handed to the block atlas by the client but listed by"
-                        + " no blocks.json source, so the stitch may never see it.");
+            if (!stitched.contains(sprite)) {
+                fail(sprite + " is handed to the block atlas by the client but listed by no blocks.json source"
+                        + " of ours, so nothing guarantees the stitch ever sees it.");
             }
         }
     }
