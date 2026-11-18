@@ -515,11 +515,11 @@ public class ModRegistration {
      * against vanilla's own number rather than against this line. The icon is
      * {@code item/cryotheum_ice_cream.png}, TedXenon's flat redraw of 2026-11-18; it replaced a layered jar
      * our developer had drawn from the community concept in PR #17 (retired, kept on the machine under
-     * {@code _removed_textures/}). The bucket pairs with it through the {@code neoforge:fluid_container} loader's {@code base}
-     * slot ({@code item/cryotheum_ice_cream_bucket.png}), so her grey pail is the container and the fill
-     * inside it is still our animated fluid - the loader only paints where its mask says liquid sits, rows 3
-     * to 9, which is why her scoop above the rim survives the tint. Swapping the flavour means replacing
-     * those two files, nothing else.
+     * {@code _removed_textures/}). The bucket shows her whole {@code item/cryotheum_ice_cream_bucket.png}
+     * the same way, with no fluid painted over it - reliqwq ruled "按照她的来，我们不要修改" the same day - and that
+     * is NeoForge's own shape for a bucket of fixed contents ({@code neoforge:item/bucket_milk} carries no
+     * loader either). It is safe because this item is never handed out empty: both emptying paths swap it
+     * for a plain bucket.
      *
      * <p>What it does to the drinker is two things and now carries no tooltip line: four minutes of fire
      * resistance ({@code 4800} ticks, probability 1.0) plus {@link CryotheumIceCreamItem#FREEZE_TICKS} ticks

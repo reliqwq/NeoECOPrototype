@@ -1,8 +1,6 @@
 {
-  "parent": "neoforge:item/bucket_drip",
-  "fluid": "neoecoprototype:cryotheum_ice_cream",
-  "loader": "neoforge:fluid_container",
+  "parent": "minecraft:item/generated",
   "textures": {
-    "base": "neoecoprototype:item/cryotheum_ice_cream_bucket"
+    "layer0": "neoecoprototype:item/cryotheum_ice_cream_bucket"
   }
 }
