@@ -20862,6 +20862,68 @@ public final class NeoECOPrototypeGameTests {
     }
 
     /**
+     * TedXenon's five faces per tier are chosen by the {@code level} block state, and the only thing that
+     * writes it is the battery's own server tick - AE2's {@code StoredEnergyAmount} takes its event emitter at
+     * construction, so nothing downstream can watch an amount change. This is the behaviour face the resource
+     * guard cannot see: the chain variant -> model -> texture is green even when no code ever moves the rung.
+     *
+     * <p>Control group: return null from {@code EnergizedEnergyCellBlock#getTicker} and this reddens on the
+     * half-charge rung, because the state stays where placement left it.
+     */
+    @GameTest(template = "empty", batch = "energized_cell_charge_bar", timeoutTicks = 400)
+    public static void chargeBarClimsWithStoredPower(GameTestHelper helper) {
+        var level = helper.getLevel();
+        var pos = helper.absolutePos(new BlockPos(0, 1, 0));
+        level.setBlockAndUpdate(pos,
+                ModRegistration.ENERGIZED_ENERGY_CELL_16G_BLOCK.get().defaultBlockState());
+        helper.runAfterDelay(12, () -> {
+            if (!(level.getBlockEntity(pos) instanceof cn.dancingsnow.neoecoprototype.blockentity.energy
+                    .EnergizedEnergyCellBlockEntity cell)) {
+                helper.fail("the placed block is not the battery");
+                return;
+            }
+            double capacity = cell.getAEMaxPower();
+            int empty = level.getBlockState(pos).getValue(
+                    cn.dancingsnow.neoecoprototype.block.energy.EnergizedEnergyCellBlock.LEVEL);
+            if (empty != 0) {
+                helper.fail("a battery nobody charged shows rung " + empty + ", expected 0");
+                return;
+            }
+            cell.injectAEPower(capacity * 0.5, Actionable.MODULATE);
+            helper.runAfterDelay(12, () -> {
+                int half = level.getBlockState(pos).getValue(
+                        cn.dancingsnow.neoecoprototype.block.energy.EnergizedEnergyCellBlock.LEVEL);
+                if (half != 2) {
+                    helper.fail("a half full battery (" + cell.getAECurrentPower() + " of " + capacity
+                            + " AE) shows rung " + half + ", expected 2 - the server tick that publishes the"
+                            + " rung is not running or the bucket arithmetic moved");
+                    return;
+                }
+                cell.injectAEPower(capacity, Actionable.MODULATE);
+                helper.runAfterDelay(12, () -> {
+                    int full = level.getBlockState(pos).getValue(
+                            cn.dancingsnow.neoecoprototype.block.energy.EnergizedEnergyCellBlock.LEVEL);
+                    if (full != 4) {
+                        helper.fail("a full battery shows rung " + full + ", expected 4 - the top rung is the"
+                                + " one TedXenon drew with the bright blue bar");
+                        return;
+                    }
+                    cell.extractAEPower(capacity, Actionable.MODULATE, appeng.api.config.PowerMultiplier.ONE);
+                    helper.runAfterDelay(12, () -> {
+                        int drained = level.getBlockState(pos).getValue(
+                                cn.dancingsnow.neoecoprototype.block.energy.EnergizedEnergyCellBlock.LEVEL);
+                        if (drained != 0) {
+                            helper.fail("an emptied battery still shows rung " + drained + ", expected 0");
+                            return;
+                        }
+                        helper.succeed();
+                    });
+                });
+            });
+        });
+    }
+
+    /**
      * What the grid ceiling is actually made of: AE2 sums power capacity from the providers in the grid the
      * node joined, so two batteries standing next to each other must land in <i>one</i> ceiling.
      *

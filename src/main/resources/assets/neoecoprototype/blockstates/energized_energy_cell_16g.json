@@ -1,1 +1,1 @@
-{"variants": {"": {"model": "neoecoprototype:block/energized_energy_cell/cell_16g"}}}
+{"variants": {"level=0": {"model": "neoecoprototype:block/energized_energy_cell/cell_16g_0"}, "level=1": {"model": "neoecoprototype:block/energized_energy_cell/cell_16g_1"}, "level=2": {"model": "neoecoprototype:block/energized_energy_cell/cell_16g_2"}, "level=3": {"model": "neoecoprototype:block/energized_energy_cell/cell_16g_3"}, "level=4": {"model": "neoecoprototype:block/energized_energy_cell/cell_16g_4"}}}
