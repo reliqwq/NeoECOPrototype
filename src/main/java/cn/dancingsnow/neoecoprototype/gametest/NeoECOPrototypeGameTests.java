@@ -20213,11 +20213,17 @@ public final class NeoECOPrototypeGameTests {
             helper.fail("the powder snow rung also matches water, so it is not gated by the tag at all");
             return;
         }
-        NeoECOPrototype.LOGGER.info("powder snow rung: coolant {}, overclock {}", rung.coolant(),
-                rung.maxOverclock());
-        if (rung.coolant() != 11000 || rung.maxOverclock() != 8) {
+        NeoECOPrototype.LOGGER.info("powder snow rung: coolant {}, overclock {}, output {} x{}", rung.coolant(),
+                rung.maxOverclock(), rung.output().getFluid(), rung.outputAmount());
+        if (rung.coolant() != 11000 || rung.maxOverclock() != 3) {
             helper.fail("the rung loaded as coolant " + rung.coolant() + " and overclock "
-                    + rung.maxOverclock() + ", not the third rung's 11000 and 8");
+                    + rung.maxOverclock() + ", not the 11000 and 3 reliqwq set on 2026-11-19");
+            return;
+        }
+        if (!rung.output().is(net.minecraft.world.level.material.Fluids.WATER) || rung.outputAmount() != 100) {
+            helper.fail("the rung spends into " + rung.output() + " x" + rung.outputAmount()
+                    + " rather than 100 mB of water - with an output the controller needs an output hatch"
+                    + " (getMaxDrainByOutput), so this is the number that decides whether the bath stalls");
             return;
         }
         helper.succeed();

@@ -52,6 +52,21 @@ class PowderSnowCoolantLineTest {
                 RUNG + " points at the wrong common tag");
         assertEquals(100, input.get("amount").getAsInt(), RUNG + " draws a different amount than the other rungs");
 
+        // reliqwq's shape of 2026-11-19: a high coolant with a low ceiling, and the snow melts into water.
+        // The output is not decoration - eco's getMaxDrainByOutput (ECOCraftingCoolingController, 21.2.17
+        // L212-227) caps the drain by the controller's output hatch, refuses a hatch holding another fluid,
+        // and stalls when that hatch is full.
+        assertEquals(3, rung.get("max_overclock").getAsInt(),
+                RUNG + " is the ×3 rung: 11000 coolant buys endurance, not parallelism");
+        var output = rung.getAsJsonObject("output");
+        assertTrue(output.has("id"), RUNG + " has no fluid output at all, so the snow is destroyed rather"
+                + " than melted - and the controller would need no output hatch, which is the other half of"
+                + " what reliqwq asked for");
+        assertEquals("minecraft:water", output.get("id").getAsString(),
+                RUNG + " no longer spends the snow into water");
+        assertEquals(100, output.get("amount").getAsInt(),
+                RUNG + " spends 100 mB of coolant and should hand back 100 mB of water");
+
         List<String> table = new ArrayList<>();
         int ourCoolant = rung.get("coolant").getAsInt();
         int ourOverclock = rung.get("max_overclock").getAsInt();
