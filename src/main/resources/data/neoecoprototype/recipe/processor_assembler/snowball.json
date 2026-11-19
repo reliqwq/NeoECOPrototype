@@ -6,5 +6,5 @@
     { "item": "minecraft:snow_block" },
     { "item": "minecraft:snow_block" }
   ],
-  "result": { "id": "minecraft:snowball", "count": 4 }
+  "result": { "id": "minecraft:snowball", "count": 16 }
 }

@@ -44,7 +44,7 @@ The other eight:
 | ECOP - Structure Expansion Card | Memory Card + Aluminum Ingot + Green Crystal Matrix |
 | Energized Reinforced Threading Core | 2 ECO - CM4A Threading Cores + 1 ECO - C1 Computation Substructure Casing |
 | ECO - CE1R Flash Crystal Array | 2 ECO - CE1 Flash Crystal Arrays + 1 ECO - L4 Storage Component |
-| Snowball / powder snow | 4 snow blocks → 4 snowballs; 3 snowballs → 1000 mB liquid powder snow; 3 snowballs + 1 bucket → powder snow bucket |
+| Snowball / powder snow | 4 snow blocks → 16 snowballs; 3 snowballs → 1000 mB liquid powder snow; 3 snowballs + 1 bucket → powder snow bucket |
 | reliqwq's Fumo Doll | the L1 storage host + C1 computation host + F1 crafting host |
 | Yang120's Fumo Doll | eco's L4 storage host + C4 computation host + F4 crafting host |
 | kouooki's Fumo Doll | pink dye + dried kelp + brown mushroom |
@@ -68,6 +68,8 @@ However many complete sets a push carries, they finish in a **single** cycle - o
 2. **The nine-slot grid**: one batch has to fit those nine slots at its own stack sizes. Nine slots of 64 items hold 576 items; item ingredients and their stack sizes determine the physical ceiling (the three-ingredient processors fit 192 sets).
 
 Raise the config to process more per cycle, up to 192 - the key will not take more; the nine-slot limit is physical and a config change cannot lift it. One stack of the output reaches the machine per round; the rest is inserted into the network rather than lost.
+
+One recipe cannot take its 64x pattern here: **liquid powder snow**. 64 sets need 192 snowballs, and snowballs stack to 16, so one batch is 12 grid slots - one more than the nine the machine has - and a 64x pattern of it is refused whole ("一批原料摆不进 9 格工作台"). Encode it at 1x (1000 mB per pattern run) and this assembler still batches up to 48 sets per cycle, or push the 64x pattern to eco's large integrated working station instead, whose crafting model has no such grid.
 
 ## L1 Pattern Provider
 
