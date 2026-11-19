@@ -172,6 +172,7 @@
   "jade.neoecoprototype.offline": "设备离线",
   "jade.neoecoprototype.mounted": "驱动器已挂载",
   "jade.neoecoprototype.unmounted": "驱动器未挂载",
+  "jade.neoecoprototype.transfer_unmounted": "驱动器未挂载（存储接口传输中，元件已临时卸载）",
   "jade.neoecoprototype.mounted_cell": "%1$s× %2$s",
   "jade.neoecoprototype.types_infinite": "%s / ∞ 类型",
   "jade.neoecoprototype.machine_mind": "机魂：%1$s · 空闲消耗：%2$s AE/t",

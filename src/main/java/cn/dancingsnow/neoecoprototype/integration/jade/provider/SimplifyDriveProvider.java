@@ -39,6 +39,12 @@ public enum SimplifyDriveProvider implements IBlockComponentProvider, IServerDat
             boolean mounted = serverData.getBoolean("mounted");
             if (mounted) {
                 tooltip.add(Component.translatable("jade.neoecoprototype.mounted").withStyle(ChatFormatting.GREEN));
+            } else if (serverData.getBoolean("transferMode")) {
+                // The same gate eco's own drive runs: with the interface in INPUT/OUTPUT transfer mode the
+                // cells are the transfer's source and must leave the grid, so "unmounted" here is the
+                // machine working as designed - and the line has to say so, or it reads as a fault.
+                tooltip.add(Component.translatable("jade.neoecoprototype.transfer_unmounted")
+                        .withStyle(ChatFormatting.YELLOW));
             } else {
                 tooltip.add(Component.translatable("jade.neoecoprototype.unmounted").withStyle(ChatFormatting.RED));
             }
@@ -97,6 +103,9 @@ public enum SimplifyDriveProvider implements IBlockComponentProvider, IServerDat
             // No online/offline line here on purpose: AE2's own device module already prints exactly
             // be.isOnline() for every in-world device, and saying it twice reads as two different states.
             tag.putBoolean("mounted", be.isMounted());
+            var cluster = be.getCluster();
+            var controller = cluster == null ? null : cluster.getController();
+            tag.putBoolean("transferMode", controller != null && controller.isStorageInterfaceTransferMode());
             // getCellStack() answers null for an empty drive, not an empty stack - and an unguarded read
             // here threw on every empty drive, which aborted the whole tag write and left the tooltip with
             // nothing but the mounted line.

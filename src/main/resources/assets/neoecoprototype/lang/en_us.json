@@ -188,6 +188,7 @@
   "jade.neoecoprototype.offline": "Device offline",
   "jade.neoecoprototype.mounted": "Drive mounted",
   "jade.neoecoprototype.unmounted": "Drive unmounted",
+  "jade.neoecoprototype.transfer_unmounted": "Drive unmounted - storage interface in transfer mode",
   "jade.neoecoprototype.mounted_cell": "%1$s× %2$s",
   "jade.neoecoprototype.types_infinite": "%s / ∞ types",
   "jade.neoecoprototype.machine_mind": "Mind: %1$s · idle draw: %2$s AE/t",
