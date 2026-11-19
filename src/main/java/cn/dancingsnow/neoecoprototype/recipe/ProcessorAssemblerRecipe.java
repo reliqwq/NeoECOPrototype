@@ -10,6 +10,7 @@ import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.Ingredient;
+import net.neoforged.neoforge.fluids.FluidStack;
 import net.minecraft.world.item.crafting.Recipe;
 import net.minecraft.world.item.crafting.RecipeInput;
 import net.minecraft.world.item.crafting.RecipeSerializer;
@@ -21,7 +22,7 @@ import java.util.Arrays;
 import java.util.List;
 
 /** Shapeless processor recipe: three or four inputs may be inserted in any order. */
-public record ProcessorAssemblerRecipe(List<Ingredient> ingredients, ItemStack result)
+public record ProcessorAssemblerRecipe(List<Ingredient> ingredients, ItemStack result, FluidStack fluidResult)
         implements Recipe<ProcessorAssemblerRecipe.Input> {
     public static final int MIN_INPUTS = 3;
     public static final int MAX_INPUTS = 4;
@@ -37,6 +38,27 @@ public record ProcessorAssemblerRecipe(List<Ingredient> ingredients, ItemStack r
 
     public ProcessorAssemblerRecipe {
         ingredients = List.copyOf(ingredients);
+        result = result == null ? ItemStack.EMPTY : result.copy();
+        fluidResult = fluidResult == null ? FluidStack.EMPTY : fluidResult.copy();
+        if (result.isEmpty() && fluidResult.isEmpty()) {
+            throw new IllegalArgumentException("Processor assembler recipe must produce an item or fluid");
+        }
+    }
+
+    public ProcessorAssemblerRecipe(List<Ingredient> ingredients, ItemStack result) {
+        this(ingredients, result, FluidStack.EMPTY);
+    }
+
+    public long outputAmountPerRun() {
+        return result.isEmpty() ? fluidResult.getAmount() : result.getCount();
+    }
+
+    public boolean hasItemOutput() {
+        return !result.isEmpty();
+    }
+
+    public boolean hasFluidOutput() {
+        return !fluidResult.isEmpty();
     }
 
     /** True when the stacks can be assigned to the ingredients one-to-one, in any order. */
@@ -103,7 +125,9 @@ public record ProcessorAssemblerRecipe(List<Ingredient> ingredients, ItemStack r
     public static class Serializer implements RecipeSerializer<ProcessorAssemblerRecipe> {
         private static final MapCodec<ProcessorAssemblerRecipe> CODEC = RecordCodecBuilder.mapCodec(instance -> instance.group(
                 INGREDIENTS_CODEC.fieldOf("ingredients").forGetter(ProcessorAssemblerRecipe::ingredients),
-                ItemStack.CODEC.fieldOf("result").forGetter(ProcessorAssemblerRecipe::result)
+                ItemStack.OPTIONAL_CODEC.optionalFieldOf("result", ItemStack.EMPTY).forGetter(ProcessorAssemblerRecipe::result),
+                FluidStack.OPTIONAL_CODEC.optionalFieldOf("fluid_result", FluidStack.EMPTY)
+                        .forGetter(ProcessorAssemblerRecipe::fluidResult)
         ).apply(instance, ProcessorAssemblerRecipe::new));
 
         private static final StreamCodec<RegistryFriendlyByteBuf, List<Ingredient>> INGREDIENTS_STREAM_CODEC =
@@ -112,7 +136,8 @@ public record ProcessorAssemblerRecipe(List<Ingredient> ingredients, ItemStack r
         private static final StreamCodec<RegistryFriendlyByteBuf, ProcessorAssemblerRecipe> STREAM_CODEC =
                 StreamCodec.composite(
                         INGREDIENTS_STREAM_CODEC, ProcessorAssemblerRecipe::ingredients,
-                        ItemStack.STREAM_CODEC, ProcessorAssemblerRecipe::result,
+                        ItemStack.OPTIONAL_STREAM_CODEC, ProcessorAssemblerRecipe::result,
+                        FluidStack.OPTIONAL_STREAM_CODEC, ProcessorAssemblerRecipe::fluidResult,
                         ProcessorAssemblerRecipe::new);
 
         @Override

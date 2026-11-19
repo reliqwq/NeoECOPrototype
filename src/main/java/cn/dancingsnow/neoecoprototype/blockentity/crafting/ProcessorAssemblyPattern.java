@@ -1,6 +1,7 @@
 package cn.dancingsnow.neoecoprototype.blockentity.crafting;
 
 import appeng.api.crafting.IPatternDetails;
+import appeng.api.stacks.AEFluidKey;
 import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.GenericStack;
 import appeng.api.stacks.KeyCounter;
@@ -8,23 +9,28 @@ import appeng.blockentity.crafting.IMolecularAssemblerSupportedPattern;
 import cn.dancingsnow.neoecoprototype.recipe.ProcessorAssemblerRecipe;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
+import net.neoforged.neoforge.fluids.FluidStack;
 
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * Presents an addon processor recipe, carried by an otherwise unsupported pattern (a processing
- * pattern), as the pattern kind AE2's molecular assembler can actually run.
- */
+/** Presents an addon processor recipe as the pattern kind AE2's molecular assembler can run. */
 public record ProcessorAssemblyPattern(IPatternDetails delegate, ProcessorAssemblerRecipe recipe,
-        OutputSink surplusSink) implements IMolecularAssemblerSupportedPattern {
-    /** The assembler's crafting grid, which is also the most material one cycle may hold. */
+        OutputSink surplusSink, FluidOutputSink fluidSink) implements IMolecularAssemblerSupportedPattern {
     private static final int GRID_SLOTS = 9;
 
-    /** Where the over-amount of a finished cycle goes: the machine hands it to its own network. */
+    public ProcessorAssemblyPattern(IPatternDetails delegate, ProcessorAssemblerRecipe recipe, OutputSink surplusSink) {
+        this(delegate, recipe, surplusSink, (fluid, amount) -> {});
+    }
+
     @FunctionalInterface
     public interface OutputSink {
         void deliver(AEItemKey what, long amount);
+    }
+
+    @FunctionalInterface
+    public interface FluidOutputSink {
+        void deliver(AEFluidKey fluid, long amount);
     }
 
     @Override
@@ -52,6 +58,18 @@ public record ProcessorAssemblyPattern(IPatternDetails delegate, ProcessorAssemb
         return recipe.ingredients().stream().anyMatch(ingredient -> ingredient.test(key.toStack()));
     }
 
+    public boolean hasFluidOutput() {
+        return recipe.hasFluidOutput();
+    }
+
+    public boolean isFluidOnly() {
+        return recipe.hasFluidOutput() && !recipe.hasItemOutput();
+    }
+
+    public boolean hasItemOutput() {
+        return recipe.hasItemOutput();
+    }
+
     @Override
     public void fillCraftingGrid(KeyCounter[] inputs, CraftingGridAccessor accessor) {
         Map<AEItemKey, Long> required = new HashMap<>();
@@ -62,10 +80,9 @@ public record ProcessorAssemblyPattern(IPatternDetails delegate, ProcessorAssemb
         if (batchCount <= 0) {
             throw new IllegalStateException("No processor assembler run fits the grid right now");
         }
-
         int gridSlot = 0;
         for (var entry : required.entrySet()) {
-            long total = entry.getValue() * batchCount;
+            long total = Math.multiplyExact(entry.getValue(), batchCount);
             if (!take(inputs, entry.getKey(), total)) {
                 throw new IllegalStateException("Could not consume processor assembler input " + entry.getKey());
             }
@@ -78,7 +95,6 @@ public record ProcessorAssemblyPattern(IPatternDetails delegate, ProcessorAssemb
         }
     }
 
-    /** What one run consumes, merged per item the way AE2 merges a repeated ingredient. */
     private boolean requiredFor(KeyCounter[] inputs, Map<AEItemKey, Long> required) {
         for (IInput input : getInputs()) {
             long perCraft = perCraft(input);
@@ -89,12 +105,6 @@ public record ProcessorAssemblyPattern(IPatternDetails delegate, ProcessorAssemb
         return true;
     }
 
-    /**
-     * How many runs the machine could take from these contents right now, or zero when it could take none.
-     *
-     * <p>Ask before filling: anything {@link #fillCraftingGrid} throws escapes through AE2's grid tick and
-     * takes the server down with it, so a batch that does not fit has to be refused by the caller instead.
-     */
     public long fittingRuns(KeyCounter[] inputs) {
         Map<AEItemKey, Long> required = new HashMap<>();
         return requiredFor(inputs, required) ? fittingRuns(required, inputs) : 0;
@@ -115,7 +125,6 @@ public record ProcessorAssemblyPattern(IPatternDetails delegate, ProcessorAssemb
         return low;
     }
 
-    /** Grid slots a batch needs: every item is carried in stacks of its own size, so partial stacks cost. */
     private static long gridSlots(Map<AEItemKey, Long> required, long runs) {
         long slots = 0;
         for (var entry : required.entrySet()) {
@@ -125,16 +134,10 @@ public record ProcessorAssemblyPattern(IPatternDetails delegate, ProcessorAssemb
         return slots;
     }
 
-    /** How many of one item may share a slot: one stack of that item, never more. */
     private static int stackLimit(AEItemKey key) {
         return key.toStack(1).getMaxStackSize();
     }
 
-    /**
-     * How many of one input slot a single craft consumes. AE2 keeps the repeat count in the slot's
-     * multiplier rather than in the candidate amount, so a slot that needs two of the item reads as
-     * amount 1 with multiplier 2 -- reading only the amount is what made the assembler insert one.
-     */
     private static long perCraft(IInput input) {
         GenericStack[] possible = input.getPossibleInputs();
         return possible.length == 0 ? 0 : possible[0].amount() * input.getMultiplier();
@@ -142,9 +145,7 @@ public record ProcessorAssemblyPattern(IPatternDetails delegate, ProcessorAssemb
 
     private static GenericStack selectAvailableInput(KeyCounter[] inputs, GenericStack[] possible, long perCraft) {
         for (GenericStack candidate : possible) {
-            if (candidate.what() instanceof AEItemKey key && available(inputs, key) >= perCraft) {
-                return candidate;
-            }
+            if (candidate.what() instanceof AEItemKey key && available(inputs, key) >= perCraft) return candidate;
         }
         return null;
     }
@@ -155,70 +156,78 @@ public record ProcessorAssemblyPattern(IPatternDetails delegate, ProcessorAssemb
         return total;
     }
 
-    /** What one run of the pattern yields, which is the amount the pattern was encoded with. */
-    private long outputPerRun() {
-        return getOutputs().isEmpty() ? recipe.result().getCount() : getOutputs().get(0).amount();
-    }
-
-    /** How many runs one cycle can hand over: as many as fit into a single stack of the output. */
     private long runsPerCycle() {
-        long perRun = outputPerRun();
-        return perRun <= 0 ? 1 : Math.max(1, recipe.result().getMaxStackSize() / perRun);
+        long runs = Long.MAX_VALUE;
+        if (recipe.hasItemOutput()) runs = Math.min(runs,
+                recipe.result().getMaxStackSize() / outputItemPerPattern());
+        if (recipe.hasFluidOutput()) runs = Math.min(runs, Integer.MAX_VALUE / fluidOutputPerPattern());
+        return Math.max(1, runs);
     }
 
-    /**
-     * Recipe runs this pattern asks for in one push, which is the batch factor it was encoded with. Only
-     * a pattern {@code ProcessorAssemblerRecipes.resolve} accepted can reach a machine, and that match
-     * requires the output amount to divide by the recipe's own count, so this is a whole number here.
-     */
-    public long requestedRuns() {
-        var outputs = getOutputs();
-        int perRun = recipe.result().getCount();
-        if (outputs.isEmpty() || perRun <= 0) {
-            return 0;
+    private long outputItemPerPattern() {
+        for (GenericStack output : getOutputs()) {
+            if (output.what() instanceof AEItemKey item && item.matches(recipe.result())) {
+                return Math.toIntExact(output.amount());
+            }
         }
-        return outputs.get(0).amount() / perRun;
+        return recipe.result().getCount();
     }
 
-    /**
-     * What the grid content pays for, including the pattern's own batch factor: a 64x processor pattern
-     * asks for 64 per execution, and answering it with the recipe's single processor would silently drop
-     * 63 of them.
-     */
-    private long cycleOutput(net.minecraft.world.item.crafting.CraftingInput input) {
+    private long fluidOutputPerPattern() {
+        for (GenericStack output : getOutputs()) {
+            if (output.what() instanceof AEFluidKey fluid && fluid.matches(recipe.fluidResult())) {
+                return output.amount();
+            }
+        }
+        return recipe.fluidResult().getAmount();
+    }
+
+    public long requestedRuns() {
+        long runs = -1;
+        for (GenericStack output : getOutputs()) {
+            long perRun = output.what() instanceof AEItemKey && recipe.hasItemOutput()
+                    ? recipe.result().getCount()
+                    : output.what() instanceof AEFluidKey && recipe.hasFluidOutput()
+                            ? recipe.fluidResult().getAmount() : 0;
+            if (perRun <= 0 || output.amount() <= 0 || output.amount() % perRun != 0) return 0;
+            long current = output.amount() / perRun;
+            if (runs >= 0 && runs != current) return 0;
+            runs = current;
+        }
+        return Math.max(0, runs);
+    }
+
+    private long cycleRuns(net.minecraft.world.item.crafting.CraftingInput input) {
         long supplied = 0;
         for (int slot = 0; slot < input.size(); slot++) supplied += input.getItem(slot).getCount();
         long perBatch = 0;
         for (IInput inputSlot : getInputs()) perBatch += perCraft(inputSlot);
-        long batchCount = perBatch == 0 ? 0 : supplied / perBatch;
-        return batchCount <= 0 ? 0 : batchCount * outputPerRun();
+        return perBatch == 0 ? 0 : supplied / perBatch;
     }
 
     @Override
     public ItemStack assemble(net.minecraft.world.item.crafting.CraftingInput input, Level level) {
-        long total = cycleOutput(input);
+        if (!recipe.hasItemOutput()) return ItemStack.EMPTY;
+        long total = Math.multiplyExact(cycleRuns(input), outputItemPerPattern());
         if (total <= 0) return ItemStack.EMPTY;
         ItemStack result = recipe.result().copy();
         result.setCount((int) Math.min(result.getMaxStackSize(), total));
         return result;
     }
 
-    /**
-     * Hands over what one ejection cannot: the cycle ends with a single ItemStack, and the game will not
-     * store more of an item than one stack holds (its codec errors on load), so the remainder goes to the
-     * sink instead of being quietly thrown away with the grid.
-     *
-     * <p>This is the only place a finished cycle can act, because AE2's hasMats() probe calls
-     * {@link #assemble} to ask whether a run is possible at all -- handing items out there would duplicate
-     * them on a question. AE2 calls this method exactly once per completed cycle.
-     */
+    /** AE2 calls this once per completed cycle; unlike assemble(), this is not a hasMats probe. */
     @Override
     public net.minecraft.core.NonNullList<ItemStack> getRemainingItems(
             net.minecraft.world.item.crafting.CraftingInput input) {
-        long total = cycleOutput(input);
-        int ejected = (int) Math.min(recipe.result().getMaxStackSize(), total);
-        if (total > ejected) {
-            surplusSink.deliver(AEItemKey.of(recipe.result().getItem()), total - ejected);
+        long runs = cycleRuns(input);
+        if (runs > 0 && recipe.hasItemOutput()) {
+            long total = Math.multiplyExact(runs, outputItemPerPattern());
+            int ejected = (int) Math.min(recipe.result().getMaxStackSize(), total);
+            if (total > ejected) surplusSink.deliver(AEItemKey.of(recipe.result().getItem()), total - ejected);
+        }
+        if (runs > 0 && recipe.hasFluidOutput()) {
+            long total = Math.multiplyExact(runs, fluidOutputPerPattern());
+            fluidSink.deliver(AEFluidKey.of(recipe.fluidResult()), total);
         }
         return net.minecraft.core.NonNullList.withSize(input.size(), ItemStack.EMPTY);
     }

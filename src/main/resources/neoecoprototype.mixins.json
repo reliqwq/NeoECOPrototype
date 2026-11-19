@@ -10,7 +10,8 @@
     "ExtendedAEPatternUpgradeMixin",
     "ECOClientUIBridgeMixin",
     "EnergyServiceRequesterReAddMixin",
-    "InterfaceLogicAccess"
+    "InterfaceLogicAccess",
+    "MolecularAssemblerFluidOutputMixin"
   ],
   "client": [
     "FixedBlockEntityRenderersMixin",

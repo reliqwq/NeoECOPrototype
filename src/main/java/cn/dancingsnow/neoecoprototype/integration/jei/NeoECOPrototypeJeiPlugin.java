@@ -101,8 +101,8 @@ public final class NeoECOPrototypeJeiPlugin implements IModPlugin {
                 .getAllRecipesFor(ModRegistration.PROCESSOR_ASSEMBLER_RECIPE_TYPE.get())
                 .stream().map(RecipeHolder::value).toList();
         registration.addRecipes(ProcessorAssemblerCategory.TYPE,
-                recipes.stream().filter(recipe ->
-                        !NeoECOPrototypeServerConfig.isProcessorRecipeDisabled(recipe.result().getItem()))
+                recipes.stream().filter(recipe -> !recipe.hasItemOutput()
+                        || !NeoECOPrototypeServerConfig.isProcessorRecipeDisabled(recipe.result().getItem()))
                         .toList());
         // AE2's cell upgrades sit in the crafting map but answer isSpecial(), so JEI's own Crafting page skips
         // them and no other plugin in this pack draws them - see CellUpgradeCategory. Read through the recipe

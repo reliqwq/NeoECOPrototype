@@ -2340,7 +2340,10 @@ private static Supplier<BlockEntityType<SimplifyStorageVentBlockEntity>> registe
                  ECOMachineInterfaceBlockEntity.class, SIMPLIFY_COMPUTATION_INTERFACE_BE.get(), null, null);
         asEntityBlock(SIMPLIFY_COMPUTATION_CASING_BLOCK).setBlockEntity(
                 ECOMachineCasingBlockEntity.class, SIMPLIFY_COMPUTATION_CASING_BE.get(), null, null);
-        asEntityBlock(SIMPLIFY_STONECUTTING_ASSEMBLER_BLOCK).setBlockEntity(SimplifyStonecuttingAssemblerBlockEntity.class, SIMPLIFY_STONECUTTING_ASSEMBLER_BE.get(), null, null);
+        asEntityBlock(SIMPLIFY_STONECUTTING_ASSEMBLER_BLOCK).setBlockEntity(
+                SimplifyStonecuttingAssemblerBlockEntity.class, SIMPLIFY_STONECUTTING_ASSEMBLER_BE.get(), null,
+                (level, pos, state, blockEntity) -> SimplifyStonecuttingAssemblerBlockEntity.serverTick(
+                        level, pos, state, (SimplifyStonecuttingAssemblerBlockEntity) blockEntity));
         ((AEBaseEntityBlock<cn.dancingsnow.neoecoprototype.blockentity.dissociation.MeteoriteDissociatorBlockEntity>)
                 METEORITE_DISSOCIATOR_BLOCK.get()).setBlockEntity(
                 cn.dancingsnow.neoecoprototype.blockentity.dissociation.MeteoriteDissociatorBlockEntity.class,

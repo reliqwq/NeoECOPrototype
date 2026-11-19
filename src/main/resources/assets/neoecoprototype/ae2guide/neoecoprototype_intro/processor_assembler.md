@@ -11,7 +11,7 @@ item_ids:
 
 # L1 Processor Assembler
 
-The **L1 Processor Assembler** is a green-shell version of the <ItemLink id="ae2:molecular_assembler" />: it crafts the three processors straight from patterns. It runs only this mod's processor assembly recipes; ordinary molecular assembly patterns are refused, and that work belongs to a Molecular Assembler. It is used with the L1 Pattern Provider below. If you already own eco's large integrated working station, the [L1 Processor Assembly Card](processor_assembly_card.md) runs this same family there.
+The **L1 Processor Assembler** is a green-shell version of the <ItemLink id="ae2:molecular_assembler" />: it crafts the three processors straight from patterns, and can also route processor recipes that produce fluid into the AE network. It runs only this mod's processor assembly recipes; ordinary molecular assembly patterns are refused, and that work belongs to a Molecular Assembler. It is used with the L1 Pattern Provider below. If you already own eco's large integrated working station, the [L1 Processor Assembly Card](processor_assembly_card.md) runs this same family there.
 
 <ItemGrid>
   <ItemIcon id="neoecoprototype:simplify_stonecutting_assembler" />
@@ -44,7 +44,7 @@ The other eight:
 | ECOP - Structure Expansion Card | Memory Card + Aluminum Ingot + Green Crystal Matrix |
 | Energized Reinforced Threading Core | 2 ECO - CM4A Threading Cores + 1 ECO - C1 Computation Substructure Casing |
 | ECO - CE1R Flash Crystal Array | 2 ECO - CE1 Flash Crystal Arrays + 1 ECO - L4 Storage Component |
-| Snowball / powder snow bucket | 4 snow blocks → 4 snowballs; 3 snowballs + 1 bucket → powder snow bucket |
+| Snowball / powder snow | 4 snow blocks → 4 snowballs; 3 snowballs → 1000 mB liquid powder snow; 3 snowballs + 1 bucket → powder snow bucket |
 | reliqwq's Fumo Doll | the L1 storage host + C1 computation host + F1 crafting host |
 | Yang120's Fumo Doll | eco's L4 storage host + C4 computation host + F4 crafting host |
 | kouooki's Fumo Doll | pink dye + dried kelp + brown mushroom |
@@ -65,7 +65,7 @@ Other press recipes in the inscriber are also derived live, so a recipe another 
 However many complete sets a push carries, they finish in a **single** cycle - output scales with the multiplier, time does not - so more cards are the only way to go faster. Two limits bound how many sets a pattern may ask for, and a pattern over either one is refused whole: the materials go back to the network and the log names the offending line.
 
 1. **`processor_assembler_max_runs_per_cycle`** (server config, default 64, range 1-192): the most sets one cycle may process. The default 64 is one full stack of a one-per-craft processor - what the cycle ejects outright, with no surplus sent to the network; lowering it tightens the machine (1 means one set per cycle), raising it widens the batch up to 192, the ceiling the recipes themselves set (the grid holds 576 items; a three-ingredient processor costs three per run). A larger pattern is refused - refused, not partly run.
-2. **The nine-slot grid**: one batch has to fit those nine slots at its own stack sizes. Nine slots of 64 items hold 576 items, which is 192 sets of a three-ingredient processor; anything bigger cannot fit.
+2. **The nine-slot grid**: one batch has to fit those nine slots at its own stack sizes. Nine slots of 64 items hold 576 items; item ingredients and their stack sizes determine the physical ceiling (the three-ingredient processors fit 192 sets).
 
 Raise the config to process more per cycle, up to 192 - the key will not take more; the nine-slot limit is physical and a config change cannot lift it. One stack of the output reaches the machine per round; the rest is inserted into the network rather than lost.
 

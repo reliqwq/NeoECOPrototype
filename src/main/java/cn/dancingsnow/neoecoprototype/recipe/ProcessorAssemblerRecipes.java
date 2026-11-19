@@ -1,6 +1,7 @@
 package cn.dancingsnow.neoecoprototype.recipe;
 
 import appeng.api.crafting.IPatternDetails;
+import appeng.api.stacks.AEFluidKey;
 import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.GenericStack;
 import appeng.recipes.AERecipeTypes;
@@ -49,7 +50,8 @@ public final class ProcessorAssemblerRecipes {
                 .stream().map(RecipeHolder::value).toList();
         List<RecipeHolder<?>> holders = new ArrayList<>();
         for (DerivedRecipe derived : derive(manager, existing)) {
-            if (NeoECOPrototypeServerConfig.isProcessorRecipeDisabled(derived.recipe().result().getItem())) {
+            if (derived.recipe().hasItemOutput()
+                    && NeoECOPrototypeServerConfig.isProcessorRecipeDisabled(derived.recipe().result().getItem())) {
                 continue;
             }
             ResourceLocation sourceId = derived.sourceId();
@@ -103,56 +105,71 @@ public final class ProcessorAssemblerRecipes {
     private record DerivedRecipe(ResourceLocation sourceId, ProcessorAssemblerRecipe recipe) {
     }
 
-    /**
-     * The addon recipe an AE2 processing pattern asks for, or null when nothing covers it.
-     *
-     * <p>Declared recipes are tried first because they are curated; the inscriber derivation is the
-     * fallback that lets other packs' press recipes work without a data file.
-     */
+
     @Nullable
-    public static ProcessorAssemblerRecipe resolve(Level level, IPatternDetails pattern, Item output) {
+    public static ProcessorAssemblerRecipe resolve(Level level, IPatternDetails pattern) {
         var outputs = pattern.getOutputs();
-        if (outputs.size() != 1 || !(outputs.get(0).what() instanceof AEItemKey)) return null;
+        if (outputs.isEmpty() || outputs.size() > 2) return null;
+        if (outputs.stream().anyMatch(output -> output.amount() <= 0)) return null;
         List<SlotDemand> demands = slotDemands(pattern);
         if (demands == null) return null;
-        long outputAmount = outputs.get(0).amount();
         List<ProcessorAssemblerRecipe> declared = level.getRecipeManager()
                 .getAllRecipesFor(ModRegistration.PROCESSOR_ASSEMBLER_RECIPE_TYPE.get())
                 .stream().map(RecipeHolder::value).toList();
         for (ProcessorAssemblerRecipe recipe : declared) {
-            if (matchesPattern(recipe, demands, outputAmount, output)) return recipe;
-        }
-        if (NeoECOPrototypeServerConfig.current(NeoECOPrototypeServerConfig.DERIVE_PROCESSOR_RECIPES_FROM_INSCRIBER)) {
-            for (ProcessorAssemblerRecipe recipe : derived(level, declared)) {
-                if (matchesPattern(recipe, demands, outputAmount, output)) return recipe;
-            }
+            if (recipe.hasItemOutput()
+                    && NeoECOPrototypeServerConfig.isProcessorRecipeDisabled(recipe.result().getItem())) continue;
+            if (matchesPattern(recipe, demands, outputs)) return recipe;
         }
         return null;
     }
 
+    /** Existing item-only callers remain source-compatible. */
+    @Nullable
+    public static ProcessorAssemblerRecipe resolve(Level level, IPatternDetails pattern, Item output) {
+        ProcessorAssemblerRecipe recipe = resolve(level, pattern);
+        return recipe != null && recipe.hasItemOutput() && recipe.result().is(output) ? recipe : null;
+    }
+
     private static boolean matchesPattern(ProcessorAssemblerRecipe recipe, List<SlotDemand> demands,
-            long outputAmount, Item output) {
-        if (recipe.result().getItem() != output) return false;
-        List<ItemStack[]> units = unitsFor(recipe, demands, outputAmount);
+            List<GenericStack> outputs) {
+        int expectedOutputs = (recipe.hasItemOutput() ? 1 : 0) + (recipe.hasFluidOutput() ? 1 : 0);
+        if (outputs.size() != expectedOutputs) return false;
+        long runs = -1;
+        boolean sawItem = false;
+        boolean sawFluid = false;
+        for (GenericStack output : outputs) {
+            long perRun;
+            boolean matches;
+            if (output.what() instanceof AEItemKey item && recipe.hasItemOutput() && !sawItem) {
+                sawItem = true;
+                matches = item.matches(recipe.result());
+                perRun = recipe.result().getCount();
+            } else if (output.what() instanceof AEFluidKey fluid && recipe.hasFluidOutput() && !sawFluid) {
+                sawFluid = true;
+                matches = fluid.matches(recipe.fluidResult());
+                perRun = recipe.fluidResult().getAmount();
+            } else {
+                return false;
+            }
+            if (!matches || perRun <= 0 || output.amount() <= 0 || output.amount() % perRun != 0) return false;
+            long outputRuns = output.amount() / perRun;
+            if (runs >= 0 && runs != outputRuns) return false;
+            runs = outputRuns;
+        }
+        if (runs <= 0) return false;
+        List<ItemStack[]> units = unitsFor(recipe, demands, runs);
         return units != null && recipe.matchesUnits(units);
     }
 
     /**
-     * The recipe's own units: each slot's demand divided by how many times the pattern runs that recipe.
-     *
-     * <p>AE2 stores two different things in the same per-slot multiplier -- "this slot needs two of the
-     * item" (a pattern that merged the repeated ingredient) and "craft 64 at once" (a batched pattern).
-     * What tells them apart is the pattern's output amount: a 2+1 pattern of a one-output recipe asks for
-     * two and one, while a pattern crafting 64 of that same recipe asks for one of each. Dividing the
-     * output side out is what lets both work; reading the multiplier as either meaning on its own broke
-     * one of the two.
+     * The recipe's own units: each slot's demand divided by the integral run count shared by all outputs.
+     * AE2 stores repeated ingredients and batch count in the same per-slot multiplier; the output side
+     * disambiguates them.
      */
     @Nullable
     private static List<ItemStack[]> unitsFor(ProcessorAssemblerRecipe recipe, List<SlotDemand> demands,
-            long outputAmount) {
-        int resultCount = recipe.result().getCount();
-        if (resultCount <= 0 || outputAmount % resultCount != 0) return null;
-        long runs = outputAmount / resultCount;
+            long runs) {
         if (runs <= 0) return null;
         List<ItemStack[]> units = new ArrayList<>();
         for (SlotDemand demand : demands) {
@@ -192,9 +209,15 @@ public final class ProcessorAssemblerRecipes {
         return demands;
     }
 
-    /** Output item plus the sorted registry names of every ingredient choice. */
+    /** Output and the sorted registry names of every ingredient choice. */
     private static String signature(ProcessorAssemblerRecipe recipe) {
-        return recipe.result().getItem() + Arrays.toString(recipe.ingredients().stream()
+        String item = recipe.hasItemOutput()
+                ? BuiltInRegistries.ITEM.getKey(recipe.result().getItem()).toString() : "<no-item>";
+        String fluid = recipe.hasFluidOutput()
+                ? recipe.fluidResult().getFluid().toString() + "@" + recipe.fluidResult().getComponentsPatch()
+                        + "x" + recipe.fluidResult().getAmount()
+                : "<no-fluid>";
+        return item + "/" + fluid + Arrays.toString(recipe.ingredients().stream()
                 .flatMap(ingredient -> Arrays.stream(ingredient.getItems()))
                 .map(stack -> BuiltInRegistries.ITEM.getKey(stack.getItem()).toString())
                 .sorted()

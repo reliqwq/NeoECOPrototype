@@ -1,0 +1,12 @@
+{
+  "type": "neoecoprototype:processor_assembler",
+  "ingredients": [
+    { "item": "minecraft:snowball" },
+    { "item": "minecraft:snowball" },
+    { "item": "minecraft:snowball" }
+  ],
+  "fluid_result": {
+    "id": "neoecoprototype:powder_snow",
+    "amount": 1000
+  }
+}

@@ -47,7 +47,7 @@ public class ProcessorAssemblerCategory implements IRecipeCategory<ProcessorAsse
     // JEI requires an explicit size whenever the category supplies no background.
     @Override
     public int getWidth() {
-        return 110;
+        return 128;
     }
 
     @Override
@@ -61,6 +61,15 @@ public class ProcessorAssemblerCategory implements IRecipeCategory<ProcessorAsse
         for (int slot = 0; slot < ingredients.size(); slot++) {
             builder.addSlot(RecipeIngredientRole.INPUT, slot * 20, 1).addIngredients(ingredients.get(slot));
         }
-        builder.addSlot(RecipeIngredientRole.OUTPUT, 90, 1).addItemStack(recipe.result());
+        int output = 90;
+        if (recipe.hasItemOutput()) {
+            builder.addSlot(RecipeIngredientRole.OUTPUT, output, 1).addItemStack(recipe.result());
+            output += 18;
+        }
+        if (recipe.hasFluidOutput()) {
+            var fluid = recipe.fluidResult();
+            builder.addSlot(RecipeIngredientRole.OUTPUT, output, 1)
+                    .addFluidStack(fluid.getFluid(), fluid.getAmount(), fluid.getComponentsPatch());
+        }
     }
 }

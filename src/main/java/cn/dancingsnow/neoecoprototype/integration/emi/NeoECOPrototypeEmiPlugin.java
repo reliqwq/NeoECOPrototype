@@ -83,7 +83,8 @@ public final class NeoECOPrototypeEmiPlugin implements EmiPlugin {
     }
 
     private static boolean isShown(ProcessorAssemblerRecipe recipe) {
-        return !NeoECOPrototypeServerConfig.isProcessorRecipeDisabled(recipe.result().getItem());
+        return !recipe.hasItemOutput()
+                || !NeoECOPrototypeServerConfig.isProcessorRecipeDisabled(recipe.result().getItem());
     }
 }
 

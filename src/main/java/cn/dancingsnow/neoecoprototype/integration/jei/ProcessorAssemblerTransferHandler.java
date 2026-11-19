@@ -1,5 +1,6 @@
 package cn.dancingsnow.neoecoprototype.integration.jei;
 
+import appeng.api.stacks.AEFluidKey;
 import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.GenericStack;
 import appeng.integration.modules.itemlists.EncodingHelper;
@@ -80,10 +81,12 @@ public final class ProcessorAssemblerTransferHandler
             for (ItemStack choice : choices) slot.add(new GenericStack(AEItemKey.of(choice), 1));
             inputs.add(slot);
         }
-        if (!simulate) {
-            EncodingHelper.encodeProcessingRecipe(menu, inputs,
-                    List.of(new GenericStack(AEItemKey.of(recipe.result()), recipe.result().getCount())));
+        List<GenericStack> outputs = new ArrayList<>(2);
+        if (recipe.hasItemOutput()) outputs.add(new GenericStack(AEItemKey.of(recipe.result()), recipe.result().getCount()));
+        if (recipe.hasFluidOutput()) {
+            outputs.add(new GenericStack(AEFluidKey.of(recipe.fluidResult()), recipe.fluidResult().getAmount()));
         }
+        if (!simulate) EncodingHelper.encodeProcessingRecipe(menu, inputs, outputs);
         return null;
     }
 }

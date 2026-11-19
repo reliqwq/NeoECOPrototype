@@ -244,34 +244,37 @@ public final class PatternGeneratorItem extends Item {
         List<RecipeHolder<ProcessorAssemblerRecipe>> holders = new ArrayList<>(
                 manager.getAllRecipesFor(ModRegistration.PROCESSOR_ASSEMBLER_RECIPE_TYPE.get()));
         holders.sort(Comparator.comparing(holder -> holder.id().toString()));
-        Map<AEItemKey, ResourceLocation> seen = new HashMap<>();
+        Set<AEKey> seen = new HashSet<>();
         for (RecipeHolder<ProcessorAssemblerRecipe> holder : holders) {
             try {
                 ProcessorAssemblerRecipe recipe = holder.value();
-                if (recipe.result().isEmpty()) {
-                    continue;
+                List<GenericStack> outputs = new ArrayList<>(2);
+                Set<AEKey> outputKeys = new HashSet<>();
+                if (recipe.hasItemOutput()) {
+                    AEItemKey item = AEItemKey.of(recipe.result());
+                    if (item == null) continue;
+                    outputKeys.add(item);
+                    outputs.add(new GenericStack(item, Math.multiplyExact((long) recipe.result().getCount(),
+                            ProcessorAssemblyWorkstationSupport.RECIPE_SCALE)));
                 }
-                AEItemKey output = AEItemKey.of(recipe.result());
-                if (output == null || seen.containsKey(output)) {
-                    continue;
+                if (recipe.hasFluidOutput()) {
+                    GenericStack fluid = GenericStack.fromFluidStack(recipe.fluidResult().copy());
+                    if (fluid == null) continue;
+                    outputKeys.add(fluid.what());
+                    outputs.add(new GenericStack(fluid.what(), Math.multiplyExact(fluid.amount(),
+                            ProcessorAssemblyWorkstationSupport.RECIPE_SCALE)));
                 }
+                if (outputs.isEmpty() || outputKeys.stream().anyMatch(seen::contains)) continue;
                 List<GenericStack> inputs = new ArrayList<>();
                 for (Ingredient ingredient : recipe.ingredients()) {
                     ItemStack[] choices = ingredient.getItems();
-                    if (choices.length == 0) {
-                        throw new IllegalArgumentException("ingredient has no items");
-                    }
+                    if (choices.length == 0) throw new IllegalArgumentException("ingredient has no items");
                     AEItemKey key = AEItemKey.of(choices[0]);
-                    if (key == null) {
-                        throw new IllegalArgumentException("ingredient has no item key");
-                    }
+                    if (key == null) throw new IllegalArgumentException("ingredient has no item key");
                     mergeInput(inputs, key, ProcessorAssemblyWorkstationSupport.RECIPE_SCALE);
                 }
-                long amount = Math.multiplyExact((long) recipe.result().getCount(),
-                        ProcessorAssemblyWorkstationSupport.RECIPE_SCALE);
-                pool.add(PatternDetailsHelper.encodeProcessingPattern(
-                        inputs, List.of(new GenericStack(output, amount))));
-                seen.put(output, holder.id());
+                pool.add(PatternDetailsHelper.encodeProcessingPattern(inputs, outputs));
+                seen.addAll(outputKeys);
             } catch (RuntimeException e) {
                 NeoECOPrototype.LOGGER.warn("Skipping pattern for processor recipe {}", holder.id(), e);
             }

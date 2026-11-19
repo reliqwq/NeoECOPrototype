@@ -3,7 +3,9 @@ package cn.dancingsnow.neoecoprototype.blockentity.crafting;
 import appeng.api.crafting.IPatternDetails;
 import appeng.api.config.Actionable;
 import appeng.api.networking.security.IActionSource;
+import appeng.api.stacks.AEFluidKey;
 import appeng.api.stacks.AEItemKey;
+import appeng.api.stacks.AEKey;
 import appeng.api.stacks.GenericStack;
 import appeng.api.stacks.KeyCounter;
 import appeng.blockentity.crafting.MolecularAssemblerBlockEntity;
@@ -16,6 +18,12 @@ import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.Tag;
+import net.minecraft.core.HolderLookup;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.neoforged.neoforge.fluids.FluidStack;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import org.jetbrains.annotations.Nullable;
@@ -25,6 +33,9 @@ public class SimplifyStonecuttingAssemblerBlockEntity extends MolecularAssembler
     /** The last pattern output we logged a refusal for, so a provider retrying every tick logs once. */
     @Nullable
     private AEItemKey refusedOutput;
+    private final java.util.List<GenericStack> pendingFluidOutputs = new java.util.ArrayList<>();
+    private final java.util.List<GenericStack> stagedFluidOutputs = new java.util.ArrayList<>();
+    private boolean pendingFluidOutputsDirty;
 
     public SimplifyStonecuttingAssemblerBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state) {
         super(type, pos, state);
@@ -57,7 +68,7 @@ public class SimplifyStonecuttingAssemblerBlockEntity extends MolecularAssembler
             logRefusal(pattern, "这台机器只跑处理器装配配方，普通分子装配样板请交给分子装配室");
             return false;
         }
-        var plan = new ProcessorAssemblyPattern(pattern, recipe, this::deliverSurplus);
+        var plan = new ProcessorAssemblyPattern(pattern, recipe, this::deliverSurplus, this::stageFluidOutput);
         String refusal = refusalReason(plan, inputs);
         if (refusal != null) {
             logRefusal(pattern, refusal);
@@ -78,6 +89,9 @@ public class SimplifyStonecuttingAssemblerBlockEntity extends MolecularAssembler
      */
     @Nullable
     public String refusalReason(ProcessorAssemblyPattern plan, KeyCounter[] inputs) {
+        if (!pendingFluidOutputs.isEmpty()) {
+            return "本机还有待送入 AE 网络的细雪流体产物，待网络恢复后会自动重试";
+        }
         long runs = plan.requestedRuns();
         int cap = NeoECOPrototypeServerConfig.processorAssemblerMaxRunsPerCycle();
         if (runs > cap) {
@@ -88,6 +102,101 @@ public class SimplifyStonecuttingAssemblerBlockEntity extends MolecularAssembler
             return "一批原料摆不进 9 格工作台，或者一次产出装不下一组";
         }
         return null;
+    }
+
+    private void stageFluidOutput(AEFluidKey key, long amount) {
+        if (amount <= 0) return;
+        addFluidOutput(stagedFluidOutputs, new GenericStack(key, amount));
+        pendingFluidOutputsDirty = true;
+    }
+
+    private static void addFluidOutput(java.util.List<GenericStack> target, GenericStack addition) {
+        if (addition == null || addition.amount() <= 0 || !(addition.what() instanceof AEFluidKey)) return;
+        for (int i = 0; i < target.size(); i++) {
+            GenericStack existing = target.get(i);
+            if (existing.what().equals(addition.what())) {
+                target.set(i, new GenericStack(existing.what(), Math.addExact(existing.amount(), addition.amount())));
+                return;
+            }
+        }
+        target.add(addition);
+    }
+
+    public static void serverTick(net.minecraft.world.level.Level level, BlockPos pos, BlockState state,
+            SimplifyStonecuttingAssemblerBlockEntity blockEntity) {
+        if (level.isClientSide) return;
+        blockEntity.flushPendingFluidOutputs();
+    }
+
+    public void commitPendingFluidOutputs() {
+        if (getInternalInventory().getStackInSlot(9).isEmpty()) {
+            for (GenericStack stack : stagedFluidOutputs) addFluidOutput(pendingFluidOutputs, stack);
+            stagedFluidOutputs.clear();
+        }
+        if (!pendingFluidOutputsDirty) return;
+        pendingFluidOutputsDirty = false;
+        saveChanges();
+    }
+
+    public void flushPendingFluidOutputs() {
+        if (pendingFluidOutputsDirty || pendingFluidOutputs.isEmpty() || level == null || level.isClientSide) return;
+        if (!getInternalInventory().getStackInSlot(9).isEmpty()) return;
+        var grid = getMainNode().getGrid();
+        if (grid == null) return;
+        var storage = grid.getStorageService().getInventory();
+        var source = IActionSource.ofMachine(this);
+        for (int i = 0; i < pendingFluidOutputs.size();) {
+            GenericStack pending = pendingFluidOutputs.get(i);
+            if (!(pending.what() instanceof AEFluidKey fluidKey) || pending.amount() <= 0) {
+                pendingFluidOutputs.remove(i);
+                saveChanges();
+                continue;
+            }
+            long accepted = storage.insert(fluidKey, pending.amount(), Actionable.MODULATE, source);
+            if (accepted <= 0) {
+                i++;
+                continue;
+            }
+            long left = pending.amount() - accepted;
+            if (left == 0) pendingFluidOutputs.remove(i);
+            else pendingFluidOutputs.set(i, new GenericStack(fluidKey, left));
+            saveChanges();
+        }
+    }
+
+    @Override
+    public void saveAdditional(CompoundTag tag, HolderLookup.Provider registries) {
+        super.saveAdditional(tag, registries);
+        writeFluidOutputs(tag, "pendingFluidOutputs", pendingFluidOutputs, registries);
+    }
+
+    private static void writeFluidOutputs(CompoundTag tag, String key, java.util.List<GenericStack> stacks,
+            HolderLookup.Provider registries) {
+        if (stacks.isEmpty()) return;
+        ListTag outputs = new ListTag();
+        for (GenericStack stack : stacks) outputs.add(GenericStack.writeTag(registries, stack));
+        tag.put(key, outputs);
+    }
+
+    @Override
+    public void loadTag(CompoundTag tag, HolderLookup.Provider registries) {
+        super.loadTag(tag, registries);
+        pendingFluidOutputs.clear();
+        stagedFluidOutputs.clear();
+        pendingFluidOutputsDirty = false;
+        readFluidOutputs(tag.getList("pendingFluidOutputs", Tag.TAG_COMPOUND), registries, pendingFluidOutputs);
+    }
+
+    private static void readFluidOutputs(ListTag outputs, HolderLookup.Provider registries,
+            java.util.List<GenericStack> target) {
+        for (int i = 0; i < outputs.size(); i++) {
+            GenericStack stack = GenericStack.readTag(registries, outputs.getCompound(i));
+            if (stack != null && stack.what() instanceof AEFluidKey && stack.amount() > 0) target.add(stack);
+        }
+    }
+
+    public java.util.List<GenericStack> pendingFluidOutputs() {
+        return java.util.List.copyOf(pendingFluidOutputs);
     }
 
     /**
@@ -172,9 +281,6 @@ public class SimplifyStonecuttingAssemblerBlockEntity extends MolecularAssembler
      */
     @Nullable
     private ProcessorAssemblerRecipe matchRecipe(IPatternDetails pattern) {
-        var outputs = pattern.getOutputs();
-        if (outputs.size() != 1 || !(outputs.get(0).what() instanceof AEItemKey outputKey)) return null;
-        if (NeoECOPrototypeServerConfig.isProcessorRecipeDisabled(outputKey.getItem())) return null;
-        return ProcessorAssemblerRecipes.resolve(level, pattern, outputKey.getItem());
+        return ProcessorAssemblerRecipes.resolve(level, pattern);
     }
 }

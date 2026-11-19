@@ -21,7 +21,7 @@ import net.minecraft.world.item.crafting.RecipeHolder;
  * told that rather than given a fake one.
  */
 public final class ProcessorAssemblerEmiRecipe extends BasicEmiRecipe {
-    /** One slot per ingredient, then the arrow and the single output. */
+    /** One slot per ingredient, then the arrow and up to two outputs. */
     private static final int SLOT = 18;
     private static final int ARROW_X = 4 * SLOT + 4;
     private static final int OUTPUT_X = ARROW_X + 24;
@@ -31,14 +31,14 @@ public final class ProcessorAssemblerEmiRecipe extends BasicEmiRecipe {
     public ProcessorAssemblerEmiRecipe(EmiRecipeCategory category, ResourceLocation id,
                                       ProcessorAssemblerRecipe recipe,
                                       RecipeHolder<ProcessorAssemblerRecipe> holder) {
-        super(category, id, OUTPUT_X + SLOT, SLOT);
+        super(category, id, OUTPUT_X + SLOT * Math.max(1,
+                (recipe.hasItemOutput() ? 1 : 0) + (recipe.hasFluidOutput() ? 1 : 0)), SLOT);
         this.holder = holder;
-        for (Ingredient ingredient : recipe.ingredients()) {
-            inputs.add(EmiIngredient.of(ingredient));
-        }
-        ItemStack result = recipe.result();
-        if (!result.isEmpty()) {
-            outputs.add(EmiStack.of(result));
+        for (Ingredient ingredient : recipe.ingredients()) inputs.add(EmiIngredient.of(ingredient));
+        if (recipe.hasItemOutput()) outputs.add(EmiStack.of(recipe.result()));
+        if (recipe.hasFluidOutput()) {
+            var fluid = recipe.fluidResult();
+            outputs.add(EmiStack.of(fluid.getFluid(), fluid.getComponentsPatch(), fluid.getAmount()));
         }
     }
 
@@ -48,8 +48,8 @@ public final class ProcessorAssemblerEmiRecipe extends BasicEmiRecipe {
             widgets.addSlot(inputs.get(index), index * SLOT, 0);
         }
         widgets.addTexture(EmiTexture.EMPTY_ARROW, ARROW_X, 1);
-        if (!outputs.isEmpty()) {
-            widgets.addSlot(outputs.get(0), OUTPUT_X, 0).recipeContext(this);
+        for (int index = 0; index < outputs.size(); index++) {
+            widgets.addSlot(outputs.get(index), OUTPUT_X + index * SLOT, 0).recipeContext(this);
         }
     }
 
