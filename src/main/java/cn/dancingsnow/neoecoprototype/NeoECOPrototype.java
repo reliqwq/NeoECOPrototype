@@ -118,6 +118,8 @@ public class NeoECOPrototype {
         modBus.addListener(NeoECOPrototype::registerCapabilities);
         modBus.addListener(NeoECOPrototype::registerPartCapabilities);
         net.neoforged.neoforge.common.NeoForge.EVENT_BUS.addListener(
+                cn.dancingsnow.neoecoprototype.recipe.ProcessorAssemblerRecipeReloadListener::register);
+        net.neoforged.neoforge.common.NeoForge.EVENT_BUS.addListener(
                 (net.neoforged.neoforge.event.RegisterCommandsEvent event) ->
                         event.getDispatcher().register(net.minecraft.commands.Commands.literal("neoecoprototype")
                                 .then(net.minecraft.commands.Commands.literal("wireless")

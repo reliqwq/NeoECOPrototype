@@ -9,10 +9,12 @@ import appeng.recipes.handlers.InscriberRecipe;
 import cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig;
 import cn.dancingsnow.neoecoprototype.registration.ModRegistration;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.item.crafting.RecipeHolder;
+import net.minecraft.world.item.crafting.RecipeManager;
 import net.minecraft.world.level.Level;
 import org.jetbrains.annotations.Nullable;
 
@@ -38,7 +40,30 @@ public final class ProcessorAssemblerRecipes {
      * authored from this same rule, so without this they would each be listed twice.
      */
     public static List<ProcessorAssemblerRecipe> derived(Level level, List<ProcessorAssemblerRecipe> existing) {
-        var inscriber = level.getRecipeManager().getAllRecipesFor(AERecipeTypes.INSCRIBER);
+        return derive(level.getRecipeManager(), existing).stream().map(DerivedRecipe::recipe).toList();
+    }
+
+    public static List<RecipeHolder<?>> derivedHolders(RecipeManager manager) {
+        List<ProcessorAssemblerRecipe> existing = manager
+                .getAllRecipesFor(ModRegistration.PROCESSOR_ASSEMBLER_RECIPE_TYPE.get())
+                .stream().map(RecipeHolder::value).toList();
+        List<RecipeHolder<?>> holders = new ArrayList<>();
+        for (DerivedRecipe derived : derive(manager, existing)) {
+            if (NeoECOPrototypeServerConfig.isProcessorRecipeDisabled(derived.recipe().result().getItem())) {
+                continue;
+            }
+            ResourceLocation sourceId = derived.sourceId();
+            ResourceLocation id = ResourceLocation.fromNamespaceAndPath("neoecoprototype",
+                    "derived/inscriber/" + sourceId.getNamespace() + "/" + sourceId.getPath());
+            if (manager.byKey(id).isEmpty()) {
+                holders.add(new RecipeHolder<>(id, derived.recipe()));
+            }
+        }
+        return holders;
+    }
+
+    private static List<DerivedRecipe> derive(RecipeManager manager, List<ProcessorAssemblerRecipe> existing) {
+        var inscriber = manager.getAllRecipesFor(AERecipeTypes.INSCRIBER);
 
         // printed part -> the material inscribed into it. Only a one-for-one inscribe recipe can be
         // unfolded into a material slot; a bulk recipe (several parts from one input) has no whole-number
@@ -58,7 +83,7 @@ public final class ProcessorAssemblerRecipes {
 
         Set<String> covered = existing.stream().map(ProcessorAssemblerRecipes::signature)
                 .collect(java.util.stream.Collectors.toSet());
-        List<ProcessorAssemblerRecipe> derived = new ArrayList<>();
+        List<DerivedRecipe> derived = new ArrayList<>();
         for (var holder : inscriber) {
             InscriberRecipe press = holder.value();
             if (press.getProcessType() != InscriberProcessType.PRESS) continue;
@@ -70,9 +95,12 @@ public final class ProcessorAssemblerRecipes {
                     .map(ingredient -> substitute(ingredient, inscribedFrom))
                     .toList();
             ProcessorAssemblerRecipe recipe = new ProcessorAssemblerRecipe(simplified, press.getResultItem());
-            if (!covered.contains(signature(recipe))) derived.add(recipe);
+            if (!covered.contains(signature(recipe))) derived.add(new DerivedRecipe(holder.id(), recipe));
         }
         return derived;
+    }
+
+    private record DerivedRecipe(ResourceLocation sourceId, ProcessorAssemblerRecipe recipe) {
     }
 
     /**

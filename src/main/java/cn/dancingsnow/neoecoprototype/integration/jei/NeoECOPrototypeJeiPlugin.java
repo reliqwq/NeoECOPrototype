@@ -5,7 +5,6 @@ import cn.dancingsnow.neoecoprototype.NeoECOPrototype;
 import cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig;
 import cn.dancingsnow.neoecoprototype.integration.dataenergistics.MusicKey;
 import cn.dancingsnow.neoecoprototype.recipe.ProcessorAssemblerRecipe;
-import cn.dancingsnow.neoecoprototype.recipe.ProcessorAssemblerRecipes;
 import cn.dancingsnow.neoecoprototype.registration.ModRegistration;
 import mezz.jei.api.IModPlugin;
 import mezz.jei.api.JeiPlugin;
@@ -98,12 +97,9 @@ public final class NeoECOPrototypeJeiPlugin implements IModPlugin {
         if (level == null) {
             return;
         }
-        List<ProcessorAssemblerRecipe> recipes = new java.util.ArrayList<>(level.getRecipeManager()
+        List<ProcessorAssemblerRecipe> recipes = level.getRecipeManager()
                 .getAllRecipesFor(ModRegistration.PROCESSOR_ASSEMBLER_RECIPE_TYPE.get())
-                .stream().map(RecipeHolder::value).toList());
-        if (NeoECOPrototypeServerConfig.current(NeoECOPrototypeServerConfig.DERIVE_PROCESSOR_RECIPES_FROM_INSCRIBER)) {
-            recipes.addAll(ProcessorAssemblerRecipes.derived(level, recipes));
-        }
+                .stream().map(RecipeHolder::value).toList();
         registration.addRecipes(ProcessorAssemblerCategory.TYPE,
                 recipes.stream().filter(recipe ->
                         !NeoECOPrototypeServerConfig.isProcessorRecipeDisabled(recipe.result().getItem()))

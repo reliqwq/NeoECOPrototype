@@ -5,18 +5,15 @@ import cn.dancingsnow.neoecoae.integration.emi.recipe.MultiblockEmiRecipe;
 import cn.dancingsnow.neoecoprototype.NeoECOPrototype;
 import cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig;
 import cn.dancingsnow.neoecoprototype.recipe.ProcessorAssemblerRecipe;
-import cn.dancingsnow.neoecoprototype.recipe.ProcessorAssemblerRecipes;
 import cn.dancingsnow.neoecoprototype.registration.ModRegistration;
 import dev.emi.emi.api.EmiEntrypoint;
 import dev.emi.emi.api.EmiPlugin;
 import dev.emi.emi.api.EmiRegistry;
 import dev.emi.emi.api.recipe.EmiRecipeCategory;
 import dev.emi.emi.api.stack.EmiStack;
-import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.crafting.RecipeHolder;
 
-import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -74,32 +71,14 @@ public final class NeoECOPrototypeEmiPlugin implements EmiPlugin {
         registry.addCategory(PROCESSOR_ASSEMBLER);
         registry.addWorkstation(PROCESSOR_ASSEMBLER,
                 EmiStack.of(ModRegistration.SIMPLIFY_STONECUTTING_ASSEMBLER_BLOCK.get()));
-        List<RecipeHolder<ProcessorAssemblerRecipe>> fromJson = level.getRecipeManager()
+        List<RecipeHolder<ProcessorAssemblerRecipe>> recipes = level.getRecipeManager()
                 .getAllRecipesFor(ModRegistration.PROCESSOR_ASSEMBLER_RECIPE_TYPE.get());
-        List<ProcessorAssemblerRecipe> jsonRecipes = new ArrayList<>();
-        for (var holder : fromJson) {
+        for (var holder : recipes) {
             if (!isShown(holder.value())) {
                 continue;
             }
-            jsonRecipes.add(holder.value());
             registry.addRecipe(new ProcessorAssemblerEmiRecipe(PROCESSOR_ASSEMBLER, holder.id(),
                     holder.value(), holder));
-        }
-        if (!NeoECOPrototypeServerConfig.current(NeoECOPrototypeServerConfig.DERIVE_PROCESSOR_RECIPES_FROM_INSCRIBER)) {
-            return;
-        }
-        for (var derived : ProcessorAssemblerRecipes.derived(level, jsonRecipes)) {
-            if (!isShown(derived)) {
-                continue;
-            }
-            var output = BuiltInRegistries.ITEM.getKey(derived.result().getItem());
-            // The leading slash is EMI asking for it: a recipe id that has no RecipeHolder behind
-            // it is synthetic to EMI, and without the prefix it logs "not present in recipe manager"
-            // once per derived recipe (measured 16 lines in a client log, 2026-10-07).
-            registry.addRecipe(new ProcessorAssemblerEmiRecipe(PROCESSOR_ASSEMBLER,
-                    ResourceLocation.fromNamespaceAndPath(NeoECOPrototype.MOD_ID,
-                            "/assembler_derived/" + output.getNamespace() + "/" + output.getPath()),
-                    derived, null));
         }
     }
 

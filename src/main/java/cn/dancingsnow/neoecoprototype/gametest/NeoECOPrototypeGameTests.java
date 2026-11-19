@@ -3447,6 +3447,25 @@ public final class NeoECOPrototypeGameTests {
                 .derived(helper.getLevel(), List.of());
         helper.assertTrue(derived.size() >= 3, "derived only " + derived.size() + " recipes from the inscriber");
 
+        var sourceManager = helper.getLevel().getRecipeManager();
+        var assemblerType = ModRegistration.PROCESSOR_ASSEMBLER_RECIPE_TYPE.get();
+        var withoutAssembler = sourceManager.getRecipes().stream()
+                .filter(holder -> holder.value().getType() != assemblerType).toList();
+        var isolatedManager = new net.minecraft.world.item.crafting.RecipeManager(
+                helper.getLevel().registryAccess());
+        isolatedManager.replaceRecipes(withoutAssembler);
+        var added = cn.dancingsnow.neoecoprototype.recipe.ProcessorAssemblerRecipes
+                .derivedHolders(isolatedManager);
+        helper.assertTrue(added.size() >= 3, "RecipeManager injection produced only " + added.size()
+                + " recipes from the inscriber");
+        var merged = new java.util.ArrayList<>(withoutAssembler);
+        merged.addAll(added);
+        isolatedManager.replaceRecipes(merged);
+        var repeated = cn.dancingsnow.neoecoprototype.recipe.ProcessorAssemblerRecipes
+                .derivedHolders(isolatedManager);
+        helper.assertTrue(repeated.isEmpty(), "RecipeManager injection repeated " + repeated.size()
+                + " already loaded recipes");
+
         // The bundled JSON recipes are exactly AE2's own press recipes, so dedupe must drop those three
         // while still letting other mods' inscriber recipes through.
         var declared = helper.getLevel().getRecipeManager()

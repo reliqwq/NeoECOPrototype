@@ -260,9 +260,9 @@ public final class NeoECOPrototypeServerConfig {
                 .defineInRange("wireless_ae_per_link_per_tick", 50.0D, 0.0D, 16384.0D);
         DERIVE_PROCESSOR_RECIPES_FROM_INSCRIBER = builder
                 .comment("Derive processor recipes from AE2 inscriber recipes. Default: true.",
-                        "Note: with this on, deleting a data file alone does not disable a recipe; use the blacklist below.",
+                        "Note: changes apply after /reload; deleting a data file alone does not disable a recipe, use the blacklist below.",
                         "是否接受从 AE2 压印器推导的处理器配方。默认 true。",
-                        "注：开启时仅删数据文件无法禁用配方，请用下方的黑名单。")
+                        "注：改动后执行 /reload 生效；仅删数据文件无法禁用配方，请用下方的黑名单。")
                 .define("derive_processor_recipes_from_inscriber", true);
         builder.push("l1_computation");
         L1_CPU_THREADS = builder
@@ -467,7 +467,7 @@ public final class NeoECOPrototypeServerConfig {
     /** Shared by the assembler and its JEI page so both agree on what is refused. */
     public static boolean isProcessorRecipeDisabled(net.minecraft.world.item.Item output) {
         var id = net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(output);
-        return DISABLED_PROCESSOR_RECIPES.get().stream().anyMatch(entry -> entry.equals(id.toString()));
+        return current(DISABLED_PROCESSOR_RECIPES).stream().anyMatch(entry -> entry.equals(id.toString()));
     }
 
     private NeoECOPrototypeServerConfig() {
