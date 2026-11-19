@@ -264,10 +264,10 @@ dependencies {
 // 21.2.17 (released 2026-11-12) adds a separate crafting-status CPU glyph hook. The addon implements that
 // hook on both tier families and no longer needs its client mixin for the status panel. Entry diff:
 // 4666 -> 4691, 29 added, 4 removed, 123 changed; all 67 constructor descriptors resolve.
-// 21.2.18 was adopted 2026-11-17: versus 21.2.17, 16 entries added, 6 removed, 133 changed in place
-// (15 class entries added, none removed, 111 changed). The 67 referenced constructor descriptors still all
-// resolve, and the member audit has no new missing findings versus 21.2.17.
-    implementation files("neoecobeta/neoecoae-21.2.18.jar")
+// 21.2.19 CI artifact (commit 49f71bc708c1872c8e91e3510333608d9a12a78b; not a GitHub release) was adopted
+// 2026-11-19 for #165. Versus 21.2.18: jar entries 5112 -> 5117, 7 added, 2 removed, 148 changed.
+// All 68 constructor descriptors named by the compiled addon resolve against this artifact.
+    implementation files("neoecobeta/neoecoae-21.2.19.jar")
     // MegaCells 4.11.0 is the supported optional integration version.
     implementation files("libs/megacells-4.11.0.jar")
     // Dev-runtime only: keep them off the compile classpath but on the runtime classpath.

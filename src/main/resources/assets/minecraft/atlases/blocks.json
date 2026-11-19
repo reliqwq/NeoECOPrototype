@@ -15,6 +15,12 @@
     {
       "type": "single",
       "resource": "minecraft:block/powder_snow"
+    },
+    {
+      "type": "neoecoprototype:workstation_palette",
+      "palettes": {
+        "neoecoprototype:l1": "neoecoprototype:block/workstation/controller/colormap/neoecoprototype"
+      }
     }
   ]
 }

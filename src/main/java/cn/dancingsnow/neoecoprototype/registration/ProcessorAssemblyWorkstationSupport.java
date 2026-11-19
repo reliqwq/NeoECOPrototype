@@ -104,14 +104,10 @@ public final class ProcessorAssemblyWorkstationSupport {
 
     /**
      * The formed controller's appearance while this card is installed. eco bakes these standalone
-     * ({@code ModelEvent.RegisterAdditional}) and draws them instead of the blockstate model, which is the
-     * only way an addon can own the look: writing into {@code assets/neoecoae/} is rejected by CI. Both are
-     * eco's geometry re-pointed at our textures - see {@code tools/make_workstation_controller_textures.py}.
-     * Both light strips animate at eco's own rhythm (two frames, 15 ticks, interpolated): the working
-     * strip is eco's pair retinted, the idle strip pairs the retinted idle sheet with a frame that flips
-     * both greens across every lit pixel of the front and top faces - a smaller change reads as a still
-     * image at block scale. The working screen keeps eco's 22-frame scan at 5 ticks; the idle screen is
-     * still, as eco's is.
+     * ({@code ModelEvent.RegisterAdditional}) and draws them instead of its blockstate model. Their
+     * geometry follows eco 21.2.18, while the addon-owned {@code WorkstationPaletteSource} reads eco's
+     * live masks at atlas stitch and generates every texture in our namespace. This replaces the former
+     * build-time retint, which was pinned to eco 21.2.15 and had to be redone when eco changed its art.
      */
     static final ResourceLocation IDLE_MODEL = NeoECOPrototype.id("block/workstation/controller_off");
     static final ResourceLocation WORKING_MODEL = NeoECOPrototype.id("block/workstation/controller_on");

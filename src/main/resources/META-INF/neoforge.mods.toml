@@ -87,11 +87,11 @@ side = "BOTH"
 [[dependencies.neoecoprototype]]
 modId = "neoecoae"
 mandatory = true
-versionRange = "[21.2.18,)"
+versionRange = "[21.2.19,)"
 # The compile baseline and runtime floor stay aligned. 21.2.16 is still the first release with the #156
 # workbench host APIs; 21.2.17 adds the independent crafting-status tier glyph API used by both addon tier
 # families. Its status panel resolves the selected registered tier before requesting that glyph. The current
-# compile baseline and runtime floor are both 21.2.18.
+# compile baseline and runtime floor are both 21.2.19.
 # Forced again, and by the same kind of surprise: 21.2.12 moved eco's impl/storage/** tree to storage/**,
 # and our bytecode names two of those classes directly - one in the return descriptor of the
 # createCellInventory override, one as a static call in the drive renderer. A moved class is a

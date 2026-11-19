@@ -1,6 +1,6 @@
 {
   "textures": {
-    "particle": "neoecoprototype:block/workstation/controller_particle"
+    "particle": "neoecoprototype:block/working_station/casing"
   },
   "elements": []
 }
