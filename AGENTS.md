@@ -37,7 +37,7 @@ Neo ECO AE Extension（下称 eco）的 **L1 超前期扩展**：给 eco 的 L4 
 | Minecraft | 1.21.1 | — |
 | NeoForge | 21.1.251 | — |
 | AE2 | 19.2.17，地板 `[19.2.17,)`；编译 = 运行 = 同一颗 | `build.gradle`、`neoforge.mods.toml` |
-| Neo ECO AE Extension | **21.2.18**（编译基线）／地板 `[21.2.18,)`——编译基线 = 运行地板，见 §5 | `build.gradle:268`、`neoforge.mods.toml:90` |
+| Neo ECO AE Extension | **21.2.19**（CI 构建 `49f71bc70`，编译基线）／地板 `[21.2.19,)`——编译基线 = 运行地板，见 §5 | `build.gradle:270`、`neoforge.mods.toml:90` |
 | LDLib2 | 2.2.40，**硬依赖**，地板 `[2.2.40,)`（抄 eco 自己那条，不是我们挑的） | `build.gradle` |
 | 数据能源（Data Energistics） | 3.4.0，**可选**，只有 `compileOnly`；dev 运行期 2026-11-12 起不装 | `build.gradle:291` |
 | 闪电科技 ae2lt + thunderbolt | 2.1.4-beta3 / 2.0.3，`runtimeOnly`，我们 0 处 Java 引用 | `build.gradle:304` |
@@ -52,11 +52,11 @@ Neo ECO AE Extension（下称 eco）的 **L1 超前期扩展**：给 eco 的 L4 
 
 1. 类级——我们字节码点名的 eco 类型，逐个对目标 jar 的条目表；
 2. 成员级——`tools/audit_eco_abi.py`；
-3. **构造子级**——只比构造子描述符（`tools/audit_eco_ctors.py`，2026-11-17 现量：**我们点名 67 条，对 21.2.17 和 21.2.18 都是 0 缺**）。
+3. **构造子级**——只比构造子描述符（`tools/audit_eco_ctors.py`，2026-11-19 现量：**68 条，对 21.2.19 为 0 缺**；历史基线 21.2.17/21.2.18 为 67 条 0 缺）。
 
 第 3 把不能省：成员级尺子结构上看不见"record 多一个分量"，因为 javap 把构造子印在类名下、`<init>` 永不匹配——而 record 加分量正是 `NoSuchMethodError` 那一类。尺子之外还要**照那份 jar 重编 + 跑套件 + 客户端开一遍界面**，三件齐全才算跟过。
 
-**jar 身份只认逐条目 name + CRC + length**（`unzip -v` 三列排序后 diff）；md5 会因 zip 时间戳假报"不是同一颗"。换 eco 基线时 `build.gradle` 点名的**文件名一起改**：现在是 `neoecobeta/neoecoae-21.2.18.jar`（带 `-sources.jar`）。
+**jar 身份只认逐条目 name + CRC + length**（`unzip -v` 三列排序后 diff）；md5 会因 zip 时间戳假报"不是同一颗"。换 eco 基线时 `build.gradle` 点名的**文件名一起改**：现在是 `neoecobeta/neoecoae-21.2.19.jar`（带 `-sources.jar`）；此基线来自 CI 构建 `49f71bc708c1872c8e91e3510333608d9a12a78b`，非 GitHub Release。
 
 **数据能源这条线是"编译地板 / 运行基线"曾经分开的历史原因**：DE 3.4.0 自己 required `ae2 [19.2.18,)` + `ldlib2 [2.2.44,)` + `ae2wtlib`，那两条区间是把 dev 运行期顶上去的唯一原因。11-12 起它不在 dev 运行期，编译与运行重新合成一颗；音乐那一族本来就整族对玩家隐藏。**接回来是三步，少一件就是启动期依赖报错**：① 恢复那行 `runtimeOnly`；② ae2 / ldlib2 的 `runtimeOnly` 回到 19.2.18 / 2.2.44；③ 去掉 `run/mods/` 里那颗 jar 的 `.disabled` 后缀（改名，不是删除）——原文见 `build.gradle:288-290`。
 
@@ -171,7 +171,7 @@ gametest/     测试。探针类单独成文件。
 
 - 类头写版本锁（§2 格式）。
 - `require = 1` 用于必须命中的注入：上游删方法时在类变换期崩，比静默失效好。**崩 > 静默。** `require = 0` 只在能接受功能失效时用，并配一条 GameTest 断言。
-- **现状（2026-11-13 现量）：12 个注入点（6 `@Inject` + 6 `@Redirect`）分布在 7 个类里，另有 2 个 Accessor。** `require = 1` 现在写在 5 条上，剩下 2 条（`ECOClientUIBridgeMixin` 的 `@Inject`、`FixedBlockEntityRenderersMixin` 的 `@Redirect`）靠 `neoecoprototype.mixins.json` 的 `injectors.defaultRequire = 1` 兜住 —— 那一条是承重的，别删。2026-10-25 撤掉的三条（idle 功率、成型定义、缆按宿主选）见 §13。**2026-11-13 又撤一条：`ComputationCpuStatusTierGlyphMixin`**（`client` 数组里给状态页补档位角标的那只）—— eco 21.2.17 给了 `IECOTier.getCraftingStatusCpuTierGlyph()`，我们两只 tier 枚举各自答状态页与确认页，注入没有理由留了；同轮编译基线与运行地板一起抬到 `[21.2.17,)`。旧的"6 个注入点／4 个类／require 写在 4 条"是 11-04 的数，那批压卡 `@Redirect`（`AdvancedAEPatternUpgradeMixin` 三条、`ExtendedAEPatternUpgradeMixin` 两条）落地后就没再数过。
+- **现状（2026-11-19 现量）：16 个注入点（7 `@Inject` + 9 `@Redirect`）分布在 8 个类里，另有 2 个 Accessor。** `require = 1` 现在写在 9 条上，剩下 2 条（`ECOClientUIBridgeMixin` 的 `@Inject`、`FixedBlockEntityRenderersMixin` 的 `@Redirect`）靠 `neoecoprototype.mixins.json` 的 `injectors.defaultRequire = 1` 兜住 —— 那一条是承重的，别删。2026-11-13 撤掉状态角标那只（`ComputationCpuStatusTierGlyphMixin`）；2026-11-19 新增 `MolecularAssemblerFluidOutputMixin`（4 条，全部 `require = 1`，见该类头）。
 - **不要用 `@At("RETURN")` 改局部变量** —— 返回值已经压栈，改局部变量不影响结果。要用 `cir.setReturnValue(...)` 或 MixinExtras 的 `@ModifyReturnValue`。（上游那条死钩子就是这么写的，见 §11。）
 - `mixinListMatchesShippedMixinClasses` 是双向守卫：增删 Mixin 类或 json 条目，两个方向都要同步。
 - **`client` 数组里的注入没有任何服务端面**：mixin 目标不是编译期符号，编译查不到；`runGameTestServer` 是 dedicated 侧，那两条根本不参与类变换。所以"客户端起一遍"必须带读数，不是随便开一下：确认 `FixedBlockEntityRenderersMixin` 与 `SlotYAccessor` 各被应用一次，然后点开一个超尺寸接口界面（走 `SlotYAccessor` 的 +36）和一台带 eco 固定渲染器的机器（我们注册了三台：驱动器、计算驱动器、冷却控制器）。
@@ -192,7 +192,7 @@ gametest/     测试。探针类单独成文件。
 
 - **探针隔离**：`@GameTest` 方法体里不许内联可选 mod 的类 —— 那会让整台 `gameTestServer` 起不来。引用第三方类的代码放单独的探针类，主测试只在 `ModList` 检查通过后调用。
 - **空扫描必须 fail**：扫不到目标就 `helper.fail(...)`，不许静默 `succeed()`。
-- **`getLevel().getServer().getResourceManager()` 只装 `SERVER_DATA`**：模型、贴图、语言这些 `CLIENT_ASSETS` 在 GameTest 里 `getResource` 一律 empty（11-07 现量：把守卫判红在 "no pack in this game carries it"，而那六张图在 `build/resources/main` 里明明都在）。要读客户端资源就走 mod 自己的 classpath —— `NeoECOPrototype.class.getResourceAsStream("/assets/<ns>/<path>")`，判 `.mcmeta` 是否存在也用同一个口（null = 没有）。loot_table / worldgen 这类数据包才用资源管理器。附带的坑：`ImageIO.read(stream)` 读回来的图片尺寸必须按名字分别断言（body 128×128、两条灯带各 128×256 两帧、工作态屏幕 16×352 共 22 帧，这三张各带自己的 `.mcmeta`——灯带 15 刻带插值、屏幕 5 刻不插值；待机屏幕与 particle 各 16×16 且无 `.mcmeta`），一刀切的规则会把 `controller_particle` 判成动画；`.mcmeta` 要走同一个 classpath 口判（`addonAsset` 返回 null = 没有）。两条灯带的第二帧不是"跟第一帧不一样"就算数：正面与顶面点亮的那 **344** 个像素一个都不许停（eco 自己那对实测翻的就是这 344 个；只翻 68 个的早期稿实机看着是静止图，11-07 现量）。
+- **`getLevel().getServer().getResourceManager()` 只装 `SERVER_DATA`**：模型、贴图、语言这些 `CLIENT_ASSETS` 在 GameTest 里 `getResource` 一律 empty（11-07 现量：把守卫判红在 "no pack in this game carries it"，而那六张图在 `build/resources/main` 里明明都在）。要读客户端资源就走 mod 自己的 classpath —— `NeoECOPrototype.class.getResourceAsStream("/assets/<ns>/<path>")`，判 `.mcmeta` 是否存在也用同一个口（null = 没有）。loot_table / worldgen 这类数据包才用资源管理器。附带的坑：`ImageIO.read(stream)` 读回来的图片尺寸必须按名字分别断言（body 128×128、两条灯带各 128×256 两帧、工作态屏幕 16×352 共 22 帧，这三张各带自己的 `.mcmeta`——灯带 15 刻带插值、屏幕 5 刻不插值；待机屏幕与 particle 各 16×16 且无 `.mcmeta`），一刀切的规则会把 `controller_particle` 判成动画；`.mcmeta` 要走同一个 classpath 口判（`addonAsset` 返回 null = 没有）。两条灯带的第二帧不是"跟第一帧不一样"就算数：正面与顶面点亮的那 **344** 个像素一个都不许停（eco 自己那对实测翻的就是这 344 个；只翻 68 个的早期稿实机看着是静止图，11-07 现量）。**11-19 起这批预烤灯带/屏幕图已删（见 §15 工作站那行），外观守卫改为检查模型槽位、palette 色板与 atlas 声明闭包；"按名字分别断言、一刀切会误判"这条教训不变。**
 - `required = false` 给可选依赖测试，内部仍要做 `ModList` 检查。
 - **负向优先**：边界、拒绝路径、过量消耗、错误状态。正向只证"能跑"。
 - **每批配一个会红的控制组**，并且要能指出这条断言是哪一层验的（套件里 0 次引用某功能，只证编译面，不证功能被验过）。
@@ -227,7 +227,7 @@ gametest/     测试。探针类单独成文件。
 
 ## 11. 资源与对外边界（CI 有闸）
 
-- **`src/main/resources/assets` 里不许出现 `neoecoae:` 引用**（`.github/workflows/repository-checks.yml` 用 grep 拦，命中即红）。所以"借 eco 的贴图/模型"这条路在资源侧走不通；要借只能走代码引用运行依赖，而那会把可选依赖变必需 —— 默认答案是**自己画一张**。
+- **`src/main/resources/assets` 的 JSON/MCMeta 里不许出现 `neoecoae:` 引用**（`.github/workflows/repository-checks.yml` 用 grep 拦，命中即红）。例外不是放宽资源文件规则，而是用代码注册小型 atlas source：#165 起 `WorkstationPaletteSource` 委托 eco 21.2.19 的公开 `WorkstationSpriteSource`，palette key 写成 `namespace:path` 后生成 sprite 落在该 namespace；六张不染色的共享工作站贴图由同一个 source 做本地命名空间别名。禁止在资源文件里点名上游路径，版本锁与来源闭包由 GameTest 检查。
 - 同一份 CI 还跑 `git diff --check`。
 - 第三方素材先量授权：LICENSE 常只覆盖代码，素材可能是署名第三人且无授权。
 - **判"死贴图"的尺子要把四个引用根一起数**，11-17 那次每漏一个就误判一张：① java 里的字面量与拼名；② `assets/**/screens/*.json` 的 `"texture"`（`textures/gui/simplify_assembler.png` 就这样活着）；③ `data/neoecoprototype/curios/slots/*.json` 的 `"icon"`（`textures/slot/empty_universal_link_card.png`）；④ 随 jar 打包的内置回退资源包 `src/main/resources/legacy_art/` 自己的 blockstate/model（它引用改名前的 `block/aluminum_alloy_casing`；这条不挡住删除 —— 那份包是从 tag 切出来的自足切片，但它会让"闭包扫不到"这句话扫错对象）。同型坑：给标识符长度设下限会漏掉 `gui/tier/l1.png`（两张 tier 枚举的 `getCPUOverlayTexture()` 返回它）。
@@ -268,6 +268,7 @@ gametest/     测试。探针类单独成文件。
 | #154 | 单盘存储优先级 | CLOSED(completed) 11-05 | 驱动解析与 RPC 不再绑死 eco 的宿主 | 已接（偏移存盘上、挂载=主机+偏移） |
 | #155 | 输入仓面板标题 | CLOSED(completed) 11-05 | **只落输入仓**：从方块取描述键 | 输入仓 0 行；输出仓那半是我们自己覆写 `createUI`（见 §15） |
 | #156 | 元件工作台宿主 API | CLOSED(completed) 11-10 | `IECOConfigurableCellHost` + `IECOCellWorkbenchDrive`，21.2.16 是首个可安装件 | 两条 `implements` + 面板第五个动作 + 守卫 |
+| #165 | 工作站 colormap 输出 namespace | CLOSED 11-19 07:41Z | 21.2.19 (`a0970206`) 接受 `namespace:path` palette key，并在对应命名空间输出 sprite | `WorkstationPaletteSource` 委托上游 source；删本地染色/动画副本，保留静态 alias + 守卫 |
 
 **仍活着的三条约束：**
 
@@ -310,7 +311,7 @@ gametest/     测试。探针类单独成文件。
 | 样板迁移源（#128 / #136） | 我们的 F1 母线用 eco 的 `ECOCraftingPatternBusBlockEntity`，它 implements `PatternStorageHost` ⇒ 继承 false，子系统迁移看不见母线里的样板 | **不开**：可写目标缓存与源池闸门收的是同一个 `PatternStorageHost`，附属一答 true 同一只容器两处都在，报告路径不排除来源格 ⇒ 自匹配 → `ALREADY_PRESENT` → 退 blank、清源、还 +1 计数。#136 三条上游 21.2.11 落了但**行为面我们一条没跑**。开回去是四件事：子类装回（备份目录 `_removed_sources/` 是本机留档，不进仓库）、覆写返回 true、守恒测试装上（守恒测试的草稿只在这台机器的 `C:/tmp/repro_bus_migration_block.java.txt`，仓库里没有——重开时按下面那条判据重写）、守卫 `addonPatternBusStaysOutOfTheMigrationSourcePool` 一起翻 |
 | 存储盘/矩阵收不收 AE2 的卡 | 只由 AE2 的 `Upgrades` 关联表决定：不登记 = 上限 0，附属没有覆写点 | 现政策：带分区表的全族收模糊/反转；**销毁卡除六只小宗与无限源外全收**（11-06 拍）。扫描谓词必须是 `ICellWorkbenchItem` + `getConfigInventory != null`，用 eco 的 `IBasicECOCellItem` 会整族漏掉 omni。守卫 `everyPartitionedCellTakesTheFilterCardsAndVoidSkipsSmallBulk`，两个控制组：谓词改回 `IBasicECOCellItem` ⇒ 红的正好 omni 八只；去掉小宗前缀判断 ⇒ 红的正好小宗六只 |
 | 存储主机面板的「配置」 | 曾点了没反应（eco 的 locator 把宿主绑死它自己的 BE） | 已接（#156 / `21aa9b1`）：两条 `implements` + 面板第五个动作。**GameTest 只到"locator 接受我们的安装"**——`FakePlayer.openMenu` 不换窗口，所以"窗口真的出现"只有客户端读数。**发版必读**：CHANGELOG 1.4.9 第 14 条那句"点了没反应、已提 #156"要整条翻成"现在能打开元件工作台"，不许只加不删 |
-| 「工作站」模块卡的外观 | eco 21.2.16 重画了整个 `working_station/controller_formed/` 一族，我们的 `controller_*` 是照 21.2.15 那一代复制/改色的 | **不崩，只是看着是上一代**。跟上新形状 = 重画（归美术，走 §17）。`tools/make_workstation_controller_textures.py` **故意钉在 `neoecobeta/neoecoae-21.2.15.jar`**，那颗旧 jar 不在仓库里（`neoecobeta/` 被 ignore），换机器时要按 §2 那条自己去取；`make_processor_assembly_panel_icons.py` 已换 21.2.16 且像素全等 |
+| 「工作站」模块卡的外观 | eco 21.2.16 重画 `working_station/controller_formed/`；21.2.19/#165 允许完整 namespace palette key，染色与双帧动画由 eco 公共 source 生成 | 已接：`WorkstationPaletteSource` 委托上游 source，模型用 `neoecoprototype:l1` sprite；静态共享 sheet 在运行期别名到本地 namespace。旧重烤脚本和预烤图已备份至 `贴图工作区/工作站colormap迁移_2026-11-19/` 后删除；守卫 `ourWorkstationModuleUnlocksOurOwnRecipes` 与 `shippedAssetReferencesResolve` 检查模型槽、palette 与 atlas 来源。
 
 **下面这些已经修了，别再照旧说法改一遍**（细节在 [docs/known-pitfalls-history.md](docs/known-pitfalls-history.md)）：
 
