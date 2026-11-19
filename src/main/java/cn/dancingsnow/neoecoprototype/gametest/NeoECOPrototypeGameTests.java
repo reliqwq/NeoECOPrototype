@@ -15499,6 +15499,26 @@ public final class NeoECOPrototypeGameTests {
                         + " back to one run would be answered at one run's worth of material and energy");
                 return;
             }
+            // Both output halves scale together. A fluid-only recipe (the snowball coolant) must arrive with
+            // its own 64x fluidOutput and an empty item half, or the station's panel draws it with nothing to
+            // encode - the "workstation cannot recognize the recipe" report of 2026-11-19.
+            if (assemblerRecipe.hasFluidOutput()) {
+                var displayFluid = recipe.display().fluidOutput();
+                int expectedFluid = Math.multiplyExact(assemblerRecipe.fluidResult().getAmount(), 64);
+                if (displayFluid.isEmpty()
+                        || !displayFluid.is(assemblerRecipe.fluidResult().getFluid())
+                        || displayFluid.getAmount() != expectedFluid
+                        || recipe.display().hasItemOutput()) {
+                    helper.fail("our adapted fluid recipe " + recipe.id() + " hands out "
+                            + (displayFluid.isEmpty() ? "no fluid" : displayFluid.getAmount() + " mB of "
+                                    + displayFluid.getFluid()) + " instead of " + expectedFluid + " mB of "
+                            + assemblerRecipe.fluidResult().getFluid() + " with an empty item half");
+                    return;
+                }
+            } else if (recipe.display().hasFluidOutput()) {
+                helper.fail("our adapted item recipe " + recipe.id() + " grew a fluid output it does not own");
+                return;
+            }
         }
         if (cardRecipe == null) {
             helper.fail("the upgrade card is not in the recipe list of the station it is installed in: it is a"

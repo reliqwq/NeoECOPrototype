@@ -130,8 +130,10 @@ public final class ProcessorAssemblyWorkstationSupport {
 
     /**
      * One processor-assembly recipe, stated as a workstation contract: every ingredient is
-     * {@link #RECIPE_SCALE} units (a repeated ingredient is already a second list entry), the output count
-     * is scaled the same way, and there is no fluid in either direction.
+     * {@link #RECIPE_SCALE} units (a repeated ingredient is already a second list entry), and both output
+     * halves are scaled the same way - an item result to its count, a fluid result to its millibuckets, so
+     * the station's panel, pattern encoding, and execution all state the same batch as our own assembler.
+     * A fluid-only recipe rides the shape eco's own coolant recipe uses (empty item output, a fluidOutput).
      *
      * <p>The card is deliberately not one of these. It is crafted by eco's large integrated working station
      * from a {@code neoecoae:large_integrated_working_station} recipe, because that is the one shape that can
@@ -151,10 +153,16 @@ public final class ProcessorAssemblyWorkstationSupport {
             }
             inputs.add(new SizedIngredient(ingredient, RECIPE_SCALE));
         }
-        ItemStack result = processor.result().copy();
-        result.setCount(Math.multiplyExact(result.getCount(), RECIPE_SCALE));
+        ItemStack result = processor.hasItemOutput() ? processor.result().copy() : ItemStack.EMPTY;
+        if (processor.hasItemOutput()) {
+            result.setCount(Math.multiplyExact(result.getCount(), RECIPE_SCALE));
+        }
+        FluidStack fluidResult = processor.hasFluidOutput()
+                ? processor.fluidResult().copyWithAmount(
+                        Math.multiplyExact(processor.fluidResult().getAmount(), RECIPE_SCALE))
+                : FluidStack.EMPTY;
         var display = new IntegratedWorkingStationRecipe(inputs,
-                new SizedFluidIngredient(FluidIngredient.empty(), 1), result, FluidStack.EMPTY,
+                new SizedFluidIngredient(FluidIngredient.empty(), 1), result, fluidResult,
                 ENERGY_AE, PROCESSING_TICKS);
         return new LargeWorkstationRecipe(recipe.id(), display, ENERGY_AE, List.of(), SOURCE_TYPE)
                 .processing(PROCESSING_TICKS, 0, false);
