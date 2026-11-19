@@ -2890,8 +2890,71 @@ public final class NeoECOPrototypeGameTests {
     public static void processorAssemblerRecipesMatchInAnyOrder(GameTestHelper helper) {
         var recipes = helper.getLevel().getRecipeManager().getAllRecipesFor(
                 ModRegistration.PROCESSOR_ASSEMBLER_RECIPE_TYPE.get());
-        helper.assertTrue(recipes.size() >= 3,
-                "expected at least three processor assembler recipes, found " + recipes.size());
+        helper.assertTrue(recipes.size() >= 4,
+                "expected at least four processor assembler recipes, found " + recipes.size());
+        var snowFluidHolder = helper.getLevel().getRecipeManager().byKey(ResourceLocation
+                .fromNamespaceAndPath(NeoECOPrototype.MOD_ID, "processor_assembler/snowballs_to_powder_snow"));
+        var snowFluid = snowFluidHolder.isPresent()
+                && snowFluidHolder.get().value() instanceof cn.dancingsnow.neoecoprototype.recipe.ProcessorAssemblerRecipe recipe
+                        ? recipe : null;
+        helper.assertTrue(snowFluid != null && snowFluid.hasFluidOutput() && !snowFluid.hasItemOutput()
+                        && snowFluid.fluidResult().is(ModRegistration.POWDER_SNOW_FLUID.get())
+                        && snowFluid.fluidResult().getAmount() == 1000,
+                "3 snowballs should map to exactly 1000 mB of liquid powder snow");
+        var snowballInput = new GenericStack(AEItemKey.of(Items.SNOWBALL), 1);
+        var snowFluidPattern = new HandmadePattern(AEItemKey.of(Items.SNOWBALL),
+                List.of(new HandmadeInput(1, snowballInput), new HandmadeInput(1, snowballInput),
+                        new HandmadeInput(1, snowballInput)),
+                List.of(new GenericStack(AEFluidKey.of(ModRegistration.POWDER_SNOW_FLUID.get()), 1000)));
+        if (cn.dancingsnow.neoecoprototype.recipe.ProcessorAssemblerRecipes.resolve(
+                helper.getLevel(), snowFluidPattern) != snowFluid) {
+            helper.fail("the snowball pattern for 1000 mB liquid powder snow did not resolve to its recipe");
+            return;
+        }
+        var snowballInputs = List.of(new HandmadeInput(1, snowballInput), new HandmadeInput(1, snowballInput),
+                new HandmadeInput(1, snowballInput));
+        var wrongSnowFluid = new HandmadePattern(AEItemKey.of(Items.SNOWBALL), snowballInputs,
+                List.of(new GenericStack(AEFluidKey.of(net.minecraft.world.level.material.Fluids.WATER), 1000)));
+        if (cn.dancingsnow.neoecoprototype.recipe.ProcessorAssemblerRecipes.resolve(
+                helper.getLevel(), wrongSnowFluid) != null) {
+            helper.fail("the snowball recipe accepted water as its fluid output");
+            return;
+        }
+        var wrongAmount = new HandmadePattern(AEItemKey.of(Items.SNOWBALL), snowballInputs,
+                List.of(new GenericStack(AEFluidKey.of(ModRegistration.POWDER_SNOW_FLUID.get()), 999)));
+        if (cn.dancingsnow.neoecoprototype.recipe.ProcessorAssemblerRecipes.resolve(
+                helper.getLevel(), wrongAmount) != null) {
+            helper.fail("the snowball recipe accepted a 999 mB pattern output");
+            return;
+        }
+        var wrongBatch = new HandmadePattern(AEItemKey.of(Items.SNOWBALL), snowballInputs,
+                List.of(new GenericStack(AEFluidKey.of(ModRegistration.POWDER_SNOW_FLUID.get()), 2000),
+                        new GenericStack(AEItemKey.of(Items.SNOWBALL), 1)));
+        if (cn.dancingsnow.neoecoprototype.recipe.ProcessorAssemblerRecipes.resolve(
+                helper.getLevel(), wrongBatch) != null) {
+            helper.fail("the recipe accepted an item/fluid output set with different run counts");
+            return;
+        }
+        var mixedSnow = new cn.dancingsnow.neoecoprototype.recipe.ProcessorAssemblerRecipe(
+                List.of(Ingredient.of(Items.SNOWBALL), Ingredient.of(Items.SNOWBALL), Ingredient.of(Items.SNOWBALL)),
+                new ItemStack(Items.SNOWBALL, 1),
+                new net.neoforged.neoforge.fluids.FluidStack(ModRegistration.POWDER_SNOW_FLUID.get(), 1000));
+        var mixedPattern = new HandmadePattern(AEItemKey.of(Items.SNOWBALL), snowballInputs,
+                List.of(new GenericStack(AEItemKey.of(Items.SNOWBALL), 1),
+                        new GenericStack(AEFluidKey.of(ModRegistration.POWDER_SNOW_FLUID.get()), 1000)));
+        var recipeManager = helper.getLevel().getRecipeManager();
+        var originalRecipes = recipeManager.getRecipes();
+        var mixedId = ResourceLocation.fromNamespaceAndPath(NeoECOPrototype.MOD_ID, "test/mixed_snow_output");
+        try {
+            var replacement = new ArrayList<>(originalRecipes);
+            replacement.add(new net.minecraft.world.item.crafting.RecipeHolder<>(mixedId, mixedSnow));
+            recipeManager.replaceRecipes(replacement);
+            helper.assertTrue(cn.dancingsnow.neoecoprototype.recipe.ProcessorAssemblerRecipes
+                            .resolve(helper.getLevel(), mixedPattern) == mixedSnow,
+                    "processor assembler did not resolve an item+fluid output pair");
+        } finally {
+            recipeManager.replaceRecipes(originalRecipes);
+        }
 
         record Expectation(List<String> ingredients, String result) {}
         List<Expectation> expectations = List.of(
@@ -3000,7 +3063,8 @@ public final class NeoECOPrototypeGameTests {
         }
         var plan = new cn.dancingsnow.neoecoprototype.blockentity.crafting.ProcessorAssemblyPattern(
                 batched, batchedMatch, (what, amount) -> helper.fail(
-                        "a refused pattern must not reach the output sink at all"));
+                        "a refused pattern must not reach the output sink at all"), (fluid, amount) -> helper.fail(
+                                "a refused pattern must not reach the fluid sink at all"));
         long runs = plan.fittingRuns(supplied);
         if (runs != 0) {
             helper.fail("a 64x pattern needing sixteen slots of cells was offered " + runs
@@ -3282,7 +3346,8 @@ public final class NeoECOPrototypeGameTests {
         var grid = new java.util.HashMap<Integer, ItemStack>();
         var handedOver = new long[1];
         var plan = new cn.dancingsnow.neoecoprototype.blockentity.crafting.ProcessorAssemblyPattern(
-                pattern, recipe, (what, amount) -> handedOver[0] += amount);
+                pattern, recipe, (what, amount) -> handedOver[0] += amount, (fluid, amount) -> helper.fail(
+                        "item-only recipe emitted fluid " + fluid + " x" + amount));
         plan.fillCraftingGrid(supplies, grid::put);
 
         long left = 0;
@@ -3330,7 +3395,8 @@ public final class NeoECOPrototypeGameTests {
         var cellGrid = new java.util.HashMap<Integer, ItemStack>();
         var cellHandedOver = new long[1];
         var cellPlan = new cn.dancingsnow.neoecoprototype.blockentity.crafting.ProcessorAssemblyPattern(
-                cellPattern, cellRecipe, (what, amount) -> cellHandedOver[0] += amount);
+                cellPattern, cellRecipe, (what, amount) -> cellHandedOver[0] += amount, (fluid, amount) -> helper.fail(
+                        "item-only surplus recipe emitted fluid " + fluid + " x" + amount));
         var cellSupplies = new KeyCounter[3];
         for (int slot = 0; slot < cellSupplies.length; slot++) {
             cellSupplies[slot] = new KeyCounter();
@@ -3368,7 +3434,8 @@ public final class NeoECOPrototypeGameTests {
         var heavyGrid = new java.util.HashMap<Integer, ItemStack>();
         var heavyPlan = new cn.dancingsnow.neoecoprototype.blockentity.crafting.ProcessorAssemblyPattern(
                 heavyPattern, heavyRecipe, (what, amount) -> helper.fail(
-                        "a batch that fits the grid has no surplus to hand over: " + what + " x" + amount));
+                        "a batch that fits the grid has no surplus to hand over: " + what + " x" + amount),
+                (fluid, amount) -> helper.fail("item-only batch emitted fluid " + fluid + " x" + amount));
         if (heavyPlan.fittingRuns(heavySupplies) <= 0) {
             helper.fail("ten thousand snow blocks were on hand and the assembler still refused the pattern");
             return;
@@ -3382,6 +3449,7 @@ public final class NeoECOPrototypeGameTests {
         for (int slot = 0; slot < 9; slot++) heavyStacks.add(heavyGrid.getOrDefault(slot, ItemStack.EMPTY));
         var heavyInput = CraftingInput.of(3, 3, heavyStacks);
         var heavyOut = heavyPlan.assemble(heavyInput, helper.getLevel());
+        heavyPlan.getRemainingItems(heavyInput);
         long heavyPlaced = 0;
         for (ItemStack stack : heavyGrid.values()) heavyPlaced += stack.getCount();
         if (heavyOut.getCount() * 64L != heavyPlaced) {
@@ -3476,7 +3544,8 @@ public final class NeoECOPrototypeGameTests {
         for (var expectation : List.of("ae2:logic_processor", "ae2:calculation_processor",
                 "ae2:engineering_processor")) {
             Item output = stackOf(expectation).getItem();
-            helper.assertTrue(extra.stream().noneMatch(recipe -> recipe.result().getItem() == output),
+            helper.assertTrue(extra.stream().noneMatch(recipe -> recipe.hasItemOutput()
+                            && recipe.result().getItem() == output),
                     "derivation re-added " + expectation + ", which the bundled JSON already provides");
         }
 
@@ -11494,7 +11563,8 @@ public final class NeoECOPrototypeGameTests {
                     var wanted = pack + "/" + ("texture".equals(reference[0]) ? "textures/" : "models/")
                             + reference[1] + ("texture".equals(reference[0]) ? ".png" : ".json");
                     checked[0]++;
-                    if (!present.contains(wanted)) {
+                    if (!present.contains(wanted) && !(pack.equals("assets/" + NeoECOPrototype.MOD_ID)
+                            && "texture".equals(reference[0]) && workstationAtlasTexture(reference[1]))) {
                         problems.add(path + " names " + reference[0] + " " + NeoECOPrototype.MOD_ID + ":"
                                 + reference[1] + ", no " + wanted);
                     }
@@ -11515,6 +11585,58 @@ public final class NeoECOPrototypeGameTests {
         NeoECOPrototype.LOGGER.info("asset references resolved inside their own pack: {} of {} json file(s),"
                 + " {} guide page(s)", checked[0], jsonFiles[0], mdFiles[0]);
         helper.succeed();
+    }
+
+    /** Exact atlas outputs only; upstream masks and the declared palette must exist on the classpath. */
+    private static boolean workstationAtlasTexture(String path) {
+        String root = "block/working_station/";
+        var sheets = java.util.Set.of("controller_formed/controller_formed",
+                "controller_formed/controller_formed_smart", "controller_formed/controller_formed_light_normal",
+                "controller_formed/controller_formed_screen", "casing", "cooling_controller/screen_on");
+        String source = null;
+        for (String sheet : sheets) {
+            if (path.equals(root + sheet)) source = path;
+        }
+        String colored = root + "controller_formed/colored/l1/";
+        if (path.startsWith(colored)) {
+            String layer = path.substring(colored.length());
+            var layers = java.util.Set.of("controller_formed_screen_on/dark", "controller_formed_screen_on/middle",
+                    "controller_formed_screen_on/light", "controller_formed_light/dark", "controller_formed_light/light",
+                    "controller_formed_light/dark_working", "controller_formed_light/light_working");
+            if (!layers.contains(layer)) return false;
+            if (layer.endsWith("_working")) layer = layer.substring(0, layer.length() - 8);
+            source = root + "controller_formed/" + layer;
+        }
+        if (source == null) return false;
+        String atlas = readClasspathResource("/assets/minecraft/atlases/blocks.json");
+        if (atlas == null) return false;
+        boolean declared = false;
+        for (var entry : com.google.gson.JsonParser.parseString(atlas).getAsJsonObject().getAsJsonArray("sources")) {
+            var json = entry.getAsJsonObject();
+            if ("neoecoprototype:workstation_palette".equals(json.get("type").getAsString())) {
+                var palettes = json.getAsJsonObject("palettes");
+                declared = palettes != null && palettes.has("neoecoprototype:l1")
+                        && "neoecoprototype:block/workstation/controller/colormap/neoecoprototype"
+                        .equals(palettes.get("neoecoprototype:l1").getAsString());
+            }
+        }
+        if (!declared) return false;
+        try (var imageStream = cn.dancingsnow.neoecoae.NeoECOAE.class.getResourceAsStream(
+                "/assets/neoecoae/textures/" + source + ".png");
+             var paletteStream = addonAsset(ResourceLocation.parse(
+                     "neoecoprototype:textures/block/workstation/controller/colormap/neoecoprototype.png"))) {
+            if (imageStream == null || paletteStream == null) return false;
+            var image = javax.imageio.ImageIO.read(imageStream);
+            var palette = javax.imageio.ImageIO.read(paletteStream);
+            if (image == null || palette == null || palette.getWidth() != 10 || palette.getHeight() != 1) return false;
+            for (int x = 0; x < 7; x++) {
+                if ((palette.getRGB(x, 0) >>> 24) != 255) return false;
+            }
+            return palette.getRGB(3, 0) != palette.getRGB(5, 0)
+                    && palette.getRGB(4, 0) != palette.getRGB(6, 0);
+        } catch (java.io.IOException failure) {
+            return false;
+        }
     }
 
     /**
@@ -15101,6 +15223,7 @@ public final class NeoECOPrototypeGameTests {
         if (builtins.length < 8) {
             helper.fail("LargeWorkstationModule now has " + builtins.length
                     + " constants, fewer than the eight families this feature was priced against");
+            return;
         }
         helper.succeed();
     }
@@ -15241,250 +15364,42 @@ public final class NeoECOPrototypeGameTests {
                     + " back to eco's blue module art");
             return;
         }
-        var modelLights = new java.util.TreeMap<String, String>();
-        var appearanceTextures = new java.util.TreeSet<String>();
         for (var model : java.util.List.of(module.idleModel(), module.workingModel())) {
-            var modelPath = ResourceLocation.fromNamespaceAndPath(model.getNamespace(),
-                    "models/" + model.getPath() + ".json");
-            try {
-                var stream = addonAsset(modelPath);
-                if (stream == null) {
-                    helper.fail("the module names model " + model + " but the mod's own resources carry no "
-                            + modelPath + ", so the controller would draw eco's fallback art");
-                    return;
-                }
-                String text;
-                try (stream) {
-                    text = new String(stream.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
-                }
-                var json = com.google.gson.JsonParser.parseString(text).getAsJsonObject();
-                var parent = json.get("parent");
-                if (parent == null || !parent.isJsonPrimitive()
-                        || !"block/block".equals(parent.getAsString())) {
-                    helper.fail(model + " has parent " + parent + " instead of block/block, which is the only"
-                            + " parent an addon may use here");
-                    return;
-                }
-                var texturesElement = json.get("textures");
-                if (texturesElement == null || !texturesElement.isJsonObject()) {
-                    helper.fail(model + " carries " + texturesElement + " where the model's textures object"
-                            + " belongs, so there are no textures to read and the controller would draw"
-                            + " without ours");
-                    return;
-                }
-                var textures = texturesElement.getAsJsonObject();
-                for (var entry : textures.entrySet()) {
-                    var value = entry.getValue().getAsString();
-                    if (!value.startsWith(NeoECOPrototype.MOD_ID + ":")) {
-                        helper.fail(model + " points " + entry.getKey() + " at " + value + ", outside our"
-                                + " own namespace");
-                        return;
-                    }
-                    appearanceTextures.add(value);
-                }
-                var light = textures.get("light");
-                if (light == null || !light.isJsonPrimitive()) {
-                    helper.fail(model + " names " + light + " as its light texture, so the idle/working"
-                            + " comparison has nothing to compare and the two states could share one sheet");
-                    return;
-                }
-                modelLights.put(model.toString(), light.getAsString());
-            } catch (java.io.IOException e) {
-                helper.fail("could not read " + modelPath + ": " + e);
+            var path = "/assets/" + model.getNamespace() + "/models/" + model.getPath() + ".json";
+            var text = readClasspathResource(path);
+            if (text == null) {
+                helper.fail("missing workstation model " + model);
                 return;
             }
-        }
-        if (modelLights.size() != 2 || new java.util.HashSet<>(modelLights.values()).size() != 2) {
-            helper.fail("the idle and working models share one light texture (" + modelLights + "), so the"
-                    + " controller would look the same while running as while idle");
-            return;
-        }
-        if (appearanceTextures.size() != 6) {
-            helper.fail("the two models name " + appearanceTextures.size() + " distinct textures "
-                    + appearanceTextures + " instead of the 6 the shipped art consists of");
-            return;
-        }
-        var appearanceSizes = new java.util.TreeMap<String, String>();
-        for (var value : appearanceTextures) {
-            var texture = ResourceLocation.parse(value);
-            var png = ResourceLocation.fromNamespaceAndPath(texture.getNamespace(),
-                    "textures/" + texture.getPath() + ".png");
-            var meta = ResourceLocation.fromNamespaceAndPath(texture.getNamespace(),
-                    "textures/" + texture.getPath() + ".png.mcmeta");
-            try {
-                var stream = addonAsset(png);
-                if (stream == null) {
-                    helper.fail("model texture " + value + " has no " + png + " in the mod's own resources");
+            var json = com.google.gson.JsonParser.parseString(text).getAsJsonObject();
+            var textures = json.getAsJsonObject("textures");
+            boolean working = model.equals(module.workingModel());
+            String directory = "neoecoprototype:block/working_station/controller_formed/colored/l1/";
+            for (var tone : java.util.List.of("dark", "light")) {
+                String slot = tone.equals("dark") ? "light_light" : "light_dark";
+                String expectedLight = directory + "controller_formed_light/" + tone
+                        + (working ? "_working" : "");
+                if (!textures.has(slot) || !expectedLight.equals(textures.get(slot).getAsString())) {
+                    helper.fail(model + " has wrong " + slot + ", expected " + expectedLight);
                     return;
                 }
-                java.awt.image.BufferedImage image;
-                try (stream) {
-                    image = javax.imageio.ImageIO.read(stream);
+            }
+            if (working) {
+                for (var tone : java.util.List.of("dark", "middle", "light")) {
+                    String slot = "screen_" + tone;
+                    if (!textures.has(slot) || !(directory + "controller_formed_screen_on/" + tone)
+                            .equals(textures.get(slot).getAsString())) {
+                        helper.fail(model + " has wrong " + slot);
+                        return;
+                    }
                 }
-                // Three sheets animate, on eco's own rhythms. The two light strips are two frames,
-                // interpolated, 15 ticks each: the working strip is eco's own pair, the idle strip is ours,
-                // its second frame flipping both greens on the front and top faces. The working screen is
-                // eco's 22-frame scan at 5 ticks with no interpolation. Every other sheet is one static
-                // frame with no .mcmeta - a missing one leaves the sheet frozen on frame 0, and the idle
-                // screen has to stay still because eco's does.
-                boolean lightStrip = value.contains("controller_light");
-                boolean screenLoop = value.endsWith("/controller_screen_on");
-                boolean animated = lightStrip || screenLoop;
-                int side = lightStrip || value.contains("body") || value.contains("light") ? 128 : 16;
-                int height = lightStrip ? side * 2 : screenLoop ? side * 22 : side;
-                if (image == null || image.getWidth() != side || image.getHeight() != height) {
-                    helper.fail(value + " is " + (image == null ? "unreadable"
-                            : image.getWidth() + "x" + image.getHeight()) + " but this sheet has to be "
-                            + side + "x" + height + "; " + (lightStrip
-                            ? "both light strips are two-frame vertical animations"
-                            : screenLoop ? "the working screen is eco's 22-frame scan"
-                            : "every other sheet is a single static frame"));
+            }
+            for (var entry : textures.entrySet()) {
+                String value = entry.getValue().getAsString();
+                if (!value.startsWith("neoecoprototype:") || !workstationAtlasTexture(value.substring((NeoECOPrototype.MOD_ID + ":").length()))) {
+                    helper.fail(model + " names unresolved workstation texture " + value);
                     return;
                 }
-                var metaStream = addonAsset(meta);
-                if (!animated) {
-                    if (metaStream != null) {
-                        metaStream.close();
-                        helper.fail(value + " ships a .mcmeta, so it would animate; only the two light"
-                                + " strips and the working screen are meant to");
-                        return;
-                    }
-                } else {
-                    if (metaStream == null) {
-                        helper.fail(value + " has no " + meta + ", so the game would draw frame 0 only -"
-                                + " the sheet would sit still");
-                        return;
-                    }
-                    String metaText;
-                    try (metaStream) {
-                        metaText = new String(metaStream.readAllBytes(),
-                                java.nio.charset.StandardCharsets.UTF_8);
-                    }
-                    var animation = com.google.gson.JsonParser.parseString(metaText).getAsJsonObject()
-                            .getAsJsonObject("animation");
-                    boolean rhythm = lightStrip
-                            ? animation != null && animation.has("interpolate")
-                                    && animation.get("interpolate").getAsBoolean()
-                                    && animation.has("frametime") && animation.get("frametime").getAsInt() == 15
-                            : animation != null
-                                    && (!animation.has("interpolate")
-                                            || !animation.get("interpolate").getAsBoolean())
-                                    && animation.has("frametime") && animation.get("frametime").getAsInt() == 5;
-                    if (!rhythm) {
-                        helper.fail(value + ".mcmeta is " + metaText.strip() + " instead of "
-                                + (lightStrip ? "eco's interpolated 15-tick light loop"
-                                        : "eco's 5-tick screen scan"));
-                        return;
-                    }
-                    if (!lightStrip) {
-                        // eco's scan walks a two-tone pattern across all 22 frames; a pair that repeats
-                        // would be a still frame that took 22 slots.
-                        boolean repeats = true;
-                        for (int y = 0; y < side && repeats; y++) {
-                            for (int x = 0; x < side; x++) {
-                                if (image.getRGB(x, y) != image.getRGB(x, side + y)) {
-                                    repeats = false;
-                                    break;
-                                }
-                            }
-                        }
-                        if (repeats) {
-                            helper.fail(value + " repeats one frame, so the 22-frame scan would sit still");
-                            return;
-                        }
-                    } else {
-                        // Read the pair the way the eye does, and on the faces that are lit: the 344
-                        // opaque pixels on the north and up faces (uv [0,0,6,4] and [6,8,0,4] at
-                        // texture_size 128).
-                        int lit = 0;
-                        int moved = 0;
-                        for (int y = 0; y < 64; y++) {
-                            for (int x = 0; x < 48; x++) {
-                                int first = image.getRGB(x, y);
-                                if ((first >>> 24) == 0) continue;
-                                lit++;
-                                if (first != image.getRGB(x, side + y)) moved++;
-                            }
-                        }
-                        if (moved == 0) {
-                            helper.fail(value + " repeats one frame, so the animation would be a still"
-                                    + " image");
-                            return;
-                        }
-                        // The idle strip is the one we build, and it is the one that shipped looking
-                        // still: an earlier draft moved only the 68 base-green pixels and reliqwq read it
-                        // as a still image (2026-11-07). Its second frame now flips both greens, so nothing
-                        // lit stands still. The working strip is eco's own pair, quantised onto our two
-                        // greens; eco moves all 344 of those pixels upstream, but the collapse to two tones
-                        // leaves 173 of them unchanged, and that is upstream's art and rhythm rather than
-                        // ours to re-time.
-                        if (value.endsWith("/controller_light") && moved != lit) {
-                            helper.fail(value + " holds " + (lit - moved) + " of its " + lit
-                                    + " lit front/top pixels still between its two frames, so at block"
-                                    + " scale the animation reads as a still image - the earlier 68-pixel"
-                                    + " draft shipped that way");
-                            return;
-                        }
-                    }
-                }
-                // The light sheets and the working screen are the three sheets we repaint, and they are
-                // repainted onto exactly the two greens our storage host controller's formed multiblock
-                // lights up with: #61D389 (NAME_THEME_TIER_L1) and its #ACF26F highlight. Asserting the
-                // set rather than a hue range is the point - a third green, or a gradient between the
-                // two, lands on mint tones that read as ExtendedAE's green instead of our own tier.
-                if (value.contains("controller_light") || value.endsWith("/controller_screen_on")) {
-                    var greens = new java.util.TreeSet<Integer>();
-                    var blues = new java.util.TreeSet<Integer>();
-                    for (int y = 0; y < image.getHeight(); y++) {
-                        for (int x = 0; x < image.getWidth(); x++) {
-                            int argb = image.getRGB(x, y);
-                            if ((argb >>> 24) == 0) continue;
-                            int r = (argb >> 16) & 255;
-                            int g = (argb >> 8) & 255;
-                            int b = argb & 255;
-                            if (b - Math.max(r, g) >= 30 && b >= 120) {
-                                blues.add(argb & 0xFFFFFF);
-                            } else if (g - r >= 50 && g - b >= 30) {
-                                greens.add(argb & 0xFFFFFF);
-                            }
-                        }
-                    }
-                    var strayGreens = new java.util.TreeSet<>(greens);
-                    strayGreens.remove(0x61D389);
-                    strayGreens.remove(0xACF26F);
-                    if (greens.isEmpty() || !strayGreens.isEmpty()) {
-                        helper.fail(value + " repaints onto " + (greens.isEmpty() ? "no green at all"
-                                : greens + " (foreign " + strayGreens + ")") + " instead of exactly the"
-                                + " storage host controller's #61D389 and its #ACF26F highlight; a third"
-                                + " tone reads as ExtendedAE's mint rather than our own tier");
-                        return;
-                    }
-                    // Only the light sheet keeps eco's sides: the front/top are retinted and the
-                    // west/south/east faces, where the machine's input hatch and interface sit, keep
-                    // eco's blue the way eco's own family sheets do. The screen is repainted whole.
-                    if (value.contains("controller_light")) {
-                        // eco's two accents plus the one in its east face; anything else blue means a
-                        // face outside the front/top was repainted.
-                        var stray = new java.util.TreeSet<>(blues);
-                        stray.remove(0x337FF0);
-                        stray.remove(0x40C1FF);
-                        stray.remove(0x3CABFF);
-                        if (blues.isEmpty() || !stray.isEmpty()) {
-                            helper.fail(value + " has " + (blues.isEmpty() ? "no" : "foreign")
-                                    + " blue accents " + stray + " where the input-hatch/interface side must"
-                                    + " keep eco's own blue");
-                            return;
-                        }
-                    } else if (!blues.isEmpty()) {
-                        helper.fail(value + " still carries eco's blue accents " + blues + ", so the working"
-                                + " screen was not repainted onto our palette");
-                        return;
-                    }
-                }
-                appearanceSizes.put(value, side + "x" + height);
-            } catch (java.io.IOException e) {
-                helper.fail("could not read " + png + ": " + e);
-                return;
             }
         }
         var fromCard = cn.dancingsnow.neoecoae.api.workstation.ECOWorkstationModules.customFromCard(card);
@@ -20205,7 +20120,7 @@ public final class NeoECOPrototypeGameTests {
 
     /**
      * The rung itself, read off the recipe the game loaded rather than off our JSON: the bath has to accept a
-     * fluid the {@code c:} tag names and refuse one it does not, and it has to load at the third rung's pair
+     * fluid the {@code c:} tag names and refuse one it does not, and it has to load at the fourth rung's pair
      * of numbers.
      */
     @GameTest(template = "empty", batch = "powder_snow_fluid", timeoutTicks = 200,
@@ -20234,9 +20149,9 @@ public final class NeoECOPrototypeGameTests {
         }
         NeoECOPrototype.LOGGER.info("powder snow rung: coolant {}, overclock {}, output {} x{}", rung.coolant(),
                 rung.maxOverclock(), rung.output().getFluid(), rung.outputAmount());
-        if (rung.coolant() != 11000 || rung.maxOverclock() != 3) {
+        if (rung.coolant() != 6000 || rung.maxOverclock() != 4) {
             helper.fail("the rung loaded as coolant " + rung.coolant() + " and overclock "
-                    + rung.maxOverclock() + ", not the 11000 and 3 reliqwq set on 2026-11-19");
+                    + rung.maxOverclock() + ", not the 6000 and 4 reliqwq set on 2026-11-19");
             return;
         }
         if (!rung.output().is(net.minecraft.world.level.material.Fluids.WATER) || rung.outputAmount() != 100) {
@@ -26336,6 +26251,34 @@ public final class NeoECOPrototypeGameTests {
         var processorOutput = AEItemKey.of(processor.result());
         long processorAmount = (long) processor.result().getCount()
                 * ProcessorAssemblyWorkstationSupport.RECIPE_SCALE;
+        var snowRecipe = processorRecipes.stream().map(net.minecraft.world.item.crafting.RecipeHolder::value)
+                .filter(recipe -> recipe.hasFluidOutput() && !recipe.hasItemOutput()
+                        && recipe.fluidResult().is(ModRegistration.POWDER_SNOW_FLUID.get()))
+                .findFirst().orElse(null);
+        if (snowRecipe == null) {
+            helper.fail("pattern pool has no pure-fluid powder snow processor recipe");
+            return;
+        }
+        var snowInputs = new HashMap<AEKey, Long>();
+        for (var ingredient : snowRecipe.ingredients()) {
+            var choices = ingredient.getItems();
+            if (choices.length == 0) {
+                helper.fail("snowball fluid recipe has an empty ingredient");
+                return;
+            }
+            snowInputs.merge(AEItemKey.of(choices[0]), (long) ProcessorAssemblyWorkstationSupport.RECIPE_SCALE,
+                    Long::sum);
+        }
+        AEKey snowOutput = AEFluidKey.of(snowRecipe.fluidResult());
+        long snowAmount = (long) snowRecipe.fluidResult().getAmount()
+                * ProcessorAssemblyWorkstationSupport.RECIPE_SCALE;
+        boolean snowCovered = details.stream().filter(decoded -> !(decoded instanceof AECraftingPattern))
+                .anyMatch(decoded -> demandedInputs(decoded).equals(snowInputs)
+                        && producedOutputs(decoded).equals(Map.of(snowOutput, snowAmount)));
+        if (!snowCovered) {
+            helper.fail("pattern pool has no 64x snowball-to-liquid-powder-snow pattern");
+            return;
+        }
         boolean processorCovered = false;
         for (var decoded : details) {
             if (decoded instanceof AECraftingPattern) {
