@@ -3,6 +3,7 @@
   "category": "misc",
   "ingredients": [
     { "item": "neoecoprototype:fumo_doll_yang120" },
+    { "item": "ae2:crafting_accelerator" },
     { "item": "neoecoprototype:pigmee_storage_matrix_housing" }
   ],
   "result": {

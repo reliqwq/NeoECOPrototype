@@ -46,7 +46,7 @@ The other eight:
 | ECO - CE1R Flash Crystal Array | 2 ECO - CE1 Flash Crystal Arrays + 1 ECO - L4 Storage Component |
 | Snowball / powder snow | 4 snow blocks → 16 snowballs; 3 snowballs → 1000 mB liquid powder snow; 3 snowballs + 1 bucket → powder snow bucket |
 | reliqwq's Fumo Doll | the L1 storage host + C1 computation host + F1 crafting host |
-| Yang120's Fumo Doll | eco's L4 storage host + C4 computation host + F4 crafting host |
+| Yang120's Fumo Doll | eco's C4 computation host + 2 CE1R Flash Crystal Arrays |
 | kouooki's Fumo Doll | pink dye + dried kelp + brown mushroom |
 
 Silicon, gold and diamond are taken by tag, so any mod's version counts.

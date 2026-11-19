@@ -1,9 +1,9 @@
 {
   "type": "neoecoprototype:processor_assembler",
   "ingredients": [
-    { "item": "neoecoae:storage_system_l4" },
     { "item": "neoecoae:computation_system_l4" },
-    { "item": "neoecoae:crafting_system_l4" }
+    { "item": "neoecoprototype:energized_computation_cell_4m" },
+    { "item": "neoecoprototype:energized_computation_cell_4m" }
   ],
   "result": {
     "count": 1,
