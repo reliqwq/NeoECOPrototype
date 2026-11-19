@@ -26,6 +26,7 @@ import com.lowdragmc.lowdraglib2.syncdata.holder.blockentity.ISyncPersistRPCBloc
 import com.lowdragmc.lowdraglib2.syncdata.storage.FieldManagedStorage;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
 import net.neoforged.fml.ModList;
 import net.minecraft.server.level.ServerLevel;
@@ -68,6 +69,8 @@ public class SimplifyDriveBlockEntity extends NEBlockEntity<SimplifyStorageClust
      * loading the drive mints a fresh one, which is also what makes a stale client window lose.
      */
     private java.util.UUID panelInteractionId = java.util.UUID.randomUUID();
+    @Nullable
+    private String lastMountDiagnostic;
     @Nullable
     private ItemStack cachedCellStack;
     @Nullable
@@ -371,10 +374,13 @@ public class SimplifyDriveBlockEntity extends NEBlockEntity<SimplifyStorageClust
         SimplifyStorageCluster cluster = getCluster();
         SimplifyStorageHostBlockEntity controller = cluster == null ? null : cluster.getController();
         IECOStorageCell cell = getCellInventory();
+        boolean transferMode = controller != null && controller.isStorageInterfaceTransferMode();
+        boolean accepted = cell != null && isAcceptedByL1Host();
+        boolean shouldMount = controller != null && !transferMode && cell != null && accepted;
+        logMountDiagnostic(controller, cell, transferMode, accepted, shouldMount);
         // Same gate as eco's own drive: while the interface is in INPUT / OUTPUT mode the cells are the
         // transfer's source, so they must leave this grid - otherwise OUTPUT would insert back into them.
-        if (controller != null && !controller.isStorageInterfaceTransferMode()
-                && cell != null && isAcceptedByL1Host()) {
+        if (shouldMount) {
             // The host's number is the baseline and the cell carries its own offset; eco's helper adds them
             // with integer saturation, which is also where the "marked bulk sits one above" rule lives.
             storageMounts.mount(cell, cn.dancingsnow.neoecoae.gui.storage.StoragePriority.mountPriority(
@@ -385,6 +391,29 @@ public class SimplifyDriveBlockEntity extends NEBlockEntity<SimplifyStorageClust
         }
         setMounted(false);
         updateCellState();
+    }
+
+    private void logMountDiagnostic(@Nullable SimplifyStorageHostBlockEntity controller, @Nullable IECOStorageCell cell,
+            boolean transferMode, boolean accepted, boolean shouldMount) {
+        if (level == null || level.isClientSide) return;
+        boolean ecoCellItem = !cellStack.isEmpty() && cellStack.getItem() instanceof IECOStorageCellItem;
+        boolean basicCellItem = !cellStack.isEmpty()
+                && cellStack.getItem() instanceof cn.dancingsnow.neoecoae.api.storage.IBasicECOCellItem;
+        String itemId = cellStack.isEmpty() ? "<empty>"
+                : BuiltInRegistries.ITEM.getKey(cellStack.getItem()).toString();
+        String cellClass = cell == null ? "<null>" : cell.getClass().getName();
+        String snapshot = "item=" + itemId + " ecoCellItem=" + ecoCellItem + " basicCellItem=" + basicCellItem
+                + " factory=" + (cell != null) + " cellClass=" + cellClass + " host=" + (controller != null)
+                + " transfer=" + transferMode + " accepted=" + accepted + " willMount=" + shouldMount
+                + " mounted=" + mounted + " online=" + online;
+        if (snapshot.equals(lastMountDiagnostic)) return;
+        lastMountDiagnostic = snapshot;
+        if (shouldMount) {
+            NeoECOPrototype.LOGGER.info("drive mount candidate at {}: {} (mounted means submitted to AE2, not online)",
+                    worldPosition, snapshot);
+        } else {
+            NeoECOPrototype.LOGGER.warn("drive not mounted at {}: {}", worldPosition, snapshot);
+        }
     }
 
     /**
