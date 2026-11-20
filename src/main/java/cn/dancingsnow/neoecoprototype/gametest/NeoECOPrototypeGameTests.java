@@ -50,13 +50,11 @@ import cn.dancingsnow.neoecoprototype.api.SimplifyTier;
 import cn.dancingsnow.neoecoprototype.block.computation.SimplifyComputationSystemBlock;
 import cn.dancingsnow.neoecoprototype.block.crafting.SimplifyCraftingSystemBlock;
 import cn.dancingsnow.neoecoprototype.block.music.MusicJukeboxBlock;
-import cn.dancingsnow.neoecoprototype.block.reactor.SimplifyReactorFrameBlock;
 import cn.dancingsnow.neoecoprototype.block.storage.SimplifyStorageControllerBlock;
 import cn.dancingsnow.neoecoprototype.blockentity.crafting.SimplifyPoweredMEInterfaceBlockEntity;
 import cn.dancingsnow.neoecoprototype.blockentity.crafting.SimplifySuperconductiveInterfaceBlockEntity;
 import cn.dancingsnow.neoecoprototype.blockentity.music.MusicJukeboxBlockEntity;
 import cn.dancingsnow.neoecoprototype.blockentity.music.MusicRecorderBlockEntity;
-import cn.dancingsnow.neoecoprototype.blockentity.reactor.SimplifyReactorControllerBlockEntity;
 import cn.dancingsnow.neoecoprototype.blockentity.storage.SimplifyEnergyCellBlockEntity;
 import cn.dancingsnow.neoecoprototype.blockentity.storage.SimplifyStorageInterfaceBlockEntity;
 import cn.dancingsnow.neoecoprototype.blockentity.storage.SimplifyStorageHostBlockEntity;
@@ -80,7 +78,6 @@ import cn.dancingsnow.neoecoprototype.multiblock.calculator.SimplifyComputationC
 import cn.dancingsnow.neoecoprototype.multiblock.calculator.SimplifyTrinityClusterCalculator;
 import cn.dancingsnow.neoecoprototype.multiblock.definition.SimplifyComputationDefinition;
 import cn.dancingsnow.neoecoprototype.multiblock.definition.SimplifyCraftingDefinition;
-import cn.dancingsnow.neoecoprototype.multiblock.definition.SimplifyReactorDefinition;
 import cn.dancingsnow.neoecoprototype.multiblock.definition.SimplifyStorageDefinition;
 import cn.dancingsnow.neoecoprototype.multiblock.definition.SimplifyTrinityDefinition;
 import cn.dancingsnow.neoecoprototype.multiblock.trinity.TrinityCraftingExecutor;
@@ -6782,62 +6779,6 @@ public final class NeoECOPrototypeGameTests {
                         helper.fail("the running interface priced itself at " + strongGen.getRate()
                                 + " AE/t, expected "
                                 + SimplifySuperconductiveInterfaceBlockEntity.GENERATION_RATE);
-                        return;
-                    }
-                    helper.succeed();
-                });
-    }
-
-    /**
-     * The reactor is the one generator whose rate is computed, so both halves matter: an unformed shell
-     * really does produce nothing, while a formed one that AE2 has suppressed still has to quote what it
-     * would make. Answering 0 for the second case is the same stranding as on the interfaces, and the
-     * reactor is the strongest generator in the mod, so it is the one a grid most often needs back.
-     */
-    @GameTest(template = "l1_room", batch = "generator_rate_while_suppressed", timeoutTicks = 600,
-            templateNamespace = NeoECOPrototype.MOD_ID)
-    public static void formedReactorPricesItsRateWhileSuppressed(GameTestHelper helper) {
-        var controllerPos = new BlockPos(8, 8, 4);
-        var controller = placeReactorController(helper, controllerPos);
-        if (controller == null) {
-            return;
-        }
-        var level = (ServerLevel) helper.getLevel();
-        var plan = new MultiBlockBuildController(controller).createLocalPreviewPlan();
-        if (plan == null || plan.getMissingBlocks().isEmpty()) {
-            helper.fail("the reactor controller produced no build plan to stand up");
-            return;
-        }
-        for (var planned : plan.getMissingBlocks()) {
-            level.setBlockAndUpdate(planned.worldPos(), planned.targetState());
-        }
-        var expected = expectedReactorRate();
-        if (expected <= 0D) {
-            helper.fail("the reactor's configured rate reads " + expected
-                    + " AE/t, so a suppressed answer of 0 would prove nothing here");
-            return;
-        }
-        waitUntil(helper, 10,
-                controller::isFormed,
-                () -> "the complete shell never formed, so there is no rate to quote",
-                () -> {
-                    if (Math.abs(controller.getRate() - expected) > 1.0E-9D) {
-                        helper.fail("the formed reactor generates " + controller.getRate()
-                                + " AE/t, expected " + expected);
-                        return;
-                    }
-                    controller.setSuppressed(true);
-                    if (Math.abs(controller.getRate() - expected) > 1.0E-9D) {
-                        helper.fail("the formed reactor quoted " + controller.getRate()
-                                + " AE/t while suppressed instead of " + expected
-                                + ": AE2 ranks generators by this number, so 0 strands the grid on a"
-                                + " weaker machine");
-                        return;
-                    }
-                    controller.setSuppressed(false);
-                    if (Math.abs(controller.getRate() - expected) > 1.0E-9D) {
-                        helper.fail("unsuppressing the reactor changed its answer to "
-                                + controller.getRate() + ", so the rate and the flag are not separate");
                         return;
                     }
                     helper.succeed();
@@ -14087,7 +14028,7 @@ public final class NeoECOPrototypeGameTests {
      * Every block a player can place from us needs a stone pickaxe, and nothing of ours needs iron. eco
      * tables its own members at that rung; until 2026-11-15 ours were spread over three rungs - four sat
      * above it (the three cryotheum ores and the aluminium casing asked for iron), six sat below it (the
-     * three grette buds, the cluster, the reactor glass, the meteorite core) and three of the newest
+     * three grette buds, the cluster, the meteorite core) and three of the newest
      * machines were in no tier tag at all (the two music blocks and the subsystem channel module).
      *
      * <p>Both halves are load-bearing in 1.21.1, and they are checked separately: the level comes from
@@ -14116,7 +14057,7 @@ public final class NeoECOPrototypeGameTests {
         for (var id : net.minecraft.core.registries.BuiltInRegistries.BLOCK.keySet()) {
             if (NeoECOPrototype.MOD_ID.equals(id.getNamespace())) registry.add(id.toString());
         }
-        if (registry.size() < 70) {
+        if (registry.size() < 60) {
             helper.fail("the registry scan found only " + registry.size() + " of our blocks, so this guard"
                     + " checked nothing");
             return;
@@ -18675,8 +18616,8 @@ public final class NeoECOPrototypeGameTests {
      * reasons for stopping there. It named the side length and told the player to raise a config value that
      * does not exist on our side (our L1 ceiling is {@code SimplifyMultiblockConfig.L1_PLACEMENT_EXPAND_MAX},
      * a constant; eco's is {@code NEConfig.*SystemMaxLength - 4}, which with its default of 15 comes to the
-     * same eleven), and it called the Trinity and the reactor - machines with one fixed shape and no
-     * tier above them - "maxed out" as if a longer room were ever on the table.
+     * same eleven), and it called the Trinity - a machine with one fixed shape and no
+     * tier above it - "maxed out" as if a longer room were ever on the table.
      *
      * <p>eco's nine hosts are read off its own definition list by host-block id, the same way the disk
      * table above does it. The control counts are in two halves because the two halves fail differently: an
@@ -18751,12 +18692,11 @@ public final class NeoECOPrototypeGameTests {
                 return;
             }
         }
-        // The two machines with one fixed shape and no tier above them. They are refused by the shape, and
-        // the branch that says so has to stay the one they answer through: an L1 room whose range was ever
+        // The one machine with one fixed shape and no tier above it. It is refused by the shape, and
+        // the branch that says so has to stay the one it answers through: an L1 room whose range was ever
         // flattened to a single length would be quietly moved into this group, and the player would be
         // told the machine is unchangeable when it is only unpaid.
-        for (var def : java.util.List.of((MultiBlockDefinition) SimplifyTrinityDefinition.L1,
-                SimplifyReactorDefinition.CUBE)) {
+        for (var def : java.util.List.of((MultiBlockDefinition) SimplifyTrinityDefinition.L1)) {
             if (SimplifyStructureExpansionCardItem.ladderTarget(def) != null) {
                 helper.fail("the card claims a rung for " + defName(def)
                         + ", which has one shape and nothing above it");
@@ -18775,8 +18715,8 @@ public final class NeoECOPrototypeGameTests {
             }
         }
         // The fall-through key must have no row among the machines a player can actually point the card at.
-        // Only fourteen block entities answer MultiBlockBuildController.Host today - eco's three systems at
-        // three tiers, and our five - and every one of them either climbs or is refused for a shape or tier
+        // Only thirteen block entities answer MultiBlockBuildController.Host today - eco's three systems at
+        // three tiers, and our four - and every one of them either climbs or is refused for a shape or tier
         // reason. This count is what goes red the day a fifth system or an eco host shows up that neither
         // card covers, which is exactly when "结构已满 = 换 L9" stops being true of every machine.
         var clickable = new java.util.ArrayList<MultiBlockDefinition>(byId.values());
@@ -18784,7 +18724,6 @@ public final class NeoECOPrototypeGameTests {
         clickable.add(SimplifyComputationDefinition.L1);
         clickable.add(SimplifyCraftingDefinition.L1);
         clickable.add(SimplifyTrinityDefinition.L1);
-        clickable.add(SimplifyReactorDefinition.CUBE);
         int outsideTheLadder = 0;
         for (var def : clickable) {
             if (SimplifyStructureExpansionCardItem.ladderTarget(def) == null
@@ -25775,6 +25714,14 @@ public final class NeoECOPrototypeGameTests {
                 () -> "the two adjacent devices never formed an in-world connection ("
                         + physicalEdgesBetween(level, a, b) + "), so this fixture cannot test the refusal",
                 () -> {
+                    // Earlier tests in this batch file deferred records (a bind whose edge did not come
+                    // up at once sits in the record unlogged), and a periodic sweep rebuilds such a stale
+                    // record onto whatever device now occupies its endpoint - which can be one of OUR two
+                    // blocks, inside this assert window. The refusal under test is about what OUR bind
+                    // leaves behind, so both endpoints start from an explicitly empty record; unlink
+                    // touches only virtual edges, never the cable the precondition just proved.
+                    WirelessLinks.unlinkReply(level, ModRegistration.WIRELESS_LINKS, a);
+                    WirelessLinks.unlinkReply(level, ModRegistration.WIRELESS_LINKS, b);
                     String refused = WirelessLinks.bind(level, ModRegistration.WIRELESS_LINKS, a, b);
                     if (!refused.startsWith("those two are already wired")) {
                         helper.fail("binding two blocks that are already wired reported \"" + refused
@@ -26076,272 +26023,6 @@ public final class NeoECOPrototypeGameTests {
         var node = networkNode(level, at);
         return at.pos().toShortString() + "(node=" + (node == null ? "none" : "max"
                 + node.getMaxChannels() + "/used" + node.getUsedChannels()) + ")";
-    }
-
-    // ============================ superconductive reactor ============================
-
-    /** Coils in the reactor: the 3x3x3 chamber's shell, 27 cells minus the single core. */
-    private static final int REACTOR_COILS = 26;
-
-    /**
-     * The reactor is one machine with one rate, and that rate is what the grid is paid: the 7x7x7 shell
-     * has to be all there before the network sees a single AE. Both readings below are AE2's own - the
-     * generator service on the controller's grid node, and an energy cell standing on the same grid -
-     * so the test cannot pass by agreeing with our arithmetic about a machine the grid never sees.
-     *
-     * <p>The shell comes from the controller's build plan, which is also what a player's right-click
-     * runs. {@link #anUnformedReactorPaysTheGridNothing} is the same grid without the shell.
-     */
-    @GameTest(template = "l1_room", batch = "reactor_formation", timeoutTicks = 600,
-            templateNamespace = NeoECOPrototype.MOD_ID)
-    public static void reactorShellFormsAndPaysTheGridItsRate(GameTestHelper helper) {
-        var controllerPos = new BlockPos(8, 8, 4);
-        var controller = placeReactorController(helper, controllerPos);
-        if (controller == null) {
-            return;
-        }
-        var cellPos = new BlockPos(8, 8, 3);
-        helper.setBlock(cellPos, energyCellBlock());
-        var level = (ServerLevel) helper.getLevel();
-        var controllerAt = helper.absolutePos(controllerPos);
-        var cellAt = helper.absolutePos(cellPos);
-        if (level.isThundering()) {
-            helper.fail("the test world is in a thunderstorm, so the rate expected below would be doubled");
-            return;
-        }
-        var expected = expectedReactorRate();
-        waitUntil(helper, 20,
-                () -> cellStored(level, cellAt) >= 0.0D
-                        && networkNode(level, GlobalPos.of(level.dimension(), controllerAt)) != null,
-                () -> "the controller and the energy cell never became one grid: cell="
-                        + cellStored(level, cellAt) + " "
-                        + nodeSummary(level, GlobalPos.of(level.dimension(), controllerAt)),
-                () -> {
-                    double unformed = cellStored(level, cellAt);
-                    if (unformed != 0.0D) {
-                        helper.fail("an unformed reactor already put " + unformed + " AE into the cell");
-                        return;
-                    }
-                    var plan = new MultiBlockBuildController(controller).createLocalPreviewPlan();
-                    if (plan == null) {
-                        helper.fail("the reactor controller produced no build plan");
-                        return;
-                    }
-                    var all = plan.getAllBlocks();
-                    if (all.size() != 244
-                            || plannedCount(all, ModRegistration.REACTOR_FRAME_BLOCK.get()) != 68
-                            || plannedCount(all, ModRegistration.REACTOR_GLASS_BLOCK.get()) != 149
-                            || plannedCount(all, ModRegistration.REACTOR_COIL_BLOCK.get()) != REACTOR_COILS
-                            || plannedCount(all, ModRegistration.REACTOR_CORE_BLOCK.get()) != 1) {
-                        helper.fail("the reactor plan is not the 7x7x7 cube: " + planDigest(all));
-                        return;
-                    }
-                    if (plan.getMissingBlocks().size() != 244 || !plan.getConflictPositions().isEmpty()) {
-                        helper.fail("an empty room should need all 244 blocks and report no conflict, got "
-                                + plan.getMissingBlocks().size() + " missing and "
-                                + plan.getConflictPositions().size() + " conflicts");
-                        return;
-                    }
-                    for (var planned : plan.getMissingBlocks()) {
-                        level.setBlockAndUpdate(planned.worldPos(), planned.targetState());
-                    }
-                    // Facing north the authored layout maps straight onto the axes - across to x, up to
-                    // y, depth to +z - so these six read the mapping itself, not just the mix of parts.
-                    boolean mapped = blockIs(helper, controllerAt, ModRegistration.REACTOR_CONTROLLER_BLOCK.get(),
-                                    "the controller")
-                            & blockIs(helper, controllerAt.offset(0, 0, 3),
-                                    ModRegistration.REACTOR_CORE_BLOCK.get(), "the middle of the cube")
-                            & blockIs(helper, controllerAt.offset(0, 1, 0),
-                                    ModRegistration.REACTOR_GLASS_BLOCK.get(), "the window above the controller")
-                            & blockIs(helper, controllerAt.offset(3, 3, 0),
-                                    ModRegistration.REACTOR_FRAME_BLOCK.get(), "the front face's top corner")
-                            & blockIs(helper, controllerAt.offset(1, 0, 3),
-                                    ModRegistration.REACTOR_COIL_BLOCK.get(), "the coil beside the core")
-                            & blockIs(helper, controllerAt.offset(0, 0, 1), Blocks.AIR,
-                                    "the hollow chamber one step behind the controller");
-                    if (!mapped) {
-                        return;
-                    }
-                    waitUntil(helper, 10,
-                            controller::isFormed,
-                            () -> "the complete 7x7x7 shell never formed: " + controller.scan(level).issues(),
-                            () -> {
-                                if (Math.abs(controller.getRate() - expected) > 1.0E-9D) {
-                                    helper.fail("the formed reactor generates " + controller.getRate()
-                                            + " AE/t, expected " + expected + " = core "
-                                            + NeoECOPrototypeServerConfig.reactorCoreAePerTick() + " + "
-                                            + REACTOR_COILS + " coils x "
-                                            + NeoECOPrototypeServerConfig.reactorCoilAePerTick());
-                                    return;
-                                }
-                                var node = controller.getGridNode();
-                                var generator = node == null ? null
-                                        : node.getService(IPassiveEnergyGenerator.class);
-                                if (generator == null) {
-                                    helper.fail("the formed reactor's grid node offers no passive generator"
-                                            + " service, so no network can draw from it");
-                                    return;
-                                }
-                                if (Math.abs(generator.getRate() - expected) > 1.0E-9D) {
-                                    helper.fail("the grid is offered " + generator.getRate()
-                                            + " AE/t, but the machine reports " + controller.getRate());
-                                    return;
-                                }
-                                waitUntil(helper, 30,
-                                        () -> cellStored(level, cellAt) > 0.0D,
-                                        () -> "the reactor published " + expected + " AE/t, yet the energy cell on"
-                                                + " its grid still reads " + cellStored(level, cellAt),
-                                        helper::succeed);
-                            });
-                });
-    }
-
-    /**
-     * The control for the test above, on the same grid shape: a controller with no shell still publishes
-     * its generator service - the node wiring is not conditional - but it answers zero and the cell never
-     * charges. Without this pair, "the grid gets its rate" would only prove that a controller exists.
-     */
-    @GameTest(template = "l1_room", batch = "reactor_formation", timeoutTicks = 400,
-            templateNamespace = NeoECOPrototype.MOD_ID)
-    public static void anUnformedReactorPaysTheGridNothing(GameTestHelper helper) {
-        var controllerPos = new BlockPos(8, 8, 4);
-        var controller = placeReactorController(helper, controllerPos);
-        if (controller == null) {
-            return;
-        }
-        var cellPos = new BlockPos(8, 8, 3);
-        helper.setBlock(cellPos, energyCellBlock());
-        var level = (ServerLevel) helper.getLevel();
-        var controllerAt = helper.absolutePos(controllerPos);
-        var cellAt = helper.absolutePos(cellPos);
-        waitUntil(helper, 20,
-                () -> cellStored(level, cellAt) >= 0.0D
-                        && networkNode(level, GlobalPos.of(level.dimension(), controllerAt)) != null,
-                () -> "the controller and the energy cell never became one grid: cell="
-                        + cellStored(level, cellAt) + " "
-                        + nodeSummary(level, GlobalPos.of(level.dimension(), controllerAt)),
-                // Two scan intervals: "not formed" has to be what the validator says, not just the
-                // field's initial value on the tick the block appeared.
-                () -> helper.runAfterDelay(50, () -> {
-                    if (controller.isFormed()) {
-                        helper.fail("a bare controller with no shell reported itself formed");
-                        return;
-                    }
-                    if (controller.getRate() != 0.0D) {
-                        helper.fail("an unformed reactor reports " + controller.getRate() + " AE/t");
-                        return;
-                    }
-                    var node = controller.getGridNode();
-                    var generator = node == null ? null : node.getService(IPassiveEnergyGenerator.class);
-                    if (generator == null) {
-                        helper.fail("the unformed reactor's node withdrew its generator service, so a"
-                                + " network cannot see the machine at all");
-                        return;
-                    }
-                    if (generator.getRate() != 0.0D) {
-                        helper.fail("the unformed reactor's grid service answers " + generator.getRate()
-                                + " AE/t");
-                        return;
-                    }
-                    if (cellStored(level, cellAt) != 0.0D) {
-                        helper.fail("an unformed reactor charged the cell to " + cellStored(level, cellAt) + " AE");
-                        return;
-                    }
-                    helper.succeed();
-                }));
-    }
-
-    /**
-     * A strut the planner placed has to end up reading the struts that were already standing beside it.
-     *
-     * <p>The plan hands every part in from its default state - all six connection flags false - and
-     * placing a block only rewrites its <em>neighbours</em>, never itself. What closes the loop is the
-     * neighbour's own change: it flips to connected, and that second write reaches back onto the new
-     * strut. It is the end state a player sees that has to be right, and nothing else in this batch
-     * checks it - formation and power only care which blocks stand where, not which beams they draw.</p>
-     */
-    @GameTest(template = "l1_room", batch = "reactor_formation", timeoutTicks = 400,
-            templateNamespace = NeoECOPrototype.MOD_ID)
-    public static void plannerPlacedStrutsReadTheStrutsAlreadyStandingBesideThem(GameTestHelper helper) {
-        var controllerPos = new BlockPos(8, 8, 4);
-        var controller = placeReactorController(helper, controllerPos);
-        if (controller == null) {
-            return;
-        }
-        var plan = new MultiBlockBuildController(controller).createLocalPreviewPlan();
-        if (plan == null) {
-            helper.fail("the reactor controller produced no build plan");
-            return;
-        }
-        var level = helper.getLevel();
-        for (var planned : plan.getMissingBlocks()) {
-            level.setBlockAndUpdate(planned.worldPos(), planned.targetState());
-        }
-        var controllerAt = helper.absolutePos(controllerPos);
-        int expectedStruts = plannedCount(plan.getAllBlocks(), ModRegistration.REACTOR_FRAME_BLOCK.get());
-        if (strutFlagsMatchTheirNeighbours(helper, controllerAt.offset(-3, -3, 0),
-                controllerAt.offset(3, 3, 6), expectedStruts)) {
-            helper.succeed();
-        }
-    }
-
-    /**
-     * Formation is not sticky: the shell is re-checked on a timer, so taking one window cell out has to
-     * drop the machine back to zero on its own. A one-way formation latch would pass every other test in
-     * this batch until the first player broke a block.
-     */
-    @GameTest(template = "l1_room", batch = "reactor_formation", timeoutTicks = 600,
-            templateNamespace = NeoECOPrototype.MOD_ID)
-    public static void breakingOneWindowCellShutsTheReactorOff(GameTestHelper helper) {
-        var controllerPos = new BlockPos(8, 8, 4);
-        var controller = placeReactorController(helper, controllerPos);
-        if (controller == null) {
-            return;
-        }
-        var level = (ServerLevel) helper.getLevel();
-        var controllerAt = helper.absolutePos(controllerPos);
-        var expected = expectedReactorRate();
-        var plan = new MultiBlockBuildController(controller).createLocalPreviewPlan();
-        if (plan == null || plan.getMissingBlocks().isEmpty()) {
-            helper.fail("the reactor controller produced no build plan to stand up");
-            return;
-        }
-        for (var planned : plan.getMissingBlocks()) {
-            level.setBlockAndUpdate(planned.worldPos(), planned.targetState());
-        }
-        waitUntil(helper, 10,
-                controller::isFormed,
-                () -> "the complete shell never formed, so the break cannot be read: "
-                        + controller.scan(level).issues(),
-                () -> {
-                    if (Math.abs(controller.getRate() - expected) > 1.0E-9D) {
-                        helper.fail("the formed reactor generates " + controller.getRate()
-                                + " AE/t, expected " + expected);
-                        return;
-                    }
-                    var window = controllerPos.offset(0, 1, 0);
-                    helper.setBlock(window, Blocks.AIR);
-                    waitUntil(helper, 10,
-                            () -> !controller.isFormed(),
-                            () -> "removing the window cell at " + at(window) + " left the reactor formed at "
-                                    + controller.getRate() + " AE/t",
-                            () -> {
-                                if (controller.getRate() != 0.0D) {
-                                    helper.fail("the broken reactor still reports " + controller.getRate()
-                                            + " AE/t");
-                                    return;
-                                }
-                                var node = controller.getGridNode();
-                                var generator = node == null ? null
-                                        : node.getService(IPassiveEnergyGenerator.class);
-                                if (generator == null || generator.getRate() != 0.0D) {
-                                    helper.fail("the broken reactor's grid service answers "
-                                            + (generator == null ? "no service" : generator.getRate() + " AE/t"));
-                                    return;
-                                }
-                                helper.succeed();
-                            });
-                });
     }
 
     /**
@@ -26811,98 +26492,8 @@ public final class NeoECOPrototypeGameTests {
         return produced;
     }
 
-    /**
-     * Places the controller and hands back its block entity, or fails with what is there instead. Every
-     * reactor fixture here is authored facing north, so the facing is checked rather than assumed.
-     */
-    private static SimplifyReactorControllerBlockEntity placeReactorController(GameTestHelper helper,
-                                                                              BlockPos relative) {
-        helper.setBlock(relative, ModRegistration.REACTOR_CONTROLLER_BLOCK.get());
-        var absolute = helper.absolutePos(relative);
-        if (!(helper.getLevel().getBlockEntity(absolute) instanceof SimplifyReactorControllerBlockEntity controller)) {
-            helper.fail("the reactor controller at " + at(relative) + " has no block entity");
-            return null;
-        }
-        var facing = helper.getLevel().getBlockState(absolute).getValue(BlockStateProperties.HORIZONTAL_FACING);
-        if (facing != Direction.NORTH) {
-            helper.fail("a placed reactor controller comes up facing " + facing
-                    + ", and every reactor fixture is authored facing north");
-            return null;
-        }
-        return controller;
-    }
-
-    /** What the config says a formed reactor generates, read fresh so the knobs stay live. */
-    private static double expectedReactorRate() {
-        return NeoECOPrototypeServerConfig.reactorCoreAePerTick()
-                + REACTOR_COILS * NeoECOPrototypeServerConfig.reactorCoilAePerTick();
-    }
-
     private static Block energyCellBlock() {
         return BuiltInRegistries.BLOCK.get(ResourceLocation.fromNamespaceAndPath("ae2", "energy_cell"));
-    }
-
-    private static int plannedCount(List<WorldPlannedBlock> blocks, Block block) {
-        int count = 0;
-        for (var planned : blocks) {
-            if (planned.targetState().is(block)) {
-                count++;
-            }
-        }
-        return count;
-    }
-
-    /** "244 blocks: reactor_coil 26, reactor_core 1, ..." - the shape a failed size check is about. */
-    private static String planDigest(List<WorldPlannedBlock> blocks) {
-        Map<String, Integer> counts = new java.util.TreeMap<>();
-        for (var planned : blocks) {
-            counts.merge(name(planned.targetState().getBlock()), 1, Integer::sum);
-        }
-        return blocks.size() + " blocks: " + counts;
-    }
-
-    /**
-     * Every strut's six flags must agree with the world: a beam points at a neighbour exactly when
-     * that neighbour is a strut. The plan hands every part in from its default state, so a strut only
-     * gets the flags pointing at earlier-placed neighbours through the neighbour's own re-notification
-     * - this is the end state that has to hold, and {@code expectedStruts} keeps a scan that never
-     * found the shell from passing on an empty loop.
-     */
-    private static boolean strutFlagsMatchTheirNeighbours(GameTestHelper helper, BlockPos from, BlockPos to,
-                                                          int expectedStruts) {
-        var level = helper.getLevel();
-        var strut = ModRegistration.REACTOR_FRAME_BLOCK.get();
-        int struts = 0;
-        int mismatches = 0;
-        String first = null;
-        for (BlockPos absolute : BlockPos.betweenClosed(from, to)) {
-            var state = level.getBlockState(absolute);
-            if (!state.is(strut)) {
-                continue;
-            }
-            struts++;
-            for (Direction direction : Direction.values()) {
-                boolean expected = level.getBlockState(absolute.relative(direction)).is(strut);
-                boolean actual = state.getValue(SimplifyReactorFrameBlock.CONNECTED.get(direction));
-                if (actual != expected) {
-                    mismatches++;
-                    if (first == null) {
-                        first = direction.getName() + " at " + absolute + " is " + actual
-                                + ", but the neighbour there is " + (expected ? "a strut" : "not a strut");
-                    }
-                }
-            }
-        }
-        if (struts != expectedStruts) {
-            helper.fail("scanned " + struts + " struts in the shell, but the plan placed " + expectedStruts
-                    + " - the flag check would prove nothing");
-            return false;
-        }
-        if (mismatches == 0) {
-            return true;
-        }
-        helper.fail(mismatches + " strut flags disagree with the world; first: " + first);
-        return false;
     }
 
     /**
