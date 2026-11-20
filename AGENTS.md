@@ -171,7 +171,7 @@ gametest/     测试。探针类单独成文件。
 
 - 类头写版本锁（§2 格式）。
 - `require = 1` 用于必须命中的注入：上游删方法时在类变换期崩，比静默失效好。**崩 > 静默。** `require = 0` 只在能接受功能失效时用，并配一条 GameTest 断言。
-- **现状（2026-11-19 现量）：16 个注入点（7 `@Inject` + 9 `@Redirect`）分布在 8 个类里，另有 2 个 Accessor。** `require = 1` 现在写在 9 条上，剩下 2 条（`ECOClientUIBridgeMixin` 的 `@Inject`、`FixedBlockEntityRenderersMixin` 的 `@Redirect`）靠 `neoecoprototype.mixins.json` 的 `injectors.defaultRequire = 1` 兜住 —— 那一条是承重的，别删。2026-11-13 撤掉状态角标那只（`ComputationCpuStatusTierGlyphMixin`）；2026-11-19 新增 `MolecularAssemblerFluidOutputMixin`（4 条，全部 `require = 1`，见该类头）。
+- **现状（2026-11-20 现量）：12 个注入点（6 `@Inject` + 6 `@Redirect`）分布在 7 个类里，另有 2 个 Accessor。** `require = 1` 现在写在 5 条上，剩下 2 条（`ECOClientUIBridgeMixin` 的 `@Inject`、`FixedBlockEntityRenderersMixin` 的 `@Redirect`）靠 `neoecoprototype.mixins.json` 的 `injectors.defaultRequire = 1` 兜住 —— 那一条是承重的，别删。2026-11-13 撤掉状态角标那只（`ComputationCpuStatusTierGlyphMixin`）；**2026-11-20 又撤掉 `MolecularAssemblerFluidOutputMixin`（4 条）**：L1 装配室重写为独立机器（`AENetworkedInvBlockEntity + IUpgradeableObject + IGridTickable + ICraftingMachine`，ExtendedAE 同款形状），周期引擎是我们自己的，纯流体产出不再经过 AE2 的物品完成路径。
 - **不要用 `@At("RETURN")` 改局部变量** —— 返回值已经压栈，改局部变量不影响结果。要用 `cir.setReturnValue(...)` 或 MixinExtras 的 `@ModifyReturnValue`。（上游那条死钩子就是这么写的，见 §11。）
 - `mixinListMatchesShippedMixinClasses` 是双向守卫：增删 Mixin 类或 json 条目，两个方向都要同步。
 - **`client` 数组里的注入没有任何服务端面**：mixin 目标不是编译期符号，编译查不到；`runGameTestServer` 是 dedicated 侧，那两条根本不参与类变换。所以"客户端起一遍"必须带读数，不是随便开一下：确认 `FixedBlockEntityRenderersMixin` 与 `SlotYAccessor` 各被应用一次，然后点开一个超尺寸接口界面（走 `SlotYAccessor` 的 +36）和一台带 eco 固定渲染器的机器（我们注册了三台：驱动器、计算驱动器、冷却控制器）。

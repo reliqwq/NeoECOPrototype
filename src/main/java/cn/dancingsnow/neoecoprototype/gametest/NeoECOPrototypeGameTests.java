@@ -3061,19 +3061,28 @@ public final class NeoECOPrototypeGameTests {
             }
             supplied[slot] = counter;
         }
-        var plan = new cn.dancingsnow.neoecoprototype.blockentity.crafting.ProcessorAssemblyPattern(
-                batched, batchedMatch, (what, amount) -> helper.fail(
-                        "a refused pattern must not reach the output sink at all"), (fluid, amount) -> helper.fail(
-                                "a refused pattern must not reach the fluid sink at all"));
-        long runs = plan.fittingRuns(supplied);
-        if (runs != 0) {
-            helper.fail("a 64x pattern needing sixteen slots of cells was offered " + runs
-                    + " runs; nine slots cannot hold it");
+        // The standalone machine has no crafting grid, so the old "sixteen slots cannot fit" refusal is
+        // gone; what must hold instead is exact consumption: a push that IS one job is eaten whole, and a
+        // push carrying anything beyond or below it is refused without taking a single item.
+        if (!cn.dancingsnow.neoecoprototype.blockentity.crafting.SimplifyAssemblerJob
+                .consumeJobInputs(batched, supplied)) {
+            helper.fail("a 64x pattern's exact demand (128 cells + 64 components) was not consumable as"
+                    + " one job");
             return;
         }
-        if (supplied[0].get(cell.what()) != 64L) {
-            helper.fail("asking whether a pattern fits consumed material: " + supplied[0].get(cell.what())
-                    + " of the cells are gone");
+        long left = 0;
+        for (KeyCounter counter : supplied) {
+            for (var entry : counter) left += entry.getLongValue();
+        }
+        if (left != 0) {
+            helper.fail("consuming one job left " + left + " items in the push");
+            return;
+        }
+        supplied[0].add(cell.what(), 1L);
+        if (cn.dancingsnow.neoecoprototype.blockentity.crafting.SimplifyAssemblerJob
+                .consumeJobInputs(batched, supplied)) {
+            helper.fail("a push carrying one item beyond the job's demand was consumed - the machine"
+                    + " only ever owns exactly one job's materials, and the extra would vanish");
             return;
         }
         helper.succeed();
@@ -3287,8 +3296,10 @@ public final class NeoECOPrototypeGameTests {
         // The half that actually broke in game: AE2's getCraftingMachineInfo() hard-codes
         // AEBlocks.MOLECULAR_ASSEMBLER for both the name and the icon, so a subclass that does not override
         // it hands every asker AE2's identity. Read it on our machine and require our own.
-        if (!(ours instanceof appeng.blockentity.crafting.MolecularAssemblerBlockEntity oursMachine)) {
-            helper.fail("our assembler is not a MolecularAssemblerBlockEntity, so the info call cannot be read");
+        // The standalone assembler implements ICraftingMachine itself; AE2's control half still reads
+        // through its own MolecularAssemblerBlockEntity below.
+        if (!(ours instanceof appeng.api.implementations.blockentities.ICraftingMachine oursMachine)) {
+            helper.fail("our assembler no longer implements ICraftingMachine, so the info call cannot be read");
             return;
         }
         var oursInfo = oursMachine.getCraftingMachineInfo();
@@ -3319,145 +3330,208 @@ public final class NeoECOPrototypeGameTests {
     }
 
     /**
-     * A batched push may not consume more than the cycle can hand over. Snowballs are the shape that
-     * shows it: the recipe yields four per run and a stack holds sixteen, so four runs fill one cycle --
-     * and a fifth used to be paid for out of the network and then dropped, because AE2 rebuilds the grid
-     * from {@code getRemainingItems()} and this interface's default is all-empty.
+     * The machine's intake contract, on a real placed assembler: a push that IS one job is consumed whole
+     * and installed; a push carrying anything beyond the job's demand is refused without taking a single
+     * item, because a returned true owns everything handed over and the extra would vanish. The job's
+     * output math rides the record: an item run count caps at one ejected stack (the rest goes to the
+     * network through the surplus path), and a fluid run count scales by the recipe's own millibuckets.
      */
     @GameTest(template = "empty", templateNamespace = NeoECOPrototype.MOD_ID)
     public static void processorAssemblerBatchCannotOverspend(GameTestHelper helper) {
-        var block = new GenericStack(AEItemKey.of(Items.SNOW_BLOCK), 1);
+        var pos = new BlockPos(0, 1, 0);
+        helper.setBlock(pos, ModRegistration.SIMPLIFY_STONECUTTING_ASSEMBLER_BLOCK.get());
+        if (!(helper.getBlockEntity(pos) instanceof cn.dancingsnow.neoecoprototype
+                .blockentity.crafting.SimplifyStonecuttingAssemblerBlockEntity assembler)) {
+            helper.fail("the assembler did not come into existence");
+            return;
+        }
         var recipe = new cn.dancingsnow.neoecoprototype.recipe.ProcessorAssemblerRecipe(
                 List.of(Ingredient.of(Items.SNOW_BLOCK), Ingredient.of(Items.SNOW_BLOCK),
                         Ingredient.of(Items.SNOW_BLOCK), Ingredient.of(Items.SNOW_BLOCK)),
                 new ItemStack(Items.SNOWBALL, 4));
+        var block = new GenericStack(AEItemKey.of(Items.SNOW_BLOCK), 1);
+        // Output 16 to match the shipped snowball recipe (4 snow blocks -> one full stack), so resolve
+        // finds the shipped recipe and the machine reads a whole encoded job.
         var pattern = new HandmadePattern(AEItemKey.of(Items.SNOWBALL),
                 List.of(new HandmadeInput(1, block), new HandmadeInput(1, block),
                         new HandmadeInput(1, block), new HandmadeInput(1, block)),
-                List.of(new GenericStack(AEItemKey.of(Items.SNOWBALL), 4)));
+                List.of(new GenericStack(AEItemKey.of(Items.SNOWBALL), 16)));
 
-        var key = AEItemKey.of(Items.SNOW_BLOCK);
-        KeyCounter[] supplies = new KeyCounter[4];
-        for (int slot = 0; slot < supplies.length; slot++) {
-            supplies[slot] = new KeyCounter();
-            supplies[slot].add(key, 20L);
+        var exact = new KeyCounter[] {new KeyCounter(), new KeyCounter(), new KeyCounter(), new KeyCounter()};
+        for (KeyCounter counter : exact) counter.add(AEItemKey.of(Items.SNOW_BLOCK), 1L);
+        if (!assembler.pushPattern(pattern, exact, net.minecraft.core.Direction.UP)) {
+            helper.fail("a push carrying exactly one job was refused");
+            return;
         }
-
-        var grid = new java.util.HashMap<Integer, ItemStack>();
-        var handedOver = new long[1];
-        var plan = new cn.dancingsnow.neoecoprototype.blockentity.crafting.ProcessorAssemblyPattern(
-                pattern, recipe, (what, amount) -> handedOver[0] += amount, (fluid, amount) -> helper.fail(
-                        "item-only recipe emitted fluid " + fluid + " x" + amount));
-        plan.fillCraftingGrid(supplies, grid::put);
-
         long left = 0;
-        for (KeyCounter counter : supplies) left += counter.get(key);
-        if (left != 64L) {
-            helper.fail("a cycle that hands over one stack of 16 snowballs took " + (80L - left)
-                    + " snow blocks out of the network; " + left + " should have been left where they are");
+        for (KeyCounter counter : exact) {
+            for (var entry : counter) left += entry.getLongValue();
+        }
+        if (left != 0) {
+            helper.fail("the accepted push left " + left + " snow blocks unconsumed");
+            return;
+        }
+        if (assembler.getCurrentPattern() != pattern) {
+            helper.fail("the accepted push did not install the pushed pattern");
             return;
         }
 
-        List<ItemStack> stacks = new ArrayList<>();
-        for (int slot = 0; slot < 9; slot++) stacks.add(grid.getOrDefault(slot, ItemStack.EMPTY));
-        var input = CraftingInput.of(3, 3, stacks);
-        var output = plan.assemble(input, helper.getLevel());
-        if (output.getCount() != 16) {
-            helper.fail("16 consumed blocks should come back as 16 snowballs, got " + output.getCount());
+        // The control: one block beyond the demand. A returned true owns the whole push, so this shape
+        // must be refused whole - the extra block would otherwise vanish into the machine.
+        var assembler2Pos = new BlockPos(2, 1, 0);
+        helper.setBlock(assembler2Pos, ModRegistration.SIMPLIFY_STONECUTTING_ASSEMBLER_BLOCK.get());
+        if (!(helper.getBlockEntity(assembler2Pos) instanceof cn.dancingsnow.neoecoprototype
+                .blockentity.crafting.SimplifyStonecuttingAssemblerBlockEntity second)) {
+            helper.fail("the second assembler did not come into existence");
             return;
         }
-        plan.getRemainingItems(input);
-        if (handedOver[0] != 0L) {
-            helper.fail("a cycle that stayed inside one stack still handed " + handedOver[0]
-                    + " snowballs to the output sink");
+        var over = new KeyCounter[] {new KeyCounter(), new KeyCounter(), new KeyCounter(), new KeyCounter()};
+        for (KeyCounter counter : over) counter.add(AEItemKey.of(Items.SNOW_BLOCK), 1L);
+        over[0].add(AEItemKey.of(Items.SNOW_BLOCK), 1L);
+        if (second.pushPattern(pattern, over, net.minecraft.core.Direction.UP)) {
+            helper.fail("a push carrying one block beyond the job's demand was accepted");
+            return;
+        }
+        long overLeft = 0;
+        for (KeyCounter counter : over) {
+            for (var entry : counter) overLeft += entry.getLongValue();
+        }
+        if (overLeft != 5L) {
+            helper.fail("the refused over-supplied push consumed material: " + overLeft + " of 5 left");
             return;
         }
 
-        // The other shape: one run of the pattern asks for more than a stack can hold. A finished cycle
-        // can still only eject one stack, so the rest has to leave through the output sink -- otherwise the
-        // materials the machine already took are paid for and delivered as a fraction.
-        var cell = stackOf("neoecoprototype:simplify_computation_cell_1m");
-        if (cell.getMaxStackSize() != 8) {
-            helper.fail("expected a result that stacks to eight, got " + cell.getMaxStackSize()
-                    + " -- the shape below needs one that cannot fit one run");
-            return;
-        }
+        // The output math a completion pays out, read off the job record: an item run count caps at one
+        // ejected stack, a fluid run count scales by the recipe's own millibuckets.
         var cellRecipe = new cn.dancingsnow.neoecoprototype.recipe.ProcessorAssemblerRecipe(
                 List.of(Ingredient.of(Items.SNOW_BLOCK), Ingredient.of(Items.REDSTONE),
                         Ingredient.of(Items.GOLD_INGOT)),
-                new ItemStack(cell.getItem(), 1));
-        var one = new GenericStack(AEItemKey.of(Items.SNOW_BLOCK), 1);
-        var cellPattern = new HandmadePattern(AEItemKey.of(cell.getItem()),
-                List.of(new HandmadeInput(64, one),
-                        new HandmadeInput(64, new GenericStack(AEItemKey.of(Items.REDSTONE), 1)),
-                        new HandmadeInput(64, new GenericStack(AEItemKey.of(Items.GOLD_INGOT), 1))),
-                List.of(new GenericStack(AEItemKey.of(cell.getItem()), 64)));
-        var cellGrid = new java.util.HashMap<Integer, ItemStack>();
-        var cellHandedOver = new long[1];
-        var cellPlan = new cn.dancingsnow.neoecoprototype.blockentity.crafting.ProcessorAssemblyPattern(
-                cellPattern, cellRecipe, (what, amount) -> cellHandedOver[0] += amount, (fluid, amount) -> helper.fail(
-                        "item-only surplus recipe emitted fluid " + fluid + " x" + amount));
-        var cellSupplies = new KeyCounter[3];
-        for (int slot = 0; slot < cellSupplies.length; slot++) {
-            cellSupplies[slot] = new KeyCounter();
-            cellSupplies[slot].add(cellPattern.getInputs()[slot].getPossibleInputs()[0].what(), 64L * 40L);
-        }
-        cellPlan.fillCraftingGrid(cellSupplies, cellGrid::put);
-        var cellStacks = new ArrayList<ItemStack>();
-        for (int slot = 0; slot < 9; slot++) cellStacks.add(cellGrid.getOrDefault(slot, ItemStack.EMPTY));
-        var cellInput = CraftingInput.of(3, 3, cellStacks);
-        var ejected = cellPlan.assemble(cellInput, helper.getLevel());
-        cellPlan.getRemainingItems(cellInput);
-        if (ejected.getCount() != 8 || cellHandedOver[0] != 56L) {
-            helper.fail("a pattern asking for 64 of an eight-stack item ejected " + ejected.getCount()
-                    + " and handed the sink " + cellHandedOver[0] + "; together they have to make 64");
+                new ItemStack(Items.IRON_INGOT, 1));
+        var cellJob = new cn.dancingsnow.neoecoprototype.blockentity.crafting.SimplifyAssemblerJob(
+                null, cellRecipe, 64);
+        if (cellJob.itemOutput().getCount() != 64) {
+            helper.fail("a 64-run job of a one-per-craft recipe claimed " + cellJob.itemOutput().getCount()
+                    + " for its single ejected stack instead of one full stack of 64");
             return;
         }
-
-        // The shape that used to take the world down: enough material pushed in that the batch needs more
-        // than nine slots. The fill used to throw, and the throw rode out through AE2's grid tick into the
-        // server tick loop. It has to shrink the batch instead.
-        var heavyRecipe = new cn.dancingsnow.neoecoprototype.recipe.ProcessorAssemblerRecipe(
-                List.of(Ingredient.of(Items.SNOW_BLOCK), Ingredient.of(Items.SNOW_BLOCK),
-                        Ingredient.of(Items.SNOW_BLOCK), Ingredient.of(Items.SNOW_BLOCK)),
-                new ItemStack(Items.SNOWBALL, 1));
-        var heavyUnit = new GenericStack(AEItemKey.of(Items.SNOW_BLOCK), 16);
-        var heavyPattern = new HandmadePattern(AEItemKey.of(Items.SNOWBALL),
-                List.of(new HandmadeInput(1, heavyUnit), new HandmadeInput(1, heavyUnit),
-                        new HandmadeInput(1, heavyUnit), new HandmadeInput(1, heavyUnit)),
-                List.of(new GenericStack(AEItemKey.of(Items.SNOWBALL), 1)));
-        var heavySupplies = new KeyCounter[4];
-        for (int slot = 0; slot < heavySupplies.length; slot++) {
-            heavySupplies[slot] = new KeyCounter();
-            heavySupplies[slot].add(AEItemKey.of(Items.SNOW_BLOCK), 2_500L);
-        }
-        var heavyGrid = new java.util.HashMap<Integer, ItemStack>();
-        var heavyPlan = new cn.dancingsnow.neoecoprototype.blockentity.crafting.ProcessorAssemblyPattern(
-                heavyPattern, heavyRecipe, (what, amount) -> helper.fail(
-                        "a batch that fits the grid has no surplus to hand over: " + what + " x" + amount),
-                (fluid, amount) -> helper.fail("item-only batch emitted fluid " + fluid + " x" + amount));
-        if (heavyPlan.fittingRuns(heavySupplies) <= 0) {
-            helper.fail("ten thousand snow blocks were on hand and the assembler still refused the pattern");
-            return;
-        }
-        heavyPlan.fillCraftingGrid(heavySupplies, heavyGrid::put);
-        if (heavyGrid.size() > 9) {
-            helper.fail("the batch filled " + heavyGrid.size() + " grid slots");
-            return;
-        }
-        var heavyStacks = new ArrayList<ItemStack>();
-        for (int slot = 0; slot < 9; slot++) heavyStacks.add(heavyGrid.getOrDefault(slot, ItemStack.EMPTY));
-        var heavyInput = CraftingInput.of(3, 3, heavyStacks);
-        var heavyOut = heavyPlan.assemble(heavyInput, helper.getLevel());
-        heavyPlan.getRemainingItems(heavyInput);
-        long heavyPlaced = 0;
-        for (ItemStack stack : heavyGrid.values()) heavyPlaced += stack.getCount();
-        if (heavyOut.getCount() * 64L != heavyPlaced) {
-            helper.fail("the grid holds " + heavyPlaced + " snow blocks, which is not a whole number of the "
-                    + heavyOut.getCount() + " snowballs this cycle pays for (64 blocks each)");
+        var fluidRecipe = new cn.dancingsnow.neoecoprototype.recipe.ProcessorAssemblerRecipe(
+                List.of(Ingredient.of(Items.SNOWBALL), Ingredient.of(Items.SNOWBALL),
+                        Ingredient.of(Items.SNOWBALL)),
+                ItemStack.EMPTY,
+                new net.neoforged.neoforge.fluids.FluidStack(ModRegistration.POWDER_SNOW_FLUID.get(), 1000));
+        var fluidJob = new cn.dancingsnow.neoecoprototype.blockentity.crafting.SimplifyAssemblerJob(
+                null, fluidRecipe, 64);
+        if (fluidJob.fluidOutput().getAmount() != 64000
+                || !fluidJob.fluidOutput().is(ModRegistration.POWDER_SNOW_FLUID.get())) {
+            helper.fail("a 64-run fluid job claimed " + fluidJob.fluidOutput() + " instead of 64000 mB of"
+                    + " liquid powder snow");
             return;
         }
         helper.succeed();
+    }
+
+    /**
+     * The end-to-end the mixin era never had: a 64x fluid-only pattern pushed at a formed assembler on a
+     * powered grid with fluid storage. 192 snowballs go in, one cycle runs, and 64000 mB of liquid powder
+     * snow lands in the network's storage with nothing left in the pending queue - the shape that used to
+     * be refused outright ("nine slots cannot hold it") and now runs like any other job.
+     */
+    @GameTest(template = "empty", batch = "processor_assembler_fluid", timeoutTicks = 400,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void assemblerDeliversFluidJobsIntoTheStorageNetwork(GameTestHelper helper) {
+        // Cable, drive, power: the same wiring the interface-transfer test proves, hung off the assembler.
+        var assemblerPos = new BlockPos(2, 2, 2);
+        helper.setBlock(assemblerPos, ModRegistration.SIMPLIFY_STONECUTTING_ASSEMBLER_BLOCK.get());
+        var player = helper.makeMockPlayer(GameType.CREATIVE);
+        var cablePos = new BlockPos(3, 2, 2);
+        var drivePos = new BlockPos(4, 2, 2);
+        var powerPos = new BlockPos(3, 3, 2);
+        if (!freeTemplateCell(helper, cablePos) || !freeTemplateCell(helper, drivePos)
+                || !freeTemplateCell(helper, powerPos)) {
+            helper.fail("the template cells next to the assembler are not free: " + cablePos + " "
+                    + drivePos + " " + powerPos);
+            return;
+        }
+        if (!placeCableAgainst(helper, player, assemblerPos, Direction.EAST)) {
+            helper.fail("could not place a glass cable against the assembler");
+            return;
+        }
+        var driveState = appeng.core.definitions.AEBlocks.DRIVE.block().defaultBlockState();
+        if (driveState.hasProperty(net.minecraft.world.level.block.state.properties.BlockStateProperties.FACING)) {
+            driveState = driveState.setValue(
+                    net.minecraft.world.level.block.state.properties.BlockStateProperties.FACING,
+                    Direction.EAST);
+        }
+        helper.getLevel().setBlockAndUpdate(helper.absolutePos(drivePos), driveState);
+        helper.setBlock(powerPos, appeng.core.definitions.AEBlocks.CREATIVE_ENERGY_CELL.block());
+
+        // The drive carries the fluid cell that will take the coolant; cells go in through its own
+        // inventory before the node powers up, which is how hopper-fed drives load theirs.
+        if (!(helper.getBlockEntity(drivePos) instanceof appeng.blockentity.storage.DriveBlockEntity drive)) {
+            helper.fail("no AE2 drive at " + drivePos);
+            return;
+        }
+        // The storage under test is the network, not the cell family: AE2's own fluid cell keeps the
+        // rig neutral. (Whether OUR fluid cells mount in an AE2 drive is a separate question this test
+        // does not answer - they are mounted through eco's own drive instead.)
+        drive.getInternalInventory().setItemDirect(0,
+                new ItemStack(appeng.core.definitions.AEItems.FLUID_CELL_1K.asItem()));
+
+        if (!(helper.getBlockEntity(assemblerPos) instanceof cn.dancingsnow.neoecoprototype
+                .blockentity.crafting.SimplifyStonecuttingAssemblerBlockEntity assembler)) {
+            helper.fail("no L1 assembler block entity at " + assemblerPos);
+            return;
+        }
+
+        var snowball = new GenericStack(AEItemKey.of(Items.SNOWBALL), 64);
+        var pattern = new HandmadePattern(AEItemKey.of(Items.SNOWBALL),
+                List.of(new HandmadeInput(1, snowball), new HandmadeInput(1, snowball),
+                        new HandmadeInput(1, snowball)),
+                List.of(new GenericStack(
+                        appeng.api.stacks.AEFluidKey.of(ModRegistration.POWDER_SNOW_FLUID.get()), 64000)));
+        var supplies = new KeyCounter[] {new KeyCounter()};
+        supplies[0].add(AEItemKey.of(Items.SNOWBALL), 192L);
+        if (!assembler.pushPattern(pattern, supplies, Direction.UP)) {
+            helper.fail("the 64x liquid powder snow pattern was refused - the nine-slot grid limit was"
+                    + " supposed to be gone with the standalone rewrite");
+            return;
+        }
+        long left = 0;
+        for (var entry : supplies[0]) left += entry.getLongValue();
+        if (left != 0) {
+            helper.fail("the accepted 64x fluid push left " + left + " snowballs unconsumed");
+            return;
+        }
+
+        waitUntil(helper, 30,
+                () -> assembler.pendingFluidOutputs().isEmpty()
+                        && networkStoredFluid(helper, assemblerPos) == 64000L,
+                () -> {
+                    var driveCell = helper.getBlockEntity(drivePos) instanceof appeng.blockentity.storage
+                            .DriveBlockEntity driveProbe
+                            ? "cell=" + driveProbe.getInternalInventory().getStackInSlot(0).getItem()
+                            + " drivePowered=" + driveProbe.isPowered()
+                            : "drive BE missing";
+                    var grid = assembler.getMainNode().getGrid();
+                    return "after 300 ticks: pending=" + assembler.pendingFluidOutputs()
+                            + ", network stored=" + networkStoredFluid(helper, assemblerPos)
+                            + " mB, assembler grid=" + (grid == null ? "none" : grid.size() + " nodes")
+                            + ", " + driveCell;
+                },
+                helper::succeed);
+    }
+
+    private static long networkStoredFluid(GameTestHelper helper, BlockPos assemblerPos) {
+        if (helper.getBlockEntity(assemblerPos) instanceof cn.dancingsnow
+                .neoecoprototype.blockentity.crafting.SimplifyStonecuttingAssemblerBlockEntity assembler) {
+            var grid = assembler.getMainNode().getGrid();
+            if (grid != null) {
+                return grid.getStorageService().getInventory()
+                        .extract(appeng.api.stacks.AEFluidKey.of(ModRegistration.POWDER_SNOW_FLUID.get()),
+                                64000L, Actionable.SIMULATE, appeng.api.networking.security.IActionSource.empty());
+            }
+        }
+        return -1L;
     }
 
     /** A pattern built by hand, laid out the way AE2's own processing patterns store their slots. */
@@ -13603,7 +13677,8 @@ public final class NeoECOPrototypeGameTests {
         var menu = new cn.dancingsnow.neoecoprototype.menu.ProcessorAssemblerMenu(
                 0, player.getInventory(), host);
         var grid = host.getSubInventory(
-                appeng.blockentity.crafting.MolecularAssemblerBlockEntity.INV_MAIN);
+                cn.dancingsnow.neoecoprototype.blockentity.crafting
+                        .SimplifyStonecuttingAssemblerBlockEntity.PREVIEW_INVENTORY);
         var gridSlots = menu.getSlots(appeng.menu.SlotSemantics.MACHINE_CRAFTING_GRID);
         var wrong = new java.util.ArrayList<String>();
         if (gridSlots.size() != 9) {

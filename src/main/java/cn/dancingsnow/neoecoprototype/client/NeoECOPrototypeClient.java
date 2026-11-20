@@ -5,7 +5,6 @@ import appeng.client.gui.implementations.PatternProviderScreen;
 import appeng.init.client.InitScreens;
 import appeng.menu.implementations.InterfaceMenu;
 import appeng.menu.implementations.PatternProviderMenu;
-import appeng.client.render.crafting.MolecularAssemblerRenderer;
 import cn.dancingsnow.neoecoae.api.ECOCellModels;
 import cn.dancingsnow.neoecoae.blocks.ECOIntegratedWorkingStation;
 import cn.dancingsnow.neoecoae.api.ECOComputationModels;
@@ -17,6 +16,7 @@ import cn.dancingsnow.neoecoprototype.client.renderer.blockentity.GiantPlushieRe
 import cn.dancingsnow.neoecoprototype.client.renderer.blockentity.SimplifyComputationDriveRenderer;
 import cn.dancingsnow.neoecoprototype.client.renderer.blockentity.SimplifyCoolingControllerRenderer;
 import cn.dancingsnow.neoecoprototype.client.renderer.blockentity.SimplifyDriveRenderer;
+import cn.dancingsnow.neoecoprototype.client.render.SimplifyAssemblerTESR;
 import cn.dancingsnow.neoecoprototype.menu.ProcessorAssemblerMenu;
 import cn.dancingsnow.neoecoprototype.registration.ModRegistration;
 import cn.dancingsnow.neoecoprototype.registration.ProcessorAssemblyWorkstationSupport;
@@ -373,8 +373,10 @@ public final class NeoECOPrototypeClient {
         // scaled-up plushie for the giant, which is why the type is shared rather than split.
         event.registerBlockEntityRenderer(ModRegistration.FUMO_DOLL_BE.get(), GiantPlushieRenderer::new);
         event.registerBlockEntityRenderer(ModRegistration.SIMPLIFY_COMPUTATION_DRIVE_BE.get(), SimplifyComputationDriveRenderer::new);
+        // Our own clone of AE2's assembler animation: the standalone block entity no longer subclasses
+        // AE2's, whose renderer is generic over that exact class.
         event.registerBlockEntityRenderer(ModRegistration.SIMPLIFY_STONECUTTING_ASSEMBLER_BE.get(),
-                MolecularAssemblerRenderer::new);
+                SimplifyAssemblerTESR::new);
     }
 
     /** These names only resolve because blocks.json stitches them; see the guard in the suite. */

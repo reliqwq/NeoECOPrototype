@@ -1,6 +1,5 @@
 package cn.dancingsnow.neoecoprototype.menu;
 
-import appeng.blockentity.crafting.MolecularAssemblerBlockEntity;
 import appeng.menu.SlotSemantics;
 import appeng.menu.implementations.MenuTypeBuilder;
 import appeng.menu.implementations.UpgradeableMenu;
@@ -13,14 +12,13 @@ import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.MenuType;
 
 /**
- * The assembler's menu: AE2's molecular assembler layout without the encoded-pattern slot, because this
- * machine is only meant to be driven by a pattern provider. The grid slots are display-only.
+ * The assembler's menu: upgrade column and progress bar from AE2's standard toolkit, the nine grid slots
+ * as a read-only preview of what the active job is consuming (the machine has no crafting grid to fill),
+ * and the output slot showing the stack waiting to eject.
  */
 public class ProcessorAssemblerMenu extends UpgradeableMenu<SimplifyStonecuttingAssemblerBlockEntity>
         implements IProgressProvider {
-    /** AE2's INV_MAIN is grid 0..8, output 9, encoded pattern 10. */
-    private static final int GRID_SLOTS = 9;
-    private static final int OUTPUT_SLOT = 9;
+    private static final int PREVIEW_SLOTS = 9;
 
     public static MenuType<ProcessorAssemblerMenu> buildType() {
         return MenuTypeBuilder
@@ -46,12 +44,12 @@ public class ProcessorAssemblerMenu extends UpgradeableMenu<SimplifyStonecutting
     protected void setupConfig() {
         super.setupConfig();
         // setupConfig runs from the super constructor, before this.assembler is assigned.
-        var inventory = ((SimplifyStonecuttingAssemblerBlockEntity) getHost())
-                .getSubInventory(MolecularAssemblerBlockEntity.INV_MAIN);
-        for (int slot = 0; slot < GRID_SLOTS; slot++) {
-            addSlot(new DisplayOnlyGridSlot(inventory, slot), SlotSemantics.MACHINE_CRAFTING_GRID);
+        var host = (SimplifyStonecuttingAssemblerBlockEntity) getHost();
+        for (int slot = 0; slot < PREVIEW_SLOTS; slot++) {
+            addSlot(new DisplayOnlyGridSlot(host.getPreviewInventory(), slot),
+                    SlotSemantics.MACHINE_CRAFTING_GRID);
         }
-        addSlot(new OutputSlot(inventory, OUTPUT_SLOT, null), SlotSemantics.MACHINE_OUTPUT);
+        addSlot(new OutputSlot(host.getOutputInventory(), 0, null), SlotSemantics.MACHINE_OUTPUT);
     }
 
     @Override

@@ -67,9 +67,7 @@ However many complete sets a push carries, they finish in a **single** cycle - o
 1. **`processor_assembler_max_runs_per_cycle`** (server config, default 64, range 1-192): the most sets one cycle may process. The default 64 is one full stack of a one-per-craft processor - what the cycle ejects outright, with no surplus sent to the network; lowering it tightens the machine (1 means one set per cycle), raising it widens the batch up to 192, the ceiling the recipes themselves set (the grid holds 576 items; a three-ingredient processor costs three per run). A larger pattern is refused - refused, not partly run.
 2. **The nine-slot grid**: one batch has to fit those nine slots at its own stack sizes. Nine slots of 64 items hold 576 items; item ingredients and their stack sizes determine the physical ceiling (the three-ingredient processors fit 192 sets).
 
-Raise the config to process more per cycle, up to 192 - the key will not take more; the nine-slot limit is physical and a config change cannot lift it. One stack of the output reaches the machine per round; the rest is inserted into the network rather than lost.
-
-One recipe cannot take its 64x pattern here: **liquid powder snow**. 64 sets need 192 snowballs, and snowballs stack to 16, so one batch is 12 grid slots - one more than the nine the machine has - and a 64x pattern of it is refused whole ("一批原料摆不进 9 格工作台"). Encode it at 1x (1000 mB per pattern run) and this assembler still batches up to 48 sets per cycle, or push the 64x pattern to eco's large integrated working station instead, whose crafting model has no such grid.
+Raise the config to process more per cycle, up to 192 - the key will not take more. One stack of the output reaches the machine per round; the rest is inserted into the network rather than lost. Fluid outputs land in the network the same way, so even the 64x liquid powder snow pattern runs here.
 
 ## L1 Pattern Provider
 

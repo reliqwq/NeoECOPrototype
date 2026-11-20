@@ -214,6 +214,8 @@ AE2 的下限从始至终是 `[19.2.17,)`，现在也是编译所依据的版本
 
 ## 装配室一轮合成的两个调用点（升级 AE2 时只重量这两处）
 
+> **2026-11-20 起对本仓库不再承重**：L1 处理器装配室重写为独立机器（`AENetworkedInvBlockEntity + IUpgradeableObject + IGridTickable + ICraftingMachine`，ExtendedAE 的 `TileExMolecularAssembler` 同款形状），不再继承 AE2 的 `MolecularAssemblerBlockEntity`，这段字节码偏移只描述 AE2 自己那台的内部行为。留着它是因为同族教训（`hasMats()` 探询、`getRemainingItems` 唯一副作用点）在任何人再往 AE2 装配室上挂东西时都还用得着。
+
 `MolecularAssemblerBlockEntity.tickingRequest()` 在一轮结束时按这个顺序问我们的 pattern。下面是 AE2 19.2.17 的字节码偏移，升级后**先重量这张表**再谈别的：
 
 | 偏移 | 调用 | 对我们的意义 |
