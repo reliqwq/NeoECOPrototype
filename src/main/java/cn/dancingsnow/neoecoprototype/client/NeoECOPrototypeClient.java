@@ -377,6 +377,8 @@ public final class NeoECOPrototypeClient {
         // AE2's, whose renderer is generic over that exact class.
         event.registerBlockEntityRenderer(ModRegistration.SIMPLIFY_STONECUTTING_ASSEMBLER_BE.get(),
                 SimplifyAssemblerTESR::new);
+        event.registerBlockEntityRenderer(ModRegistration.EC9_ASSEMBLER_BE.get(),
+                SimplifyAssemblerTESR::new);
     }
 
     /** These names only resolve because blocks.json stitches them; see the guard in the suite. */

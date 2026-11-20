@@ -420,7 +420,7 @@ public class NeoECOPrototype {
         appeng.api.upgrades.Upgrades.add(appeng.core.definitions.AEItems.SPEED_CARD.asItem(), assembler, 5);
         appeng.api.upgrades.Upgrades.add(appeng.core.definitions.AEItems.ENERGY_CARD.asItem(), assembler, 5);
         var ec9 = ModRegistration.EC9_ASSEMBLER_ITEM.get();
-        appeng.api.upgrades.Upgrades.add(appeng.core.definitions.AEItems.SPEED_CARD.asItem(), ec9, 5);
+        appeng.api.upgrades.Upgrades.add(appeng.core.definitions.AEItems.SPEED_CARD.asItem(), ec9, 6);
         appeng.api.upgrades.Upgrades.add(appeng.core.definitions.AEItems.ENERGY_CARD.asItem(), ec9, 5);
         var interfaceGroup = appeng.core.localization.GuiText.Interface.getTranslationKey();
         var poweredInterfaceBlock = ModRegistration.SIMPLIFY_POWERED_ME_INTERFACE_ITEM.get();

@@ -49,7 +49,9 @@ public final class NeoECOPrototypeJeiPlugin implements IModPlugin {
 
     @Override
     public void registerCategories(IRecipeCategoryRegistration registration) {
-        registration.addRecipeCategories(new ProcessorAssemblerCategory(registration.getJeiHelpers().getGuiHelper()));
+        var guiHelper = registration.getJeiHelpers().getGuiHelper();
+        registration.addRecipeCategories(new ProcessorAssemblerCategory(guiHelper, false),
+                new ProcessorAssemblerCategory(guiHelper, true));
         registration.addRecipeCategories(new CellUpgradeCategory(registration.getJeiHelpers().getGuiHelper()));
     }
 
@@ -97,13 +99,16 @@ public final class NeoECOPrototypeJeiPlugin implements IModPlugin {
         if (level == null) {
             return;
         }
-        List<ProcessorAssemblerRecipe> recipes = level.getRecipeManager()
+        List<RecipeHolder<ProcessorAssemblerRecipe>> recipes = level.getRecipeManager()
                 .getAllRecipesFor(ModRegistration.PROCESSOR_ASSEMBLER_RECIPE_TYPE.get())
-                .stream().map(RecipeHolder::value).toList();
+                .stream().filter(holder -> !holder.value().hasItemOutput()
+                        || !NeoECOPrototypeServerConfig.isProcessorRecipeDisabled(holder.value().result().getItem()))
+                .toList();
         registration.addRecipes(ProcessorAssemblerCategory.TYPE,
-                recipes.stream().filter(recipe -> !recipe.hasItemOutput()
-                        || !NeoECOPrototypeServerConfig.isProcessorRecipeDisabled(recipe.result().getItem()))
-                        .toList());
+                recipes.stream().filter(holder -> !holder.id().getPath().startsWith("derived/inscriber/"))
+                        .map(RecipeHolder::value).toList());
+        registration.addRecipes(ProcessorAssemblerCategory.EC9_TYPE,
+                recipes.stream().map(RecipeHolder::value).toList());
         // AE2's cell upgrades sit in the crafting map but answer isSpecial(), so JEI's own Crafting page skips
         // them and no other plugin in this pack draws them - see CellUpgradeCategory. Read through the recipe
         // class rather than a RecipeType handle so this does not depend on which type AE2 files them under.
@@ -139,7 +144,7 @@ public final class NeoECOPrototypeJeiPlugin implements IModPlugin {
                 ProcessorAssemblerCategory.TYPE);
         registration.addRecipeCatalyst(
                 ModRegistration.EC9_ASSEMBLER_BLOCK.get(),
-                ProcessorAssemblerCategory.TYPE);
+                ProcessorAssemblerCategory.EC9_TYPE);
         if (TRINITY_VISIBLE_IN_JEI) {
             registration.addRecipeCatalyst(
                     ModRegistration.SIMPLIFY_TRINITY_CONTROLLER_BLOCK.get(),
@@ -155,8 +160,11 @@ public final class NeoECOPrototypeJeiPlugin implements IModPlugin {
     @Override
     public void registerRecipeTransferHandlers(mezz.jei.api.registration.IRecipeTransferRegistration registration) {
         registration.addRecipeTransferHandler(
-                new ProcessorAssemblerTransferHandler(registration.getTransferHelper()),
+                new ProcessorAssemblerTransferHandler(registration.getTransferHelper(), ProcessorAssemblerCategory.TYPE),
                 ProcessorAssemblerCategory.TYPE);
+        registration.addRecipeTransferHandler(
+                new ProcessorAssemblerTransferHandler(registration.getTransferHelper(), ProcessorAssemblerCategory.EC9_TYPE),
+                ProcessorAssemblerCategory.EC9_TYPE);
     }
 
     @Override

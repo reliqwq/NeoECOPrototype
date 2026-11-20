@@ -11,6 +11,7 @@ import dev.emi.emi.api.EmiPlugin;
 import dev.emi.emi.api.EmiRegistry;
 import dev.emi.emi.api.recipe.EmiRecipeCategory;
 import dev.emi.emi.api.stack.EmiStack;
+import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.crafting.RecipeHolder;
 
@@ -33,6 +34,14 @@ public final class NeoECOPrototypeEmiPlugin implements EmiPlugin {
     public static final EmiRecipeCategory PROCESSOR_ASSEMBLER = new EmiRecipeCategory(
             ResourceLocation.fromNamespaceAndPath(NeoECOPrototype.MOD_ID, "processor_assembler"),
             EmiStack.of(ModRegistration.SIMPLIFY_STONECUTTING_ASSEMBLER_ITEM.get()));
+    public static final EmiRecipeCategory EC9_PROCESSOR_ASSEMBLER = new EmiRecipeCategory(
+            ResourceLocation.fromNamespaceAndPath(NeoECOPrototype.MOD_ID, "ec9_processor_assembler"),
+            EmiStack.of(ModRegistration.EC9_ASSEMBLER_ITEM.get())) {
+        @Override
+        public Component getName() {
+            return ModRegistration.EC9_ASSEMBLER_BLOCK.get().getName();
+        }
+    };
 
     @Override
     public void register(EmiRegistry registry) {
@@ -69,9 +78,10 @@ public final class NeoECOPrototypeEmiPlugin implements EmiPlugin {
             return;
         }
         registry.addCategory(PROCESSOR_ASSEMBLER);
+        registry.addCategory(EC9_PROCESSOR_ASSEMBLER);
         registry.addWorkstation(PROCESSOR_ASSEMBLER,
                 EmiStack.of(ModRegistration.SIMPLIFY_STONECUTTING_ASSEMBLER_BLOCK.get()));
-        registry.addWorkstation(PROCESSOR_ASSEMBLER,
+        registry.addWorkstation(EC9_PROCESSOR_ASSEMBLER,
                 EmiStack.of(ModRegistration.EC9_ASSEMBLER_BLOCK.get()));
         List<RecipeHolder<ProcessorAssemblerRecipe>> recipes = level.getRecipeManager()
                 .getAllRecipesFor(ModRegistration.PROCESSOR_ASSEMBLER_RECIPE_TYPE.get());
@@ -79,7 +89,13 @@ public final class NeoECOPrototypeEmiPlugin implements EmiPlugin {
             if (!isShown(holder.value())) {
                 continue;
             }
-            registry.addRecipe(new ProcessorAssemblerEmiRecipe(PROCESSOR_ASSEMBLER, holder.id(),
+            if (!holder.id().getPath().startsWith("derived/inscriber/")) {
+                registry.addRecipe(new ProcessorAssemblerEmiRecipe(PROCESSOR_ASSEMBLER, holder.id(),
+                        holder.value(), holder));
+            }
+            var ec9Id = ResourceLocation.fromNamespaceAndPath(NeoECOPrototype.MOD_ID,
+                    "/ec9_processor_assembler/" + holder.id().getNamespace() + "/" + holder.id().getPath());
+            registry.addRecipe(new ProcessorAssemblerEmiRecipe(EC9_PROCESSOR_ASSEMBLER, ec9Id,
                     holder.value(), holder));
         }
     }

@@ -3173,6 +3173,12 @@ public final class NeoECOPrototypeGameTests {
             helper.fail("the assembler did not come into existence");
             return;
         }
+        helper.assertTrue(assembler.getUpgrades().size() == 6, "EC9 must have six upgrade slots");
+        for (int slot = 0; slot < 6; slot++) {
+            assembler.getUpgrades().addItems(AEItems.SPEED_CARD.stack());
+        }
+        helper.assertTrue(assembler.getUpgrades().getInstalledUpgrades(AEItems.SPEED_CARD) == 6,
+                "EC9 refused its sixth speed card");
         var output = stackOf("ae2:logic_processor");
         var silicon = AEItemKey.of(stackOf("ae2:silicon"));
         var redstone = AEItemKey.of(stackOf("minecraft:redstone"));

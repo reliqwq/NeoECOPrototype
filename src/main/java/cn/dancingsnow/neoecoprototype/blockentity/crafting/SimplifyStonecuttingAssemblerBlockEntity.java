@@ -73,8 +73,8 @@ public class SimplifyStonecuttingAssemblerBlockEntity extends AENetworkedInvBloc
             NeoECOPrototype.id("assembler_preview");
 
     /** Progress per tick and its energy tax for zero through five speed cards - AE2's own assembler curve. */
-    private static final int[] SPEED_RATE = {10, 13, 17, 20, 25, 50};
-    private static final double[] SPEED_TAX = {1.0, 1.3, 1.7, 2.0, 2.5, 5.0};
+    private static final int[] SPEED_RATE = {10, 13, 17, 20, 25, 50, 100};
+    private static final double[] SPEED_TAX = {1.0, 1.3, 1.7, 2.0, 2.5, 5.0, 10.0};
 
     private final AppEngInternalInventory outputInventory = new AppEngInternalInventory(this, 1);
     private final AppEngInternalInventory previewInventory = new AppEngInternalInventory(this, 9);
@@ -122,7 +122,7 @@ public class SimplifyStonecuttingAssemblerBlockEntity extends AENetworkedInvBloc
         this.family = family;
         var machineItem = family == Family.EC9
                 ? ModRegistration.EC9_ASSEMBLER_ITEM.get() : ModRegistration.SIMPLIFY_STONECUTTING_ASSEMBLER_ITEM.get();
-        this.upgrades = UpgradeInventories.forMachine(machineItem, 5, this::saveChanges);
+        this.upgrades = UpgradeInventories.forMachine(machineItem, family == Family.EC9 ? 6 : 5, this::saveChanges);
         getMainNode().setVisualRepresentation(machineItem);
         getMainNode().setIdlePowerUsage(0.0)
                 .addService(IGridTickable.class, this);
@@ -152,7 +152,7 @@ public class SimplifyStonecuttingAssemblerBlockEntity extends AENetworkedInvBloc
             completeJob();
         }
         updateSleepiness();
-        return activeJob != null ? TickRateModulation.FASTER : TickRateModulation.SLEEP;
+        return isAwake ? TickRateModulation.FASTER : TickRateModulation.SLEEP;
     }
 
     @Override
@@ -315,7 +315,7 @@ public class SimplifyStonecuttingAssemblerBlockEntity extends AENetworkedInvBloc
         refusedOutput = null;
         fillPreview(recipe);
         int cards = upgrades.getInstalledUpgrades(appeng.core.definitions.AEItems.SPEED_CARD);
-        animationSpeed = (byte) Math.min(cards, 5);
+        animationSpeed = (byte) SPEED_RATE[Math.min(cards, SPEED_RATE.length - 1)];
         animationDisplay = recipe.hasItemOutput() ? recipe.result().copy() : ItemStack.EMPTY;
         markForUpdate();
         saveChanges();
