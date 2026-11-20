@@ -242,10 +242,14 @@ public class NeoECOPrototype {
         event.registerBlockEntity(AECapabilities.CRAFTING_MACHINE,
                 ModRegistration.SIMPLIFY_STONECUTTING_ASSEMBLER_BE.get(),
                 (blockEntity, side) -> (ICraftingMachine) blockEntity);
+        event.registerBlockEntity(AECapabilities.CRAFTING_MACHINE,
+                ModRegistration.EC9_ASSEMBLER_BE.get(),
+                (blockEntity, side) -> (ICraftingMachine) blockEntity);
         // AE2 registers the node-host block capability for its own block entity types only. A machine we
         // leave out of this list is invisible from the outside, so a cable placed against an already
         // standing machine finds nothing and never joins its grid.
         registerNodeHost(event, ModRegistration.SIMPLIFY_STONECUTTING_ASSEMBLER_BE.get());
+        registerNodeHost(event, ModRegistration.EC9_ASSEMBLER_BE.get());
         // The assembler can only eject a finished product into a neighbour that answers
         // Capabilities.ItemHandler.BLOCK, and AE2 never registers that capability directly for its
         // provider: it exposes the return inventory as GENERIC_INTERNAL_INV and lets its own
@@ -415,6 +419,9 @@ public class NeoECOPrototype {
         var assembler = ModRegistration.SIMPLIFY_STONECUTTING_ASSEMBLER_ITEM.get();
         appeng.api.upgrades.Upgrades.add(appeng.core.definitions.AEItems.SPEED_CARD.asItem(), assembler, 5);
         appeng.api.upgrades.Upgrades.add(appeng.core.definitions.AEItems.ENERGY_CARD.asItem(), assembler, 5);
+        var ec9 = ModRegistration.EC9_ASSEMBLER_ITEM.get();
+        appeng.api.upgrades.Upgrades.add(appeng.core.definitions.AEItems.SPEED_CARD.asItem(), ec9, 5);
+        appeng.api.upgrades.Upgrades.add(appeng.core.definitions.AEItems.ENERGY_CARD.asItem(), ec9, 5);
         var interfaceGroup = appeng.core.localization.GuiText.Interface.getTranslationKey();
         var poweredInterfaceBlock = ModRegistration.SIMPLIFY_POWERED_ME_INTERFACE_ITEM.get();
         var poweredInterfacePart = ModRegistration.POWERED_INTERFACE_PART.get();

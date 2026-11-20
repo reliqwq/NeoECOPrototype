@@ -36,6 +36,7 @@
   "block.neoecoprototype.simplify_computation_casing": "ECO - C1 Computation Substructure Casing",
   "block.neoecoprototype.simplify_crafting_system": "ECO - F1 Extensible Crafting Subsystem Host",
   "block.neoecoprototype.simplify_stonecutting_assembler": "L1 Processor Assembler",
+  "block.neoecoprototype.ec9_processor_assembler": "L1-EC9 Processor Assembler",
   "block.neoecoprototype.simplify_pattern_provider": "L1 Pattern Provider",
   "block.neoecoprototype.simplify_powered_me_interface": "L1 Powered ME Interface",
   "item.neoecoprototype.cable_powered_me_interface": "L1 Cable Powered ME Interface",

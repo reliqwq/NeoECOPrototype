@@ -137,6 +137,9 @@ public final class NeoECOPrototypeJeiPlugin implements IModPlugin {
         registration.addRecipeCatalyst(
                 ModRegistration.SIMPLIFY_STONECUTTING_ASSEMBLER_BLOCK.get(),
                 ProcessorAssemblerCategory.TYPE);
+        registration.addRecipeCatalyst(
+                ModRegistration.EC9_ASSEMBLER_BLOCK.get(),
+                ProcessorAssemblerCategory.TYPE);
         if (TRINITY_VISIBLE_IN_JEI) {
             registration.addRecipeCatalyst(
                     ModRegistration.SIMPLIFY_TRINITY_CONTROLLER_BLOCK.get(),

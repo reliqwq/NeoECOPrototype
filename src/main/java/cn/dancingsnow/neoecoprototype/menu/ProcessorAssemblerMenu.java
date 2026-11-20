@@ -45,11 +45,11 @@ public class ProcessorAssemblerMenu extends UpgradeableMenu<SimplifyStonecutting
         super.setupConfig();
         // setupConfig runs from the super constructor, before this.assembler is assigned.
         var host = (SimplifyStonecuttingAssemblerBlockEntity) getHost();
+        var inventory = host.getInternalInventory();
         for (int slot = 0; slot < PREVIEW_SLOTS; slot++) {
-            addSlot(new DisplayOnlyGridSlot(host.getPreviewInventory(), slot),
-                    SlotSemantics.MACHINE_CRAFTING_GRID);
+            addSlot(new DisplayOnlyGridSlot(inventory, slot), SlotSemantics.MACHINE_CRAFTING_GRID);
         }
-        addSlot(new OutputSlot(host.getOutputInventory(), 0, null), SlotSemantics.MACHINE_OUTPUT);
+        addSlot(new OutputSlot(inventory, PREVIEW_SLOTS, null), SlotSemantics.MACHINE_OUTPUT);
     }
 
     @Override

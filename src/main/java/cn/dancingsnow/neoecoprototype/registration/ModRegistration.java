@@ -875,6 +875,8 @@ public class ModRegistration {
     public static final Supplier<SimplifyCraftingSystemBlock> SIMPLIFY_CRAFTING_SYSTEM_BLOCK =
             BLOCKS.register("simplify_crafting_system", () -> new SimplifyCraftingSystemBlock(COMPUTATION_PROPS));
      public static final Supplier<SimplifyStonecuttingAssemblerBlock> SIMPLIFY_STONECUTTING_ASSEMBLER_BLOCK = BLOCKS.register("simplify_stonecutting_assembler", () -> new SimplifyStonecuttingAssemblerBlock(AE2_MACHINE_PROPS));
+    public static final Supplier<SimplifyStonecuttingAssemblerBlock> EC9_ASSEMBLER_BLOCK =
+            BLOCKS.register("ec9_processor_assembler", () -> new SimplifyStonecuttingAssemblerBlock(AE2_MACHINE_PROPS));
      public static final Supplier<SimplifyPatternProviderBlock> SIMPLIFY_PATTERN_PROVIDER_BLOCK = BLOCKS.register("simplify_pattern_provider", SimplifyPatternProviderBlock::new);
       public static final Supplier<SimplifyPoweredMEInterfaceBlock> SIMPLIFY_POWERED_ME_INTERFACE_BLOCK = BLOCKS.register("simplify_powered_me_interface", SimplifyPoweredMEInterfaceBlock::new);
        public static final Supplier<SimplifySuperconductiveInterfaceBlock> SUPERCONDUCTIVE_INTERFACE_BLOCK = BLOCKS.register("superconductive_interface", SimplifySuperconductiveInterfaceBlock::new);
@@ -1074,6 +1076,7 @@ public class ModRegistration {
                     () -> new BlockItem(CRYOTHEUM_ORE_BLOCK.get(), new Item.Properties()));
 
     public static final Supplier<BlockItem> SIMPLIFY_STONECUTTING_ASSEMBLER_ITEM = ITEMS.register("simplify_stonecutting_assembler", () -> new BlockItem(SIMPLIFY_STONECUTTING_ASSEMBLER_BLOCK.get(), coloredName(SIMPLIFY_STONECUTTING_ASSEMBLER_BLOCK, NAME_THEME_GREEN)));
+    public static final Supplier<BlockItem> EC9_ASSEMBLER_ITEM = ITEMS.register("ec9_processor_assembler", () -> new BlockItem(EC9_ASSEMBLER_BLOCK.get(), coloredName(EC9_ASSEMBLER_BLOCK, NAME_THEME_TIER_L9)));
      public static final Supplier<BlockItem> SIMPLIFY_PATTERN_PROVIDER_ITEM = ITEMS.register("simplify_pattern_provider", () -> new BlockItem(SIMPLIFY_PATTERN_PROVIDER_BLOCK.get(), coloredName(SIMPLIFY_PATTERN_PROVIDER_BLOCK, NAME_THEME_GREEN)));
       public static final Supplier<BlockItem> SIMPLIFY_POWERED_ME_INTERFACE_ITEM = ITEMS.register("simplify_powered_me_interface", () -> new BlockItem(SIMPLIFY_POWERED_ME_INTERFACE_BLOCK.get(), coloredName(SIMPLIFY_POWERED_ME_INTERFACE_BLOCK, NAME_THEME_GREEN)));
        public static final Supplier<BlockItem> SUPERCONDUCTIVE_INTERFACE_ITEM = ITEMS.register("superconductive_interface", () -> new BlockItem(SUPERCONDUCTIVE_INTERFACE_BLOCK.get(), coloredName(SUPERCONDUCTIVE_INTERFACE_BLOCK, NAME_THEME_GREEN)));
@@ -1792,6 +1795,16 @@ private static Supplier<BlockEntityType<SimplifyStorageVentBlockEntity>> registe
 
     public static final Supplier<BlockEntityType<SimplifyStonecuttingAssemblerBlockEntity>> SIMPLIFY_STONECUTTING_ASSEMBLER_BE = registerStonecuttingAssemblerBe();
 
+    private static Supplier<BlockEntityType<SimplifyStonecuttingAssemblerBlockEntity>> registerEc9AssemblerBe() {
+        return (Supplier) BLOCK_ENTITIES.register("ec9_processor_assembler", () -> BlockEntityType.Builder.of(
+                (pos, state) -> new SimplifyStonecuttingAssemblerBlockEntity(EC9_ASSEMBLER_BE.get(), pos, state,
+                        SimplifyStonecuttingAssemblerBlockEntity.Family.EC9),
+                EC9_ASSEMBLER_BLOCK.get()).build(null));
+    }
+
+    public static final Supplier<BlockEntityType<SimplifyStonecuttingAssemblerBlockEntity>> EC9_ASSEMBLER_BE =
+            registerEc9AssemblerBe();
+
     public static final Supplier<BlockEntityType<WirelessChannelModuleBlockEntity>> SUBSYSTEM_CHANNEL_MODULE_BE =
             registerSubsystemChannelModuleBe();
 
@@ -2197,6 +2210,7 @@ private static Supplier<BlockEntityType<SimplifyStorageVentBlockEntity>> registe
                         output.accept(ENERGIZED_COMPUTATION_CELL_4M.get());
                          output.accept(SIMPLIFY_CRAFTING_SYSTEM_ITEM.get());
                          output.accept(SIMPLIFY_STONECUTTING_ASSEMBLER_ITEM.get());
+                        output.accept(EC9_ASSEMBLER_ITEM.get());
                         // The music family is registered but withheld: the Data Energistics half it feeds
                         // is unfinished, so the recorder, the jukebox and the blank disc have no tab entry
                         // and no survival recipe this release, and each carries the red not-implemented
@@ -2344,6 +2358,10 @@ private static Supplier<BlockEntityType<SimplifyStorageVentBlockEntity>> registe
                 SimplifyStonecuttingAssemblerBlockEntity.class, SIMPLIFY_STONECUTTING_ASSEMBLER_BE.get(), null,
                 (level, pos, state, blockEntity) -> SimplifyStonecuttingAssemblerBlockEntity.serverTick(
                         level, pos, state, (SimplifyStonecuttingAssemblerBlockEntity) blockEntity));
+        asEntityBlock(EC9_ASSEMBLER_BLOCK).setBlockEntity(
+                SimplifyStonecuttingAssemblerBlockEntity.class, EC9_ASSEMBLER_BE.get(), null,
+                (level, pos, state, blockEntity) -> SimplifyStonecuttingAssemblerBlockEntity.serverTick(
+                        level, pos, state, (SimplifyStonecuttingAssemblerBlockEntity) blockEntity));
         ((AEBaseEntityBlock<cn.dancingsnow.neoecoprototype.blockentity.dissociation.MeteoriteDissociatorBlockEntity>)
                 METEORITE_DISSOCIATOR_BLOCK.get()).setBlockEntity(
                 cn.dancingsnow.neoecoprototype.blockentity.dissociation.MeteoriteDissociatorBlockEntity.class,
@@ -2431,6 +2449,7 @@ private static Supplier<BlockEntityType<SimplifyStorageVentBlockEntity>> registe
         AEBaseBlockEntity.registerBlockEntityItem(SIMPLIFY_COMPUTATION_CASING_BE.get(),
                 SIMPLIFY_COMPUTATION_CASING_ITEM.get().asItem());
         AEBaseBlockEntity.registerBlockEntityItem(SIMPLIFY_STONECUTTING_ASSEMBLER_BE.get(), SIMPLIFY_STONECUTTING_ASSEMBLER_ITEM.get().asItem());
+        AEBaseBlockEntity.registerBlockEntityItem(EC9_ASSEMBLER_BE.get(), EC9_ASSEMBLER_ITEM.get().asItem());
         AEBaseBlockEntity.registerBlockEntityItem(METEORITE_DISSOCIATOR_BE.get(),
                 METEORITE_DISSOCIATOR_ITEM.get().asItem());
         AEBaseBlockEntity.registerBlockEntityItem(MUSIC_JUKEBOX_BE.get(),

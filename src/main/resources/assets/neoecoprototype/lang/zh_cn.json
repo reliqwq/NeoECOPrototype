@@ -32,6 +32,7 @@
   "block.neoecoprototype.simplify_computation_casing": "ECO - C1 计算子结构外壳",
   "block.neoecoprototype.simplify_crafting_system": "ECO - F1可扩展合成子系统主机",
   "block.neoecoprototype.simplify_stonecutting_assembler": "L1 处理器装配室",
+  "block.neoecoprototype.ec9_processor_assembler": "L1-EC9 处理器装配室",
   "block.neoecoprototype.simplify_pattern_provider": "L1 样板供应器",
   "block.neoecoprototype.simplify_powered_me_interface": "L1 供能接口",
   "item.neoecoprototype.cable_powered_me_interface": "L1 供能接口",

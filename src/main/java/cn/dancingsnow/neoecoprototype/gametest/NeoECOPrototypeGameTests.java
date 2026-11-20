@@ -2907,7 +2907,7 @@ public final class NeoECOPrototypeGameTests {
                         new HandmadeInput(1, snowballInput)),
                 List.of(new GenericStack(AEFluidKey.of(ModRegistration.POWDER_SNOW_FLUID.get()), 1000)));
         if (cn.dancingsnow.neoecoprototype.recipe.ProcessorAssemblerRecipes.resolve(
-                helper.getLevel(), snowFluidPattern) != snowFluid) {
+                helper.getLevel(), snowFluidPattern, true) != snowFluid) {
             helper.fail("the snowball pattern for 1000 mB liquid powder snow did not resolve to its recipe");
             return;
         }
@@ -2916,14 +2916,14 @@ public final class NeoECOPrototypeGameTests {
         var wrongSnowFluid = new HandmadePattern(AEItemKey.of(Items.SNOWBALL), snowballInputs,
                 List.of(new GenericStack(AEFluidKey.of(net.minecraft.world.level.material.Fluids.WATER), 1000)));
         if (cn.dancingsnow.neoecoprototype.recipe.ProcessorAssemblerRecipes.resolve(
-                helper.getLevel(), wrongSnowFluid) != null) {
+                helper.getLevel(), wrongSnowFluid, true) != null) {
             helper.fail("the snowball recipe accepted water as its fluid output");
             return;
         }
         var wrongAmount = new HandmadePattern(AEItemKey.of(Items.SNOWBALL), snowballInputs,
                 List.of(new GenericStack(AEFluidKey.of(ModRegistration.POWDER_SNOW_FLUID.get()), 999)));
         if (cn.dancingsnow.neoecoprototype.recipe.ProcessorAssemblerRecipes.resolve(
-                helper.getLevel(), wrongAmount) != null) {
+                helper.getLevel(), wrongAmount, true) != null) {
             helper.fail("the snowball recipe accepted a 999 mB pattern output");
             return;
         }
@@ -2931,7 +2931,7 @@ public final class NeoECOPrototypeGameTests {
                 List.of(new GenericStack(AEFluidKey.of(ModRegistration.POWDER_SNOW_FLUID.get()), 2000),
                         new GenericStack(AEItemKey.of(Items.SNOWBALL), 1)));
         if (cn.dancingsnow.neoecoprototype.recipe.ProcessorAssemblerRecipes.resolve(
-                helper.getLevel(), wrongBatch) != null) {
+                helper.getLevel(), wrongBatch, true) != null) {
             helper.fail("the recipe accepted an item/fluid output set with different run counts");
             return;
         }
@@ -2950,7 +2950,7 @@ public final class NeoECOPrototypeGameTests {
             replacement.add(new net.minecraft.world.item.crafting.RecipeHolder<>(mixedId, mixedSnow));
             recipeManager.replaceRecipes(replacement);
             helper.assertTrue(cn.dancingsnow.neoecoprototype.recipe.ProcessorAssemblerRecipes
-                            .resolve(helper.getLevel(), mixedPattern) == mixedSnow,
+                            .resolve(helper.getLevel(), mixedPattern, true) == mixedSnow,
                     "processor assembler did not resolve an item+fluid output pair");
         } finally {
             recipeManager.replaceRecipes(originalRecipes);
@@ -3001,8 +3001,7 @@ public final class NeoECOPrototypeGameTests {
         var repeated = new HandmadePattern(AEItemKey.of(output),
                 List.of(new HandmadeInput(1, cell), new HandmadeInput(1, cell), new HandmadeInput(1, component)),
                 List.of(new GenericStack(AEItemKey.of(output), 1)));
-        if (cn.dancingsnow.neoecoprototype.recipe.ProcessorAssemblerRecipes.resolve(helper.getLevel(), repeated,
-                output.getItem()) == null) {
+        if (cn.dancingsnow.neoecoprototype.recipe.ProcessorAssemblerRecipes.resolve(helper.getLevel(), repeated, true) == null) {
             helper.fail("a pattern with two slots carrying the same item was refused for a recipe that needs"
                     + " two of it");
             return;
@@ -3015,8 +3014,7 @@ public final class NeoECOPrototypeGameTests {
         var merged = new HandmadePattern(AEItemKey.of(output),
                 List.of(new HandmadeInput(2, cell), new HandmadeInput(1, component)),
                 List.of(new GenericStack(AEItemKey.of(output), 1)));
-        if (cn.dancingsnow.neoecoprototype.recipe.ProcessorAssemblerRecipes.resolve(helper.getLevel(), merged,
-                output.getItem()) == null) {
+        if (cn.dancingsnow.neoecoprototype.recipe.ProcessorAssemblerRecipes.resolve(helper.getLevel(), merged, true) == null) {
             helper.fail("a pattern carrying the repeated ingredient as one slot with multiplier 2 was refused"
                     + " -- this is the shape AE2 stores when a recipe needs two of the same item");
             return;
@@ -3029,7 +3027,7 @@ public final class NeoECOPrototypeGameTests {
                 List.of(new HandmadeInput(64, cell), new HandmadeInput(64, cell), new HandmadeInput(64, component)),
                 List.of(new GenericStack(AEItemKey.of(output), 64)));
         var batchedMatch = cn.dancingsnow.neoecoprototype.recipe.ProcessorAssemblerRecipes.resolve(
-                helper.getLevel(), batched, output.getItem());
+                helper.getLevel(), batched, true);
         if (batchedMatch == null) {
             helper.fail("a 64x batched processing pattern was refused: the multiplier belongs to the"
                     + " consuming side, not to the recipe comparison");
@@ -3041,8 +3039,7 @@ public final class NeoECOPrototypeGameTests {
         var shortOfOne = new HandmadePattern(AEItemKey.of(output),
                 List.of(new HandmadeInput(1, cell), new HandmadeInput(1, component)),
                 List.of(new GenericStack(AEItemKey.of(output), 1)));
-        if (cn.dancingsnow.neoecoprototype.recipe.ProcessorAssemblerRecipes.resolve(helper.getLevel(), shortOfOne,
-                output.getItem()) != null) {
+        if (cn.dancingsnow.neoecoprototype.recipe.ProcessorAssemblerRecipes.resolve(helper.getLevel(), shortOfOne, true) != null) {
             helper.fail("a pattern asking for a single computation cell was accepted by a recipe that needs two");
             return;
         }
@@ -3163,14 +3160,14 @@ public final class NeoECOPrototypeGameTests {
     /**
      * The batch ceiling is a config value, and the control is the same push twice with only the config
      * changed: a pattern above the cap must be refused with nothing consumed and nothing started, and the
-     * identical pattern must be accepted once the cap covers it. The size is chosen to fit nine slots, so
-     * the ordinary "cannot hold the batch" refusal cannot answer for the first push.
+     * identical pattern must be accepted once the cap covers it. The rig is the EC9 - the config is that
+     * machine's policy; the L1 assembler is pinned at one run per push and reads no config at all.
      */
     @GameTest(template = "empty", batch = "processor_assembler_batch_cap", timeoutTicks = 100,
             templateNamespace = NeoECOPrototype.MOD_ID)
     public static void processorAssemblerRefusesPatternsAboveTheConfiguredBatchCap(GameTestHelper helper) {
         var pos = new BlockPos(0, 1, 0);
-        helper.setBlock(pos, ModRegistration.SIMPLIFY_STONECUTTING_ASSEMBLER_BLOCK.get());
+        helper.setBlock(pos, ModRegistration.EC9_ASSEMBLER_BLOCK.get());
         if (!(helper.getBlockEntity(pos) instanceof cn.dancingsnow.neoecoprototype
                 .blockentity.crafting.SimplifyStonecuttingAssemblerBlockEntity assembler)) {
             helper.fail("the assembler did not come into existence");
@@ -3223,8 +3220,8 @@ public final class NeoECOPrototypeGameTests {
                         + ", so the refusal above is not the cap");
                 return;
             }
-            if (assembler.getCurrentPattern() == null) {
-                helper.fail("the accepted push did not install a plan on the machine");
+            if (assembler.getCurrentPattern() != pattern) {
+                helper.fail("the accepted push did not install its job on the machine");
                 return;
             }
             if (accepted[0].get(silicon) != 0 || accepted[1].get(redstone) != 0
@@ -3303,7 +3300,7 @@ public final class NeoECOPrototypeGameTests {
             return;
         }
         var oursInfo = oursMachine.getCraftingMachineInfo();
-        var oursIcon = AEItemKey.of(ModRegistration.SIMPLIFY_STONECUTTING_ASSEMBLER_BLOCK.get());
+        var oursIcon = AEItemKey.of(ModRegistration.SIMPLIFY_STONECUTTING_ASSEMBLER_ITEM.get());
         if (!oursIcon.equals(oursInfo.icon())) {
             helper.fail("our assembler advertises icon " + oursInfo.icon() + " instead of " + oursIcon);
             return;
@@ -3311,6 +3308,20 @@ public final class NeoECOPrototypeGameTests {
         if (!oursExpected.equals(oursInfo.name().getString())) {
             helper.fail("our assembler advertises the name \"" + oursInfo.name().getString()
                     + "\" instead of \"" + oursExpected + "\"");
+            return;
+        }
+        var ec9Pos = new BlockPos(3, 1, 1);
+        helper.setBlock(ec9Pos, ModRegistration.EC9_ASSEMBLER_BLOCK.get());
+        if (!(helper.getBlockEntity(ec9Pos) instanceof appeng.api.implementations.blockentities.ICraftingMachine ec9Machine)) {
+            helper.fail("the L1-EC9 assembler is not an ICraftingMachine");
+            return;
+        }
+        var ec9Info = ec9Machine.getCraftingMachineInfo();
+        var ec9Name = ModRegistration.EC9_ASSEMBLER_BLOCK.get().getName();
+        if (!AEItemKey.of(ModRegistration.EC9_ASSEMBLER_ITEM.get()).equals(ec9Info.icon())
+                || !ec9Name.equals(ec9Info.name())) {
+            helper.fail("EC9 advertises " + ec9Info.icon() + " / " + ec9Info.name()
+                    + " instead of its own item and name");
             return;
         }
         // The control keeps those two from passing on a reader that is simply blind: AE2's own assembler
@@ -3330,16 +3341,18 @@ public final class NeoECOPrototypeGameTests {
     }
 
     /**
-     * The machine's intake contract, on a real placed assembler: a push that IS one job is consumed whole
-     * and installed; a push carrying anything beyond the job's demand is refused without taking a single
-     * item, because a returned true owns everything handed over and the extra would vanish. The job's
-     * output math rides the record: an item run count caps at one ejected stack (the rest goes to the
-     * network through the surplus path), and a fluid run count scales by the recipe's own millibuckets.
+     * The machine's intake contract, on a real placed EC9: a push that IS one job is consumed whole and
+     * installed; a push carrying anything beyond the job's demand is refused without taking a single item,
+     * because a returned true owns everything handed over and the extra would vanish. The same 4-run push
+     * on the L1 machine is refused whole as well - it is deliberately single-run - which is the family
+     * split asserted side by side. The job's output math rides the record: an item run count caps at one
+     * ejected stack (the rest goes to the network through the surplus path), and a fluid run count scales
+     * by the recipe's own millibuckets.
      */
     @GameTest(template = "empty", templateNamespace = NeoECOPrototype.MOD_ID)
     public static void processorAssemblerBatchCannotOverspend(GameTestHelper helper) {
         var pos = new BlockPos(0, 1, 0);
-        helper.setBlock(pos, ModRegistration.SIMPLIFY_STONECUTTING_ASSEMBLER_BLOCK.get());
+        helper.setBlock(pos, ModRegistration.EC9_ASSEMBLER_BLOCK.get());
         if (!(helper.getBlockEntity(pos) instanceof cn.dancingsnow.neoecoprototype
                 .blockentity.crafting.SimplifyStonecuttingAssemblerBlockEntity assembler)) {
             helper.fail("the assembler did not come into existence");
@@ -3348,17 +3361,19 @@ public final class NeoECOPrototypeGameTests {
         var recipe = new cn.dancingsnow.neoecoprototype.recipe.ProcessorAssemblerRecipe(
                 List.of(Ingredient.of(Items.SNOW_BLOCK), Ingredient.of(Items.SNOW_BLOCK),
                         Ingredient.of(Items.SNOW_BLOCK), Ingredient.of(Items.SNOW_BLOCK)),
-                new ItemStack(Items.SNOWBALL, 4));
+                new ItemStack(Items.SNOWBALL, 16));
         var block = new GenericStack(AEItemKey.of(Items.SNOW_BLOCK), 1);
-        // Output 16 to match the shipped snowball recipe (4 snow blocks -> one full stack), so resolve
-        // finds the shipped recipe and the machine reads a whole encoded job.
+        // Four runs of the shipped recipe: 16 outputs/run, hence 64 snowballs and 16 of each ingredient
+        // across the four repeated slots. EC9 accepts the whole batch; L1 below must refuse this same push.
         var pattern = new HandmadePattern(AEItemKey.of(Items.SNOWBALL),
-                List.of(new HandmadeInput(1, block), new HandmadeInput(1, block),
-                        new HandmadeInput(1, block), new HandmadeInput(1, block)),
-                List.of(new GenericStack(AEItemKey.of(Items.SNOWBALL), 16)));
+                List.of(new HandmadeInput(1, new GenericStack(AEItemKey.of(Items.SNOW_BLOCK), 4)),
+                        new HandmadeInput(1, new GenericStack(AEItemKey.of(Items.SNOW_BLOCK), 4)),
+                        new HandmadeInput(1, new GenericStack(AEItemKey.of(Items.SNOW_BLOCK), 4)),
+                        new HandmadeInput(1, new GenericStack(AEItemKey.of(Items.SNOW_BLOCK), 4))),
+                List.of(new GenericStack(AEItemKey.of(Items.SNOWBALL), 64)));
 
         var exact = new KeyCounter[] {new KeyCounter(), new KeyCounter(), new KeyCounter(), new KeyCounter()};
-        for (KeyCounter counter : exact) counter.add(AEItemKey.of(Items.SNOW_BLOCK), 1L);
+        for (KeyCounter counter : exact) counter.add(AEItemKey.of(Items.SNOW_BLOCK), 4L);
         if (!assembler.pushPattern(pattern, exact, net.minecraft.core.Direction.UP)) {
             helper.fail("a push carrying exactly one job was refused");
             return;
@@ -3379,14 +3394,14 @@ public final class NeoECOPrototypeGameTests {
         // The control: one block beyond the demand. A returned true owns the whole push, so this shape
         // must be refused whole - the extra block would otherwise vanish into the machine.
         var assembler2Pos = new BlockPos(2, 1, 0);
-        helper.setBlock(assembler2Pos, ModRegistration.SIMPLIFY_STONECUTTING_ASSEMBLER_BLOCK.get());
+        helper.setBlock(assembler2Pos, ModRegistration.EC9_ASSEMBLER_BLOCK.get());
         if (!(helper.getBlockEntity(assembler2Pos) instanceof cn.dancingsnow.neoecoprototype
                 .blockentity.crafting.SimplifyStonecuttingAssemblerBlockEntity second)) {
             helper.fail("the second assembler did not come into existence");
             return;
         }
         var over = new KeyCounter[] {new KeyCounter(), new KeyCounter(), new KeyCounter(), new KeyCounter()};
-        for (KeyCounter counter : over) counter.add(AEItemKey.of(Items.SNOW_BLOCK), 1L);
+        for (KeyCounter counter : over) counter.add(AEItemKey.of(Items.SNOW_BLOCK), 4L);
         over[0].add(AEItemKey.of(Items.SNOW_BLOCK), 1L);
         if (second.pushPattern(pattern, over, net.minecraft.core.Direction.UP)) {
             helper.fail("a push carrying one block beyond the job's demand was accepted");
@@ -3396,8 +3411,43 @@ public final class NeoECOPrototypeGameTests {
         for (KeyCounter counter : over) {
             for (var entry : counter) overLeft += entry.getLongValue();
         }
-        if (overLeft != 5L) {
-            helper.fail("the refused over-supplied push consumed material: " + overLeft + " of 5 left");
+        if (overLeft != 17L) {
+            helper.fail("the refused over-supplied push consumed material: " + overLeft + " of 17 left");
+            return;
+        }
+
+        // The family split, machine-side: the identical 4-run push on the L1 assembler is refused whole
+        // (it is deliberately single-run; batching belongs to the EC9), and refusal consumes nothing.
+        var l1Pos = new BlockPos(4, 1, 0);
+        helper.setBlock(l1Pos, ModRegistration.SIMPLIFY_STONECUTTING_ASSEMBLER_BLOCK.get());
+        if (!(helper.getBlockEntity(l1Pos) instanceof cn.dancingsnow.neoecoprototype
+                .blockentity.crafting.SimplifyStonecuttingAssemblerBlockEntity l1)) {
+            helper.fail("the L1 assembler did not come into existence");
+            return;
+        }
+        var l1Push = new KeyCounter[] {new KeyCounter(), new KeyCounter(), new KeyCounter(), new KeyCounter()};
+        for (KeyCounter counter : l1Push) counter.add(AEItemKey.of(Items.SNOW_BLOCK), 4L);
+        if (l1.pushPattern(pattern, l1Push, net.minecraft.core.Direction.UP)) {
+            helper.fail("the L1 assembler accepted a 4-run push - batching belongs to the EC9");
+            return;
+        }
+        long l1Left = 0;
+        for (KeyCounter counter : l1Push) {
+            for (var entry : counter) l1Left += entry.getLongValue();
+        }
+        if (l1Left != 16L) {
+            helper.fail("the L1 single-run refusal consumed material: " + l1Left + " of 16 left");
+            return;
+        }
+        var oneRunPattern = new HandmadePattern(AEItemKey.of(Items.SNOWBALL),
+                List.of(new HandmadeInput(1, block), new HandmadeInput(1, block),
+                        new HandmadeInput(1, block), new HandmadeInput(1, block)),
+                List.of(new GenericStack(AEItemKey.of(Items.SNOWBALL), 16)));
+        var oneRunInputs = new KeyCounter[] {new KeyCounter(), new KeyCounter(), new KeyCounter(), new KeyCounter()};
+        for (KeyCounter counter : oneRunInputs) counter.add(AEItemKey.of(Items.SNOW_BLOCK), 1L);
+        if (!l1.pushPattern(oneRunPattern, oneRunInputs, net.minecraft.core.Direction.UP)
+                || l1.getCurrentPattern() != oneRunPattern) {
+            helper.fail("the L1 assembler refused a declared one-run pattern while applying its single-run policy");
             return;
         }
 
@@ -3441,7 +3491,7 @@ public final class NeoECOPrototypeGameTests {
     public static void assemblerDeliversFluidJobsIntoTheStorageNetwork(GameTestHelper helper) {
         // Cable, drive, power: the same wiring the interface-transfer test proves, hung off the assembler.
         var assemblerPos = new BlockPos(2, 2, 2);
-        helper.setBlock(assemblerPos, ModRegistration.SIMPLIFY_STONECUTTING_ASSEMBLER_BLOCK.get());
+        helper.setBlock(assemblerPos, ModRegistration.EC9_ASSEMBLER_BLOCK.get());
         var player = helper.makeMockPlayer(GameType.CREATIVE);
         var cablePos = new BlockPos(3, 2, 2);
         var drivePos = new BlockPos(4, 2, 2);
@@ -3532,6 +3582,100 @@ public final class NeoECOPrototypeGameTests {
             }
         }
         return -1L;
+    }
+
+    /**
+     * The family split at the machine level, driven by a real derived holder straight out of the recipe
+     * manager: the same derived pattern is refused at the L1 assembler (zero consumption) and accepted at
+     * the EC9, whose resolve answers it only when the derived family is included. A declared pattern is
+     * the control that both machines still answer.
+     */
+    @GameTest(template = "empty", batch = "processor_assembler", timeoutTicks = 100,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void derivedRecipesRunOnTheEc9Only(GameTestHelper helper) {
+        var derived = helper.getLevel().getRecipeManager()
+                .getAllRecipesFor(ModRegistration.PROCESSOR_ASSEMBLER_RECIPE_TYPE.get())
+                .stream()
+                .filter(holder -> holder.id().getPath().startsWith("derived/inscriber/"))
+                .findFirst().orElse(null);
+        if (derived == null) {
+            helper.fail("no inscriber-derived recipe is loaded in this world, so the family split has"
+                    + " nothing to split");
+            return;
+        }
+        var recipe = (cn.dancingsnow.neoecoprototype.recipe.ProcessorAssemblerRecipe) derived.value();
+        var inputs = new java.util.ArrayList<HandmadeInput>();
+        for (Ingredient ingredient : recipe.ingredients()) {
+            var choices = ingredient.getItems();
+            if (choices.length == 0) {
+                helper.fail("derived recipe " + derived.id() + " has an empty ingredient");
+                return;
+            }
+            inputs.add(new HandmadeInput(1, new GenericStack(AEItemKey.of(choices[0]), 1)));
+        }
+        var outputs = new java.util.ArrayList<GenericStack>();
+        if (recipe.hasItemOutput()) outputs.add(new GenericStack(AEItemKey.of(recipe.result()),
+                recipe.result().getCount()));
+        if (recipe.hasFluidOutput()) outputs.add(new GenericStack(
+                appeng.api.stacks.AEFluidKey.of(recipe.fluidResult()), recipe.fluidResult().getAmount()));
+        var pattern = new HandmadePattern(choices0Of(recipe), inputs, outputs);
+        var supplies = new KeyCounter[] {new KeyCounter()};
+        for (var slot : inputs) supplies[0].add(slot.getPossibleInputs()[0].what(),
+                slot.getPossibleInputs()[0].amount() * slot.getMultiplier());
+
+        // resolve-level split, on the same pattern
+        if (cn.dancingsnow.neoecoprototype.recipe.ProcessorAssemblerRecipes
+                .resolve(helper.getLevel(), pattern, false) != null) {
+            helper.fail("the L1 family resolve answered a derived recipe " + derived.id());
+            return;
+        }
+        if (cn.dancingsnow.neoecoprototype.recipe.ProcessorAssemblerRecipes
+                .resolve(helper.getLevel(), pattern, true) == null) {
+            helper.fail("the EC9 family resolve did not answer derived recipe " + derived.id());
+            return;
+        }
+
+        // machine-level split
+        var l1Pos = new BlockPos(0, 1, 0);
+        helper.setBlock(l1Pos, ModRegistration.SIMPLIFY_STONECUTTING_ASSEMBLER_BLOCK.get());
+        var ec9Pos = new BlockPos(2, 1, 0);
+        helper.setBlock(ec9Pos, ModRegistration.EC9_ASSEMBLER_BLOCK.get());
+        if (!(helper.getBlockEntity(l1Pos) instanceof cn.dancingsnow.neoecoprototype
+                .blockentity.crafting.SimplifyStonecuttingAssemblerBlockEntity l1)
+                || !(helper.getBlockEntity(ec9Pos) instanceof cn.dancingsnow.neoecoprototype
+                .blockentity.crafting.SimplifyStonecuttingAssemblerBlockEntity ec9)) {
+            helper.fail("one of the two assemblers did not come into existence");
+            return;
+        }
+        var push = new KeyCounter[] {new KeyCounter()};
+        for (var slot : inputs) push[0].add(slot.getPossibleInputs()[0].what(),
+                slot.getPossibleInputs()[0].amount() * slot.getMultiplier());
+        if (l1.pushPattern(pattern, push, net.minecraft.core.Direction.UP)) {
+            helper.fail("the L1 assembler accepted a derived recipe " + derived.id()
+                    + " - derivation belongs to the EC9");
+            return;
+        }
+        long left = 0;
+        for (var entry : push[0]) left += entry.getLongValue();
+        long demanded = 0;
+        for (var slot : inputs) demanded += slot.getPossibleInputs()[0].amount() * slot.getMultiplier();
+        if (left != demanded) {
+            helper.fail("the L1 refusal of the derived recipe consumed material: " + left + " left");
+            return;
+        }
+        if (!ec9.pushPattern(pattern, push, net.minecraft.core.Direction.UP)) {
+            helper.fail("the EC9 refused the derived recipe the L1 rejected - the split is inverted");
+            return;
+        }
+        if (ec9.getCurrentPattern() != pattern) {
+            helper.fail("the EC9 accepted the derived job without installing it");
+            return;
+        }
+        helper.succeed();
+    }
+
+    private static AEItemKey choices0Of(cn.dancingsnow.neoecoprototype.recipe.ProcessorAssemblerRecipe recipe) {
+        return AEItemKey.of(recipe.ingredients().get(0).getItems()[0]);
     }
 
     /** A pattern built by hand, laid out the way AE2's own processing patterns store their slots. */
@@ -6486,7 +6630,9 @@ public final class NeoECOPrototypeGameTests {
                 new CableProbe("pattern provider",
                         ModRegistration.SIMPLIFY_PATTERN_PROVIDER_BLOCK.get(), new BlockPos(7, 5, 4)),
                 new CableProbe("stonecutting assembler",
-                        ModRegistration.SIMPLIFY_STONECUTTING_ASSEMBLER_BLOCK.get(), new BlockPos(1, 5, 6)));
+                        ModRegistration.SIMPLIFY_STONECUTTING_ASSEMBLER_BLOCK.get(), new BlockPos(1, 5, 6)),
+                new CableProbe("EC9 processor assembler",
+                        ModRegistration.EC9_ASSEMBLER_BLOCK.get(), new BlockPos(5, 5, 6)));
 
         var player = helper.makeMockPlayer(GameType.CREATIVE);
         for (var probe : probes) {

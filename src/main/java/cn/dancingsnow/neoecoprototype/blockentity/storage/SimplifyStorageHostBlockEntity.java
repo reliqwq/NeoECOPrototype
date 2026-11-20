@@ -760,7 +760,7 @@ public class SimplifyStorageHostBlockEntity
                 // from a row the player can see, so a host that lists only its occupied drives gives nobody
                 // a slot to drop a matrix into - the panel could take cells out and never put one in.
                 // CellEntry.EMPTY carries typeId -1, which is eco's own "not one of the media rows" mark.
-                entries.add(StorageHostUI.CellEntry.EMPTY.atDrive(drive.getBlockPos(), ItemStack.EMPTY,
+                entries.add(StorageHostUI.CellEntry.EMPTY.atDrive(drive.getBlockPos(), drive.getCellStack(),
                         null, drive.panelInteractionId()));
                 continue;
             }

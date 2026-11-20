@@ -71,6 +71,8 @@ public final class NeoECOPrototypeEmiPlugin implements EmiPlugin {
         registry.addCategory(PROCESSOR_ASSEMBLER);
         registry.addWorkstation(PROCESSOR_ASSEMBLER,
                 EmiStack.of(ModRegistration.SIMPLIFY_STONECUTTING_ASSEMBLER_BLOCK.get()));
+        registry.addWorkstation(PROCESSOR_ASSEMBLER,
+                EmiStack.of(ModRegistration.EC9_ASSEMBLER_BLOCK.get()));
         List<RecipeHolder<ProcessorAssemblerRecipe>> recipes = level.getRecipeManager()
                 .getAllRecipesFor(ModRegistration.PROCESSOR_ASSEMBLER_RECIPE_TYPE.get());
         for (var holder : recipes) {

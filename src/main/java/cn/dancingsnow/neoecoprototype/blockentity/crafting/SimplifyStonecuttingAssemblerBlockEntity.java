@@ -78,8 +78,9 @@ public class SimplifyStonecuttingAssemblerBlockEntity extends AENetworkedInvBloc
 
     private final AppEngInternalInventory outputInventory = new AppEngInternalInventory(this, 1);
     private final AppEngInternalInventory previewInventory = new AppEngInternalInventory(this, 9);
-    private final IUpgradeInventory upgrades = UpgradeInventories.forMachine(
-            ModRegistration.SIMPLIFY_STONECUTTING_ASSEMBLER_ITEM.get(), 5, this::saveChanges);
+    private final appeng.util.inv.CombinedInternalInventory internalInventory =
+            new appeng.util.inv.CombinedInternalInventory(previewInventory, outputInventory);
+    private final IUpgradeInventory upgrades;
 
     @Nullable
     private SimplifyAssemblerJob activeJob;
@@ -99,8 +100,30 @@ public class SimplifyStonecuttingAssemblerBlockEntity extends AENetworkedInvBloc
     @Nullable
     private AEItemKey refusedOutput;
 
+    /**
+     * Which half of the split recipe family this machine answers. {@code L1} is the basic machine: curated
+     * declared recipes only, one run per push (a batched pattern is refused whole). {@code EC9} is the
+     * advanced machine: declared recipes plus everything the inscriber derivation contributed, batched up
+     * to the server config's per-cycle cap.
+     */
+    public enum Family {
+        L1, EC9
+    }
+
+    private final Family family;
+
     public SimplifyStonecuttingAssemblerBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state) {
+        this(type, pos, state, Family.L1);
+    }
+
+    public SimplifyStonecuttingAssemblerBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state,
+            Family family) {
         super(type, pos, state);
+        this.family = family;
+        var machineItem = family == Family.EC9
+                ? ModRegistration.EC9_ASSEMBLER_ITEM.get() : ModRegistration.SIMPLIFY_STONECUTTING_ASSEMBLER_ITEM.get();
+        this.upgrades = UpgradeInventories.forMachine(machineItem, 5, this::saveChanges);
+        getMainNode().setVisualRepresentation(machineItem);
         getMainNode().setIdlePowerUsage(0.0)
                 .addService(IGridTickable.class, this);
     }
@@ -112,7 +135,14 @@ public class SimplifyStonecuttingAssemblerBlockEntity extends AENetworkedInvBloc
         ejectOutput();
         if (activeJob == null) {
             updateSleepiness();
-            return TickRateModulation.SLEEP;
+            return outputInventory.getStackInSlot(0).isEmpty()
+                    ? TickRateModulation.SLEEP : TickRateModulation.FASTER;
+        }
+        // The inherited assembler cannot start another cycle while output slot 9 is holding a stack. Keep
+        // that same back-pressure: otherwise a second completed item batch would overwrite the first stack.
+        if (activeJob.recipe().hasItemOutput() && !outputInventory.getStackInSlot(0).isEmpty()) {
+            updateSleepiness();
+            return TickRateModulation.FASTER;
         }
         int cards = upgrades.getInstalledUpgrades(appeng.core.definitions.AEItems.SPEED_CARD);
         int rate = SPEED_RATE[Math.min(cards, SPEED_RATE.length - 1)];
@@ -213,7 +243,9 @@ public class SimplifyStonecuttingAssemblerBlockEntity extends AENetworkedInvBloc
         int cards = upgrades.getInstalledUpgrades(appeng.core.definitions.AEItems.SPEED_CARD);
         List<Component> tooltip = cards > 0 ? List.of(Component.translatable(
                 "gui.tooltips.ae2.CpuStatusCoProcessors", cards)) : List.of();
-        return new PatternContainerGroup(AEItemKey.of(getBlockState().getBlock()),
+        var icon = family == Family.EC9
+                ? ModRegistration.EC9_ASSEMBLER_ITEM.get() : ModRegistration.SIMPLIFY_STONECUTTING_ASSEMBLER_ITEM.get();
+        return new PatternContainerGroup(AEItemKey.of(icon),
                 hasCustomName() ? getCustomName() : getBlockState().getBlock().getName(), tooltip);
     }
 
@@ -241,7 +273,9 @@ public class SimplifyStonecuttingAssemblerBlockEntity extends AENetworkedInvBloc
 
     /**
      * Why a push cannot run right now, or null when it can. The pending-fluid gate first: with undelivered
-     * fluid waiting, every new push waits too, so a slow network cannot pile up an unbounded queue.
+     * fluid waiting, every new push waits too, so a slow network cannot pile up an unbounded queue. The run
+     * ceiling splits by family: the L1 machine is deliberately single-run (batching belongs to the EC9),
+     * the EC9 reads the server config's per-cycle cap.
      */
     @Nullable
     private String refusalReason(ProcessorAssemblerRecipe recipe, long runs) {
@@ -254,10 +288,14 @@ public class SimplifyStonecuttingAssemblerBlockEntity extends AENetworkedInvBloc
         if (activeJob != null) {
             return "上一批还在加工中";
         }
-        int cap = NeoECOPrototypeServerConfig.processorAssemblerMaxRunsPerCycle();
+        int cap = family == Family.EC9
+                ? NeoECOPrototypeServerConfig.processorAssemblerMaxRunsPerCycle()
+                : 1;
         if (runs > cap) {
-            return "样板一次要 " + runs + " 份，超过本机每周期上限 " + cap
-                    + " 份（服务端配置 processor_assembler_max_runs_per_cycle）";
+            return family == Family.EC9
+                    ? "样板一次要 " + runs + " 份，超过本机每周期上限 " + cap
+                            + " 份（服务端配置 processor_assembler_max_runs_per_cycle）"
+                    : "本机一次只能做一份（" + runs + " 份的批量样板请交给 L1-EC9 处理器装配室）";
         }
         if (recipe.hasItemOutput()
                 && NeoECOPrototypeServerConfig.isProcessorRecipeDisabled(recipe.result().getItem())) {
@@ -268,7 +306,7 @@ public class SimplifyStonecuttingAssemblerBlockEntity extends AENetworkedInvBloc
 
     @Nullable
     private ProcessorAssemblerRecipe matchRecipe(IPatternDetails pattern) {
-        return ProcessorAssemblerRecipes.resolve(level, pattern);
+        return ProcessorAssemblerRecipes.resolve(level, pattern, family == Family.EC9);
     }
 
     private void beginJob(IPatternDetails pattern, ProcessorAssemblerRecipe recipe, long runs) {
@@ -506,7 +544,7 @@ public class SimplifyStonecuttingAssemblerBlockEntity extends AENetworkedInvBloc
 
     @Override
     public appeng.api.inventories.InternalInventory getInternalInventory() {
-        return outputInventory;
+        return internalInventory;
     }
 
     @Override
@@ -529,15 +567,17 @@ public class SimplifyStonecuttingAssemblerBlockEntity extends AENetworkedInvBloc
     @Override
     public void addAdditionalDrops(Level level, BlockPos pos, List<ItemStack> drops) {
         super.addAdditionalDrops(level, pos, drops);
-        ItemStack output = outputInventory.getStackInSlot(0);
-        if (!output.isEmpty()) drops.add(output);
         for (ItemStack card : upgrades) drops.add(card);
+        for (GenericStack pending : pendingFluidOutputs) {
+            if (pending.what() instanceof AEFluidKey fluid) {
+                fluid.addDrops(pending.amount(), drops, level, pos);
+            }
+        }
     }
 
     @Override
     public void clearContent() {
-        outputInventory.clear();
-        clearPreview();
+        internalInventory.clear();
         upgrades.clear();
     }
 
@@ -546,7 +586,6 @@ public class SimplifyStonecuttingAssemblerBlockEntity extends AENetworkedInvBloc
     @Override
     public void saveAdditional(CompoundTag tag, HolderLookup.Provider registries) {
         super.saveAdditional(tag, registries);
-        outputInventory.writeToNBT(tag, "output", registries);
         upgrades.writeToNBT(tag, "upgrades", registries);
         writeFluidOutputs(tag, "pendingFluidOutputs", pendingFluidOutputs, registries);
     }
@@ -554,7 +593,6 @@ public class SimplifyStonecuttingAssemblerBlockEntity extends AENetworkedInvBloc
     @Override
     public void loadTag(CompoundTag tag, HolderLookup.Provider registries) {
         super.loadTag(tag, registries);
-        outputInventory.readFromNBT(tag, "output", registries);
         upgrades.readFromNBT(tag, "upgrades", registries);
         pendingFluidOutputs.clear();
         readFluidOutputs(tag.getList("pendingFluidOutputs", Tag.TAG_COMPOUND), registries, pendingFluidOutputs);

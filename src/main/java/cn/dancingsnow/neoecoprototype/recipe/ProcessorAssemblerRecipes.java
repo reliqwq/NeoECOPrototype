@@ -106,8 +106,15 @@ public final class ProcessorAssemblerRecipes {
     }
 
 
+    /**
+     * The addon recipe an AE2 processing pattern asks for, or null when no registered output set and item
+     * inputs cover it. All outputs must describe the same positive integral run count. {@code includeDerived}
+     * splits the family across the two assemblers: the L1 machine answers only the curated declared recipes,
+     * the EC9 answers those plus everything the inscriber derivation contributed (ids under
+     * {@code derived/inscriber/}).
+     */
     @Nullable
-    public static ProcessorAssemblerRecipe resolve(Level level, IPatternDetails pattern) {
+    public static ProcessorAssemblerRecipe resolve(Level level, IPatternDetails pattern, boolean includeDerived) {
         var outputs = pattern.getOutputs();
         if (outputs.isEmpty() || outputs.size() > 2) return null;
         if (outputs.stream().anyMatch(output -> output.amount() <= 0)) return null;
@@ -115,7 +122,10 @@ public final class ProcessorAssemblerRecipes {
         if (demands == null) return null;
         List<ProcessorAssemblerRecipe> declared = level.getRecipeManager()
                 .getAllRecipesFor(ModRegistration.PROCESSOR_ASSEMBLER_RECIPE_TYPE.get())
-                .stream().map(RecipeHolder::value).toList();
+                .stream()
+                .filter(holder -> includeDerived
+                        || !holder.id().getPath().startsWith("derived/inscriber/"))
+                .map(RecipeHolder::value).toList();
         for (ProcessorAssemblerRecipe recipe : declared) {
             if (recipe.hasItemOutput()
                     && NeoECOPrototypeServerConfig.isProcessorRecipeDisabled(recipe.result().getItem())) continue;
@@ -124,10 +134,10 @@ public final class ProcessorAssemblerRecipes {
         return null;
     }
 
-    /** Existing item-only callers remain source-compatible. */
+    /** Existing item-only callers remain source-compatible; both machine families answer them. */
     @Nullable
     public static ProcessorAssemblerRecipe resolve(Level level, IPatternDetails pattern, Item output) {
-        ProcessorAssemblerRecipe recipe = resolve(level, pattern);
+        ProcessorAssemblerRecipe recipe = resolve(level, pattern, true);
         return recipe != null && recipe.hasItemOutput() && recipe.result().is(output) ? recipe : null;
     }
 
