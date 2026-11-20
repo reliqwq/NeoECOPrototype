@@ -24,6 +24,7 @@ Neo ECO Prototype 把 Neo ECO AE Extension 的后期内容带到 **L1 前期**�
 | 提升合成吞吐 | [L1 计算系统](computation_system.md) 与 [L1 合成系统](crafting_system.md) |
 | 子网供电、大批量标记 | [L1 供能接口](powered_interface.md) 与 [盈能超导接口](superconductive_interface.md) |
 | 六个 32 频道面，不用拉线 | [ECOP 网络子系统频道通讯核心](subsystem_channel_module.md) —— 无线链路连到机器或线缆总线 |
+| 一个枢纽承载多条无线链路 | [通讯核心](communication_core.md) - 卡片把设备喂给它 |
 | 用脚本注册矩阵与配方 | [KubeJS 支持](kubejs.md) |
 
 两台接口都自带被动发电，但 AE2 每个网格只保留输出功率最高的那台——细节见[供能接口](powered_interface.md)那一页。

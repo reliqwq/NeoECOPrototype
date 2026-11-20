@@ -1,0 +1,21 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "G": {
+      "item": "neoecoprototype:simplify_green_aluminum_casing"
+    },
+    "P": {
+      "item": "neoecoae:superconducting_processor"
+    }
+  },
+  "pattern": [
+    " G ",
+    "GPG",
+    " G "
+  ],
+  "result": {
+    "count": 1,
+    "id": "neoecoprototype:communication_core"
+  }
+}

@@ -6,6 +6,7 @@ import appeng.api.networking.IGrid;
 import appeng.api.networking.IGridConnection;
 import appeng.api.networking.IGridNode;
 import cn.dancingsnow.neoecoprototype.NeoECOPrototype;
+import cn.dancingsnow.neoecoprototype.blockentity.wireless.CommunicationCoreBlockEntity;
 import cn.dancingsnow.neoecoprototype.blockentity.wireless.WirelessChannelModuleBlockEntity;
 import cn.dancingsnow.neoecoprototype.items.WirelessLinkCardItem;
 import net.minecraft.core.BlockPos;
@@ -440,8 +441,33 @@ public final class WirelessLinks {
     private static int rangeLimit(ServerLevel acting, GlobalPos from, GlobalPos to) {
         int configured = cn.dancingsnow.neoecoprototype.config.NeoECOPrototypeServerConfig
                 .WIRELESS_MAX_RANGE_BLOCKS.get();
-        return WirelessChannelModuleBlockEntity.rangeWithBoosters(configured,
-                Math.max(boostersAt(acting, from), boostersAt(acting, to)));
+        int boosters = Math.max(boostersAt(acting, from), boostersAt(acting, to));
+        int global = WirelessChannelModuleBlockEntity.rangeWithBoosters(configured, boosters);
+        // A formed tower's reach is what its height bought; the global cap and booster cards can only
+        // add to it, never shrink it - the tower is the long-range device, and a pack tuning the
+        // global down must not quietly take that away. An unformed tower grants nothing.
+        int towerRadius = Math.max(towerRadiusAt(acting, from), towerRadiusAt(acting, to));
+        return towerRadius <= 0 ? global : Math.max(global, towerRadius);
+    }
+
+    /** The radius a formed tower standing on that square grants, or zero when it is not a formed tower. */
+    private static int towerRadiusAt(ServerLevel acting, GlobalPos at) {
+        CommunicationCoreBlockEntity tower = towerAt(acting, at);
+        return tower == null || !tower.isTowerFormed() ? 0 : tower.formedRadiusBlocks();
+    }
+
+    /**
+     * The communication core standing on that square, or null. Reads its own square only, gated
+     * exactly like {@link #boostersAt}: the dimension is resolved first and the chunk has to already
+     * be here, so this never loads anything.
+     */
+    private static CommunicationCoreBlockEntity towerAt(ServerLevel acting, GlobalPos at) {
+        ServerLevel level = levelOf(acting, at.dimension());
+        if (level == null || !chunkIsHere(level, at)) {
+            return null;
+        }
+        return level.getBlockEntity(at.pos()) instanceof CommunicationCoreBlockEntity tower
+                ? tower : null;
     }
 
     /** How many boosters the module on that square carries, or zero when it is not a module. */
@@ -452,6 +478,40 @@ public final class WirelessLinks {
             return 0;
         }
         return module.boosterCount();
+    }
+
+    /**
+     * The first unformed communication core among this bind's ends, or null. A tower answers as a
+     * device the moment it is placed (its base carries a node like any machine), so the formation
+     * gate has to be its own refusal - and it is deliberately not folded into {@link #presence},
+     * which must keep answering AWAKE for a machine that is merely not ready yet.
+     */
+    private static CommunicationCoreBlockEntity unformedTowerAt(ServerLevel acting, GlobalPos a,
+                                                                GlobalPos b) {
+        CommunicationCoreBlockEntity tower = towerAt(acting, a);
+        if (tower != null && !tower.isTowerFormed()) {
+            return tower;
+        }
+        tower = towerAt(acting, b);
+        return tower != null && !tower.isTowerFormed() ? tower : null;
+    }
+
+    /**
+     * The link ceiling for one end: a formed tower answers what its height bought, everything else
+     * answers the config's per-device ceiling. A tower always states its own ceiling, so a config
+     * ceiling of 0 (no extra ceiling) does not leave a tower unlimited.
+     */
+    private static int linkCeilingAt(ServerLevel acting, GlobalPos at, int configured) {
+        CommunicationCoreBlockEntity tower = towerAt(acting, at);
+        return tower != null && tower.isTowerFormed() ? tower.formedLinkCapacity() : configured;
+    }
+
+    /** The shared at-limit answer; the key is one, and the sentence names whoever is full. */
+    private static Reply atLimitReply(int on, int cap, boolean tower) {
+        return Reply.of("at_limit", tower
+                ? "the tower is at the capacity its height bought (" + on + " of " + cap + ")"
+                : "this device is at its link limit (" + on + " of " + cap
+                        + ") - wireless_max_links_per_device", on, cap);
     }
 
     public static Reply bindReply(ServerLevel acting, Supplier<AttachmentType<Data>> type, GlobalPos from,
@@ -503,15 +563,26 @@ public final class WirelessLinks {
             return Reply.of("not_a_device",
                     "that is not a network device: " + labelText(acting, dead), label(acting, dead));
         }
+        // A tower that has not formed is a block with a node but no relay: refusing with the one
+        // sentence that says what to do beats the generic not-a-device, which would read as if the
+        // machine were the wrong kind of device entirely.
+        CommunicationCoreBlockEntity unformed =
+                unformedTowerAt(owner, link.a(), link.b());
+        if (unformed != null) {
+            return Reply.of("tower_not_formed",
+                    "the communication core at " + unformed.getBlockPos().toShortString()
+                            + " is not formed yet - sneak-right-click its base to raise the column",
+                    unformed.getBlockPos().toShortString());
+        }
         int onA = linksAtEverywhere(owner, type, link.a());
-        if (maxLinks > 0 && onA >= maxLinks) {
-            return Reply.of("at_limit", "this device is at its link limit (" + onA + " of " + maxLinks
-                    + ") - wireless_max_links_per_device", onA, maxLinks);
+        int capA = linkCeilingAt(owner, link.a(), maxLinks);
+        if (capA > 0 && onA >= capA) {
+            return atLimitReply(onA, capA, towerAt(owner, link.a()) != null);
         }
         int onB = linksAtEverywhere(owner, type, link.b());
-        if (maxLinks > 0 && onB >= maxLinks) {
-            return Reply.of("at_limit", "this device is at its link limit (" + onB + " of " + maxLinks
-                    + ") - wireless_max_links_per_device", onB, maxLinks);
+        int capB = linkCeilingAt(owner, link.b(), maxLinks);
+        if (capB > 0 && onB >= capB) {
+            return atLimitReply(onB, capB, towerAt(owner, link.b()) != null);
         }
         IGridNode a = node(owner, link.a());
         IGridNode b = node(owner, link.b());

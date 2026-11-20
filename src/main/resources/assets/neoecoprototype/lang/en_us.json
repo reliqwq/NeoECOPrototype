@@ -406,5 +406,11 @@
   "jade.neoecoprototype.wireless_link.live": "Frequency-division multiplexed link: virtual node attached",
   "jade.neoecoprototype.wireless_link.waiting": "Frequency-division multiplexed link: waiting for the virtual node",
   "jade.neoecoprototype.wireless_link.more": "and %s more",
-  "curios.identifier.universal_link_card": "Universal Link Card Slot"
+  "curios.identifier.universal_link_card": "Universal Link Card Slot",
+  "block.neoecoprototype.communication_base": "Communication Core Base",
+  "block.neoecoprototype.communication_core": "Communication Core Section",
+  "block.neoecoprototype.communication_range_module": "Communication Range Module",
+  "block.neoecoprototype.communication_efficient_module": "Communication Efficient Module",
+  "gui.neoecoprototype.wireless_link.tower_not_formed": "Not formed: %s",
+  "gui.neoecoprototype.comm_core.already_formed": "The tower is already formed."
 }

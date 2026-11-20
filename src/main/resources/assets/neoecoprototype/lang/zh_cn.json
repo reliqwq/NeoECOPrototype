@@ -406,5 +406,11 @@
   "jade.neoecoprototype.wireless_link.live": "频分复用链路：虚拟化节点已接入",
   "jade.neoecoprototype.wireless_link.waiting": "频分复用链路：等待虚拟化节点接入",
   "jade.neoecoprototype.wireless_link.more": "另有 %s 条",
-  "curios.identifier.universal_link_card": "全能复用连接卡栏位"
+  "curios.identifier.universal_link_card": "全能复用连接卡栏位",
+  "block.neoecoprototype.communication_base": "通讯核心基座",
+  "block.neoecoprototype.communication_core": "通讯核心塔身",
+  "block.neoecoprototype.communication_range_module": "范围增幅模块",
+  "block.neoecoprototype.communication_efficient_module": "高效通讯模块",
+  "gui.neoecoprototype.wireless_link.tower_not_formed": "未成型：%s",
+  "gui.neoecoprototype.comm_core.already_formed": "通讯塔已成型。"
 }

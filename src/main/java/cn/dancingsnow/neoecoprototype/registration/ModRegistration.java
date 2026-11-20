@@ -81,7 +81,9 @@ import cn.dancingsnow.neoecoprototype.blockentity.trinity.SimplifyTrinityControl
 import cn.dancingsnow.neoecoprototype.blockentity.trinity.SimplifyTrinityStorageModuleBlockEntity;
 import cn.dancingsnow.neoecoprototype.blockentity.trinity.SimplifyTrinityComputationModuleBlockEntity;
 import cn.dancingsnow.neoecoprototype.blockentity.trinity.SimplifyTrinityCraftingModuleBlockEntity;
+import cn.dancingsnow.neoecoprototype.block.wireless.CommunicationBaseBlock;
 import cn.dancingsnow.neoecoprototype.block.wireless.WirelessChannelModuleBlock;
+import cn.dancingsnow.neoecoprototype.blockentity.wireless.CommunicationCoreBlockEntity;
 import cn.dancingsnow.neoecoprototype.blockentity.wireless.WirelessChannelModuleBlockEntity;
 import cn.dancingsnow.neoecoprototype.blockentity.storage.SimplifyDriveBlockEntity;
 import cn.dancingsnow.neoecoprototype.blockentity.storage.SimplifyEnergyCellBlockEntity;
@@ -852,6 +854,16 @@ public class ModRegistration {
     public static final Supplier<WirelessChannelModuleBlock> SUBSYSTEM_CHANNEL_MODULE_BLOCK =
             BLOCKS.register("subsystem_channel_module", () -> new WirelessChannelModuleBlock(AE2_MACHINE_PROPS));
 
+    /** The wireless family's mid-game hub: the base is the controller, the sections carry the relay. */
+    public static final Supplier<CommunicationBaseBlock> COMMUNICATION_BASE_BLOCK =
+            BLOCKS.register("communication_base", () -> new CommunicationBaseBlock(AE2_MACHINE_PROPS));
+    public static final Supplier<Block> COMMUNICATION_CORE_BLOCK =
+            BLOCKS.register("communication_core", () -> new Block(AE2_MACHINE_PROPS));
+    public static final Supplier<Block> COMMUNICATION_RANGE_MODULE_BLOCK =
+            BLOCKS.register("communication_range_module", () -> new Block(AE2_MACHINE_PROPS));
+    public static final Supplier<Block> COMMUNICATION_EFFICIENT_MODULE_BLOCK =
+            BLOCKS.register("communication_efficient_module", () -> new Block(AE2_MACHINE_PROPS));
+
     public static final Supplier<SimplifyCraftingSystemBlock> SIMPLIFY_CRAFTING_SYSTEM_BLOCK =
             BLOCKS.register("simplify_crafting_system", () -> new SimplifyCraftingSystemBlock(COMPUTATION_PROPS));
      public static final Supplier<SimplifyStonecuttingAssemblerBlock> SIMPLIFY_STONECUTTING_ASSEMBLER_BLOCK = BLOCKS.register("simplify_stonecutting_assembler", () -> new SimplifyStonecuttingAssemblerBlock(AE2_MACHINE_PROPS));
@@ -945,6 +957,19 @@ public class ModRegistration {
     public static final Supplier<BlockItem> SUBSYSTEM_CHANNEL_MODULE_ITEM = ITEMS.register(
             "subsystem_channel_module",
             () -> new BlockItem(SUBSYSTEM_CHANNEL_MODULE_BLOCK.get(), new Item.Properties()));
+
+    public static final Supplier<BlockItem> COMMUNICATION_BASE_ITEM = ITEMS.register(
+            "communication_base",
+            () -> new BlockItem(COMMUNICATION_BASE_BLOCK.get(), new Item.Properties()));
+    public static final Supplier<BlockItem> COMMUNICATION_CORE_ITEM = ITEMS.register(
+            "communication_core",
+            () -> new BlockItem(COMMUNICATION_CORE_BLOCK.get(), new Item.Properties()));
+    public static final Supplier<BlockItem> COMMUNICATION_RANGE_MODULE_ITEM = ITEMS.register(
+            "communication_range_module",
+            () -> new BlockItem(COMMUNICATION_RANGE_MODULE_BLOCK.get(), new Item.Properties()));
+    public static final Supplier<BlockItem> COMMUNICATION_EFFICIENT_MODULE_ITEM = ITEMS.register(
+            "communication_efficient_module",
+            () -> new BlockItem(COMMUNICATION_EFFICIENT_MODULE_BLOCK.get(), new Item.Properties()));
 
     /**
      * The wireless link card's gesture, not its memory: the pairs themselves are filed on the level, so an
@@ -1758,6 +1783,15 @@ private static Supplier<BlockEntityType<SimplifyStorageVentBlockEntity>> registe
     public static final Supplier<BlockEntityType<WirelessChannelModuleBlockEntity>> SUBSYSTEM_CHANNEL_MODULE_BE =
             registerSubsystemChannelModuleBe();
 
+    public static final Supplier<BlockEntityType<CommunicationCoreBlockEntity>> COMMUNICATION_CORE_BE =
+            registerCommunicationCoreBe();
+
+    private static Supplier<BlockEntityType<CommunicationCoreBlockEntity>> registerCommunicationCoreBe() {
+        return (Supplier) BLOCK_ENTITIES.register("communication_core", () -> BlockEntityType.Builder.of(
+                (pos, state) -> new CommunicationCoreBlockEntity(COMMUNICATION_CORE_BE.get(), pos, state),
+                COMMUNICATION_BASE_BLOCK.get()).build(null));
+    }
+
     private static Supplier<BlockEntityType<WirelessChannelModuleBlockEntity>> registerSubsystemChannelModuleBe() {
         return (Supplier) BLOCK_ENTITIES.register("subsystem_channel_module", () -> BlockEntityType.Builder.of(
                 (pos, state) -> new WirelessChannelModuleBlockEntity(SUBSYSTEM_CHANNEL_MODULE_BE.get(), pos, state),
@@ -2012,6 +2046,13 @@ private static Supplier<BlockEntityType<SimplifyStorageVentBlockEntity>> registe
                         // plus data/neoecoprototype/recipe/processor_assembler/wireless_link_card.json - that
                         // recipe block is kept in _removed_sources/.
                         output.accept(SUBSYSTEM_CHANNEL_MODULE_ITEM.get());
+                        // The communication core is the family's mid-game hub: coexists with the link
+                        // cards, which stay the early point-to-point tool. Height buys radius and
+                        // capacity; the balance lives in the communication_core config section.
+                        output.accept(COMMUNICATION_BASE_ITEM.get());
+                        output.accept(COMMUNICATION_CORE_ITEM.get());
+                        output.accept(COMMUNICATION_RANGE_MODULE_ITEM.get());
+                        output.accept(COMMUNICATION_EFFICIENT_MODULE_ITEM.get());
                         output.accept(L1_SIGNAL_BOOSTER_CARD.get());
                         output.accept(WIRELESS_LINK_CARD.get());
                         output.accept(WIRELESS_UNLINK_CARD.get());
@@ -2232,6 +2273,10 @@ private static Supplier<BlockEntityType<SimplifyStorageVentBlockEntity>> registe
     public static void linkBlockEntityTypes() {
         asEntityBlock(SUBSYSTEM_CHANNEL_MODULE_BLOCK).setBlockEntity(
                 WirelessChannelModuleBlockEntity.class, SUBSYSTEM_CHANNEL_MODULE_BE.get(), null, null);
+        asEntityBlock(COMMUNICATION_BASE_BLOCK).setBlockEntity(
+                CommunicationCoreBlockEntity.class, COMMUNICATION_CORE_BE.get(), null,
+                (level, pos, state, blockEntity) -> CommunicationCoreBlockEntity.serverTick(
+                        level, pos, state, (CommunicationCoreBlockEntity) blockEntity));
         asEntityBlock(SIMPLIFY_TRINITY_CONTROLLER_BLOCK).setBlockEntity(
                 SimplifyTrinityControllerBlockEntity.class, SIMPLIFY_TRINITY_CONTROLLER_BE.get(), null,
                 (level, pos, state, blockEntity) -> SimplifyTrinityControllerBlockEntity.tick(
@@ -2390,6 +2435,8 @@ private static Supplier<BlockEntityType<SimplifyStorageVentBlockEntity>> registe
                 MUSIC_RECORDER_ITEM.get().asItem());
         AEBaseBlockEntity.registerBlockEntityItem(SUBSYSTEM_CHANNEL_MODULE_BE.get(),
                 SUBSYSTEM_CHANNEL_MODULE_ITEM.get().asItem());
+        AEBaseBlockEntity.registerBlockEntityItem(COMMUNICATION_CORE_BE.get(),
+                COMMUNICATION_BASE_ITEM.get().asItem());
         AEBaseBlockEntity.registerBlockEntityItem(SIMPLIFY_PATTERN_PROVIDER_BE.get(), SIMPLIFY_PATTERN_PROVIDER_ITEM.get().asItem());
          AEBaseBlockEntity.registerBlockEntityItem(SIMPLIFY_POWERED_ME_INTERFACE_BE.get(), SIMPLIFY_POWERED_ME_INTERFACE_ITEM.get().asItem());
          AEBaseBlockEntity.registerBlockEntityItem(SUPERCONDUCTIVE_INTERFACE_BE.get(), SUPERCONDUCTIVE_INTERFACE_ITEM.get().asItem());

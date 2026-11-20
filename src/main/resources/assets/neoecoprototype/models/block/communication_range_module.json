@@ -1,0 +1,7 @@
+{
+  "parent": "minecraft:block/cube_all",
+  "textures": {
+    "all": "neoecoprototype:block/communication_range_module",
+    "particle": "neoecoprototype:block/communication_range_module"
+  }
+}

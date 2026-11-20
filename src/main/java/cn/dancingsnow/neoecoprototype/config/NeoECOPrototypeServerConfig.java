@@ -114,6 +114,27 @@ public final class NeoECOPrototypeServerConfig {
      * the whole grid offline when its power runs out, so the bill binds without our help.
      */
     public static final ModConfigSpec.DoubleValue WIRELESS_AE_PER_LINK_PER_TICK;
+
+    // ============================ communication core (P1) ============================
+    /** Total column height a communication core accepts: the base plus at most this many sections. */
+    public static final int COMM_CORE_MAX_HEIGHT_DEFAULT = 9;
+    public static final ModConfigSpec.IntValue COMM_CORE_MAX_HEIGHT;
+    /** Blocks a formed tower reaches without any range module; the global cap and boosters can only add. */
+    public static final int COMM_CORE_RADIUS_BASE_DEFAULT = 16;
+    public static final ModConfigSpec.IntValue COMM_CORE_RADIUS_BASE;
+    public static final int COMM_CORE_RADIUS_PER_MODULE_DEFAULT = 8;
+    public static final ModConfigSpec.IntValue COMM_CORE_RADIUS_PER_MODULE;
+    /** Devices a formed tower carries before the per-section bonus. */
+    public static final int COMM_CORE_CAPACITY_BASE_DEFAULT = 8;
+    public static final ModConfigSpec.IntValue COMM_CORE_CAPACITY_BASE;
+    public static final int COMM_CORE_CAPACITY_PER_SECTION_DEFAULT = 4;
+    public static final ModConfigSpec.IntValue COMM_CORE_CAPACITY_PER_SECTION;
+    /** AE/t each standing column block draws from its own grid while the tower is formed. */
+    public static final double COMM_CORE_IDLE_PER_BLOCK_DEFAULT = 10.0D;
+    public static final ModConfigSpec.DoubleValue COMM_CORE_IDLE_PER_BLOCK;
+    /** Idle multiplier while an efficient module stands in the column. */
+    public static final double COMM_CORE_EFFICIENT_MULTIPLIER_DEFAULT = 0.6D;
+    public static final ModConfigSpec.DoubleValue COMM_CORE_EFFICIENT_MULTIPLIER;
     /** How much of the vanilla powder-snow chill one broken cryotheum ore is worth. */
     public static final ModConfigSpec.IntValue CRYOTHEUM_ORE_FREEZE_TICKS;
     /** Whether the floating End comet generates at all; it is the family's only remaining world entry. */
@@ -242,6 +263,42 @@ public final class NeoECOPrototypeServerConfig {
                         "每条在线链路每刻消耗的网络 AE。默认 50（8 条 = 400 AE/t）| 范围 0~16384。0 = 免费。",
                         "注：每次扫描实时扣费；付不起的网络链路保留，但会停机。")
                 .defineInRange("wireless_ae_per_link_per_tick", 50.0D, 0.0D, 16384.0D);
+        builder.push("communication_core");
+        COMM_CORE_MAX_HEIGHT = builder
+                .comment("Total tower height a communication core accepts (base + sections). Default: 9 | Range: 2~16.",
+                        "A column taller than this stays unformed; the build UI clamps to the same ceiling.",
+                        "通讯核心接受的最大塔高（基座 + 塔身）。默认 9 | 范围 2~16。",
+                        "超过此高度的塔柱不会成型；建造界面的长度档位同受此限。")
+                .defineInRange("max_height", COMM_CORE_MAX_HEIGHT_DEFAULT, 2, 16);
+        COMM_CORE_RADIUS_BASE = builder
+                .comment("Blocks a formed tower reaches without any range module. Default: 16 | Range: 0~100000.",
+                        "The global wireless_max_range_blocks and booster cards can only add to this, never shrink it.",
+                        "成型通讯塔在无范围模块时可达的距离。默认 16 | 范围 0~100000。",
+                        "全局 wireless_max_range_blocks 与增强卡只能在此基础上加成，不会削减它。")
+                .defineInRange("radius_base", COMM_CORE_RADIUS_BASE_DEFAULT, 0, 100000);
+        COMM_CORE_RADIUS_PER_MODULE = builder
+                .comment("Extra radius per range module standing in the column (at most 2). Default: 8 | Range: 0~1000.",
+                        "每根范围增幅模块（至多 2 根）为成型塔增加的距离。默认 8 | 范围 0~1000。")
+                .defineInRange("radius_per_module", COMM_CORE_RADIUS_PER_MODULE_DEFAULT, 0, 1000);
+        COMM_CORE_CAPACITY_BASE = builder
+                .comment("Devices a formed tower carries before the per-section bonus. Default: 8 | Range: 0~256.",
+                        "成型通讯塔在塔身加成前可承载的设备数。默认 8 | 范围 0~256。")
+                .defineInRange("capacity_base", COMM_CORE_CAPACITY_BASE_DEFAULT, 0, 256);
+        COMM_CORE_CAPACITY_PER_SECTION = builder
+                .comment("Extra devices per tower section standing above the base. Default: 4 | Range: 0~64.",
+                        "塔身每多一节为成型塔增加的可承载设备数。默认 4 | 范围 0~64。")
+                .defineInRange("capacity_per_section", COMM_CORE_CAPACITY_PER_SECTION_DEFAULT, 0, 64);
+        COMM_CORE_IDLE_PER_BLOCK = builder
+                .comment("AE/t each standing column block draws from its own grid while the tower is formed. Default: 10 | Range: 0~4096. 0 = free.",
+                        "An unformed tower draws nothing; the per-link wireless fee bills on top of this.",
+                        "成型通讯塔每格塔柱每刻向自身网络抽取的 AE。默认 10 | 范围 0~4096。0 = 免费。",
+                        "未成型的塔不抽电；每条链路的无线计费在此基础上另算。")
+                .defineInRange("idle_per_block", COMM_CORE_IDLE_PER_BLOCK_DEFAULT, 0.0D, 4096.0D);
+        COMM_CORE_EFFICIENT_MULTIPLIER = builder
+                .comment("Idle multiplier while an efficient module stands in the column (at most 1). Default: 0.6 | Range: 0~1.",
+                        "柱内有高效通讯模块（至多 1 根）时的待机倍率。默认 0.6 | 范围 0~1。")
+                .defineInRange("efficient_multiplier", COMM_CORE_EFFICIENT_MULTIPLIER_DEFAULT, 0.0D, 1.0D);
+        builder.pop();
         DERIVE_PROCESSOR_RECIPES_FROM_INSCRIBER = builder
                 .comment("Derive processor recipes from AE2 inscriber recipes. Default: true.",
                         "Note: changes apply after /reload; deleting a data file alone does not disable a recipe, use the blacklist below.",
@@ -379,6 +436,38 @@ public final class NeoECOPrototypeServerConfig {
     /** The plushie's rate, floored at zero and read on every sweep so a pack edit takes effect at once. */
     public static double fumoChargeAePerTick() {
         return Math.max(0.0D, FUMO_CHARGE_AE_PER_TICK.get());
+    }
+
+    /** Tower height cap, floored at the minimum formable tower (base + one section). */
+    public static int commCoreMaxHeight() {
+        return Math.max(2, COMM_CORE_MAX_HEIGHT.get());
+    }
+
+    /** The tower's own radius floor; a pack edit is live because every bind re-reads it. */
+    public static int commCoreRadiusBase() {
+        return Math.max(0, COMM_CORE_RADIUS_BASE.get());
+    }
+
+    public static int commCoreRadiusPerModule() {
+        return Math.max(0, COMM_CORE_RADIUS_PER_MODULE.get());
+    }
+
+    public static int commCoreCapacityBase() {
+        return Math.max(0, COMM_CORE_CAPACITY_BASE.get());
+    }
+
+    public static int commCoreCapacityPerSection() {
+        return Math.max(0, COMM_CORE_CAPACITY_PER_SECTION.get());
+    }
+
+    /** Per-block idle draw, floored at zero; read every tick the tower extracts. */
+    public static double commCoreIdlePerBlock() {
+        return Math.max(0.0D, COMM_CORE_IDLE_PER_BLOCK.get());
+    }
+
+    /** Efficient-module multiplier, clamped to [0, 1] so weather can only ever cheapen the tower. */
+    public static double commCoreEfficientMultiplier() {
+        return Math.clamp(COMM_CORE_EFFICIENT_MULTIPLIER.get(), 0.0D, 1.0D);
     }
 
     /** The cell's interval, floored: the config range is the guard, this is the read-side one. */

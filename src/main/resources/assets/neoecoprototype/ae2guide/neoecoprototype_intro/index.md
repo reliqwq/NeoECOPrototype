@@ -24,6 +24,7 @@ If you have never used eco: think of these as **longer-buildable AE2 versions wi
 | More crafting throughput | [L1 Computation System](computation_system.md) and [L1 Crafting System](crafting_system.md) |
 | Sub-network power, big markings | [L1 Powered ME Interface](powered_interface.md) and [Energized Superconductive Interface](superconductive_interface.md) |
 | Six more 32-channel faces, without cables | [ECOP Network Subsystem Channel Core](subsystem_channel_module.md) - wireless links to machines and cable buses |
+| One hub for many wireless links | [Communication Core](communication_core.md) - a tower the cards feed devices into |
 | Registering matrices and recipes from scripts | [KubeJS support](kubejs.md) |
 
 Both interfaces generate power passively, but AE2 keeps only the highest-output generator per grid - see the [L1 Powered ME Interface](powered_interface.md).

@@ -1,0 +1,24 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "G": {
+      "item": "neoecoprototype:simplify_green_aluminum_casing"
+    },
+    "F": {
+      "item": "ae2:quartz_fiber"
+    },
+    "E": {
+      "item": "ae2:energy_card"
+    }
+  },
+  "pattern": [
+    " F ",
+    "GEG",
+    " F "
+  ],
+  "result": {
+    "count": 1,
+    "id": "neoecoprototype:communication_efficient_module"
+  }
+}

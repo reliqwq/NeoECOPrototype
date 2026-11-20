@@ -312,6 +312,10 @@ public class NeoECOPrototype {
         // node and the music it plays reaches no store at all.
         registerNodeHost(event, ModRegistration.MUSIC_JUKEBOX_BE.get());
         registerNodeHost(event, ModRegistration.SUBSYSTEM_CHANNEL_MODULE_BE.get());
+        // Same rule, third verse: the communication core's base carries the tower's node, and AE2
+        // only posts the capability for types in its own registry - without this line the card can
+        // never mark the tower at all, however correctly its faces are exposed.
+        registerNodeHost(event, ModRegistration.COMMUNICATION_CORE_BE.get());
         event.registerBlockEntity(Capabilities.EnergyStorage.BLOCK,
                 ModRegistration.METEORITE_DISSOCIATOR_BE.get(),
                 (blockEntity, side) -> blockEntity.getEnergyStorage());

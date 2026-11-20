@@ -41,7 +41,7 @@ import java.util.List;
  * keeps occupying a controller bucket, which reads to the player as channels that went somewhere they cannot
  * see, so both unload paths destroy every port and the next bind rebuilds them from nothing.
  */
-public final class WirelessChannelModuleBlockEntity extends AENetworkedBlockEntity
+public class WirelessChannelModuleBlockEntity extends AENetworkedBlockEntity
         implements IInWorldGridNodeHost, InternalInventoryHost {
 
     /** AE2 prices a dense face at 32 channels and a cube has six faces: that is where the arithmetic stops. */
@@ -426,7 +426,12 @@ public final class WirelessChannelModuleBlockEntity extends AENetworkedBlockEnti
         return widest == null ? mainNode : widest;
     }
 
-    private void destroyPorts() {
+    /**
+     * Tears down every port and trunk. Protected rather than private because the communication core
+     * extends this class and must drop its ports the moment the column unforms - a relay that lost its
+     * height must not keep handing out outlets.
+     */
+    protected void destroyPorts() {
         promised.clear();
         // Connections first: AE2 frees the channels an edge was carrying when the edge goes, and a destroyed
         // node with a live edge pointing at it is exactly the ghost this class exists to avoid.

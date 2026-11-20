@@ -1,8 +1,13 @@
 {
   "values": [
     "neoecoprototype:chipped_budding_grette",
+    "neoecoprototype:communication_base",
+    "neoecoprototype:communication_core",
+    "neoecoprototype:communication_efficient_module",
+    "neoecoprototype:communication_range_module",
     "neoecoprototype:cryotheum_ore",
     "neoecoprototype:damaged_budding_grette",
+    "neoecoprototype:ec9_processor_assembler",
     "neoecoprototype:end_cryotheum_ore",
     "neoecoprototype:energized_computation_core",
     "neoecoprototype:energized_computation_threading_core",
@@ -37,7 +42,6 @@
     "neoecoprototype:simplify_crafting_vent",
     "neoecoprototype:simplify_crafting_worker",
     "neoecoprototype:simplify_drive",
-    "neoecoprototype:ec9_processor_assembler",
     "neoecoprototype:simplify_energy_cell",
     "neoecoprototype:simplify_fluid_input_hatch",
     "neoecoprototype:simplify_fluid_output_hatch",
