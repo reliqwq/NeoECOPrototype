@@ -24219,7 +24219,8 @@ public final class NeoECOPrototypeGameTests {
                 // Three outcomes the manager and the unlink-by-group path speak. They were missing from this
                 // list when it was cut over to groups, so a key dropped from a language file would only have
                 // been caught by the JUnit scan, which checks presence but never reads the slots in order.
-                "group_required", "group_empty", "group_unlinked");
+                "group_required", "group_empty", "group_unlinked",
+                "tower_not_formed");
         for (String lang : new String[]{"en_us", "zh_cn"}) {
             String json = readResource("/assets/neoecoprototype/lang/" + lang + ".json", helper);
             if (json == null) {
@@ -25744,6 +25745,406 @@ public final class NeoECOPrototypeGameTests {
                         return;
                     }
                     helper.succeed();
+                });
+    }
+
+    // ============================ communication core ============================
+
+    /**
+     * The wireless family's mid-game hub, as a 1xN tower. The base is the controller and one
+     * self-scan answer gates the whole feature: a formed tower enrolls devices on the channel
+     * module's own port machinery, buys radius and capacity from its height, and bills its idle
+     * draw itself - none of which the plain link cards do. These guards pin the four balance lines
+     * and the one refusal a player meets before the tower exists.
+     */
+
+    /** One tower frame the batch reuses: the base at {@code (0,1,0)}, sections stacked above it. */
+    private static void placeTower(GameTestHelper helper, String... blocks) {
+        var basePos = new BlockPos(0, 1, 0);
+        helper.setBlock(basePos, ModRegistration.COMMUNICATION_BASE_BLOCK.get());
+        for (int i = 0; i < blocks.length; i++) {
+            var id = switch (blocks[i]) {
+                case "core" -> ModRegistration.COMMUNICATION_CORE_BLOCK.get();
+                case "range" -> ModRegistration.COMMUNICATION_RANGE_MODULE_BLOCK.get();
+                case "efficient" -> ModRegistration.COMMUNICATION_EFFICIENT_MODULE_BLOCK.get();
+                default -> throw new IllegalArgumentException(blocks[i]);
+            };
+            helper.setBlock(basePos.above(1 + i), id);
+        }
+    }
+
+    private static cn.dancingsnow.neoecoprototype.blockentity.wireless.CommunicationCoreBlockEntity
+    towerAt(GameTestHelper helper) {
+        return helper.getBlockEntity(new BlockPos(0, 1, 0))
+                instanceof cn.dancingsnow.neoecoprototype.blockentity.wireless
+                        .CommunicationCoreBlockEntity tower ? tower : null;
+    }
+
+    @GameTest(template = "l1_room", batch = "comm_core", timeoutTicks = 400,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void towerFormsAtItsMinimumHeightAndQuotesItsIdleDraw(GameTestHelper helper) {
+        placeTower(helper, "core");
+        var tower = towerAt(helper);
+        if (tower == null) {
+            helper.fail("the base did not come into existence");
+            return;
+        }
+        waitUntil(helper, 60,
+                tower::isFormed,
+                () -> "the one-section tower never formed: " + tower.towerIssues(),
+                () -> {
+                    if (tower.towerSections() != 1) {
+                        helper.fail("the formed tower counted " + tower.towerSections() + " sections");
+                        return;
+                    }
+                    double expected = 2 * NeoECOPrototypeServerConfig.commCoreIdlePerBlock();
+                    if (Math.abs(tower.idleDrawPerTick() - expected) > 1.0E-9) {
+                        helper.fail("the tower quotes " + tower.idleDrawPerTick() + " AE/t, expected "
+                                + expected + " (base + one section)");
+                        return;
+                    }
+                    helper.succeed();
+                });
+    }
+
+    @GameTest(template = "l1_room", batch = "comm_core", timeoutTicks = 400,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void towerRefusesToGrowPastTheHeightCap(GameTestHelper helper) {
+        var basePos = new BlockPos(0, 1, 0);
+        helper.setBlock(basePos, ModRegistration.COMMUNICATION_BASE_BLOCK.get());
+        for (int i = 1; i <= NeoECOPrototypeServerConfig.commCoreMaxHeight(); i++) {
+            helper.setBlock(basePos.above(i), ModRegistration.COMMUNICATION_CORE_BLOCK.get());
+        }
+        var tower = towerAt(helper);
+        if (tower == null) {
+            helper.fail("the base did not come into existence");
+            return;
+        }
+        waitUntil(helper, 60,
+                () -> !tower.isTowerFormed() && !tower.towerIssues().isEmpty(),
+                () -> "a column past the cap stayed quiet - the scan must name the height",
+                () -> {
+                    if (!tower.towerIssues().get(0).contains("height cap")) {
+                        helper.fail("the scan said \"" + tower.towerIssues().get(0)
+                                + "\", expected the height cap");
+                        return;
+                    }
+                    helper.succeed();
+                });
+    }
+
+    @GameTest(template = "l1_room", batch = "comm_core", timeoutTicks = 400,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void towerRefusesAModuleBeyondItsPerTowerCap(GameTestHelper helper) {
+        placeTower(helper, "range", "range", "range");
+        var tower = towerAt(helper);
+        if (tower == null) {
+            helper.fail("the base did not come into existence");
+            return;
+        }
+        waitUntil(helper, 60,
+                () -> !tower.isTowerFormed() && !tower.towerIssues().isEmpty(),
+                () -> "three range modules stayed quietly accepted - the per-tower cap must refuse them",
+                () -> {
+                    if (!tower.towerIssues().get(0).contains("range modules")) {
+                        helper.fail("the scan said \"" + tower.towerIssues().get(0)
+                                + "\", expected the range cap");
+                        return;
+                    }
+                    helper.succeed();
+                });
+    }
+
+    @GameTest(template = "l1_room", batch = "comm_core", timeoutTicks = 400,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void anUnformedTowerRefusesTheBindWithOneSentence(GameTestHelper helper) {
+        var basePos = new BlockPos(0, 1, 0);
+        helper.setBlock(basePos, ModRegistration.COMMUNICATION_BASE_BLOCK.get());
+        var farPos = new BlockPos(3, 1, 0);
+        helper.setBlock(farPos, ModRegistration.SUPERCONDUCTIVE_INTERFACE_BLOCK.get());
+        var level = (ServerLevel) helper.getLevel();
+        var tower = GlobalPos.of(level.dimension(), helper.absolutePos(basePos));
+        var far = GlobalPos.of(level.dimension(), helper.absolutePos(farPos));
+        String refused = WirelessLinks.bind(level, ModRegistration.WIRELESS_LINKS, tower, far);
+        if (!refused.startsWith("the communication core at")) {
+            helper.fail("the unformed tower answered \"" + refused
+                    + "\", expected the not-formed refusal");
+            return;
+        }
+        if (!WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS, tower)
+                .contains("wirelessLinks=0")) {
+            helper.fail("the refused bind filed a record on the unformed tower: "
+                    + WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS, tower));
+            return;
+        }
+        helper.succeed();
+    }
+
+
+    @GameTest(template = "l1_room", batch = "comm_core", timeoutTicks = 400,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void aFormedTowerEnrollsDevicesOnItsPorts(GameTestHelper helper) {
+        placeTower(helper, "core");
+        var tower = towerAt(helper);
+        if (tower == null) {
+            helper.fail("the base did not come into existence");
+            return;
+        }
+        var farPos = new BlockPos(3, 1, 0);
+        helper.setBlock(farPos, ModRegistration.SUPERCONDUCTIVE_INTERFACE_BLOCK.get());
+        var level = (ServerLevel) helper.getLevel();
+        var towerPos = GlobalPos.of(level.dimension(), helper.absolutePos(new BlockPos(0, 1, 0)));
+        var far = GlobalPos.of(level.dimension(), helper.absolutePos(farPos));
+        waitUntil(helper, 60,
+                tower::isFormed,
+                () -> "the tower never formed: " + tower.towerIssues(),
+                () -> {
+                    String reply = WirelessLinks.bind(level, ModRegistration.WIRELESS_LINKS,
+                            towerPos, far);
+                    if (!reply.startsWith("linked") && !reply.startsWith("recorded")) {
+                        helper.fail("the formed tower refused its first device: " + reply);
+                        return;
+                    }
+                    if (tower.livePorts() < 1 || tower.busyPorts() != 1) {
+                        helper.fail("the link did not land on a port (live=" + tower.livePorts()
+                                + ", busy=" + tower.busyPorts() + ") - the tower must behave like"
+                                + " the channel module it extends");
+                        return;
+                    }
+                    helper.succeed();
+                });
+    }
+
+    @GameTest(template = "l1_room", batch = "comm_core", timeoutTicks = 400,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void towerRadiusIsTheFloorTheGlobalCapCannotShrink(GameTestHelper helper) {
+        placeTower(helper, "core");
+        var tower = towerAt(helper);
+        if (tower == null) {
+            helper.fail("the base did not come into existence");
+            return;
+        }
+        var farPos = new BlockPos(3, 1, 3);
+        helper.setBlock(farPos, ModRegistration.SUPERCONDUCTIVE_INTERFACE_BLOCK.get());
+        var level = (ServerLevel) helper.getLevel();
+        var towerPos = GlobalPos.of(level.dimension(), helper.absolutePos(new BlockPos(0, 1, 0)));
+        var far = GlobalPos.of(level.dimension(), helper.absolutePos(farPos));
+        long apart = Math.round(Math.sqrt(3 * 3.0 + 3 * 3.0 + 2 * 2.0));
+        int shippedRange = NeoECOPrototypeServerConfig.WIRELESS_MAX_RANGE_BLOCKS.get();
+        int shippedBase = NeoECOPrototypeServerConfig.commCoreRadiusBase();
+        int shippedPerModule = NeoECOPrototypeServerConfig.commCoreRadiusPerModule();
+        waitUntil(helper, 60,
+                tower::isFormed,
+                () -> "the tower never formed: " + tower.towerIssues(),
+                () -> {
+                    try {
+                        // Global 3, tower radius 3, device 5 blocks out: only the tower's floor is
+                        // at play here, and it refuses - the refusal below is the tower's own.
+                        NeoECOPrototypeServerConfig.WIRELESS_MAX_RANGE_BLOCKS.set(3);
+                        NeoECOPrototypeServerConfig.COMM_CORE_RADIUS_BASE.set(3);
+                        NeoECOPrototypeServerConfig.COMM_CORE_RADIUS_PER_MODULE.set(4);
+                        String refused = WirelessLinks.bind(level, ModRegistration.WIRELESS_LINKS,
+                                towerPos, far);
+                        if (!refused.startsWith("these two are more than")) {
+                            helper.fail("with the tower radius at 3 the " + apart + "-block device"
+                                    + " answered \"" + refused + "\", expected out of range");
+                            return;
+                        }
+                        helper.succeed();
+                    } finally {
+                        NeoECOPrototypeServerConfig.WIRELESS_MAX_RANGE_BLOCKS.set(shippedRange);
+                        NeoECOPrototypeServerConfig.COMM_CORE_RADIUS_BASE.set(shippedBase);
+                        NeoECOPrototypeServerConfig.COMM_CORE_RADIUS_PER_MODULE.set(shippedPerModule);
+                    }
+                });
+    }
+
+    @GameTest(template = "l1_room", batch = "comm_core", timeoutTicks = 400,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void aRangeModuleExtendsTheTowerRadius(GameTestHelper helper) {
+        placeTower(helper, "range");
+        var tower = towerAt(helper);
+        if (tower == null) {
+            helper.fail("the base did not come into existence");
+            return;
+        }
+        var farPos = new BlockPos(3, 1, 3);
+        helper.setBlock(farPos, ModRegistration.SUPERCONDUCTIVE_INTERFACE_BLOCK.get());
+        var level = (ServerLevel) helper.getLevel();
+        var towerPos = GlobalPos.of(level.dimension(), helper.absolutePos(new BlockPos(0, 1, 0)));
+        var far = GlobalPos.of(level.dimension(), helper.absolutePos(farPos));
+        long apart = Math.round(Math.sqrt(3 * 3.0 + 3 * 3.0 + 2 * 2.0));
+        int shippedRange = NeoECOPrototypeServerConfig.WIRELESS_MAX_RANGE_BLOCKS.get();
+        int shippedBase = NeoECOPrototypeServerConfig.commCoreRadiusBase();
+        int shippedPerModule = NeoECOPrototypeServerConfig.commCoreRadiusPerModule();
+        waitUntil(helper, 60,
+                () -> tower.isTowerFormed() && tower.towerRangeModules() == 1,
+                () -> "the tower with its range module never formed: " + tower.towerIssues(),
+                () -> {
+                    try {
+                        // Global 3, tower 3 + 4 = 7, device 5 blocks out: the module's reach, not
+                        // the global cap, is what lets this bind through.
+                        NeoECOPrototypeServerConfig.WIRELESS_MAX_RANGE_BLOCKS.set(3);
+                        NeoECOPrototypeServerConfig.COMM_CORE_RADIUS_BASE.set(3);
+                        NeoECOPrototypeServerConfig.COMM_CORE_RADIUS_PER_MODULE.set(4);
+                        String reply = WirelessLinks.bind(level, ModRegistration.WIRELESS_LINKS,
+                                towerPos, far);
+                        if (!reply.startsWith("linked") && !reply.startsWith("recorded")) {
+                            helper.fail("with the radius at 7 the " + apart + "-block device"
+                                    + " answered \"" + reply + "\"");
+                            return;
+                        }
+                        helper.succeed();
+                    } finally {
+                        NeoECOPrototypeServerConfig.WIRELESS_MAX_RANGE_BLOCKS.set(shippedRange);
+                        NeoECOPrototypeServerConfig.COMM_CORE_RADIUS_BASE.set(shippedBase);
+                        NeoECOPrototypeServerConfig.COMM_CORE_RADIUS_PER_MODULE.set(shippedPerModule);
+                    }
+                });
+    }
+
+    @GameTest(template = "l1_room", batch = "comm_core", timeoutTicks = 400,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void towerCapacityIsBoughtByHeight(GameTestHelper helper) {
+        placeTower(helper, "core");
+        var tower = towerAt(helper);
+        if (tower == null) {
+            helper.fail("the base did not come into existence");
+            return;
+        }
+        var level = (ServerLevel) helper.getLevel();
+        var towerPos = GlobalPos.of(level.dimension(), helper.absolutePos(new BlockPos(0, 1, 0)));
+        List<GlobalPos> devices = new ArrayList<>();
+        // Two blocks apart in x, so no two devices share a cable edge - adjacent ones would be one
+        // network, and the second bind would be refused with one_network instead of exercising the
+        // tower's own count ceiling.
+        for (int i = 0; i < 7; i++) {
+            var at = new BlockPos(3 + (i % 3) * 2, 1, 3 + (i / 3) * 4);
+            helper.setBlock(at, ModRegistration.SUPERCONDUCTIVE_INTERFACE_BLOCK.get());
+            devices.add(GlobalPos.of(level.dimension(), helper.absolutePos(at)));
+        }
+        int shippedBase = NeoECOPrototypeServerConfig.commCoreCapacityBase();
+        waitUntil(helper, 80,
+                tower::isFormed,
+                () -> "the tower never formed: " + tower.towerIssues(),
+                () -> {
+                    try {
+                        NeoECOPrototypeServerConfig.COMM_CORE_CAPACITY_BASE.set(2);
+                        int cap = tower.formedLinkCapacity();
+                        if (cap != 6) {
+                            helper.fail("a one-section tower quotes capacity " + cap
+                                    + ", expected 2 + 4 = 6");
+                            return;
+                        }
+                        int linked = 0;
+                        String last = "";
+                        for (GlobalPos device : devices) {
+                            last = WirelessLinks.bind(level, ModRegistration.WIRELESS_LINKS,
+                                    towerPos, device);
+                            if (last.startsWith("linked") || last.startsWith("recorded")) {
+                                linked++;
+                            }
+                        }
+                        if (linked != 6) {
+                            helper.fail(linked + " of 7 devices linked - the seventh bind said \""
+                                    + last + "\"");
+                            return;
+                        }
+                        if (!last.contains("capacity its height bought")) {
+                            helper.fail("the refusal that stopped the seventh device said \"" + last
+                                    + "\", expected the tower's own capacity sentence");
+                            return;
+                        }
+                        helper.succeed();
+                    } finally {
+                        NeoECOPrototypeServerConfig.COMM_CORE_CAPACITY_BASE.set(shippedBase);
+                    }
+                });
+    }
+
+    @GameTest(template = "l1_room", batch = "comm_core", timeoutTicks = 400,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void anEfficientModuleScalesTheIdleDraw(GameTestHelper helper) {
+        placeTower(helper, "core", "core");
+        var tower = towerAt(helper);
+        if (tower == null) {
+            helper.fail("the base did not come into existence");
+            return;
+        }
+        waitUntil(helper, 60,
+                tower::isFormed,
+                () -> "the two-section tower never formed: " + tower.towerIssues(),
+                () -> {
+                    double plain = tower.idleDrawPerTick();
+                    double expectedPlain = 3 * NeoECOPrototypeServerConfig.commCoreIdlePerBlock();
+                    if (Math.abs(plain - expectedPlain) > 1.0E-9) {
+                        helper.fail("the plain tower quotes " + plain + " AE/t, expected "
+                                + expectedPlain);
+                        return;
+                    }
+                    helper.setBlock(new BlockPos(0, 3, 0),
+                            ModRegistration.COMMUNICATION_EFFICIENT_MODULE_BLOCK.get());
+                    tower.requestScan();
+                    waitUntil(helper, 60,
+                            () -> tower.isTowerFormed() && tower.towerEfficientModules() == 1,
+                            () -> "the efficient module never registered on the tower",
+                            () -> {
+                                double expected = 3 * NeoECOPrototypeServerConfig.commCoreIdlePerBlock()
+                                        * NeoECOPrototypeServerConfig.commCoreEfficientMultiplier();
+                                if (Math.abs(tower.idleDrawPerTick() - expected) > 1.0E-9) {
+                                    helper.fail("the tower quotes " + tower.idleDrawPerTick()
+                                            + " AE/t with the efficient module, expected " + expected);
+                                    return;
+                                }
+                                helper.succeed();
+                            });
+                });
+    }
+
+    @GameTest(template = "l1_room", batch = "comm_core", timeoutTicks = 400,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void breakingASectionUnformsTheTowerAndDropsItsLinks(GameTestHelper helper) {
+        placeTower(helper, "core");
+        var tower = towerAt(helper);
+        if (tower == null) {
+            helper.fail("the base did not come into existence");
+            return;
+        }
+        var farPos = new BlockPos(3, 1, 0);
+        helper.setBlock(farPos, ModRegistration.SUPERCONDUCTIVE_INTERFACE_BLOCK.get());
+        var level = (ServerLevel) helper.getLevel();
+        var towerPos = GlobalPos.of(level.dimension(), helper.absolutePos(new BlockPos(0, 1, 0)));
+        var far = GlobalPos.of(level.dimension(), helper.absolutePos(farPos));
+        waitUntil(helper, 60,
+                tower::isFormed,
+                () -> "the tower never formed: " + tower.towerIssues(),
+                () -> {
+                    String reply = WirelessLinks.bind(level, ModRegistration.WIRELESS_LINKS,
+                            towerPos, far);
+                    if (!reply.startsWith("linked") && !reply.startsWith("recorded")) {
+                        helper.fail("the formed tower refused its first device: " + reply);
+                        return;
+                    }
+                    helper.setBlock(new BlockPos(0, 2, 0), net.minecraft.world.level.block.Blocks.AIR);
+                    tower.requestScan();
+                    waitUntil(helper, 60,
+                            () -> !tower.isTowerFormed(),
+                            () -> "breaking the section left the tower formed",
+                            () -> {
+                                if (tower.busyPorts() != 0 || tower.livePorts() != 0) {
+                                    helper.fail("the unformed tower still holds ports (live="
+                                            + tower.livePorts() + ", busy=" + tower.busyPorts() + ")");
+                                    return;
+                                }
+                                if (!WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS, towerPos)
+                                        .contains("wirelessLinks=0")) {
+                                    helper.fail("the unformed tower still carries a link record: "
+                                            + WirelessLinks.status(level, ModRegistration.WIRELESS_LINKS,
+                                                    towerPos));
+                                    return;
+                                }
+                                helper.succeed();
+                            });
                 });
     }
 
