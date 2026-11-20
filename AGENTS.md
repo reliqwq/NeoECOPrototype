@@ -37,7 +37,7 @@ Neo ECO AE Extension（下称 eco）的 **L1 超前期扩展**：给 eco 的 L4 
 | Minecraft | 1.21.1 | — |
 | NeoForge | 21.1.251 | — |
 | AE2 | 19.2.17，地板 `[19.2.17,)`；编译 = 运行 = 同一颗 | `build.gradle`、`neoforge.mods.toml` |
-| Neo ECO AE Extension | **21.2.19**（CI 构建 `49f71bc70`，编译基线）／地板 `[21.2.19,)`——编译基线 = 运行地板，见 §5 | `build.gradle:270`、`neoforge.mods.toml:90` |
+| Neo ECO AE Extension | **21.2.19**（CI 构建 `cbd282778`，编译基线——同版本号的第二颗 jar，含包名重构 compat→integration 与 #170 修复；2026-11-20 换入）／地板 `[21.2.19,)`——编译基线 = 运行地板，见 §5 | `build.gradle:270`、`neoforge.mods.toml:90` |
 | LDLib2 | 2.2.40，**硬依赖**，地板 `[2.2.40,)`（抄 eco 自己那条，不是我们挑的） | `build.gradle` |
 | 数据能源（Data Energistics） | 3.4.0，**可选**，只有 `compileOnly`；dev 运行期 2026-11-12 起不装 | `build.gradle:291` |
 | 闪电科技 ae2lt + thunderbolt | 2.1.4-beta3 / 2.0.3，`runtimeOnly`，我们 0 处 Java 引用 | `build.gradle:304` |
@@ -56,7 +56,7 @@ Neo ECO AE Extension（下称 eco）的 **L1 超前期扩展**：给 eco 的 L4 
 
 第 3 把不能省：成员级尺子结构上看不见"record 多一个分量"，因为 javap 把构造子印在类名下、`<init>` 永不匹配——而 record 加分量正是 `NoSuchMethodError` 那一类。尺子之外还要**照那份 jar 重编 + 跑套件 + 客户端开一遍界面**，三件齐全才算跟过。
 
-**jar 身份只认逐条目 name + CRC + length**（`unzip -v` 三列排序后 diff）；md5 会因 zip 时间戳假报"不是同一颗"。换 eco 基线时 `build.gradle` 点名的**文件名一起改**：现在是 `neoecobeta/neoecoae-21.2.19.jar`（带 `-sources.jar`）；此基线来自 CI 构建 `49f71bc708c1872c8e91e3510333608d9a12a78b`，非 GitHub Release。
+**jar 身份只认逐条目 name + CRC + length**（`unzip -v` 三列排序后 diff）；md5 会因 zip 时间戳假报"不是同一颗"。换 eco 基线时 `build.gradle` 点名的**文件名一起改**：现在是 `neoecobeta/neoecoae-21.2.19.jar`（带 `-sources.jar`）；此基线来自 CI 构建 `cbd282778`（2026-11-20 换入；旧一颗 `49f71bc70` 备份为 `neoecoae-21.2.19.jar.baseline-49f71bc70`），非 GitHub Release。**同版本号 ≠ 同一颗 jar**：21.2.19 有两颗（49f71bc70 与 cbd282778，后者含 compat→integration 包名重构与 #170 修复），按 CI 构建短哈希区分，静态三把尺 + 重编 + 套件都已对 cbd282778 跑过，客户端开界面那次仍欠。
 
 **数据能源这条线是"编译地板 / 运行基线"曾经分开的历史原因**：DE 3.4.0 自己 required `ae2 [19.2.18,)` + `ldlib2 [2.2.44,)` + `ae2wtlib`，那两条区间是把 dev 运行期顶上去的唯一原因。11-12 起它不在 dev 运行期，编译与运行重新合成一颗；音乐那一族本来就整族对玩家隐藏。**接回来是三步，少一件就是启动期依赖报错**：① 恢复那行 `runtimeOnly`；② ae2 / ldlib2 的 `runtimeOnly` 回到 19.2.18 / 2.2.44；③ 去掉 `run/mods/` 里那颗 jar 的 `.disabled` 后缀（改名，不是删除）——原文见 `build.gradle:288-290`。
 
