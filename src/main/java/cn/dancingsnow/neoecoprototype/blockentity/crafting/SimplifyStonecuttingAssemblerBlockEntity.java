@@ -124,7 +124,7 @@ public class SimplifyStonecuttingAssemblerBlockEntity extends AENetworkedInvBloc
                 ? ModRegistration.EC9_ASSEMBLER_ITEM.get() : ModRegistration.SIMPLIFY_STONECUTTING_ASSEMBLER_ITEM.get();
         this.upgrades = UpgradeInventories.forMachine(machineItem, family == Family.EC9 ? 6 : 5, this::saveChanges);
         getMainNode().setVisualRepresentation(machineItem);
-        getMainNode().setIdlePowerUsage(0.0)
+        getMainNode().setIdlePowerUsage(10.0)
                 .addService(IGridTickable.class, this);
     }
 
