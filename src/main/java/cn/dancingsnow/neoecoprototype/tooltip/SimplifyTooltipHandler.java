@@ -69,24 +69,17 @@ public final class SimplifyTooltipHandler {
     }
 
     /**
-     * Trinity controller and its three modules work, but are unreleased; see the JEI gate. The reactor family
-     * joins them, having no recipe and no tab entry this release, and the music family is withheld the same way
-     * while its Data Energistics half is unfinished. The wireless family came out of withholding on
-     * 2026-11-16, when its three crafts were decided: tab entry, recipes and no red line. Public because a
-     * guard asks it on a stack rather than trusting that the withheld list was edited in every place that
-     * matters.
+     * Trinity controller and its three modules work, but are unreleased; see the JEI gate. The music family
+     * is withheld the same way while its Data Energistics half is unfinished. The wireless family came out
+     * of withholding on 2026-11-16, when its three crafts were decided: tab entry, recipes and no red line.
+     * Public because a guard asks it on a stack rather than trusting that the withheld list was edited in
+     * every place that matters.
      */
     public static boolean isNotImplemented(ItemStack stack) {
         return stack.is(ModRegistration.SIMPLIFY_TRINITY_CONTROLLER_ITEM.get())
                 || stack.is(ModRegistration.SIMPLIFY_TRINITY_STORAGE_MODULE_ITEM.get())
                 || stack.is(ModRegistration.SIMPLIFY_TRINITY_COMPUTATION_MODULE_ITEM.get())
                 || stack.is(ModRegistration.SIMPLIFY_TRINITY_CRAFTING_MODULE_ITEM.get())
-                // The reactor's five parts are withheld the same way; a /give'd frame must not read finished.
-                || stack.is(ModRegistration.REACTOR_CONTROLLER_ITEM.get())
-                || stack.is(ModRegistration.REACTOR_FRAME_ITEM.get())
-                || stack.is(ModRegistration.REACTOR_GLASS_ITEM.get())
-                || stack.is(ModRegistration.REACTOR_COIL_ITEM.get())
-                || stack.is(ModRegistration.REACTOR_CORE_ITEM.get())
                 // The music chain works, but the data type it feeds is not finished; a /give'd machine must
                 // not read like something the player can go and build.
                 || stack.is(ModRegistration.MUSIC_JUKEBOX_ITEM.get())

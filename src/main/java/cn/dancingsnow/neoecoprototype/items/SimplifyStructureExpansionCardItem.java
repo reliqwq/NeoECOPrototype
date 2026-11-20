@@ -138,13 +138,13 @@ public class SimplifyStructureExpansionCardItem extends Item {
      * <p>One sentence about side length used to cover three different things, and two of them were lies.
      * "上限由配置项决定" is true of eco's three families - each definition takes its ceiling from
      * {@code NEConfig.*SystemMaxLength - 4} - and false of ours, which stop at
-     * {@code SimplifyMultiblockConfig.L1_PLACEMENT_EXPAND_MAX}, a constant. And the Trinity and the reactor
-     * declare {@code expandMin == expandMax}, so they were never growable and never will be - no config
-     * value would have moved them.</p>
+     * {@code SimplifyMultiblockConfig.L1_PLACEMENT_EXPAND_MAX}, a constant. And the Trinity controller
+     * declares {@code expandMin == expandMax}, so it was never growable and never will be - no config
+     * value would have moved it.</p>
      *
      * <p>The fall-through answer is for a machine outside the ladder, and after the L1 rows went in there
      * is no such machine among the block entities that answer {@code MultiBlockBuildController.Host} -
-     * eco ships three of those and this mod has its five, and the table guard walks all fourteen. It stays
+     * eco ships three of those and this mod has its four, and the table guard walks all thirteen. It stays
      * because a machine neither card covers still has to be refused by a sentence that is true.</p>
      */
     public static String ceilingRefusalKey(MultiBlockDefinition atTheCeiling) {
