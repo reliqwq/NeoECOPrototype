@@ -126,3 +126,4 @@ __pycache__/
 
 # ImageGen scratch output (the failed 16x16 pixel-art probe)
 /vibe_images/
+.zcode/
