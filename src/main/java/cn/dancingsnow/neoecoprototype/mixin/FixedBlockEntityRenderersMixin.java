@@ -1,20 +1,20 @@
 package cn.dancingsnow.neoecoprototype.mixin;
 
-/* Version lock: NeoForge 21.1.251, eco 21.2.15-beta. Re-checked against that jar on 2026-11-04:
- * FixedBlockEntityRenderers.render(AddSectionGeometryEvent$SectionRenderingContext, BlockPos) is still
- * the descriptor below and still asks BlockAndTintGetter.getBlockEntity inside it - exactly once, at
- * offset 59, with nothing around it that bounds the position (no withinRange, no
- * isAnyOfSectionsLoaded) - which is why the guard below is needed. The class is eco's, not NeoForge's -
- * only the parameter type comes from NeoForge.
- * Two caveats to keep reading this honestly: this class sits in the config's client array, so neither the
- * compiler nor runGameTestServer ever applies it - a client launch is its only face. And the guard names
- * ArrayIndexOutOfBoundsException: if the failure shape of an out-of-region lookup changes, this injection
- * still matches once, still reports success, and does nothing.
- * Retire it when the lookup at offset 59 gains its own bounds check upstream.
- * Earlier checks: 21.2.11 on 2026-10-27, 21.2.10 on 2026-10-25, 21.2.9 on 2026-10-22, 21.2.1-beta2 on
- * 2026-10-06, the 21.2.1 release on 2026-10-08. */
+/* Version lock: NeoForge 21.1.251, eco 21.3.0. Re-checked against that jar on 2026-11-27:
+ * FixedBlockEntityRenderers.render(AddSectionGeometryEvent$SectionRenderingContext, BlockPos) still
+ * asks BlockAndTintGetter.getBlockEntity exactly once, at offset 59, while scanning origin..origin+15.
+ * RenderChunkRegion.getBlockEntity indexes its 3x3 horizontal chunk cache; Y/build height is not part
+ * of that index. The normal path below checks the real cache origin through RenderChunkRegionAccess and
+ * returns before the lookup can throw. The exception catch remains only for non-RenderChunkRegion
+ * implementations supplied by other mods.
+ * This class sits in the config's client array, so runGameTestServer never applies it; a client launch
+ * with Mixin readouts is still required. Retire it when eco adds its own bounds check at offset 59.
+ * Earlier checks: 21.2.15-beta on 2026-11-04, 21.2.11 on 2026-10-27, 21.2.10 on 2026-10-25, 21.2.9 on
+ * 2026-10-22, 21.2.1-beta2 on 2026-10-06, the 21.2.1 release on 2026-10-08. */
 
 import cn.dancingsnow.neoecoae.client.rendering.FixedBlockEntityRenderers;
+import cn.dancingsnow.neoecoprototype.client.RenderRegionCacheBounds;
+import net.minecraft.client.renderer.chunk.RenderChunkRegion;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.BlockAndTintGetter;
 import net.minecraft.world.level.block.entity.BlockEntity;
@@ -33,6 +33,14 @@ public final class FixedBlockEntityRenderersMixin {
             )
     )
     private static BlockEntity neoecoprototype$guardRegionLookup(BlockAndTintGetter region, BlockPos pos) {
+        if (region instanceof RenderChunkRegion renderRegion) {
+            var access = (RenderChunkRegionAccess) renderRegion;
+            if (RenderRegionCacheBounds.isOutside(access.neoecoprototype$getMinChunkX(),
+                    access.neoecoprototype$getMinChunkZ(), pos.getX(), pos.getZ())) {
+                return null;
+            }
+            return renderRegion.getBlockEntity(pos);
+        }
         try {
             return region.getBlockEntity(pos);
         } catch (ArrayIndexOutOfBoundsException ignored) {

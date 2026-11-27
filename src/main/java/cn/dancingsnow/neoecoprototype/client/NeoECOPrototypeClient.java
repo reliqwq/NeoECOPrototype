@@ -32,6 +32,7 @@ import net.minecraft.server.packs.repository.Pack;
 import net.minecraft.server.packs.repository.PackSource;
 import net.minecraft.server.packs.resources.ReloadableResourceManager;
 import net.minecraft.server.packs.resources.ResourceManagerReloadListener;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.api.distmarker.Dist;
@@ -46,6 +47,8 @@ import net.neoforged.neoforge.client.extensions.common.IClientBlockExtensions;
 import net.neoforged.neoforge.client.extensions.common.IClientFluidTypeExtensions;
 import net.neoforged.neoforge.client.extensions.common.RegisterClientExtensionsEvent;
 import net.neoforged.neoforge.event.AddPackFindersEvent;
+
+import java.util.function.Supplier;
 
 @EventBusSubscriber(modid = NeoECOPrototype.MOD_ID, bus = EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)
 public final class NeoECOPrototypeClient {
@@ -201,13 +204,12 @@ public final class NeoECOPrototypeClient {
             ECOCellModels.register(ModRegistration.OPTIONAL_COMPLEX_UNIVERSAL_CELL_1M.get(),
                     cellModel("l1_complex_universal"));
         }
-        if (ModRegistration.OPTIONAL_CHEMICAL_CELL_1K != null) {
-            ECOCellModels.register(ModRegistration.OPTIONAL_CHEMICAL_CELL_1K.get(), cellModel("l0_chemical_1k"));
-            ECOCellModels.register(ModRegistration.OPTIONAL_CHEMICAL_CELL_16K.get(), cellModel("l0_chemical_16k"));
-        ECOCellModels.register(ModRegistration.OPTIONAL_CHEMICAL_CELL_64K.get(), cellModel("l0_chemical_64k"));
-            ECOCellModels.register(ModRegistration.OPTIONAL_CHEMICAL_CELL_1M.get(), cellModel("l1_chemical"));
-            ECOCellModels.register(ModRegistration.OPTIONAL_CHEMICAL_CELL_4M.get(), cellModel("l1r_chemical"));
-        }
+        registerChemicalCellModels(
+                ModRegistration.OPTIONAL_CHEMICAL_CELL_1K,
+                ModRegistration.OPTIONAL_CHEMICAL_CELL_16K,
+                ModRegistration.OPTIONAL_CHEMICAL_CELL_64K,
+                ModRegistration.OPTIONAL_CHEMICAL_CELL_1M,
+                ModRegistration.OPTIONAL_CHEMICAL_CELL_4M);
         if (ModRegistration.OPTIONAL_FE_CELL_1M != null) {
             // The FE pair reads the energy stripe of cell_type (pixels x 8..9) instead of the item one
             // (x 4..5), exactly the shift eco's own l4/l6/l9_fe models make against its item one. No new
@@ -287,6 +289,21 @@ public final class NeoECOPrototypeClient {
         if (Minecraft.getInstance().getResourceManager() instanceof ReloadableResourceManager resourceManager) {
             resourceManager.registerReloadListener((ResourceManagerReloadListener) manager ->
                     ProcessorAssemblerScreen.forgetStyle());
+        }
+    }
+
+    static void registerChemicalCellModels(
+            Supplier<? extends Item> cell1K,
+            Supplier<? extends Item> cell16K,
+            Supplier<? extends Item> cell64K,
+            Supplier<? extends Item> cell1M,
+            Supplier<? extends Item> cell4M) {
+        if (cell1K != null) {
+            ECOCellModels.register(cell1K.get(), cellModel("l0_chemical_1k"));
+            ECOCellModels.register(cell16K.get(), cellModel("l0_chemical_16k"));
+            ECOCellModels.register(cell64K.get(), cellModel("l0_chemical_64k"));
+            ECOCellModels.register(cell1M.get(), cellModel("l1_chemical"));
+            ECOCellModels.register(cell4M.get(), cellModel("l1r_chemical"));
         }
     }
 

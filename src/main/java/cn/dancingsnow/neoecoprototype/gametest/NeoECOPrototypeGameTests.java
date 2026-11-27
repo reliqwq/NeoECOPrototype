@@ -21318,72 +21318,14 @@ public final class NeoECOPrototypeGameTests {
     }
 
     /**
-     * A storage with room must not be left out of the energy service's requester set. AE2's
-     * {@code injectProviderPower} drops a storage whenever it cannot absorb the whole offer, even if it
-     * just took part of it and still has room (offsets 74-89: {@code remainder > 0 && MODULATE ->
-     * iterator.remove()}), and putting it back is left to {@code GridPowerStorageStateChanged.RECEIVE_POWER}
-     * on an isReceiving false-&gt;true transition. The reported "attaching the computation host stops the
-     * network from generating" is that state with a battery that has room but nobody left to charge:
-     * 200 simulated offers of 214,748,364,700 AE were refused while the cell showed 4.5M of free buffer.
-     *
-     * <p>{@code EnergyService#removeNode} is the public way to write that state without relying on how
-     * often AE2 happens to evict: the node stays on the grid, the buffer stays empty, the requester set
-     * forgets it. The first simulated offer is the canary that the state is still the pre-fix one; the
-     * second asserts the repair on the simulated face, because the stuck grid never sends a modulating
-     * offer (the FE side asks what fits, is told nothing, and stops there).</p>
+     * A storage with room must not be left out after the same oversized modulating offer evicted it. The
+     * probe accepts only part of each offer, so AE2 really executes {@code iterator.remove()} while the
+     * storage still has capacity; the next offer proves the exact removed storage was put back. This no
+     * longer asks the mixin to rediscover nodes removed earlier by unrelated bookkeeping.
      */
     @GameTest(template = "empty", batch = "energy_requester_readd", timeoutTicks = 200)
     public static void aStorageWithRoomIsPutBackAfterARefusedOffer(GameTestHelper helper) {
-        var level = helper.getLevel();
-        var pos = helper.absolutePos(new BlockPos(0, 1, 0));
-        level.setBlockAndUpdate(pos,
-                ModRegistration.ENERGIZED_ENERGY_CELL_16G_BLOCK.get().defaultBlockState());
-        helper.runAfterDelay(10, () -> {
-            if (!(level.getBlockEntity(pos) instanceof cn.dancingsnow.neoecoprototype.blockentity.energy
-                    .EnergizedEnergyCellBlockEntity cell)) {
-                helper.fail("the placed block is not the battery");
-                return;
-            }
-            var grid = cell.getMainNode().getGrid();
-            if (grid == null) {
-                helper.fail("the battery has no grid 10 ticks after placement");
-                return;
-            }
-            var energy = (appeng.me.service.EnergyService) grid.getEnergyService();
-            double capacity = cell.getAEMaxPower();
-            var node = cell.getMainNode().getNode();
-            energy.removeNode(node);
-            try {
-                double primed = energy.injectProviderPower(1_000_000.0, Actionable.SIMULATE);
-                if (primed != 1_000_000.0) {
-                    helper.fail("the removed battery still took " + (1_000_000.0 - primed) + " AE of a 1M"
-                            + " simulated offer, so this no longer reproduces the evicted state - re-measure"
-                            + " injectProviderPower before trusting the assertions below");
-                    return;
-                }
-                double stillRefused = energy.injectProviderPower(1_000_000.0, Actionable.SIMULATE);
-                if (stillRefused != 0.0) {
-                    helper.fail("a second simulated offer of 1M still came back " + stillRefused + " AE with "
-                            + (capacity - cell.getAECurrentPower()) + " AE of room in the battery - nothing put"
-                            + " the storage back into the requester set");
-                    return;
-                }
-                double before = cell.getAECurrentPower();
-                double unabsorbed = energy.injectProviderPower(1_000_000.0, Actionable.MODULATE);
-                if (unabsorbed != 0.0 || cell.getAECurrentPower() - before < 999_999.0) {
-                    helper.fail("the repaired requester set does not charge the battery: " + unabsorbed
-                            + " AE of 1M came back and the buffer moved by "
-                            + (cell.getAECurrentPower() - before));
-                    return;
-                }
-                helper.succeed();
-            } finally {
-                // removeNode also takes the node out of the grid's 25-AE-per-node buffer, and a node that
-                // stays on the grid while that count is short makes Grid.remove throw when the world
-                // unloads. Put it back whichever way this test ends.
-                energy.addNode(node, null);
-            }
-        });
+        EnergyRequesterRestoreTestProbe.run(helper);
     }
 
     /**

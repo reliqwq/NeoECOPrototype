@@ -13,6 +13,7 @@
   ],
   "client": [
     "FixedBlockEntityRenderersMixin",
+    "RenderChunkRegionAccess",
     "SlotYAccessor"
   ],
   "injectors": {
