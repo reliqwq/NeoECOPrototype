@@ -9,9 +9,9 @@ import cn.dancingsnow.neoecoae.api.storage.ECOCellType;
 import cn.dancingsnow.neoecoae.api.storage.IECOStorageCell;
 import cn.dancingsnow.neoecoae.api.storage.IECOStorageCellItem;
 import cn.dancingsnow.neoecoae.blocks.entity.NEBlockEntity;
+import cn.dancingsnow.neoecoae.gui.common.ECOModularUI;
 import cn.dancingsnow.neoecoae.gui.storage.StorageHostActionUI;
 import cn.dancingsnow.neoecoae.gui.storage.StorageHostUI;
-import cn.dancingsnow.neoecoae.gui.theme.NEStyleSheets;
 import cn.dancingsnow.neoecoae.menu.HostDiskMenu;
 import cn.dancingsnow.neoecoae.multiblock.definition.MultiBlockDefinition;
 import cn.dancingsnow.neoecoae.multiblock.placement.MultiBlockBuildController;
@@ -36,9 +36,7 @@ import cn.dancingsnow.neoecoprototype.multiblock.cluster.SimplifyStorageCluster;
 import cn.dancingsnow.neoecoprototype.multiblock.definition.SimplifyStorageDefinition;
 import com.lowdragmc.lowdraglib2.gui.factory.BlockUIMenuType;
 import com.lowdragmc.lowdraglib2.gui.ui.ModularUI;
-import com.lowdragmc.lowdraglib2.gui.ui.UI;
 import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
-import com.lowdragmc.lowdraglib2.gui.ui.style.StylesheetManager;
 import com.lowdragmc.lowdraglib2.syncdata.annotation.DescSynced;
 import com.lowdragmc.lowdraglib2.syncdata.annotation.Persisted;
 import com.lowdragmc.lowdraglib2.syncdata.holder.blockentity.ISyncPersistRPCBlockEntity;
@@ -315,8 +313,7 @@ public class SimplifyStorageHostBlockEntity
                 delta -> changeStoragePriority(holder.player, delta)));
         actionUI.addTo(root);
         root.addChild(cellPriorityWindow.window());
-        return new ModularUI(UI.of(root,
-                java.util.List.of(StylesheetManager.INSTANCE.getStylesheetSafe(NEStyleSheets.ECO))), holder.player);
+        return ECOModularUI.create(root, holder.player);
     }
 
     /**

@@ -1,5 +1,6 @@
 package cn.dancingsnow.neoecoprototype.blockentity.music;
 
+import cn.dancingsnow.neoecoae.gui.common.ECOModularUI;
 import cn.dancingsnow.neoecoprototype.NeoECOPrototype;
 import com.lowdragmc.lowdraglib2.gui.factory.BlockUIMenuType;
 import com.lowdragmc.lowdraglib2.gui.sync.bindings.IBindable;
@@ -9,7 +10,6 @@ import com.lowdragmc.lowdraglib2.gui.texture.ColorRectTexture;
 import com.lowdragmc.lowdraglib2.gui.texture.IGuiTexture;
 import com.lowdragmc.lowdraglib2.gui.texture.SpriteTexture;
 import com.lowdragmc.lowdraglib2.gui.ui.ModularUI;
-import com.lowdragmc.lowdraglib2.gui.ui.UI;
 import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
 import com.lowdragmc.lowdraglib2.gui.ui.data.Horizontal;
 import com.lowdragmc.lowdraglib2.gui.ui.data.TextWrap;
@@ -194,7 +194,7 @@ public final class MusicRecorderUI {
                         .left(PROGRESS_X).top(PROGRESS_Y)
                         .width(PROGRESS_WIDTH).height(PROGRESS_HEIGHT)));
 
-        return new ModularUI(UI.of(root), holder.player);
+        return ECOModularUI.create(root, holder.player);
     }
 
     private static TextElement text(Component text, Horizontal align, int x, int y, int width,

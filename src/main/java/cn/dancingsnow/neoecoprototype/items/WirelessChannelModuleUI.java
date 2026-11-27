@@ -2,6 +2,7 @@ package cn.dancingsnow.neoecoprototype.items;
 
 import appeng.api.networking.IGridNode;
 import appeng.api.networking.pathing.ControllerState;
+import cn.dancingsnow.neoecoae.gui.common.ECOModularUI;
 import cn.dancingsnow.neoecoprototype.NeoECOPrototype;
 import cn.dancingsnow.neoecoprototype.blockentity.wireless.WirelessChannelModuleBlockEntity;
 import cn.dancingsnow.neoecoprototype.event.WirelessLinks;
@@ -13,7 +14,6 @@ import com.lowdragmc.lowdraglib2.gui.texture.ColorRectTexture;
 import com.lowdragmc.lowdraglib2.gui.texture.IGuiTexture;
 import com.lowdragmc.lowdraglib2.gui.texture.SpriteTexture;
 import com.lowdragmc.lowdraglib2.gui.ui.ModularUI;
-import com.lowdragmc.lowdraglib2.gui.ui.UI;
 import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
 import com.lowdragmc.lowdraglib2.gui.ui.data.Horizontal;
 import com.lowdragmc.lowdraglib2.gui.ui.data.TextWrap;
@@ -351,7 +351,7 @@ public final class WirelessChannelModuleUI {
         root.addChild(panel.outlinePulse());
 
         panel.refresh();
-        return new ModularUI(UI.of(root), player);
+        return ECOModularUI.create(root, player);
     }
 
     // ==================== widgets ====================
