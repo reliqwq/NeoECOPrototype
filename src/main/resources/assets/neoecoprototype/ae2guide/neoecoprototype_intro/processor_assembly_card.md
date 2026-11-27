@@ -1,6 +1,6 @@
 ---
 navigation:
-  title: L1 Processor Assembly Card
+  title: L1 Assembler Integrated Workstation Upgrade Card
   icon: neoecoprototype:processor_assembly_workstation_card
   position: 31
   parent: neoecoprototype_intro/index.md
@@ -8,7 +8,7 @@ item_ids:
   - neoecoprototype:processor_assembly_workstation_card
 ---
 
-# L1 Processor Assembly Card
+# L1 Assembler Integrated Workstation Upgrade Card
 
 <GameScene interactive={true} fullWidth={true} zoom="3">
   <ImportStructure src="../scenes/l1_workstation_card.nbt" />

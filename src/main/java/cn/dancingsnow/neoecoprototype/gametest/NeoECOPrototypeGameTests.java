@@ -21387,6 +21387,70 @@ public final class NeoECOPrototypeGameTests {
     }
 
     /**
+     * Direct right-click insertion must not keep the player's held stack by reference: the block spends that
+     * same stack immediately afterwards. Aliasing the two makes a one-cell hand empty the drive as well, while
+     * the block state still claims a cell is installed and breaking it has nothing left to drop.
+     */
+    @GameTest(template = "l1_room", batch = "storage_direct_insert_copy", timeoutTicks = 400,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void directDriveInsertionDoesNotAliasTheHeldCell(GameTestHelper helper) {
+        buildL1Room(helper, CARD_HOST,
+                ModRegistration.SIMPLIFY_STORAGE_CONTROLLER_BLOCK.get(),
+                ModRegistration.SIMPLIFY_STORAGE_INTERFACE_BLOCK.get(),
+                ModRegistration.SIMPLIFY_STORAGE_INTERFACE_BLOCK.get(),
+                host -> {
+                    if (!(host instanceof SimplifyStorageHostBlockEntity storageHost)
+                            || storageHost.getCluster() == null) {
+                        helper.fail("the room did not form an L1 storage host, so direct insertion cannot be measured");
+                        return;
+                    }
+                    var drive = storageHost.getCluster().getDrives().stream()
+                            .filter(candidate -> !candidate.hasCell())
+                            .findFirst().orElse(null);
+                    if (drive == null) {
+                        helper.fail("the room has no empty drive for the direct-insertion regression");
+                        return;
+                    }
+                    var cellItem = ModRegistration.SIMPLIFY_ITEM_CELL_1K.get();
+                    var player = helper.makeMockPlayer(GameType.SURVIVAL);
+                    var held = new ItemStack(cellItem);
+                    player.setItemInHand(InteractionHand.MAIN_HAND, held);
+                    var hit = new BlockHitResult(Vec3.atCenterOf(drive.getBlockPos()), Direction.UP,
+                            drive.getBlockPos(), false);
+                    drive.getBlockState().useItemOn(held, helper.getLevel(), player, InteractionHand.MAIN_HAND, hit);
+
+                    if (!held.isEmpty()) {
+                        helper.fail("direct insertion left " + held.getCount() + " cells in hand instead of spending one");
+                        return;
+                    }
+                    if (!drive.hasCell()) {
+                        helper.fail("the hand was spent but the drive holds no cell: insertion aliased the held stack");
+                        return;
+                    }
+                    var installed = drive.getCellStack();
+                    if (installed == null || !installed.is(cellItem) || installed.getCount() != 1) {
+                        helper.fail("the drive reports a cell but stores " + installed);
+                        return;
+                    }
+                    var drops = new ArrayList<ItemStack>();
+                    drive.addAdditionalDrops(helper.getLevel(), drive.getBlockPos(), drops);
+                    long cellDrops = drops.stream().filter(stack -> stack.is(cellItem)).count();
+                    if (cellDrops != 1 || drive.hasCell()) {
+                        helper.fail("breaking the drive produced " + cellDrops + " cell drops and left hasCell="
+                                + drive.hasCell() + ", expected exactly one drop and an empty drive");
+                        return;
+                    }
+                    var secondDrops = new ArrayList<ItemStack>();
+                    drive.addAdditionalDrops(helper.getLevel(), drive.getBlockPos(), secondDrops);
+                    if (secondDrops.stream().anyMatch(stack -> stack.is(cellItem))) {
+                        helper.fail("a second drop hook duplicated the installed cell");
+                        return;
+                    }
+                    helper.succeed();
+                });
+    }
+
+    /**
      * The panel's shared disk menu has to spend the server-side carried cell and clear the cursor when it
      * runs out. This drives the real menu slot: two in hand become one in hand plus one in the drive,
      * never three, and an occupied drive refuses the second drop without spending it.

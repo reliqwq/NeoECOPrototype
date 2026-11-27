@@ -1,6 +1,6 @@
 ---
 navigation:
-  title: L1 处理器装配卡
+  title: L1装配室集成工作站升级卡
   icon: neoecoprototype:processor_assembly_workstation_card
   position: 31
   parent: neoecoprototype_intro/index.md
@@ -8,7 +8,7 @@ item_ids:
   - neoecoprototype:processor_assembly_workstation_card
 ---
 
-# L1 处理器装配卡
+# L1装配室集成工作站升级卡
 
 <GameScene interactive={true} fullWidth={true} zoom="3">
   <ImportStructure src="../scenes/l1_workstation_card.nbt" />

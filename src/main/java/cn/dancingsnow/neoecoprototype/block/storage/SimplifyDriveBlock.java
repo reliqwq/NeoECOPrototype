@@ -68,7 +68,9 @@ public class SimplifyDriveBlock extends NEBlock<SimplifyDriveBlockEntity> {
             if (level.isClientSide) {
                 return ItemInteractionResult.SUCCESS;
             }
-            be.insertCell(heldItem);
+            // insertCell preserves a single-cell reference for the host menu's identity check; this path
+            // spends the held stack immediately, so the drive needs its own copy.
+            be.insertCell(heldItem.copyWithCount(1));
             if (!player.isCreative()) {
                 heldItem.shrink(1);
                 if (heldItem.isEmpty()) {

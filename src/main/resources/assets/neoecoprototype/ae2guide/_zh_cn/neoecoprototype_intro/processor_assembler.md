@@ -11,7 +11,7 @@ item_ids:
 
 # L1 处理器装配室
 
-**L1 处理器装配室**相当于绿色外壳的<ItemLink id="ae2:molecular_assembler" />，只接受处理样板。它只跑本模组的处理器装配配方。配方支持 eco 的大型集成工作站升级卡兼容，装上 [L1 处理器装配卡](processor_assembly_card.md) 。
+**L1 处理器装配室**相当于绿色外壳的<ItemLink id="ae2:molecular_assembler" />，只接受处理样板。它只跑本模组的处理器装配配方。配方支持 eco 的大型集成工作站升级卡兼容，装上 [L1装配室集成工作站升级卡](processor_assembly_card.md) 。
 
 <ItemGrid>
   <ItemIcon id="neoecoprototype:simplify_stonecutting_assembler" />
