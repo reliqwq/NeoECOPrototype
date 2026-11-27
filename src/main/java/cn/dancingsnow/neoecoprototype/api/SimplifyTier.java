@@ -182,17 +182,8 @@ public enum SimplifyTier implements IECOTier {
     }
 
     /**
-     * eco's own default spells the tier number, and our tier index is 0, so without this the host panel
-     * labels every L1 cell "L0" - a tier that does not exist.
-     *
-     * <p>Who reads it, from a throwaway stack-trace log rather than from inference: the computation badge
-     * ({@code ComputationControllerArtwork.drawBackgroundAdditional}) and the crafting badge
-     * ({@code CraftingControllerArtwork.drawTier}) both reach it through {@code HostPanelTier.drawName}, and
-     * the storage cell list reaches it through {@code StorageCellGrid.tierName} on hover. The storage badge
-     * never does, and handing a tier to {@code StorageHostUI.create} would not change that - the
-     * {@code storage_tier} widget returns as soon as {@code IHostPanelTextureProvider} has given it a
-     * texture, so our {@code STORAGE_TIER} art outranks the text. Colour is always the caller's, never
-     * ours: the two badges above carry our "L1" painted in eco's grey-blue.</p>
+     * The computation and crafting badges reach this through {@code HostPanelTier.drawName}; eco's
+     * default would label our index-zero tier "L0". The storage badge uses {@code STORAGE_TIER} art instead.
      */
     @Override
     public net.minecraft.network.chat.Component getPanelTierName() {

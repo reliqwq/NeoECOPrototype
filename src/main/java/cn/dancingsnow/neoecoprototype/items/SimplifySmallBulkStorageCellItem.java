@@ -8,7 +8,7 @@ import appeng.api.storage.cells.ISaveProvider;
 import appeng.util.ConfigInventory;
 import cn.dancingsnow.neoecoae.api.storage.ECOCellType;
 import cn.dancingsnow.neoecoae.items.ECOStorageCellItem;
-import cn.dancingsnow.neoecoae.storage.ECOStorageCell;
+import cn.dancingsnow.neoecoae.grid.storage.cell.ECOStorageCell;
 import cn.dancingsnow.neoecoprototype.NeoECOPrototype;
 import cn.dancingsnow.neoecoprototype.api.SimplifyTier;
 import net.minecraft.core.registries.BuiltInRegistries;

@@ -61,12 +61,10 @@ public class SimplifyDriveBlockEntity extends NEBlockEntity<SimplifyStorageClust
     @RequireRerender
     private ItemStack cellStack = ItemStack.EMPTY;
     /**
-     * eco's storage panel refuses to react to a click on a row whose entry carries no interaction id -
-     * {@code StorageCellGrid$CellSlot.onMouseDown} returns before it sends the extraction RPC. The same id is
-     * what eco's shared priority API ({@code ECOStorageCellPriorities#resolve}) matches a click against, and
-     * its javadoc asks for it to change whenever the cell is replaced or the installation is reloaded - so a
-     * request aimed at the cell that used to be here cannot reach the one that is. It is not persisted:
-     * loading the drive mints a fresh one, which is also what makes a stale client window lose.
+     * eco's shared priority API ({@code ECOStorageCellPriorities#resolve}) matches a click against this id,
+     * and asks for it to change whenever the cell is replaced or the installation is reloaded - so a request
+     * aimed at the cell that used to be here cannot reach the one that is. It is not persisted: loading the
+     * drive mints a fresh one, which is also what makes a stale client window lose.
      */
     private java.util.UUID panelInteractionId = java.util.UUID.randomUUID();
     @Nullable
@@ -158,7 +156,7 @@ public class SimplifyDriveBlockEntity extends NEBlockEntity<SimplifyStorageClust
 
     @Override
     public int getConfiguredCellPriority() {
-        return cellStack.isEmpty() ? 0 : cn.dancingsnow.neoecoae.storage.ECOStorageCellSettings.priority(cellStack);
+        return cellStack.isEmpty() ? 0 : cn.dancingsnow.neoecoae.grid.storage.cell.ECOStorageCellSettings.priority(cellStack);
     }
 
     /**
@@ -166,7 +164,7 @@ public class SimplifyDriveBlockEntity extends NEBlockEntity<SimplifyStorageClust
      *
      * <p>Loaded with {@code initialize = false} and remembered once, because this is not an optional-mod
      * question - eco is a hard dependency and {@code ModList.isLoaded("neoecoae")} is always true - it is a
-     * question about the next eco release. {@code cn.dancingsnow.neoecoae.storage.bulk.ECOBulkStorageCell} is
+     * question about the next eco release. {@code cn.dancingsnow.neoecoae.grid.storage.bulk.ECOBulkStorageCell} is
      * the implementation class, not an api interface, and no interface of eco's declares the setter, so the
      * only way to ask a bulk cell for its priority is to name it. Naming it on a path that runs would be a
      * {@code NoClassDefFoundError} the first time anyone set a priority on a foreign bulk cell, which is why
@@ -177,7 +175,7 @@ public class SimplifyDriveBlockEntity extends NEBlockEntity<SimplifyStorageClust
 
     private static boolean ecoBulkCellPresent() {
         try {
-            Class.forName("cn.dancingsnow.neoecoae.storage.bulk.ECOBulkStorageCell", false,
+            Class.forName("cn.dancingsnow.neoecoae.grid.storage.bulk.ECOBulkStorageCell", false,
                     SimplifyDriveBlockEntity.class.getClassLoader());
             return true;
         } catch (ClassNotFoundException gone) {
@@ -197,13 +195,13 @@ public class SimplifyDriveBlockEntity extends NEBlockEntity<SimplifyStorageClust
     @Override
     public void setConfiguredCellPriority(int priority) {
         if (cellStack.isEmpty()
-                || !cn.dancingsnow.neoecoae.storage.ECOStorageCellSettings.canConfigure(cellStack)) {
+                || !cn.dancingsnow.neoecoae.grid.storage.cell.ECOStorageCellSettings.canConfigure(cellStack)) {
             return;
         }
-        if (ECO_BULK_CELL_PRESENT && getCellInventory() instanceof cn.dancingsnow.neoecoae.storage.bulk.ECOBulkStorageCell bulk) {
+        if (ECO_BULK_CELL_PRESENT && getCellInventory() instanceof cn.dancingsnow.neoecoae.grid.storage.bulk.ECOBulkStorageCell bulk) {
             bulk.setConfiguredStoragePriority(priority);
         } else {
-            cn.dancingsnow.neoecoae.storage.ECOStorageCellSettings.setPriority(cellStack, priority);
+            cn.dancingsnow.neoecoae.grid.storage.cell.ECOStorageCellSettings.setPriority(cellStack, priority);
         }
         // This is the one place cellStack is mutated in place rather than replaced, which is exactly the
         // case getCellInventory()'s comment asks a writer to handle: drop the cache, then remount.
@@ -242,7 +240,8 @@ public class SimplifyDriveBlockEntity extends NEBlockEntity<SimplifyStorageClust
             return false;
         }
         invalidateCellInventoryCache();
-        this.cellStack = stack.copyWithCount(1);
+        // HostDiskMenu confirms insertion by reference identity before it consumes the cursor stack.
+        this.cellStack = stack.getCount() == 1 ? stack : stack.copyWithCount(1);
         panelInteractionId = java.util.UUID.randomUUID();
         updateCellState();
         syncCellBlockState();

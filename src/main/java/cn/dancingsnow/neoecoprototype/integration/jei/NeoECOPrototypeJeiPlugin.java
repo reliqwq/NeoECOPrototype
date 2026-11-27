@@ -85,11 +85,11 @@ public final class NeoECOPrototypeJeiPlugin implements IModPlugin {
         // runs eco's class initialiser before its server config loads and leaves its own L4-L9
         // definitions with a build range of 1 .. -4, so we hand the definitions over directly instead.
         registration.addRecipes(NeoECOAEJeiPlugin.MULTIBLOCK_TYPE, List.of(
-                new cn.dancingsnow.neoecoae.integration.xei.multiblock.MultiBlockInfoWrapper(
+                new cn.dancingsnow.neoecoae.integration.common.xei.multiblock.MultiBlockInfoWrapper(
                         cn.dancingsnow.neoecoprototype.multiblock.definition.SimplifyStorageDefinition.L1),
-                new cn.dancingsnow.neoecoae.integration.xei.multiblock.MultiBlockInfoWrapper(
+                new cn.dancingsnow.neoecoae.integration.common.xei.multiblock.MultiBlockInfoWrapper(
                         cn.dancingsnow.neoecoprototype.multiblock.definition.SimplifyComputationDefinition.L1),
-                new cn.dancingsnow.neoecoae.integration.xei.multiblock.MultiBlockInfoWrapper(
+                new cn.dancingsnow.neoecoae.integration.common.xei.multiblock.MultiBlockInfoWrapper(
                         cn.dancingsnow.neoecoprototype.multiblock.definition.SimplifyCraftingDefinition.L1)));
         var level = net.minecraft.client.Minecraft.getInstance().level;
         if (MUSIC_VISIBLE_IN_JEI && ModList.get().isLoaded("data_energistics")) {

@@ -43,10 +43,8 @@ public class SimplifyComputationDriveBlockEntity extends ECOComputationDriveBloc
      * <p>eco decides that row in {@code NEComputationCluster.addBlockEntity} by asking whether the block
      * below the drive {@code is(NEBlocks.COMPUTATION_TRANSMITTER)} - its own transmitter. Ours is a
      * different block and that test compares block identity, so it never passes: every L1 drive lands in
-     * the lower list and the upper list stays empty forever, which paints eleven dead slots across the top
-     * of the panel - each one swallows its click at {@code ComputationDriveGrid$DriveSlot.onMouseDown}
-     * because {@code ComputationDriveEntry.EMPTY} carries no position. The row is ours to decide, because
-     * our shape does use it: the y=2 drive column sits on the y=1 transmitter column.</p>
+     * the lower list and the upper list stays empty forever. The row is ours to decide, because our shape
+     * does use it: the y=2 drive column sits on the y=1 transmitter column.</p>
      *
      * <p>{@code getUpperDrives()} and {@code getLowerDrives()} hand out the live lists (their bytecode is
      * a getfield and an areturn) and {@code NECluster} has no removal path at all, so this is one move

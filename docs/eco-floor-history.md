@@ -1,9 +1,11 @@
 # eco 版本下限史（逐档抬级的原始读数）
 
 > 2026-11-16 从 [ae2-extension-playbook.md](ae2-extension-playbook.md) 的「版本下限怎么定」一节移出来，逐字未改。
-> **当前地板不在这里**：现量永远是 `neoforge.mods.toml` 里那一行（2026-11-17：`[21.2.18,)`），playbook 那一节只留现量与判据。
+> **当前地板不在这里**：现量永远是 `neoforge.mods.toml` 里那一行（2026-11-27：`[21.3.0,)`），playbook 那一节只留现量与判据。
 > 什么时候读它：要动地板（抬或降）、要回答「为什么不写上限」、或有人提议把下限退回某一颗。
 > 文中每一个数都是当时那一次的读数——`tools/audit_eco_abi.py` 的输出行数随我们的字节码变，从来不是固定数。
+
+**2026-11-27：抬到 21.3.0。** 用户提供的 `参考模组/最新eco/neoecoae-21.3.0.jar` 已复制为 `neoecobeta/neoecoae-21.3.0.jar`，7,812,374 bytes，SHA-256 `f453b62c3676a92682b4487f5f5a87ba738355bc0e51d16bc2ce7e69324e5fbf`。硬依赖仍为 NeoForge `[21.1.0,)`、Minecraft `[1.21.1,1.22)`、AE2 `[19.2.17,)`、LDLib2 `[2.2.40,)`。断裂面是包迁移：`crafting.*` → `grid.crafting.*`、`storage.*` → `grid.storage.*`；源码与产物里的旧 FQCN 已全部迁走。`ECOInfiniteStorageMember.isMember(ItemStack)` 被删，驱动器不再依赖该内部类，改用 MC 公开数据组件读取旧标记 `neoecoae_infinite_member`，保留匿名旧元件的紫色灯语义。三把尺：类级 **416 class / 522 eco 引用 / 0 缺**；成员级相对 beta2 **无新增真实缺失**（脚本仍打印 75 条父类、接口默认方法与构造子假阳性）；构造子级 **69 条 / 0 缺**。公开 API 核对：`ECOExternalCrafting` 与 `ECOParallelCraftingProviders` 的 adapter 路要求显式注册，我们没有注册，现有外置 CPU 语义不变；`ECOFastPathFacade.prepareStatefulCalculator` 仍暴露内部返回类型，不接；无限元件新钩子不会提升我们的元件（仍非 infinite eligible，tier 也不开 infinite 特性）；`ICellHost.getBuiltInCellForDisplay()` 默认 null，对已有真实 `cellStack` 的盈能箱子足够。`compileJava` 绿，GameTest **337/337**；JUnit 164 条只剩一条与本次迁移无关的 `front_eco_drive.png` 固定哈希不匹配。21.3.0 客户端与 GUI 实机读数尚未取得。
 
 ---
 

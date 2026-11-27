@@ -37,13 +37,14 @@ Neo ECO AE Extension（下称 eco）的 **L1 超前期扩展**：给 eco 的 L4 
 | Minecraft | 1.21.1 | — |
 | NeoForge | 21.1.251 | — |
 | AE2 | 19.2.17，地板 `[19.2.17,)`；编译 = 运行 = 同一颗 | `build.gradle`、`neoforge.mods.toml` |
-| Neo ECO AE Extension | **21.2.19**（CI 构建 `cbd282778`，编译基线——同版本号的第二颗 jar，含包名重构 compat→integration 与 #170 修复；2026-11-20 换入）／地板 `[21.2.19,)`——编译基线 = 运行地板，见 §5 | `build.gradle:270`、`neoforge.mods.toml:90` |
+| Neo ECO AE Extension | **21.3.0**（2026-11-27 换入用户提供的 `参考模组/最新eco/neoecoae-21.3.0.jar`；7,812,374 bytes，SHA-256 `f453b62c3676a92682b4487f5f5a87ba738355bc0e51d16bc2ce7e69324e5fbf`）／地板 `[21.3.0,)` | `build.gradle:274`、`neoforge.mods.toml:81` |
 | LDLib2 | 2.2.40，**硬依赖**，地板 `[2.2.40,)`（抄 eco 自己那条，不是我们挑的） | `build.gradle` |
 | 数据能源（Data Energistics） | 3.4.0，**可选**，只有 `compileOnly`；dev 运行期 2026-11-12 起不装 | `build.gradle:291` |
 | 闪电科技 ae2lt + thunderbolt | 2.1.4-beta3 / 2.0.3，`runtimeOnly`，我们 0 处 Java 引用 | `build.gradle:304` |
 
 **地板为什么在这颗，各一句话**（抬级的完整推演在 [docs/eco-floor-history.md](docs/eco-floor-history.md)）：
 
+- **21.3.0**：`crafting.*` 与 `storage.*` 整树迁到 `grid.crafting.*` / `grid.storage.*`；`ECOInfiniteStorageMember.isMember(ItemStack)` 被删。我们不再点这个内部类，驱动器灯色改用 MC 公开数据组件读取旧标记 `neoecoae_infinite_member`，保持匿名旧元件的紫色灯语义。
 - **21.2.17**：`SimplifyTier` 与 `SimplifyCraftingTier` 各覆写 `getCraftingStatusCpuTierGlyph()`，返回类型是 eco 的 `api/ECOCpuTierGlyph` ⇒ 方法描述符 must-resolve，旧 eco 上加载这两只枚举就断。同轮撤掉了我们自己那只状态角标 mixin（§8）。
 - **21.2.16**：`SimplifyStorageHostBlockEntity` / `SimplifyDriveBlockEntity` 各 implements 一条 #156 交付的接口（`api/storage/IECOConfigurableCellHost`、`api/storage/IECOCellWorkbenchDrive`），21.2.15 的发布件里这两条 0 命中 ⇒ 断在类加载，不是断在玩家点那一下。
 - **21.2.12**：两只流体仓读罐子统一走 `getFluidTankHandler()`（21.2.10/21.2.11 各 0 条声明、21.2.12 有 2 条）⇒ 现在是这条访问器钉住地板，不再是那条字段描述符。
@@ -52,11 +53,13 @@ Neo ECO AE Extension（下称 eco）的 **L1 超前期扩展**：给 eco 的 L4 
 
 1. 类级——我们字节码点名的 eco 类型，逐个对目标 jar 的条目表；
 2. 成员级——`tools/audit_eco_abi.py`；
-3. **构造子级**——只比构造子描述符（`tools/audit_eco_ctors.py`，2026-11-19 现量：**68 条，对 21.2.19 为 0 缺**；历史基线 21.2.17/21.2.18 为 67 条 0 缺）。
+3. **构造子级**——只比构造子描述符（`tools/audit_eco_ctors.py`，2026-11-27 对 21.3.0 现量：**69 条，0 缺**；历史 beta2 为 68 条 0 缺）。
+
+**21.3.0 公开 API 核对结论（2026-11-27）**：`ECOExternalCrafting` / `Adapter` 与 `ECOParallelCraftingProviders` 的新快速规划入口都要求先注册 adapter；我们没有注册，现有 `ECOExternalCpuSupport` 语义不变，因此不接。`ECOFastPathFacade.prepareStatefulCalculator(...)` 的返回类型仍是内部类型，不作为干净缝接。无限元件新增的候选/安装钩子不会被我们的元件触发（`isInfiniteStorageEligible()` 仍答 false，tier 也不开 infinite 特性）；`ICellHost.getBuiltInCellForDisplay()` 默认 null，盈能箱子已有真实 `cellStack`，无需覆写。
 
 第 3 把不能省：成员级尺子结构上看不见"record 多一个分量"，因为 javap 把构造子印在类名下、`<init>` 永不匹配——而 record 加分量正是 `NoSuchMethodError` 那一类。尺子之外还要**照那份 jar 重编 + 跑套件 + 客户端开一遍界面**，三件齐全才算跟过。
 
-**jar 身份只认逐条目 name + CRC + length**（`unzip -v` 三列排序后 diff）；md5 会因 zip 时间戳假报"不是同一颗"。换 eco 基线时 `build.gradle` 点名的**文件名一起改**：现在是 `neoecobeta/neoecoae-21.2.19.jar`（带 `-sources.jar`）；此基线来自 CI 构建 `cbd282778`（2026-11-20 换入；旧一颗 `49f71bc70` 备份为 `neoecoae-21.2.19.jar.baseline-49f71bc70`），非 GitHub Release。**同版本号 ≠ 同一颗 jar**：21.2.19 有两颗（49f71bc70 与 cbd282778，后者含 compat→integration 包名重构与 #170 修复），按 CI 构建短哈希区分，静态三把尺 + 重编 + 套件都已对 cbd282778 跑过，客户端开界面那次仍欠。
+**jar 身份只认逐条目 name + CRC + length**（`unzip -v` 三列排序后 diff）；md5 会因 zip 时间戳假报"不是同一颗"。换 eco 基线时 `build.gradle` 点名的**文件名一起改**：现在是 `neoecobeta/neoecoae-21.3.0.jar`，与用户提供的 `参考模组/最新eco/neoecoae-21.3.0.jar` 按 SHA-256 核对为同一颗。上一档 `neoecobeta/neoecoae-21.2.19-beta2.jar` 与 `neoecobeta/neoecoae-21.2.19.jar.baseline-cbd282778` 都保留；beta2 与 cbd282778 同报 21.2.19，但条目 5090→5103（+57/-44，1406 changed），旧基线缺 `StorageHostUI$CellExtractor` 正是 1.4.11 崩溃来源。21.3.0 静态读数：**416 个 class、522 条 eco 引用，类级 0 缺；69 条构造子 0 缺；成员脚本相对 beta2 无新增真实缺失**（脚本仍会打印父类/接口默认方法/构造子假阳性）。GameTest 337/337 已过；21.3.0 客户端与 GUI 实机读数尚未取得，不能把静态/服务端绿当作客户端验收。
 
 **数据能源这条线是"编译地板 / 运行基线"曾经分开的历史原因**：DE 3.4.0 自己 required `ae2 [19.2.18,)` + `ldlib2 [2.2.44,)` + `ae2wtlib`，那两条区间是把 dev 运行期顶上去的唯一原因。11-12 起它不在 dev 运行期，编译与运行重新合成一颗；音乐那一族本来就整族对玩家隐藏。**接回来是三步，少一件就是启动期依赖报错**：① 恢复那行 `runtimeOnly`；② ae2 / ldlib2 的 `runtimeOnly` 回到 19.2.18 / 2.2.44；③ 去掉 `run/mods/` 里那颗 jar 的 `.disabled` 后缀（改名，不是删除）——原文见 `build.gradle:288-290`。
 
@@ -179,6 +182,7 @@ gametest/     测试。探针类单独成文件。
 - **每条注入的撤销条件写在各自类头**，是 `javap -c` 能直接判的字节码条件（`ClientUIBridge.call` 的异常表是否收进 `RuntimeException`、方法开头是否加了 dist 判断；`FixedBlockEntityRenderers.render` 偏移 59 那道 `getBlockEntity` 外面是否有了边界检查）。去留按判据读，不靠再讨论一轮。
 - **客户端起一遍的复现命令与预期读数（2026-11-04 实测）**：`JAVA_HOME=F:/java JAVA_TOOL_OPTIONS=-Dmixin.debug.verbose=true ./gradlew runClient --offline`——verbose 走环境变量注入游戏 JVM（日志里 "Picked up JAVA_TOOL_OPTIONS" 为证），**不改仓库任何文件**。日志应当出现六行 `Mixing <我们的Mixin> from neoecoprototype.mixins.json into <目标类>`：五对在启动阶段就有，**第六对（`ECOClientUIBridgeMixin` → `gui.crafting.ClientUIBridge`）必须空手右键 `simplify_crafting_network_interface`（通讯接口）才出**——那个类只在 `CraftingInterfaceUI` 的 JSON 布局构建 `input_search` / `output_search` 两个 66×12 搜索框节点时加载，所以**认界面的标志就是上沿那两个并排的搜索框**，看见即已加载、即已应用。**普通 `simplify_crafting_interface` 永远不会触发它**：那只方块是我们自己把 `useWithoutItem` 写成返回 `PASS` 的死端点（GUI 只挂在通讯接口上，C1/L1 同规则），点它不是「注入失效」，是根本没走到那条 UI 路径——别再把它当读数。
 - **客户端 `Mixing` 行读数（2026-11-21，cbd282778 基线实测）：启动 8 行 + 交互 1 行 = 9。** 启动的八行：SlotYAccessor（accessor 在这条线上也产生 Mixing 行，别按"accessor 不产生行"排除它）、EnergyServiceRequesterReAddMixin、InterfaceLogicAccess、CraftingBlockEntityDollSidesMixin、AdvancedAEPatternUpgradeMixin、ExtendedAEPatternUpgradeMixin、FixedBlockEntityRenderersMixin（client 数组唯一一条）、CraftingCPUCalculatorFamilyMixin。第 9 行（`ECOClientUIBridgeMixin` → `gui.crafting.ClientUIBridge`）必须空手右键 `simplify_crafting_network_interface`（通讯接口）才出——那个类只在 `CraftingInterfaceUI` 的 JSON 布局构建 `input_search` / `output_search` 两个 66×12 搜索框节点时加载，**认界面的标志就是上沿那两个并排的搜索框**。**普通 `simplify_crafting_interface` 永远不会触发它**：那只方块是我们自己把 `useWithoutItem` 写成返回 `PASS` 的死端点（GUI 只挂在通讯接口上，C1/L1 同规则），点它不是「注入失效」，是根本没走到那条 UI 路径——别再把它当读数。EC9、通讯核心塔、反应堆删除三轮都零新 mixin；再增删 Mixin 时按本条重数。日志里别的 mod 的 "Error loading class" 是它们自己的可选依赖缺席，与我们无关。
+- **beta2 客户端启动读数（2026-11-24）**：上述 8 行全部命中，客户端进入现有世界后正常退出；这次没有打开通讯接口，因此第 9 行与存储/计算/元件工作台界面仍未取得 beta2 实机读数，不能把启动 8 行当作 GUI 验收。
 
 ---
 
@@ -308,9 +312,13 @@ gametest/     测试。探针类单独成文件。
 | `ECOClientUIBridgeMixin` / `FixedBlockEntityRenderersMixin` | 补的是上游缺的侧别检查与边界检查 | **保留、不撤**；每条的撤销条件写在各自类头（`javap` 可判），跟版按 §8 起客户端重读 |
 | 解离表没有 JEI/EMI 页 | 玩家看不见一颗核心能出什么 | 待做 |
 | L1 存储主机的"一键大宗标记" | 整块功能 10-21 已删（`autoMarkBulkCells` + 配置项） | **已结案，取向已定：我们不做大宗**。再看到"缺入口"的说法就是抄旧账 |
-| 样板迁移源（#128 / #136） | 我们的 F1 母线用 eco 的 `ECOCraftingPatternBusBlockEntity`，它 implements `PatternStorageHost` ⇒ 继承 false，子系统迁移看不见母线里的样板 | **不开**：可写目标缓存与源池闸门收的是同一个 `PatternStorageHost`，附属一答 true 同一只容器两处都在，报告路径不排除来源格 ⇒ 自匹配 → `ALREADY_PRESENT` → 退 blank、清源、还 +1 计数。#136 三条上游 21.2.11 落了但**行为面我们一条没跑**。开回去是四件事：子类装回（备份目录 `_removed_sources/` 是本机留档，不进仓库）、覆写返回 true、守恒测试装上（守恒测试的草稿只在这台机器的 `C:/tmp/repro_bus_migration_block.java.txt`，仓库里没有——重开时按下面那条判据重写）、守卫 `addonPatternBusStaysOutOfTheMigrationSourcePool` 一起翻 |
+| 样板迁移源（#128 / #136） | beta2 的 eco 母线已覆写 `allowsPatternMigrationSource()` 答 true；我们的 F1 母线用只改这一答的子类保持 false，子系统迁移仍看不见附属母线里的样板 | **不开**：可写目标缓存与源池闸门收的是同一个 `PatternStorageHost`，附属一答 true 同一只容器两处都在，报告路径不排除来源格 ⇒ 自匹配 → `ALREADY_PRESENT` → 退 blank、清源、还 +1 计数。#136 三条上游 21.2.11 落了但**行为面我们一条没跑**。开回去要覆写返回 true、装守恒测试（草稿只在本机 `C:/tmp/repro_bus_migration_block.java.txt`，重开时按判据重写）、翻守卫 `addonPatternBusStaysOutOfTheMigrationSourcePool` |
+| L1 存储盘交互 | beta2 删掉 `CellExtractor` / `CellInserter`，改由 `HostDiskMenu` 负责真实菜单的取出、放入、Shift 转移与占位拒绝；`StorageHostUI.create` 多收 tier/hostState/disks 三参 | 已接；守卫 `panelTakeFollowsTheShiftSplit`、`panelDropSpendsTheHeldCell`。**单颗 stack 必须保留传入引用**：上游 `DiskSlot.replace` 用 `getCellStack() == replacement` 判成功后才扣光标；改回无条件 `copyWithCount(1)` 会插入但不扣，两条守卫都红。清空仍用 `setCellStack(null)` |
 | 存储盘/矩阵收不收 AE2 的卡 | 只由 AE2 的 `Upgrades` 关联表决定：不登记 = 上限 0，附属没有覆写点 | 现政策：带分区表的全族收模糊/反转；**销毁卡除六只小宗与无限源外全收**（11-06 拍）。扫描谓词必须是 `ICellWorkbenchItem` + `getConfigInventory != null`，用 eco 的 `IBasicECOCellItem` 会整族漏掉 omni。守卫 `everyPartitionedCellTakesTheFilterCardsAndVoidSkipsSmallBulk`，两个控制组：谓词改回 `IBasicECOCellItem` ⇒ 红的正好 omni 八只；去掉小宗前缀判断 ⇒ 红的正好小宗六只 |
 | 存储主机面板的「配置」 | 曾点了没反应（eco 的 locator 把宿主绑死它自己的 BE） | 已接（#156 / `21aa9b1`）：两条 `implements` + 面板第五个动作。**GameTest 只到"locator 接受我们的安装"**——`FakePlayer.openMenu` 不换窗口，所以"窗口真的出现"只有客户端读数。**发版必读**：CHANGELOG 1.4.9 第 14 条那句"点了没反应、已提 #156"要整条翻成"现在能打开元件工作台"，不许只加不删 |
+| ECOP 频道核心的升级槽 | `AppEngInternalInventory` 有过滤器，但把 `toContainer()` 包进普通 `Slot` 后，真实菜单的 `mayPlace` 恒为 true，点击会绕过过滤器 | 已修：UI 必须用 `module.boosterSlot(index)`，其 `mayPlace` 委托 `boosters.isItemValid`。守卫 `onlyFourWirelessBoostersFillTheBoosterColumn` 与 `WirelessModuleBoosterDeckTest`；控制组把 `mayPlace` 改成 `return true` ⇒ 正好该 GameTest 红在"accepted an arbitrary stone" |
+| 盈能 ME 箱子重进世界或离线时不渲染矩阵 | AE2 的 `getUpdateTag()` 走 `writeToStream/readFromStream`，不会把 `saveAdditional()` 写进 `"cell"` 的 NBT 发给客户端；固定渲染器还会把矩阵烘进区块网格，普通 BE 同步不会稳定重建它 | 更新包同步矩阵物品 ID；矩阵改由已注册的动态 BER 每帧读取并绘制，eco 矩阵用自己的模型，其他元件用完整 L1 物品矩阵模型，不再依赖邻块更新或资源重载。离线供电按“节点供电或缓存足够”判定，`serverTick` 每 tick 刷新显示；节点销毁后不再改初始化数据。守卫 `clientUpdateCarriesInstalledCellItem`、`networkChannelPriorityAndUnreadyMountWork`、`clientCellRenderingReadsTheSyncedCellEveryFrame`、`chestRegistersItsDynamicCellRendererAndGuidePage`；控制组分别把写入 ID 改成 0、摘掉动态 `renderCell`、去掉缓存供电或每 tick 刷新，各红对应断言 |
+| 通讯核心塔 | 基座、塔身、范围增幅与高效通讯模块暂时隐藏；物品、方块、模型和战利品仍注册以兼容旧存档 | 守卫 `communicationTowerModulesStayWithheld`：创造栏无、配方结果扫描无、四件注册仍在。恢复时把 `_removed_sources/` 四份配方移回 active recipe 目录、恢复两条 `output.accept`、补回双语指南的 `RecipeFor` 并更新 `docs/配方总览.md` |
 | 「工作站」模块卡的外观 | eco 21.2.16 重画 `working_station/controller_formed/`；21.2.19/#165 允许完整 namespace palette key，染色与双帧动画由 eco 公共 source 生成 | 已接：`WorkstationPaletteSource` 委托上游 source，模型用 `neoecoprototype:l1` sprite；静态共享 sheet 在运行期别名到本地 namespace。旧重烤脚本和预烤图已备份至 `贴图工作区/工作站colormap迁移_2026-11-19/` 后删除；守卫 `ourWorkstationModuleUnlocksOurOwnRecipes` 与 `shippedAssetReferencesResolve` 检查模型槽、palette 与 atlas 来源。
 
 **下面这些已经修了，别再照旧说法改一遍**（细节在 [docs/known-pitfalls-history.md](docs/known-pitfalls-history.md)）：

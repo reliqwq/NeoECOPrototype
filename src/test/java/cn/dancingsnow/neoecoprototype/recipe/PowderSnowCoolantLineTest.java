@@ -56,8 +56,8 @@ class PowderSnowCoolantLineTest {
         // The output is not decoration - eco's getMaxDrainByOutput (ECOCraftingCoolingController, 21.2.17
         // L212-227) caps the drain by the controller's output hatch, refuses a hatch holding another fluid,
         // and stalls when that hatch is full.
-        assertEquals(3, rung.get("max_overclock").getAsInt(),
-                RUNG + " is the ×3 rung: 11000 coolant buys endurance, not parallelism");
+        assertEquals(4, rung.get("max_overclock").getAsInt(),
+                RUNG + " is the ×4 rung: 6000 coolant buys endurance, not parallelism");
         var output = rung.getAsJsonObject("output");
         assertTrue(output.has("id"), RUNG + " has no fluid output at all, so the snow is destroyed rather"
                 + " than melted - and the controller would need no output hatch, which is the other half of"
@@ -100,9 +100,8 @@ class PowderSnowCoolantLineTest {
         assertTrue(ourOverclock <= above.get("max_overclock").getAsInt(),
                 "our rung overclocks " + ourOverclock + " while the rung above it only reaches "
                         + above.get("max_overclock").getAsInt() + ". Ladder: " + String.join(" | ", table));
-        assertEquals(11000, ourCoolant, RUNG + " moved off the number reliqwq asked for (the third rung,"
-                + " between our own 10000 and eco's 12000) - if the ladder was retuned, fix this line"
-                + " and the release notes");
+        assertEquals(6000, ourCoolant, RUNG + " moved off the tuned 6000-coolant, ×4 rung - if the"
+                + " ladder was retuned, fix this line and the release notes");
     }
 
     /** The other half of the same claim: the tag exists, and it holds exactly our two fluid forms. */
@@ -171,7 +170,7 @@ class PowderSnowCoolantLineTest {
         var rungs = new ArrayList<JsonObject>();
         Path jar = null;
         for (String entry : System.getProperty("java.class.path").split(java.io.File.pathSeparator)) {
-            if (entry.replace('\\', '/').contains("/neoecoae-21.2.")) {
+            if (entry.replace('\\', '/').contains("/neoecoae-21.")) {
                 jar = Path.of(entry);
             }
         }

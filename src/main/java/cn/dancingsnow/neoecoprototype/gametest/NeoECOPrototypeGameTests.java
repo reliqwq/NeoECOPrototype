@@ -35,10 +35,11 @@ import cn.dancingsnow.neoecoae.all.NERecipeTypes;
 import cn.dancingsnow.neoecoae.blocks.entity.NEBlockEntity;
 import cn.dancingsnow.neoecoae.blocks.entity.computation.ECOComputationSystemBlockEntity;
 import cn.dancingsnow.neoecoae.api.storage.ECOStorageCells;
-import cn.dancingsnow.neoecoae.crafting.display.terminal.ExactAmountSource;
+import cn.dancingsnow.neoecoae.grid.crafting.display.terminal.ExactAmountSource;
 import cn.dancingsnow.neoecoae.gui.GuiTitleProvider;
+import cn.dancingsnow.neoecoae.menu.HostDiskMenu;
 import cn.dancingsnow.neoecoae.recipe.IntegratedWorkingStationRecipe;
-import cn.dancingsnow.neoecoae.storage.ECOStorageInterfaceMode;
+import cn.dancingsnow.neoecoae.grid.storage.transfer.ECOStorageInterfaceMode;
 import cn.dancingsnow.neoecoae.multiblock.cluster.NEComputationCluster;
 import cn.dancingsnow.neoecoae.multiblock.definition.MultiBlockDefinition;
 import cn.dancingsnow.neoecoae.multiblock.placement.MultiBlockPlacementPlan;
@@ -111,6 +112,7 @@ import net.minecraft.world.item.crafting.CraftingRecipe;
 import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.item.context.UseOnContext;
+import net.minecraft.world.inventory.ClickType;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
@@ -722,7 +724,7 @@ public final class NeoECOPrototypeGameTests {
             helper.fail("the small bulk cell got no storage inventory, so it cannot mount in a drive");
             return;
         }
-        if (cell.getClass() != cn.dancingsnow.neoecoae.storage.ECOStorageCell.class) {
+        if (cell.getClass() != cn.dancingsnow.neoecoae.grid.storage.cell.ECOStorageCell.class) {
             helper.fail("the small bulk cell mounted through " + cell.getClass().getSimpleName()
                     + " instead of eco's standard storage engine");
             return;
@@ -2960,15 +2962,20 @@ public final class NeoECOPrototypeGameTests {
                 new Expectation(List.of("ae2:silicon", "minecraft:redstone", "ae2:certus_quartz_crystal"),
                         "ae2:calculation_processor"),
                 new Expectation(List.of("ae2:silicon", "minecraft:redstone", "minecraft:diamond"),
-                        "ae2:engineering_processor"));
+                        "ae2:engineering_processor"),
+                new Expectation(List.of("neoecoae:energized_superconductive_ingot", "ae2:silicon",
+                                "neoecoae:crystal_matrix"),
+                        "neoecoae:superconducting_processor"));
 
         for (Expectation expectation : expectations) {
             List<ItemStack> stacks = expectation.ingredients().stream().map(NeoECOPrototypeGameTests::stackOf)
                     .toList();
             ItemStack result = stackOf(expectation.result());
 
+            var expectedId = NeoECOPrototype.id("processor_assembler/"
+                    + BuiltInRegistries.ITEM.getKey(result.getItem()).getPath());
             var match = recipes.stream()
-                    .filter(holder -> holder.value().result().getItem() == result.getItem())
+                    .filter(holder -> holder.id().equals(expectedId))
                     .findFirst()
                     .orElse(null);
             helper.assertTrue(match != null,
@@ -4152,7 +4159,7 @@ public final class NeoECOPrototypeGameTests {
                         + "field up its class chain, so eco's external-CPU fast path is not attached to it");
                 return;
             }
-            if (!"cn.dancingsnow.neoecoae.crafting.execution.ECOExternalCpuFastPath"
+            if (!"cn.dancingsnow.neoecoae.grid.crafting.execution.external.ECOExternalCpuFastPath"
                     .equals(field.getType().getName())) {
                 leave.run();
                 helper.fail("neoecoae$fastPath is typed " + field.getType().getName()
@@ -5885,7 +5892,7 @@ public final class NeoECOPrototypeGameTests {
         NeoECOPrototype.LOGGER.info("bulk cell branch: the drive resolves eco's class through its own"
                 + " classloader = {}", open);
         if (!open) {
-            helper.fail("the drive answers Class.forName for cn.dancingsnow.neoecoae.storage.bulk"
+            helper.fail("the drive answers Class.forName for cn.dancingsnow.neoecoae.grid.storage.bulk"
                     + ".ECOBulkStorageCell = false in a game where eco is installed, so the bulk priority"
                     + " branch is dead on every start and every foreign eco bulk cell silently gets the stack"
                     + " route instead");
@@ -8005,12 +8012,12 @@ public final class NeoECOPrototypeGameTests {
     }
 
     private static boolean ecoSupportsPlan(appeng.api.networking.crafting.ICraftingPlan plan) {
-        return cn.dancingsnow.neoecoae.crafting.execution.ECOExternalCpuSupport.supportsPlan(plan);
+        return cn.dancingsnow.neoecoae.grid.crafting.execution.external.ECOExternalCpuSupport.supportsPlan(plan);
     }
 
     private static boolean ecoAccepts(appeng.api.networking.crafting.ICraftingPlan plan,
                                       appeng.api.networking.crafting.ICraftingCPU cpu) {
-        return cn.dancingsnow.neoecoae.crafting.execution.ECOExternalCpuSupport.accepts(cpu, plan);
+        return cn.dancingsnow.neoecoae.grid.crafting.execution.external.ECOExternalCpuSupport.accepts(cpu, plan);
     }
 
     private static boolean ecoSupports(appeng.api.networking.crafting.ICraftingPlan plan,
@@ -12976,13 +12983,9 @@ public final class NeoECOPrototypeGameTests {
     }
 
     /**
-     * eco's pattern-migration source pool is built from the grid's {@code PatternContainer} machines, and
-     * every machine that is a {@code PatternStorageHost} is dropped unless
-     * {@code allowsPatternMigrationSource()} says otherwise ({@code PatternCatalog.beginExternalPatternIndexBuild},
-     * offsets 125-151). The interface default is false and eco ships no override anywhere in its jar, so both
-     * eco's own bus and ours were excluded -- issue #128. Ours answers true now; eco's own bus is placed next
-     * to it as the control, because "the default still applies to the class we did not touch" is the only way
-     * this test cannot pass by having quietly widened the interface.
+     * eco beta2 opens its own bus as a migration source. Our bus stays closed with a one-method subclass:
+     * the writable target and source pools still overlap, and the reported pattern-loss path has not been
+     * behaviorally ruled out. eco's bus is the control proving the two answers really differ.
      */
     @GameTest(template = "l1_room", batch = "pattern_bus_migration_source_closed", timeoutTicks = 200,
             templateNamespace = NeoECOPrototype.MOD_ID)
@@ -12994,35 +12997,24 @@ public final class NeoECOPrototypeGameTests {
         helper.runAfterDelay(20, () -> {
             var ours = helper.getLevel().getBlockEntity(helper.absolutePos(oursPos));
             var eco = helper.getLevel().getBlockEntity(helper.absolutePos(ecoPos));
-            if (!(ours instanceof cn.dancingsnow.neoecoae.blocks.entity.crafting.ECOCraftingPatternBusBlockEntity oursBus)) {
+            if (!(ours instanceof cn.dancingsnow.neoecoprototype.blockentity.crafting
+                    .SimplifyCraftingPatternBusBlockEntity oursBus)) {
                 helper.fail("our bus placed a " + (ours == null ? "nothing" : ours.getClass().getName())
-                        + " instead of an eco pattern bus, so the machine table no longer sees it");
+                        + " instead of the migration-closed addon subclass");
                 return;
             }
-            if (ours.getClass() != cn.dancingsnow.neoecoae.blocks.entity.crafting
-                    .ECOCraftingPatternBusBlockEntity.class) {
-                helper.fail("our bus runs an addon subclass again (" + ours.getClass().getName() + "),"
-                        + " and 1.4.1 retired it: the only thing that subclass did was answer the hook"
-                        + " true");
-                return;
-            }
-            // 1.4.1 closes this door again. A player reported on 2026-10-25 that patterns were lost after
-            // a subsystem migration, and our bus had become the first container in this ecosystem sitting
-            // in the source pool and the writable target pool at once - so ours now answers what eco's own
-            // bus answers, until that loss is understood.
             if (oursBus.allowsPatternMigrationSource()) {
-                helper.fail("the addon bus is back in the migration source pool - 1.4.1 took it out over"
-                        + " the reported pattern loss, so this is the change that must not come back"
-                        + " unnoticed");
+                helper.fail("the addon bus is back in the migration source pool while its writable target"
+                        + " pool overlaps - the reported pattern-loss path has not been ruled out");
                 return;
             }
             if (!(eco instanceof cn.dancingsnow.neoecoae.api.PatternStorageHost ecoBus)) {
                 helper.fail("eco's own bus is not a PatternStorageHost, so this control row reads nothing");
                 return;
             }
-            if (ecoBus.allowsPatternMigrationSource()) {
-                helper.fail("eco's own bus answers the hook true, so upstream changed its default and"
-                        + " this test is comparing against the wrong thing");
+            if (!ecoBus.allowsPatternMigrationSource()) {
+                helper.fail("eco's own bus no longer answers the migration hook true; re-check whether the"
+                        + " addon subclass is still needed before changing this control");
                 return;
             }
             helper.succeed();
@@ -14856,10 +14848,9 @@ public final class NeoECOPrototypeGameTests {
     }
 
     /**
-     * A row that draws correctly is not necessarily clickable: eco's grid reads two handles back out of
-     * every entry, and {@code StorageCellGrid$CellSlot.onMouseDown} returns without a word when the
-     * interaction id is null - which is exactly how "our storage matrices cannot be interacted with"
-     * reached us. The position is the other one; without it the row is not even drawn as occupied.
+     * A row that draws correctly is not necessarily actionable: eco's shared priority API resolves clicks
+     * through the interaction id, while the position ties the row to its drive. A null handle is how "our
+     * storage matrices cannot be interacted with" originally reached us.
      */
     @GameTest(template = "l1_room", batch = "storage_panel_handles", timeoutTicks = 400,
             templateNamespace = NeoECOPrototype.MOD_ID)
@@ -15090,7 +15081,7 @@ public final class NeoECOPrototypeGameTests {
                     int viaInterface = mountedPriority(first);
                     asHost.setStoragePriority(baseline);
                     int plusFive = mountedAfter(first, 5);
-                    int onStack = cn.dancingsnow.neoecoae.storage.ECOStorageCellSettings
+                    int onStack = cn.dancingsnow.neoecoae.grid.storage.cell.ECOStorageCellSettings
                             .priority(first.getCellStack());
                     var moved = first.removeCell();
                     boolean movedIn = second.insertCell(moved);
@@ -15239,7 +15230,7 @@ public final class NeoECOPrototypeGameTests {
                     // assertion that re-measures would read back whatever the next line configured.
                     int baseline = storageHost.getStoragePriority();
                     int mounted = mountedAfter(drive, 6);
-                    int onStack = cn.dancingsnow.neoecoae.storage.ECOStorageCellSettings
+                    int onStack = cn.dancingsnow.neoecoae.grid.storage.cell.ECOStorageCellSettings
                             .priority(drive.getCellStack());
                     // The figure through eco's own interface, which for a bulk cell is the cell object's copy
                     // and nothing else. Our mount reads the stack, so onStack alone cannot tell the two
@@ -16038,54 +16029,55 @@ public final class NeoECOPrototypeGameTests {
                                 + " measured");
                         return;
                     }
-                    var player = helper.makeMockPlayer(net.minecraft.world.level.GameType.SURVIVAL);
-                    var menu = player.containerMenu;
+                    var player = helper.makeMockPlayer(GameType.SURVIVAL);
+                    player.setPos(storageHost.getBlockPos().getX() + 0.5D,
+                            storageHost.getBlockPos().getY() + 0.5D,
+                            storageHost.getBlockPos().getZ() + 0.5D);
                     var inventory = player.getInventory();
-                    var at = drive.getBlockPos();
-                    // Driven through the config eco's own client receives, not through the method behind
-                    // it: the bug this guards was in the lambda that forwards the shift flag, and a test
-                    // that calls the method directly passes no matter what that lambda does.
-                    var extractor = storageHost.createStoragePanelConfig(player).cellExtractor();
-                    var row = storageHost.createCellEntries().stream()
-                            .filter(entry -> at.equals(entry.position()) && !entry.stack().isEmpty())
-                            .findFirst().orElse(null);
-                    if (row == null) {
-                        helper.fail("no panel row names the drive holding the fixture cell, so eco's grid has"
-                                + " nothing to click on");
+                    var block = (SimplifyStorageControllerBlock) storageHost.getBlockState().getBlock();
+                    var holder = block.createUIHolder(player, storageHost.getBlockPos(),
+                            storageHost.getBlockState());
+                    if (!(holder.createMenu(1, inventory, player) instanceof HostDiskMenu menu)) {
+                        helper.fail("the controller did not create eco's shared host disk menu");
+                        return;
+                    }
+                    int slotId = -1;
+                    for (int index = 0; index < menu.slots.size(); index++) {
+                        if (menu.slots.get(index) instanceof HostDiskMenu.DiskSlot disk
+                                && drive.getBlockPos().equals(disk.position())) {
+                            slotId = index;
+                            break;
+                        }
+                    }
+                    if (slotId < 0) {
+                        helper.fail("the real menu has no disk slot for the drive holding the fixture cell");
                         return;
                     }
 
-                    menu.setCarried(new ItemStack(net.minecraft.world.item.Items.STONE));
-                    if (extractor.extract(row.position(), row.interactionId(), false) || !drive.hasCell()
-                            || !menu.getCarried().is(net.minecraft.world.item.Items.STONE)) {
-                        helper.fail("a plain click with a loaded cursor moved something: took="
-                                + (drive.hasCell() ? "no" : "yes") + " cursor=" + menu.getCarried()
-                                + " - eco gives up at StorageCellUiExtraction 224..236");
+                    menu.setCarried(new ItemStack(Items.STONE));
+                    menu.clicked(slotId, 0, ClickType.PICKUP, player);
+                    if (!drive.hasCell() || !menu.getCarried().is(Items.STONE)) {
+                        helper.fail("a plain click with a loaded cursor moved the cell or replaced the cursor");
                         return;
                     }
 
                     menu.setCarried(ItemStack.EMPTY);
-                    if (!extractor.extract(row.position(), row.interactionId(), false)) {
-                        helper.fail("the panel refused a plain click on a drive that holds a cell");
-                        return;
-                    }
+                    menu.clicked(slotId, 0, ClickType.PICKUP, player);
                     if (drive.hasCell() || !menu.getCarried().is(cellItem)) {
-                        helper.fail("a plain click left the cell with the drive holding=" + drive.hasCell()
+                        helper.fail("a plain click left the drive holding=" + drive.hasCell()
                                 + " and the cursor holding " + menu.getCarried().getCount()
-                                + ", expected it on the cursor");
+                                + ", expected the cell on the cursor");
                         return;
                     }
-                    menu.setCarried(ItemStack.EMPTY);
-                    if (!drive.insertCell(new ItemStack(cellItem))) {
-                        helper.fail("could not put the fixture cell back for the shift case");
+                    menu.clicked(slotId, 0, ClickType.PICKUP, player);
+                    if (!drive.hasCell() || !menu.getCarried().isEmpty()) {
+                        helper.fail("putting the cursor cell back left drive holding=" + drive.hasCell()
+                                + ", cursor=" + menu.getCarried().getCount() + " "
+                                + menu.getCarried().getItem());
                         return;
                     }
 
-                    emptyBackpack(inventory);
-                    if (!extractor.extract(row.position(), row.interactionId(), true)) {
-                        helper.fail("shift-click refused although the backpack had room");
-                        return;
-                    }
+                    menu.clicked(slotId, 0, ClickType.QUICK_MOVE, player);
                     if (drive.hasCell() || !menu.getCarried().isEmpty() || !holds(inventory, cellItem)) {
                         helper.fail("a shift click left the drive holding=" + drive.hasCell()
                                 + ", cursor=" + menu.getCarried().getCount()
@@ -16099,12 +16091,12 @@ public final class NeoECOPrototypeGameTests {
                     }
                     emptyBackpack(inventory);
                     for (int slot = 0; slot < inventory.items.size(); slot++) {
-                        inventory.setItem(slot, new ItemStack(net.minecraft.world.item.Items.STONE));
+                        inventory.setItem(slot, new ItemStack(Items.STONE));
                     }
-                    if (extractor.extract(row.position(), row.interactionId(), true) || !drive.hasCell()
-                            || holds(inventory, cellItem)) {
+                    menu.clicked(slotId, 0, ClickType.QUICK_MOVE, player);
+                    if (!drive.hasCell() || holds(inventory, cellItem)) {
                         helper.fail("shift took the cell out with every slot full: drive still holds it="
-                                + drive.hasCell() + " - eco gives up at 217..223 rather than dropping it");
+                                + drive.hasCell() + " rather than dropping it");
                         return;
                     }
                     helper.succeed();
@@ -16135,10 +16127,9 @@ public final class NeoECOPrototypeGameTests {
      * <p>eco picks the row in {@code NEComputationCluster.addBlockEntity} by asking whether the block under
      * the drive {@code is(NEBlocks.COMPUTATION_TRANSMITTER)} - its own transmitter. Ours is a different
      * block and that test compares identity, so every L1 drive went to the lower list, the upper list stayed
-     * empty, and the top row of the panel became eleven slots that swallow their own click because
-     * {@code ComputationDriveEntry.EMPTY} carries no position. The assertion that matters is the split: this
-     * shape has one drive column standing on the transmitter row and one on the casing row, so a correct
-     * machine has to show drives in both rows.</p>
+     * empty, and the top row of the panel had no drives to draw. The assertion that matters is the split:
+     * this shape has one drive column standing on the transmitter row and one on the casing row, so a
+     * correct machine has to show drives in both rows and expose them to the shared disk menu.</p>
      */
     @GameTest(template = "l1_room", batch = "computation_panel_rows", timeoutTicks = 400,
             templateNamespace = NeoECOPrototype.MOD_ID)
@@ -16165,8 +16156,9 @@ public final class NeoECOPrototypeGameTests {
                         finish.run();
                         return;
                     }
-                    var top = controller.getComputationUiDrives(true);
-                    var bottom = controller.getComputationUiDrives(false);
+                    var top = controller.getCluster().getUpperDrives();
+                    var bottom = controller.getCluster().getLowerDrives();
+                    var menuDrives = controller.getComputationMenuDrives();
                     var problems = new java.util.ArrayList<String>();
                     var inTop = 0;
                     var inBottom = 0;
@@ -16177,6 +16169,9 @@ public final class NeoECOPrototypeGameTests {
                                         .block.computation.SimplifyComputationTransmitterBlock;
                         var listedTop = listed(top, drive.getBlockPos());
                         var listedBottom = listed(bottom, drive.getBlockPos());
+                        if (!listed(menuDrives, drive.getBlockPos())) {
+                            problems.add(drive.getBlockPos() + " is missing from the shared disk menu");
+                        }
                         if (belowTransmitter) {
                             inTop++;
                             if (!listedTop || listedBottom) {
@@ -16204,18 +16199,15 @@ public final class NeoECOPrototypeGameTests {
                                 + " rejects our own CE1 cell, so the display path cannot be measured");
                     } else {
                         withCell.setCellStack(new ItemStack(cellItem));
-                        var rows = listed(controller.getComputationUiDrives(true), withCell.getBlockPos())
-                                ? controller.getComputationUiDrives(true)
-                                : controller.getComputationUiDrives(false);
-                        var shown = rows.stream()
-                                .filter(entry -> withCell.getBlockPos().equals(entry.position()))
+                        var shown = menuDrives.stream()
+                                .filter(entry -> withCell.getBlockPos().equals(entry.getBlockPos()))
                                 .findFirst().orElse(null);
-                        if (shown == null || shown.stack().isEmpty()) {
+                        if (shown == null || shown.getCellStack().isEmpty()) {
                             problems.add("the drive at " + withCell.getBlockPos() + " holds a CE1 cell but"
-                                    + " its panel row shows stack="
-                                    + (shown == null ? "no row at all" : shown.stack()));
+                                    + " its menu slot shows stack="
+                                    + (shown == null ? "no slot at all" : shown.getCellStack()));
                         }
-                        withCell.setCellStack(ItemStack.EMPTY);
+                        withCell.setCellStack(null);
                     }
                     if (!problems.isEmpty()) {
                         helper.fail(String.join(" | ", problems));
@@ -16226,11 +16218,11 @@ public final class NeoECOPrototypeGameTests {
                 }));
     }
 
-    /** @return true when one of the panel's rows names that position. */
+    /** @return true when one of the panel's rows or menu slots names that position. */
     private static boolean listed(
-            java.util.List<cn.dancingsnow.neoecoae.gui.computation.ComputationDriveEntry> rows,
+            java.util.List<cn.dancingsnow.neoecoae.blocks.entity.computation.ECOComputationDriveBlockEntity> rows,
             net.minecraft.core.BlockPos pos) {
-        return rows.stream().anyMatch(entry -> pos.equals(entry.position()));
+        return rows.stream().anyMatch(entry -> pos.equals(entry.getBlockPos()));
     }
 
 
@@ -21395,11 +21387,9 @@ public final class NeoECOPrototypeGameTests {
     }
 
     /**
-     * The panel's drop path has to spend the held cell. It used to copy the stack the client claimed into
-     * the drive and leave the hand alone, which made every drop a duplication - and it trusted that claim,
-     * so a client could hand over a stack it was not actually holding. eco reads the server-side carried
-     * stack, shrinks it, and clears the cursor when it runs out; this asserts the same arithmetic: two in
-     * hand, one in hand plus one in the drive afterwards, never three.
+     * The panel's shared disk menu has to spend the server-side carried cell and clear the cursor when it
+     * runs out. This drives the real menu slot: two in hand become one in hand plus one in the drive,
+     * never three, and an occupied drive refuses the second drop without spending it.
      */
     @GameTest(template = "l1_room", batch = "storage_panel_drop_spend", timeoutTicks = 400,
             templateNamespace = NeoECOPrototype.MOD_ID)
@@ -21424,33 +21414,46 @@ public final class NeoECOPrototypeGameTests {
                         helper.fail("every drive already holds a cell, so the drop path cannot be measured");
                         return;
                     }
-                    var player = helper.makeMockPlayer(net.minecraft.world.level.GameType.SURVIVAL);
-                    player.containerMenu.setCarried(
-                            new ItemStack(ModRegistration.SIMPLIFY_ITEM_CELL_1K.get(), 2));
-                    var claimed = player.containerMenu.getCarried();
-                    if (!storageHost.insertCellForPanel(target.getBlockPos(), claimed, player)) {
-                        helper.fail("the panel refused a drop of a cell the player really was holding");
+                    var player = helper.makeMockPlayer(GameType.SURVIVAL);
+                    player.setPos(storageHost.getBlockPos().getX() + 0.5D,
+                            storageHost.getBlockPos().getY() + 0.5D,
+                            storageHost.getBlockPos().getZ() + 0.5D);
+                    var block = (SimplifyStorageControllerBlock) storageHost.getBlockState().getBlock();
+                    var holder = block.createUIHolder(player, storageHost.getBlockPos(),
+                            storageHost.getBlockState());
+                    if (!(holder.createMenu(1, player.getInventory(), player) instanceof HostDiskMenu menu)) {
+                        helper.fail("the controller did not create eco's shared host disk menu");
                         return;
                     }
+                    int slotId = -1;
+                    for (int index = 0; index < menu.slots.size(); index++) {
+                        if (menu.slots.get(index) instanceof HostDiskMenu.DiskSlot disk
+                                && target.getBlockPos().equals(disk.position())) {
+                            slotId = index;
+                            break;
+                        }
+                    }
+                    if (slotId < 0) {
+                        helper.fail("the real menu has no disk slot for the empty target drive");
+                        return;
+                    }
+                    menu.setCarried(new ItemStack(ModRegistration.SIMPLIFY_ITEM_CELL_1K.get(), 2));
+                    menu.clicked(slotId, 0, ClickType.PICKUP, player);
                     if (!target.hasCell()) {
-                        helper.fail("the insert reported success but the drive is still empty");
+                        helper.fail("the menu refused a drop of a cell the player really was holding");
                         return;
                     }
-                    var left = player.containerMenu.getCarried().getCount();
+                    var left = menu.getCarried().getCount();
                     if (left != 1) {
                         helper.fail("holding two cells and dropping one left " + left
                                 + " in hand - the drive took a copy nobody paid for (total "
                                 + (left + 1) + " of 2)");
                         return;
                     }
-                    // And the claim must not be the authority: a stack that is not what the hand holds
-                    // cannot be inserted, no matter what the client says it is carrying.
-                    var other = new ItemStack(ModRegistration.SIMPLIFY_ITEM_CELL_16K.get());
-                    var second = storageHost.getCluster().getDrives().stream()
-                            .filter(d -> !d.hasCell())
-                            .findFirst().orElse(null);
-                    if (second != null && storageHost.insertCellForPanel(second.getBlockPos(), other, player)) {
-                        helper.fail("the panel accepted a claimed stack the player was not holding");
+                    menu.clicked(slotId, 0, ClickType.PICKUP, player);
+                    if (!target.hasCell() || menu.getCarried().getCount() != 1) {
+                        helper.fail("dropping onto an occupied disk slot replaced its cell or spent the cursor");
+                        return;
                     }
                     helper.succeed();
                 });
@@ -27767,6 +27770,65 @@ public final class NeoECOPrototypeGameTests {
         helper.succeed();
     }
 
+    @GameTest(template = "empty", batch = "communication_modules_hidden", timeoutTicks = 200,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void communicationTowerModulesStayWithheld(GameTestHelper helper) {
+        var level = helper.getLevel();
+        var withheld = List.of(ModRegistration.COMMUNICATION_BASE_ITEM.get(),
+                ModRegistration.COMMUNICATION_CORE_ITEM.get(),
+                ModRegistration.COMMUNICATION_RANGE_MODULE_ITEM.get(),
+                ModRegistration.COMMUNICATION_EFFICIENT_MODULE_ITEM.get());
+
+        var tab = ModRegistration.SIMPLIFY_TAB.get();
+        tab.buildContents(new net.minecraft.world.item.CreativeModeTab.ItemDisplayParameters(
+                net.minecraft.world.flag.FeatureFlags.DEFAULT_FLAGS, true, level.registryAccess()));
+        var contents = tab.getDisplayItems();
+        java.util.function.Predicate<Item> inTab =
+                item -> contents.stream().anyMatch(stack -> stack.getItem() == item);
+        if (contents.isEmpty() || !inTab.test(ModRegistration.SIMPLIFY_DRIVE_ITEM.get())) {
+            helper.fail("the tab generator returned nothing usable (" + contents.size()
+                    + " stacks), so absence proves nothing");
+            return;
+        }
+        for (var item : withheld) {
+            if (inTab.test(item)) {
+                helper.fail(BuiltInRegistries.ITEM.getKey(item)
+                        + " is back in the creative tab while the communication tower is withheld");
+                return;
+            }
+        }
+        int recipes = 0;
+        for (var holder : level.getRecipeManager().getRecipes()) {
+            recipes++;
+            var result = holder.value().getResultItem(level.registryAccess());
+            for (var item : withheld) {
+                if (result.is(item)) {
+                    helper.fail("a withheld communication tower block is craftable through " + holder.id()
+                            + " -> " + BuiltInRegistries.ITEM.getKey(item));
+                    return;
+                }
+            }
+        }
+        if (recipes == 0) {
+            helper.fail("the recipe manager handed back nothing, so the result scan measured nothing");
+            return;
+        }
+        var withheldIds = List.of(NeoECOPrototype.id("communication_base"),
+                NeoECOPrototype.id("communication_core"),
+                NeoECOPrototype.id("communication_range_module"),
+                NeoECOPrototype.id("communication_efficient_module"));
+        for (int index = 0; index < withheld.size(); index++) {
+            var id = withheldIds.get(index);
+            if (BuiltInRegistries.ITEM.get(id) != withheld.get(index)) {
+                helper.fail("a withheld communication tower block lost its item registration: " + id);
+                return;
+            }
+        }
+        NeoECOPrototype.LOGGER.info("communication tower withheld: {} tab stacks, {} recipes scanned,"
+                + " base/core/range/efficient absent", contents.size(), recipes);
+        helper.succeed();
+    }
+
     /**
      * The music family is withheld while its Data Energistics half is unfinished: out of the tab, no recipe,
      * and the red "not implemented" line on all three items. Three faces are read here rather than one,
@@ -28177,6 +28239,19 @@ public final class NeoECOPrototypeGameTests {
             return;
         }
         var inventory = module.boosterInventory();
+        var menuSlot = module.boosterSlot(0);
+        if (menuSlot.mayPlace(new ItemStack(net.minecraft.world.item.Items.STONE))) {
+            helper.fail("the menu slot accepted an arbitrary stone, so the inventory filter is bypassed");
+            return;
+        }
+        if (!menuSlot.mayPlace(new ItemStack(ModRegistration.L1_SIGNAL_BOOSTER_CARD.get()))) {
+            helper.fail("the menu slot refused its L1 signal booster card");
+            return;
+        }
+        if (menuSlot.getMaxStackSize() != 1) {
+            helper.fail("the menu slot stacks " + menuSlot.getMaxStackSize() + " cards, expected 1");
+            return;
+        }
         var fuzzy = inventory.insertItem(0, new ItemStack(appeng.core.definitions.AEItems.FUZZY_CARD), false);
         if (fuzzy.isEmpty()) {
             helper.fail("the booster column took a fuzzy card, which buys no range at all");

@@ -531,7 +531,7 @@ public final class WirelessChannelModuleUI {
      */
     private static void addBoosterCell(UIElement root, WirelessChannelModuleBlockEntity module, int index) {
         int cellTop = BOOSTER_Y + BOOSTER_CELL_TOP + index * BOOSTER_CELL_PITCH;
-        ItemSlot widget = new ItemSlot(new Slot(module.boosterInventory().toContainer(), index, 0, 0));
+        ItemSlot widget = new ItemSlot(module.boosterSlot(index));
         widget.style(style -> style.backgroundTexture(IGuiTexture.EMPTY));
         widget.slotStyle(style -> style.hoverOverlay(HOVER_TINT));
         widget.addEventListener(UIEvents.HOVER_TOOLTIPS, event -> {

@@ -254,6 +254,9 @@ public class ModRegistration {
     public static final Supplier<net.minecraft.world.inventory.MenuType<cn.dancingsnow.neoecoprototype.menu.ProcessorAssemblerMenu>>
             PROCESSOR_ASSEMBLER_MENU = MENU_TYPES.register("processor_assembler",
             cn.dancingsnow.neoecoprototype.menu.ProcessorAssemblerMenu::buildType);
+    public static final Supplier<net.minecraft.world.inventory.MenuType<cn.dancingsnow.neoecoprototype.menu.EnergizedMEChestMenu>>
+            ENERGIZED_ME_CHEST_MENU = MENU_TYPES.register("energized_me_chest",
+            cn.dancingsnow.neoecoprototype.menu.EnergizedMEChestMenu::buildType);
     public static final Supplier<net.minecraft.world.inventory.MenuType<appeng.menu.implementations.InterfaceMenu>>
             L1_POWERED_INTERFACE_MENU = MENU_TYPES.register("l1_powered_me_interface", () ->
             appeng.menu.implementations.MenuTypeBuilder.<appeng.menu.implementations.InterfaceMenu, appeng.helpers.InterfaceLogicHost>create(
@@ -337,6 +340,13 @@ public class ModRegistration {
     public static final Supplier<SimplifyDriveBlock> SIMPLIFY_DRIVE_BLOCK =
             BLOCKS.register("simplify_drive",
                     () -> new SimplifyDriveBlock(DRIVE_PROPS));
+
+    public static final Supplier<cn.dancingsnow.neoecoprototype.block.storage.EnergizedMEChestBlock> ENERGIZED_ME_CHEST_BLOCK =
+            BLOCKS.register("energized_me_chest",
+                    () -> new cn.dancingsnow.neoecoprototype.block.storage.EnergizedMEChestBlock());
+    public static final Supplier<cn.dancingsnow.neoecoprototype.block.storage.EnergizedMEChestBlock> EC1_ME_CHEST_BLOCK =
+            BLOCKS.register("ec1_me_chest",
+                    () -> new cn.dancingsnow.neoecoprototype.block.storage.EnergizedMEChestBlock());
 
     public static final Supplier<SimplifyEnergyCellBlock> SIMPLIFY_ENERGY_CELL_BLOCK =
             BLOCKS.register("simplify_energy_cell",
@@ -939,6 +949,13 @@ public class ModRegistration {
     public static final Supplier<BlockItem> SIMPLIFY_DRIVE_ITEM =
             ITEMS.register("simplify_drive",
                     () -> new BlockItem(SIMPLIFY_DRIVE_BLOCK.get(), new Item.Properties()));
+
+    public static final Supplier<BlockItem> ENERGIZED_ME_CHEST_ITEM =
+            ITEMS.register("energized_me_chest",
+                    () -> new BlockItem(ENERGIZED_ME_CHEST_BLOCK.get(), new Item.Properties()));
+    public static final Supplier<BlockItem> EC1_ME_CHEST_ITEM =
+            ITEMS.register("ec1_me_chest",
+                    () -> new BlockItem(EC1_ME_CHEST_BLOCK.get(), new Item.Properties()));
 
     public static final Supplier<BlockItem> SIMPLIFY_ENERGY_CELL_ITEM =
             ITEMS.register("simplify_energy_cell",
@@ -1662,6 +1679,9 @@ public class ModRegistration {
     public static final Supplier<BlockEntityType<SimplifyDriveBlockEntity>> SIMPLIFY_DRIVE_BE =
             registerDriveBe();
 
+    public static final Supplier<BlockEntityType<cn.dancingsnow.neoecoprototype.blockentity.storage.EnergizedMEChestBlockEntity>>
+            ENERGIZED_ME_CHEST_BE = registerEnergizedMEChestBe();
+
     public static final Supplier<BlockEntityType<SimplifyEnergyCellBlockEntity>> SIMPLIFY_ENERGY_CELL_BE =
             registerEnergyCellBe();
 
@@ -1691,6 +1711,15 @@ public class ModRegistration {
                         (pos, state) -> new SimplifyDriveBlockEntity(
                                 SIMPLIFY_DRIVE_BE.get(), pos, state),
                         SIMPLIFY_DRIVE_BLOCK.get()).build(null));
+    }
+
+    private static Supplier<BlockEntityType<cn.dancingsnow.neoecoprototype.blockentity.storage.EnergizedMEChestBlockEntity>>
+            registerEnergizedMEChestBe() {
+        return (Supplier) BLOCK_ENTITIES.register("energized_me_chest",
+                () -> BlockEntityType.Builder.of(
+                        (pos, state) -> new cn.dancingsnow.neoecoprototype.blockentity.storage.EnergizedMEChestBlockEntity(
+                                ENERGIZED_ME_CHEST_BE.get(), pos, state),
+                        ENERGIZED_ME_CHEST_BLOCK.get(), EC1_ME_CHEST_BLOCK.get()).build(null));
     }
 
     private static Supplier<BlockEntityType<SimplifyEnergyCellBlockEntity>> registerEnergyCellBe() {
@@ -1877,11 +1906,10 @@ private static Supplier<BlockEntityType<SimplifyStorageVentBlockEntity>> registe
     }
 
     private static Supplier<BlockEntityType<ECOCraftingPatternBusBlockEntity>> registerCraftingPatternBusBe() {
-        // eco's own class again, and the shape this had before 1.4.0: the only reason an addon subclass
-        // stood here was to answer allowsPatternMigrationSource() true, and 1.4.1 withdrew that.
         return (Supplier) BLOCK_ENTITIES.register("simplify_crafting_pattern_bus",
                 () -> BlockEntityType.Builder.of(
-                        (pos, state) -> new ECOCraftingPatternBusBlockEntity(
+                        (pos, state) -> new cn.dancingsnow.neoecoprototype.blockentity.crafting
+                                .SimplifyCraftingPatternBusBlockEntity(
                                 SIMPLIFY_CRAFTING_PATTERN_BUS_BE.get(), pos, state),
                         SIMPLIFY_CRAFTING_PATTERN_BUS_BLOCK.get()).build(null));
     }
@@ -2037,6 +2065,8 @@ private static Supplier<BlockEntityType<SimplifyStorageVentBlockEntity>> registe
                     .displayItems((params, output) -> {
                         output.accept(SIMPLIFY_STORAGE_CONTROLLER_ITEM.get());
                         output.accept(SIMPLIFY_DRIVE_ITEM.get());
+                        output.accept(EC1_ME_CHEST_ITEM.get());
+                        output.accept(ENERGIZED_ME_CHEST_ITEM.get());
                         output.accept(SIMPLIFY_ENERGY_CELL_ITEM.get());
                         output.accept(ENERGIZED_ENERGY_CELL_16G_ITEM.get());
                         output.accept(ENERGIZED_ENERGY_CELL_512G_ITEM.get());
@@ -2046,13 +2076,8 @@ private static Supplier<BlockEntityType<SimplifyStorageVentBlockEntity>> registe
                         // plus data/neoecoprototype/recipe/processor_assembler/wireless_link_card.json - that
                         // recipe block is kept in _removed_sources/.
                         output.accept(SUBSYSTEM_CHANNEL_MODULE_ITEM.get());
-                        // The communication core is the family's mid-game hub: coexists with the link
-                        // cards, which stay the early point-to-point tool. Height buys radius and
-                        // capacity; the balance lives in the communication_core config section.
-                        output.accept(COMMUNICATION_BASE_ITEM.get());
-                        output.accept(COMMUNICATION_CORE_ITEM.get());
-                        output.accept(COMMUNICATION_RANGE_MODULE_ITEM.get());
-                        output.accept(COMMUNICATION_EFFICIENT_MODULE_ITEM.get());
+                        // The whole tower stays registered for existing structures, but is withheld
+                        // from the tab while its modules and recipes are disabled.
                         output.accept(L1_SIGNAL_BOOSTER_CARD.get());
                         output.accept(WIRELESS_LINK_CARD.get());
                         output.accept(WIRELESS_UNLINK_CARD.get());
@@ -2296,6 +2321,16 @@ private static Supplier<BlockEntityType<SimplifyStorageVentBlockEntity>> registe
                         level, pos, state, (SimplifyStorageHostBlockEntity) blockEntity));
         asEntityBlock(SIMPLIFY_DRIVE_BLOCK).setBlockEntity(
                 SimplifyDriveBlockEntity.class, SIMPLIFY_DRIVE_BE.get(), null, null);
+        asEntityBlock(ENERGIZED_ME_CHEST_BLOCK).setBlockEntity(
+                cn.dancingsnow.neoecoprototype.blockentity.storage.EnergizedMEChestBlockEntity.class,
+                ENERGIZED_ME_CHEST_BE.get(), null,
+                (level, pos, state, blockEntity) ->
+                        ((cn.dancingsnow.neoecoprototype.blockentity.storage.EnergizedMEChestBlockEntity) blockEntity).serverTick());
+        asEntityBlock(EC1_ME_CHEST_BLOCK).setBlockEntity(
+                cn.dancingsnow.neoecoprototype.blockentity.storage.EnergizedMEChestBlockEntity.class,
+                ENERGIZED_ME_CHEST_BE.get(), null,
+                (level, pos, state, blockEntity) ->
+                        ((cn.dancingsnow.neoecoprototype.blockentity.storage.EnergizedMEChestBlockEntity) blockEntity).serverTick());
         asEntityBlock(SIMPLIFY_ENERGY_CELL_BLOCK).setBlockEntity(
                 SimplifyEnergyCellBlockEntity.class, SIMPLIFY_ENERGY_CELL_BE.get(), null, null);
         asEntityBlock(ENERGIZED_ENERGY_CELL_16G_BLOCK).setBlockEntity(
@@ -2397,6 +2432,10 @@ private static Supplier<BlockEntityType<SimplifyStorageVentBlockEntity>> registe
                 SIMPLIFY_STORAGE_CONTROLLER_ITEM.get().asItem());
         AEBaseBlockEntity.registerBlockEntityItem(SIMPLIFY_DRIVE_BE.get(),
                 SIMPLIFY_DRIVE_ITEM.get().asItem());
+        AEBaseBlockEntity.registerBlockEntityItem(ENERGIZED_ME_CHEST_BE.get(),
+                ENERGIZED_ME_CHEST_ITEM.get().asItem());
+        AEBaseBlockEntity.registerBlockEntityItem(ENERGIZED_ME_CHEST_BE.get(),
+                EC1_ME_CHEST_ITEM.get().asItem());
         AEBaseBlockEntity.registerBlockEntityItem(SIMPLIFY_ENERGY_CELL_BE.get(),
                 SIMPLIFY_ENERGY_CELL_ITEM.get().asItem());
         AEBaseBlockEntity.registerBlockEntityItem(SIMPLIFY_STORAGE_CASING_BE.get(),

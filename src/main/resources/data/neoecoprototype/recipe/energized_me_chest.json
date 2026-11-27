@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "A": { "item": "neoecoae:energized_superconductive_block" },
+    "C": { "item": "neoecoprototype:ec1_me_chest" },
+    "D": { "item": "neoecoae:superconducting_processor" }
+  },
+  "pattern": [
+    "ADA",
+    "ACA",
+    "ADA"
+  ],
+  "result": {
+    "count": 1,
+    "id": "neoecoprototype:energized_me_chest"
+  }
+}

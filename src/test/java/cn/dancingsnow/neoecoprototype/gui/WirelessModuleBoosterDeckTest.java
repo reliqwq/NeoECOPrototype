@@ -57,6 +57,8 @@ class WirelessModuleBoosterDeckTest {
                 "the node-details label should use the panel's normal text color");
         assertTrue(source.contains("slotStyle(style -> style.hoverOverlay(HOVER_TINT))"),
                 "the booster-slot hover overlay should use the panel's AE2 blue tint");
+        assertTrue(source.contains("new ItemSlot(module.boosterSlot(index))"),
+                "booster cells must use the validated slot; a plain Slot bypasses the inventory filter");
     }
 
     @Test

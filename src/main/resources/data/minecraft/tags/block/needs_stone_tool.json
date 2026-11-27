@@ -43,6 +43,8 @@
     "neoecoprototype:simplify_crafting_worker",
     "neoecoprototype:simplify_drive",
     "neoecoprototype:simplify_energy_cell",
+    "neoecoprototype:ec1_me_chest",
+    "neoecoprototype:energized_me_chest",
     "neoecoprototype:simplify_fluid_input_hatch",
     "neoecoprototype:simplify_fluid_output_hatch",
     "neoecoprototype:simplify_green_aluminum_casing",

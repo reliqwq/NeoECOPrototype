@@ -150,7 +150,7 @@ public class SimplifyStorageInterfaceBlockEntity extends ECOMachineInterfaceBloc
      * mode changed, and OUTPUT would insert back into the very cells it is reading.
      */
     @Override
-    public void setStorageInterfaceMode(cn.dancingsnow.neoecoae.storage.ECOStorageInterfaceMode mode) {
+    public void setStorageInterfaceMode(cn.dancingsnow.neoecoae.grid.storage.transfer.ECOStorageInterfaceMode mode) {
         boolean wasTransferMode = isStorageTransferMode();
         super.setStorageInterfaceMode(mode);
         if (level == null || level.isClientSide || wasTransferMode == isStorageTransferMode()) {

@@ -1,0 +1,6 @@
+{
+	"parent": "neoecoprototype:block/ec1_me_chest_base",
+	"textures": {
+		"2": "neoecoprototype:block/ec1_me_chest/front_eco_drive"
+	}
+}

@@ -264,6 +264,7 @@ public class NeoECOPrototype {
         registerNodeHost(event, ModRegistration.SUPERCONDUCTIVE_INTERFACE_BE.get());
         registerNodeHost(event, ModRegistration.SIMPLIFY_STORAGE_CONTROLLER_BE.get());
         registerNodeHost(event, ModRegistration.SIMPLIFY_DRIVE_BE.get());
+        registerNodeHost(event, ModRegistration.ENERGIZED_ME_CHEST_BE.get());
         registerNodeHost(event, ModRegistration.SIMPLIFY_ENERGY_CELL_BE.get());
         registerNodeHost(event, ModRegistration.SIMPLIFY_STORAGE_CASING_BE.get());
         registerNodeHost(event, ModRegistration.SIMPLIFY_STORAGE_INTERFACE_BE.get());
@@ -319,6 +320,9 @@ public class NeoECOPrototype {
         event.registerBlockEntity(Capabilities.EnergyStorage.BLOCK,
                 ModRegistration.METEORITE_DISSOCIATOR_BE.get(),
                 (blockEntity, side) -> blockEntity.getEnergyStorage());
+        event.registerBlockEntity(Capabilities.EnergyStorage.BLOCK,
+                ModRegistration.ENERGIZED_ME_CHEST_BE.get(),
+                (blockEntity, side) -> blockEntity.getEnergyStorage(side));
         event.registerBlockEntity(Capabilities.FluidHandler.BLOCK,
                 ModRegistration.METEORITE_DISSOCIATOR_BE.get(),
                 (blockEntity, side) -> blockEntity.getFluidInterface());

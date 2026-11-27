@@ -1,0 +1,9 @@
+{
+  "type": "neoecoprototype:processor_assembler",
+  "ingredients": [
+    { "item": "neoecoae:energized_superconductive_ingot" },
+    { "tag": "c:silicon" },
+    { "item": "neoecoae:crystal_matrix" }
+  ],
+  "result": { "id": "neoecoae:superconducting_processor", "count": 1 }
+}

@@ -43,8 +43,8 @@ class ProcessorAssemblerDocContractTest {
         while (matcher.find()) {
             rows.add(new String[] {matcher.group(1).trim(), matcher.group(2).trim()});
         }
-        assertEquals(4, rows.size(), "the processor block of " + DOC + " lists " + rows.size()
-                + " output lines, expected the four processors");
+        assertEquals(5, rows.size(), "the processor block of " + DOC + " lists " + rows.size()
+                + " output lines, expected the five processors");
 
         for (String[] row : rows) {
             JsonObject recipe = recipeFor(row[1]);
@@ -83,7 +83,7 @@ class ProcessorAssemblerDocContractTest {
         assertTrue(gated, "the overload crossover recipe is not gated on ae2lt: " + conditions);
     }
 
-    /** The fenced text block that lists the four processors, chosen by content rather than by line number. */
+    /** The fenced text block that lists the five processors, chosen by content rather than by line number. */
     private static String processorBlock() throws IOException {
         String doc = Files.readString(DOC);
         String[] fences = doc.split("```");
@@ -102,8 +102,8 @@ class ProcessorAssemblerDocContractTest {
                 if (!"neoecoprototype:processor_assembler".equals(recipe.get("type").getAsString())) {
                     continue;
                 }
-                String result = recipe.getAsJsonObject("result").get("id").getAsString();
-                if (result.equals(outputId)) {
+                var result = recipe.getAsJsonObject("result");
+                if (result != null && result.has("id") && result.get("id").getAsString().equals(outputId)) {
                     return recipe;
                 }
             }

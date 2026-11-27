@@ -1,10 +1,16 @@
 package cn.dancingsnow.neoecoprototype;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.zip.ZipFile;
 import java.util.regex.Pattern;
 import org.junit.jupiter.api.Test;
@@ -53,6 +59,49 @@ final class RecipeOverviewContractTest {
                 "recipe overview table total must match the bundled recipe JSON files");
         assertEquals(recipeFiles, jarRecipes,
                 "shipped jar recipe JSON files must match the bundled recipe JSON files");
+    }
+
+    @Test
+    void aluminumAndTungstenIngredientsUseCommonTags() throws Exception {
+        Set<String> items = new HashSet<>();
+        Set<String> tags = new HashSet<>();
+        try (var files = Files.walk(RECIPES)) {
+            for (Path path : files.filter(Files::isRegularFile)
+                    .filter(candidate -> candidate.toString().endsWith(".json")).toList()) {
+                collectIngredientReferences(JsonParser.parseString(Files.readString(path)), items, tags);
+            }
+        }
+
+        assertFalse(items.contains("neoecoae:aluminum_ingot"),
+                "aluminum ingredients must use the common tag so other mods' aluminum ingots work");
+        assertFalse(items.contains("neoecoae:tungsten_ingot"),
+                "tungsten ingredients must use the common tag so other mods' tungsten ingots work");
+        assertTrue(tags.contains("c:ingots/aluminum"),
+                "the shipped aluminum recipes no longer reference c:ingots/aluminum");
+    }
+
+    private static void collectIngredientReferences(JsonElement element, Set<String> items, Set<String> tags) {
+        if (element.isJsonArray()) {
+            for (JsonElement child : element.getAsJsonArray()) {
+                collectIngredientReferences(child, items, tags);
+            }
+            return;
+        }
+        if (!element.isJsonObject()) {
+            return;
+        }
+        JsonObject object = element.getAsJsonObject();
+        if (object.has("item")) {
+            items.add(object.get("item").getAsString());
+        }
+        if (object.has("tag")) {
+            tags.add(object.get("tag").getAsString());
+        }
+        for (var entry : object.entrySet()) {
+            if (!entry.getKey().equals("result") && !entry.getKey().equals("fluid_result")) {
+                collectIngredientReferences(entry.getValue(), items, tags);
+            }
+        }
     }
 
     private static long declaredCount(Pattern pattern, String overview, String message) {

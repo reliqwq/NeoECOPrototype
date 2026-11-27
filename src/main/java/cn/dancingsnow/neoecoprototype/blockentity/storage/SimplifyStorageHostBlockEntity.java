@@ -12,6 +12,7 @@ import cn.dancingsnow.neoecoae.blocks.entity.NEBlockEntity;
 import cn.dancingsnow.neoecoae.gui.storage.StorageHostActionUI;
 import cn.dancingsnow.neoecoae.gui.storage.StorageHostUI;
 import cn.dancingsnow.neoecoae.gui.theme.NEStyleSheets;
+import cn.dancingsnow.neoecoae.menu.HostDiskMenu;
 import cn.dancingsnow.neoecoae.multiblock.definition.MultiBlockDefinition;
 import cn.dancingsnow.neoecoae.multiblock.placement.MultiBlockBuildController;
 import cn.dancingsnow.neoecoae.multiblock.placement.MultiBlockPlacementPlan;
@@ -285,7 +286,8 @@ public class SimplifyStorageHostBlockEntity
         // does not run: bulk marking, the compression display and the migration preview. The fifth is the
         // cell workbench (their #156).
         UIElement root = StorageHostUI.create(createStoragePanelConfig(holder.player)
-                        .withCellActions(cellPriorityWindow.withActions(panelCellActions(holder.player))))
+                        .withCellActions(cellPriorityWindow.withActions(panelCellActions(holder.player))),
+                this::getTier, this::getBlockState, HostDiskMenu.disks(holder))
                 .addClass("panel_bg");
 
         StorageHostActionUI.Elements actionUI = StorageHostActionUI.create(new StorageHostActionUI.Config(
@@ -389,9 +391,10 @@ public class SimplifyStorageHostBlockEntity
                 () -> 0,
                 createReadOnlyEmptyComponentInventory(),
                 player,
-                (drivePos, interactionId, shiftDown) -> extractCellForPanel(drivePos, player, shiftDown),
-                (drivePos, stack) -> insertCellForPanel(drivePos, stack, player),
-                () -> new ItemStack(getBlockState().getBlock()));
+                () -> new ItemStack(getBlockState().getBlock()),
+                () -> 0,
+                Component::empty,
+                StorageHostUI.CellActions.NONE);
     }
 
     /**
@@ -419,89 +422,6 @@ public class SimplifyStorageHostBlockEntity
             }
         }
         return total;
-    }
-
-    /**
-     * Takes the cell out of the drive at that position and hands it over the way eco does: a plain click
-     * puts it on the cursor, a shift click looks for a free inventory slot.
-     *
-     * <p>Measured off {@code StorageCellUiExtraction.extract}: the shift branch scans
-     * {@code Inventory.items} for the first empty index and gives up when there is none, the plain branch
-     * gives up while the cursor still holds something, and both end in {@code broadcastChanges()}. Giving
-     * up rather than dropping is the point - the cell stays in the drive, so a full inventory costs the
-     * player nothing. The id coming back with the click is ours own (see
-     * {@link SimplifyDriveBlockEntity#panelInteractionId()}) and exists only so eco sends the click at
-     * all; the position is what selects the drive.</p>
-     */
-    public boolean extractCellForPanel(net.minecraft.core.BlockPos drivePos,
-                                   net.minecraft.world.entity.player.Player player, boolean shiftDown) {
-        if (level == null || level.isClientSide || !isFormed()) {
-            return false;
-        }
-        // No distance check here on purpose: eco's own extract() gates on client-side, formed, a live
-        // cluster and a non-null position and nothing else, and a gate it does not have would turn this
-        // path into another "clicked and nothing happened" - which is the bug class this whole panel has
-        // been carrying. The insert path below has never had one either.
-        if (!(level.getBlockEntity(drivePos) instanceof SimplifyDriveBlockEntity drive) || !drive.hasCell()) {
-            return false;
-        }
-        var inventory = player.getInventory();
-        var menu = player.containerMenu;
-        int freeSlot = -1;
-        if (shiftDown) {
-            for (int slot = 0; slot < inventory.items.size(); slot++) {
-                if (inventory.getItem(slot).isEmpty()) {
-                    freeSlot = slot;
-                    break;
-                }
-            }
-            if (freeSlot < 0) {
-                return false;
-            }
-        } else if (!menu.getCarried().isEmpty()) {
-            return false;
-        }
-        var cell = drive.removeCell();
-        if (cell.isEmpty()) {
-            return false;
-        }
-        if (shiftDown) {
-            inventory.setItem(freeSlot, cell);
-            inventory.setChanged();
-        } else {
-            menu.setCarried(cell);
-        }
-        menu.broadcastChanges();
-        return true;
-    }
-
-    /**
-     * The other half of the panel's drag path: put a cell the player is holding into that drive.
-     *
-     * <p>The stack arriving with the RPC is a client's claim, so it is used only to check what the server
-     * says the player is holding, and the held stack is what gets spent. eco does the same in
-     * {@code StorageCellUiInsertion} - read {@code menu.getCarried()}, {@code shrink(1)}, {@code
-     * setCarried(EMPTY)} when it runs out. Skipping that spend turns the panel into a duplicator: the
-     * drive takes a copy while the hand keeps the original.</p>
-     */
-    public boolean insertCellForPanel(net.minecraft.core.BlockPos drivePos, ItemStack claimed,
-            net.minecraft.world.entity.player.Player player) {
-        if (level == null || level.isClientSide || !isFormed()) {
-            return false;
-        }
-        var carried = player.containerMenu.getCarried();
-        if (carried.isEmpty() || !ItemStack.isSameItemSameComponents(carried, claimed)) {
-            return false;
-        }
-        if (!(level.getBlockEntity(drivePos) instanceof SimplifyDriveBlockEntity drive)
-                || !drive.insertCell(carried)) {
-            return false;
-        }
-        carried.shrink(1);
-        if (carried.isEmpty()) {
-            player.containerMenu.setCarried(ItemStack.EMPTY);
-        }
-        return true;
     }
 
     /**

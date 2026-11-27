@@ -10,7 +10,7 @@ neoecoprototype:processor_assembler
 
 L1 处理器装配器**就是 AE2 分子装配室的绿色变体**：方块实体直接继承 `MolecularAssemblerBlockEntity`，所以界面、九宫格、升级卡槽、进度动画、样板供应器对接全部是 AE2 原生的，本模组不另写一套。
 
-本模组只加了一件事：**让装配室接受"处理样板"承载的自定义装配配方**（内置 13 条里只有四条是处理器——其中一条要求装 AE2 闪电科技，其余是别的物品，见 §6）。
+本模组只加了一件事：**让装配室接受"处理样板"承载的自定义装配配方**（内置 14 条里有五条是处理器——其中一条要求装 AE2 闪电科技，其余是别的物品，见 §6）。
 
 AE2 原版只允许 `AECraftingPattern` / `AEStonecuttingPattern` / `AESmithingTablePattern` 进装配室，处理样板（`AEProcessingPattern`）会被拒收。我们覆写 `pushPattern`：当推来的样板能对上下面这种自定义配方时，就地包装成装配室认识的样板类型，交回父类照常合成。
 
@@ -20,7 +20,7 @@ AE2 原版只允许 `AECraftingPattern` / `AEStonecuttingPattern` / `AESmithingT
 
 ### 配方来源
 
-**默认来源有两个**：本模组的 JSON 配方（内置 13 条，见 §6），以及从 AE2 压印器自动推导的配方。两者都会经过下面的排除列表。
+**默认来源有两个**：本模组的 JSON 配方（内置 14 条，见 §6），以及从 AE2 压印器自动推导的配方。两者都会经过下面的排除列表。
 
 推导规则（扫描 `ae2:inscriber`）：
 
@@ -77,7 +77,7 @@ src/main/resources/data/neoecoprototype/recipe/processor_assembler/*.json
 <存档>/datapacks/<你的包>/data/<命名空间>/recipe/processor_assembler/任意名字.json
 ```
 
-文件名可以随意，`type` 字段决定配方属于哪台机器。内置配方共 13 条，见 §6；其中 `overload_processor.json` 带 `neoforge:mod_loaded` 条件，没装 AE2 闪电科技时那一条不加载，实际只有 12 条。
+文件名可以随意，`type` 字段决定配方属于哪台机器。内置配方共 14 条，见 §6；其中 `overload_processor.json` 带 `neoforge:mod_loaded` 条件，没装 AE2 闪电科技时那一条不加载，实际只有 13 条。
 
 ## 4. 字段说明
 
@@ -121,9 +121,9 @@ src/main/resources/data/neoecoprototype/recipe/processor_assembler/*.json
 }
 ```
 
-## 6. 内置配方（13 条）
+## 6. 内置配方（14 条）
 
-四条处理器（`#` 开头的是标签，其余是物品 ID）：
+五种处理器（`#` 开头的是标签，其余是物品 ID）：
 
 ```text
 #c:silicon + minecraft:redstone + #c:ingots/gold
@@ -134,6 +134,9 @@ src/main/resources/data/neoecoprototype/recipe/processor_assembler/*.json
 
 #c:silicon + minecraft:redstone + #c:gems/diamond
     -> ae2:engineering_processor
+
+neoecoae:energized_superconductive_ingot + #c:silicon + neoecoae:crystal_matrix
+    -> neoecoae:superconducting_processor
 
 #c:silicon + minecraft:redstone + ae2lt:overload_crystal
     -> ae2lt:overload_processor        （装了 AE2 闪电科技才有这一条）
@@ -159,7 +162,7 @@ minecraft:snow_block ×4
 minecraft:snowball ×3 + minecraft:bucket
     -> minecraft:powder_snow_bucket
 
-ae2:memory_card + neoecoae:aluminum_ingot + neoecoprototype:simplify_green_crystal_matrix
+ae2:memory_card + #c:ingots/aluminum + neoecoprototype:simplify_green_crystal_matrix
     -> neoecoprototype:simplify_structure_expansion_card
 
 neoecoprototype:simplify_storage_controller + neoecoprototype:simplify_computation_system
@@ -246,7 +249,7 @@ ServerEvents.recipes(event => {
 > `ServerEvents.recipes` 事件内，`countRecipes` 和按字段 `remove` 只作用于数据包来源的配方；脚本里 `event.custom` 新增的配方要等所有脚本跑完才会并入配方表（KubeJS 7.2 的既定行为）。想在加载完成后断言新增是否生效，用 `ServerEvents.afterRecipes`，它的 `countRecipes` 读的是最终配方表：
 
 ```js
-// 内置 13 条 + 本节示例新增 1 条 = 14（没装闪电科技时少 1 条）
+// 内置 14 条 + 本节示例新增 1 条 = 15（没装闪电科技时少 1 条）
 ServerEvents.afterRecipes(event => {
   console.info(event.countRecipes({ type: 'neoecoprototype:processor_assembler' }))
 })

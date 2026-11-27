@@ -1,0 +1,62 @@
+{
+  "$schema": "schema.json",
+  "palette": {
+    "DEFAULT_TEXT_COLOR": "#413f54",
+    "MUTED_TEXT_COLOR": "#878fa5",
+    "SELECTION_COLOR": "#ace9ff",
+    "TEXTFIELD_PLACEHOLDER": "#dedfe3",
+    "TEXTFIELD_SELECTION": "#FF0000FF",
+    "TEXTFIELD_ERROR": "#FF1900",
+    "TEXTFIELD_TEXT": "#f2f2f2",
+    "ERROR": "#CE2401"
+  },
+  "background": {
+    "texture": "neoecoprototype:textures/gui/energized_me_chest.png",
+    "srcRect": [19, 0, 182, 168]
+  },
+  "slots": {
+    "STORAGE_CELL": {
+      "left": 80,
+      "top": 37
+    },
+    "PLAYER_INVENTORY": {
+      "left": 9,
+      "bottom": 84,
+      "grid": "BREAK_AFTER_9COLS"
+    },
+    "PLAYER_HOTBAR": {
+      "left": 9,
+      "bottom": 26,
+      "grid": "HORIZONTAL"
+    }
+  },
+  "text": {
+    "dialog_title": {
+      "text": {
+        "translate": "block.neoecoprototype.energized_me_chest"
+      },
+      "align": "LEFT",
+      "position": {
+        "left": 14,
+        "top": 6
+      }
+    },
+    "player_inventory_title": {
+      "text": {
+        "translate": "container.inventory"
+      },
+      "position": {
+        "left": 7,
+        "bottom": 95
+      }
+    }
+  },
+  "widgets": {
+    "openPriority": {
+      "left": 158,
+      "top": -5,
+      "width": 20,
+      "height": 20
+    }
+  }
+}

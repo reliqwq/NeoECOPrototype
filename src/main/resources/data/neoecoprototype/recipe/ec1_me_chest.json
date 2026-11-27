@@ -1,0 +1,19 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "A": { "item": "ae2:drive" },
+    "B": { "item": "ae2:logic_processor" },
+    "C": { "item": "ae2:chest" },
+    "D": { "item": "neoecoae:storage_casing" }
+  },
+  "pattern": [
+    "ADA",
+    "DBD",
+    "CDC"
+  ],
+  "result": {
+    "count": 1,
+    "id": "neoecoprototype:ec1_me_chest"
+  }
+}

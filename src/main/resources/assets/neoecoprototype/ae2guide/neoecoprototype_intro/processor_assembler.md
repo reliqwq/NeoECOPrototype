@@ -27,13 +27,14 @@ Both are made in a **crafting table**: the assembler is 1 Molecular Assembler + 
 
 ## Built-in recipes
 
-The four processors (the last one needs AE2 Lightning Tech; other press recipes in the inscriber are also derived, see below):
+The five processors (the overload processor needs AE2 Lightning Tech; other press recipes in the inscriber are also derived, see below):
 
 | Output | Ingredients |
 |--------|-------------|
 | Logic Processor | silicon + redstone dust + gold ingot |
 | Calculation Processor | silicon + redstone dust + certus quartz crystal |
 | Engineering Processor | silicon + redstone dust + diamond |
+| Superconducting Processor | Energized Superconductive Ingot + silicon + Crystal Matrix |
 | Overload Processor (AE2 Lightning Tech) | silicon + redstone dust + Overload Crystal |
 
 The other eight:

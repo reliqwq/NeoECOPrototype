@@ -25,7 +25,7 @@ import org.objectweb.asm.tree.TypeInsnNode;
  *
  * <p>Both belong here rather than in the game-test suite because the thing being measured is a
  * <i>reference</i>, not a behaviour: what happens if a future eco stops registering
- * {@code cn.dancingsnow.neoecoae.storage.bulk.ECOBulkStorageCell} or the {@code neoecoae:mega_*} cell types
+ * {@code cn.dancingsnow.neoecoae.grid.storage.bulk.ECOBulkStorageCell} or the {@code neoecoae:mega_*} cell types
  * is decided by which classes name them and whether that name is reached on a path that runs. A live eco
  * always has both, so no runtime assertion in this repository can ever see the difference.</p>
  */
@@ -33,7 +33,7 @@ final class EcoBulkDependencyGatingTest {
 
     private static final Path MAIN_CLASSES = Path.of("build/classes/java/main/cn/dancingsnow/neoecoprototype");
     private static final String BULK_CELL_INTERNAL
-            = "cn/dancingsnow/neoecoae/storage/bulk/ECOBulkStorageCell";
+            = "cn/dancingsnow/neoecoae/grid/storage/bulk/ECOBulkStorageCell";
     private static final String CELL_TYPES = "cn/dancingsnow/neoecoprototype/api/EcoCellTypes";
 
     /**

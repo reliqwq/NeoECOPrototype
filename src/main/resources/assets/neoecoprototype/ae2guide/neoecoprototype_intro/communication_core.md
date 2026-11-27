@@ -45,8 +45,3 @@ Sneak-right-click the **formed** tower with a [wireless link card](subsystem_cha
 A formed tower draws **10 AE/t per standing block** from its own grid (an Efficient Module multiplies that by 0.6), and every live link bills the usual per-link fee on top. Height also buys reach: a tower starts at **16 blocks** of radius, +8 per Range Module, and the global `wireless_max_range_blocks` and booster cards can only add to that, never shrink it.
 
 The tower's outlets are the same virtual dense ports the [ECOP Network Subsystem Channel Core](subsystem_channel_module.md) uses - six of them, 32 channels each - so channels, not the device count, are usually what runs out first. Two towers cannot link to each other, the same way two channel cores cannot.
-
-<RecipeFor id="neoecoprototype:communication_base" />
-<RecipeFor id="neoecoprototype:communication_core" />
-<RecipeFor id="neoecoprototype:communication_range_module" />
-<RecipeFor id="neoecoprototype:communication_efficient_module" />

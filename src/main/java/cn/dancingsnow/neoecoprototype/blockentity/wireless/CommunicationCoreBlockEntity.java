@@ -238,7 +238,7 @@ public class CommunicationCoreBlockEntity extends WirelessChannelModuleBlockEnti
      */
     private void drawIdle(ServerLevel level) {
         double draw = idleDrawPerTick();
-        if (draw <= 0.0D || !NeoECOPrototypeServerConfig.WIRELESS_LINKS.get()) {
+        if (draw <= 0.0D || !NeoECOPrototypeServerConfig.current(NeoECOPrototypeServerConfig.WIRELESS_LINKS)) {
             return;
         }
         var node = getMainNode().getNode();

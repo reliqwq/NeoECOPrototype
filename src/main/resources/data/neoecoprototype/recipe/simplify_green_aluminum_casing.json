@@ -2,7 +2,7 @@
   "type": "minecraft:crafting_shaped",
   "category": "misc",
   "key": {
-    "A": { "item": "neoecoae:aluminum_ingot" },
+    "A": { "tag": "c:ingots/aluminum" },
     "B": { "item": "minecraft:iron_ingot" },
     "C": { "item": "neoecoprototype:simplify_green_crystal_matrix" }
   },

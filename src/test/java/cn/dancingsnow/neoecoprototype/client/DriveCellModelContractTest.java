@@ -33,6 +33,8 @@ import org.junit.jupiter.api.Test;
 final class DriveCellModelContractTest {
     private static final Path CLIENT_SOURCE =
             Path.of("src/main/java/cn/dancingsnow/neoecoprototype/client/NeoECOPrototypeClient.java");
+    private static final Path CHEST_RENDERER_SOURCE = Path.of(
+            "src/main/java/cn/dancingsnow/neoecoprototype/client/renderer/blockentity/EnergizedMEChestRenderer.java");
     private static final Path ASSETS = Path.of("src/main/resources/assets/neoecoprototype");
     private static final Pattern USED = Pattern.compile("cellModel\\(\"([a-z0-9_]+)\"\\)");
     private static final Pattern QUOTED = Pattern.compile("\"([a-z0-9_]+)\"");
@@ -161,6 +163,30 @@ final class DriveCellModelContractTest {
                         + " registration list before believing this file's story");
         assertTrue(registeredAsAdditional(source).contains("l1_singularity"),
                 "l1_singularity dropped out of DRIVE_CELL_MODELS again");
+    }
+
+    @Test
+    void chestRendersMatricesByModelAndEverythingElseAsTheDefaultItemCell() throws Exception {
+        assertTrue(Files.isRegularFile(CHEST_RENDERER_SOURCE), "no chest renderer at " + CHEST_RENDERER_SOURCE);
+        var source = Files.readString(CHEST_RENDERER_SOURCE, StandardCharsets.UTF_8);
+        int methodStart = source.indexOf("private static ResourceLocation modelFor(ItemStack cellStack)");
+        assertTrue(methodStart >= 0, "the chest renderer's model selection method moved or changed shape");
+        int methodEnd = source.indexOf("\n    }", methodStart);
+        assertTrue(methodEnd > methodStart, "the chest renderer's model selection method has no closing brace");
+        var method = source.substring(methodStart, methodEnd);
+        assertTrue(method.contains("ECOStorageCells.isCellHandled(cellStack)"),
+                "the chest no longer distinguishes matrices from other cells");
+        assertTrue(method.contains("return ECOCellModels.getModelLocation(cellStack.getItem());"),
+                "recognized matrices no longer render with their registered model");
+        assertTrue(method.contains("return DEFAULT_ITEM_CELL_MODEL;"),
+                "other cells no longer fall back to a complete item-cell model");
+        assertTrue(source.contains("\"block/cell/storage_cell_l1_item\""),
+                "the fallback must be the complete L1 item-cell geometry");
+        assertTrue(clientSource().contains("cellModel(\"l1_item\")"),
+                "the fallback must also be registered for real matrices");
+        assertTrue(!method.contains("StorageCellModels"),
+                "the chest must not look up AE2 disk models; they are dependency-baked rather than"
+                        + " top-level models and would draw the missing-model cube");
     }
 
     @Test

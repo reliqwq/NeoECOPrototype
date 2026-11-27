@@ -5,7 +5,7 @@ plugins {
     id 'net.neoforged.moddev' version '2.0.78'
 }
 
-version = '1.4.11'
+version = '1.4.12'
 group = 'cn.dancingsnow.neoecoprototype'
 
 base {
@@ -250,7 +250,10 @@ dependencies {
 // clamped to 10..100). NEConfig adds only the two infinite-migration values, NEBlocks only two entries
 // (cryogenic casing, smart cooling module) and NEMultiBlocks nothing at all. On the infinite side
 // StorageListingDelta is new and only eco's own ECOInfiniteStorage adopts it; our endless cells still sit
-// on ExactAmountSource, and ECOInfiniteStorageMember (the drive renderer's check) is byte-identical.
+// on ExactAmountSource. In 21.2.19 beta2 ECOInfiniteStorageMember (the drive renderer's check) was
+// byte-identical to 21.2.17; 21.3.0 moves it to grid.storage.infinite and removes isMember(ItemStack).
+// The renderer now reads the legacy marker through Minecraft's public data-component API instead of naming
+// that eco implementation class.
 // New and not adopted: the large workstation's smart cooling module (block, BE, SmartCoolingModuleUI, KubeJS
 // LargeIntegratedWorkingStationSchema, 11 compat models), JEI MultiblockRecipesGuiMixin (the 19.70
 // local-variable-slot VerifyError fix), and the infinite-storage migration machinery under storage/infinite.
@@ -264,10 +267,15 @@ dependencies {
 // 21.2.17 (released 2026-11-12) adds a separate crafting-status CPU glyph hook. The addon implements that
 // hook on both tier families and no longer needs its client mixin for the status panel. Entry diff:
 // 4666 -> 4691, 29 added, 4 removed, 123 changed; all 67 constructor descriptors resolve.
-// 21.2.19 CI artifact (commit 49f71bc708c1872c8e91e3510333608d9a12a78b; not a GitHub release) was adopted
-// 2026-11-19 for #165. Versus 21.2.18: jar entries 5112 -> 5117, 7 added, 2 removed, 148 changed.
-// All 68 constructor descriptors named by the compiled addon resolve against this artifact.
-    implementation files("neoecobeta/neoecoae-21.2.19.jar")
+// 2026-11-24: supplied beta2 replaces the cbd282778 CI artifact, preserved as
+// neoecobeta/neoecoae-21.2.19.jar.baseline-cbd282778. Both report 21.2.19, but entries changed
+// 5090 -> 5103 (+57/-44, 1406 changed) and the storage-menu ABI is different.
+// All 68 constructor descriptors named by the compiled addon resolve against beta2.
+// 2026-11-27: compile and runtime baseline move to the supplied eco 21.3.0 jar (7,812,374 bytes,
+// sha256 f453b62c3676a92682b4487f5f5a87ba738355bc0e51d16bc2ce7e69324e5fbf). Its crafting and
+// storage trees moved under grid.*; the three-axis audit finds only package-move fallout plus the removed
+// ECOInfiniteStorageMember.isMember client call, replaced locally without an eco implementation reference.
+    implementation files("neoecobeta/neoecoae-21.3.0.jar")
     // MegaCells 4.11.0 is the supported optional integration version.
     implementation files("libs/megacells-4.11.0.jar")
     // Dev-runtime only: keep them off the compile classpath but on the runtime classpath.

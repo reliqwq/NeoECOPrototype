@@ -28,7 +28,7 @@ import org.junit.jupiter.api.Test;
 final class EndlessCellExactAmountContractTest {
 
     private static final String EXACT_AMOUNT_SOURCE =
-            "cn.dancingsnow.neoecoae.crafting.display.terminal.ExactAmountSource";
+            "cn.dancingsnow.neoecoae.grid.crafting.display.terminal.ExactAmountSource";
     private static final List<String> REQUIRED_METHODS = List.of(
             "neoecoae$visitExactAmounts", "neoecoae$hasSaturatingListing");
 

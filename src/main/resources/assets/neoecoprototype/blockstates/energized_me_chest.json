@@ -1,0 +1,28 @@
+{
+  "multipart": [
+    { "apply": { "model": "neoecoprototype:block/energized_me_chest_off" }, "when": { "facing": "north", "cell_state": "off" } },
+    { "apply": { "model": "neoecoprototype:block/energized_me_chest_off", "y": 90 }, "when": { "facing": "east", "cell_state": "off" } },
+    { "apply": { "model": "neoecoprototype:block/energized_me_chest_off", "y": 180 }, "when": { "facing": "south", "cell_state": "off" } },
+    { "apply": { "model": "neoecoprototype:block/energized_me_chest_off", "y": 270 }, "when": { "facing": "west", "cell_state": "off" } },
+    { "apply": { "model": "neoecoprototype:block/energized_me_chest_off" }, "when": { "facing": "north", "cell_state": "absent" } },
+    { "apply": { "model": "neoecoprototype:block/energized_me_chest_off", "y": 90 }, "when": { "facing": "east", "cell_state": "absent" } },
+    { "apply": { "model": "neoecoprototype:block/energized_me_chest_off", "y": 180 }, "when": { "facing": "south", "cell_state": "absent" } },
+    { "apply": { "model": "neoecoprototype:block/energized_me_chest_off", "y": 270 }, "when": { "facing": "west", "cell_state": "absent" } },
+    { "apply": { "model": "neoecoprototype:block/energized_me_chest_base" }, "when": { "facing": "north", "cell_state": "empty" } },
+    { "apply": { "model": "neoecoprototype:block/energized_me_chest_base", "y": 90 }, "when": { "facing": "east", "cell_state": "empty" } },
+    { "apply": { "model": "neoecoprototype:block/energized_me_chest_base", "y": 180 }, "when": { "facing": "south", "cell_state": "empty" } },
+    { "apply": { "model": "neoecoprototype:block/energized_me_chest_base", "y": 270 }, "when": { "facing": "west", "cell_state": "empty" } },
+    { "apply": { "model": "neoecoprototype:block/energized_me_chest_base" }, "when": { "facing": "north", "cell_state": "partial" } },
+    { "apply": { "model": "neoecoprototype:block/energized_me_chest_base", "y": 90 }, "when": { "facing": "east", "cell_state": "partial" } },
+    { "apply": { "model": "neoecoprototype:block/energized_me_chest_base", "y": 180 }, "when": { "facing": "south", "cell_state": "partial" } },
+    { "apply": { "model": "neoecoprototype:block/energized_me_chest_base", "y": 270 }, "when": { "facing": "west", "cell_state": "partial" } },
+    { "apply": { "model": "neoecoprototype:block/energized_me_chest_base" }, "when": { "facing": "north", "cell_state": "types_full" } },
+    { "apply": { "model": "neoecoprototype:block/energized_me_chest_base", "y": 90 }, "when": { "facing": "east", "cell_state": "types_full" } },
+    { "apply": { "model": "neoecoprototype:block/energized_me_chest_base", "y": 180 }, "when": { "facing": "south", "cell_state": "types_full" } },
+    { "apply": { "model": "neoecoprototype:block/energized_me_chest_base", "y": 270 }, "when": { "facing": "west", "cell_state": "types_full" } },
+    { "apply": { "model": "neoecoprototype:block/energized_me_chest_base" }, "when": { "facing": "north", "cell_state": "full" } },
+    { "apply": { "model": "neoecoprototype:block/energized_me_chest_base", "y": 90 }, "when": { "facing": "east", "cell_state": "full" } },
+    { "apply": { "model": "neoecoprototype:block/energized_me_chest_base", "y": 180 }, "when": { "facing": "south", "cell_state": "full" } },
+    { "apply": { "model": "neoecoprototype:block/energized_me_chest_base", "y": 270 }, "when": { "facing": "west", "cell_state": "full" } }
+  ]
+}

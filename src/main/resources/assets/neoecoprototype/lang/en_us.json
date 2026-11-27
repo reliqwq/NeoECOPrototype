@@ -10,6 +10,13 @@
   "item.neoecoprototype.simplify_small_bulk_expansion_card": "L1 Small Bulk Expansion Card",
   "block.neoecoprototype.simplify_storage_controller": "ECO - L1 Extensible Storage Subsystem Controller",
   "block.neoecoprototype.simplify_drive": "ECO - L1 Storage Matrix Drive",
+  "block.neoecoprototype.ec1_me_chest": "ECO-L1 ME Chest",
+  "block.neoecoprototype.energized_me_chest": "Energized ME Chest",
+  "message.neoecoprototype.energized_me_chest.no_cell": "The Energized ME Chest cannot read a storage cell.",
+  "gui.neoecoprototype.out_of_power": "Out of power",
+  "gui.neoecoprototype.energized_me_chest.configure": "Configure installed storage cell",
+  "gui.neoecoprototype.energized_me_chest.guide": "Open the Energized ME Chest guide",
+
   "block.neoecoprototype.simplify_energy_cell": "ECO - LT1 Density Energy Cell",
   "block.neoecoprototype.simplify_storage_casing": "ECO - L1 Storage Subsystem Structural Casing",
   "block.neoecoprototype.simplify_green_aluminum_casing": "Trait Casing",

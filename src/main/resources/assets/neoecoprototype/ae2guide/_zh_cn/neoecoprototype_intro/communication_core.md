@@ -45,8 +45,3 @@ item_ids:
 成型后的塔从自身网络抽取**每格塔柱 10 AE/t**（高效通讯模块把这一数字乘以 0.6），每条在线链路在此之上照常按条计费。高度同时购买射程：塔的半径从 **16 格**起步，每根范围增幅模块 +8；全局 `wireless_max_range_blocks` 与增强卡只能加成，不会削减。
 
 塔的出口与 [ECOP 网络子系统频道通讯核心](subsystem_channel_module.md)同款——六个虚拟密集端口，每个 32 频道——所以通常先耗尽的是频道而不是设备数。两座塔之间不能互连，正如两个频道核心不能互连。
-
-<RecipeFor id="neoecoprototype:communication_base" />
-<RecipeFor id="neoecoprototype:communication_core" />
-<RecipeFor id="neoecoprototype:communication_range_module" />
-<RecipeFor id="neoecoprototype:communication_efficient_module" />

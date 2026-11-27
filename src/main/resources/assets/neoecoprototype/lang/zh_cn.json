@@ -6,6 +6,13 @@
   "block.neoecoprototype.simplify_trinity_crafting_module": "Trinity 合成模块",
   "block.neoecoprototype.simplify_storage_controller": "ECO - L1 可拓展存储子系统主机",
   "block.neoecoprototype.simplify_drive": "ECO - L1 存储矩阵驱动器",
+  "block.neoecoprototype.ec1_me_chest": "ECO-L1 ME箱子",
+  "block.neoecoprototype.energized_me_chest": "盈能 ME箱子",
+  "message.neoecoprototype.energized_me_chest.no_cell": "盈能 ME箱子无法读取存储元件。",
+  "gui.neoecoprototype.out_of_power": "电量不足",
+  "gui.neoecoprototype.energized_me_chest.configure": "配置已安装的存储元件",
+  "gui.neoecoprototype.energized_me_chest.guide": "打开盈能 ME箱子指南",
+
   "block.neoecoprototype.simplify_energy_cell": "ECO - LT1 密度能量元件",
   "block.neoecoprototype.simplify_storage_casing": "ECO - L1 存储子系统结构外壳",
   "block.neoecoprototype.simplify_green_aluminum_casing": "特质机壳",

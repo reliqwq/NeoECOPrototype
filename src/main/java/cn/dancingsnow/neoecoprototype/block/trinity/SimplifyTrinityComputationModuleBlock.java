@@ -66,7 +66,7 @@ public class SimplifyTrinityComputationModuleBlock extends NEBlock<SimplifyTrini
                     return InteractionResult.SUCCESS;
                 }
                 ItemStack removed = be.getCellStack();
-                be.setCellStack(ItemStack.EMPTY);
+                be.setCellStack(null);
                 if (!removed.isEmpty()) {
                     player.setItemInHand(InteractionHand.MAIN_HAND, removed);
                 }

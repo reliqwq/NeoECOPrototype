@@ -4,6 +4,7 @@ import appeng.api.orientation.IOrientationStrategy;
 import appeng.api.orientation.OrientationStrategies;
 import cn.dancingsnow.neoecoae.api.IHostPanelTextureProvider;
 import cn.dancingsnow.neoecoae.blocks.NEBlock;
+import cn.dancingsnow.neoecoae.menu.HostDiskMenu;
 import cn.dancingsnow.neoecoprototype.NeoECOPrototype;
 import cn.dancingsnow.neoecoprototype.blockentity.storage.SimplifyStorageHostBlockEntity;
 import com.lowdragmc.lowdraglib2.gui.factory.BlockUIMenuType;
@@ -23,6 +24,8 @@ import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.level.block.state.properties.DirectionProperty;
 import net.minecraft.world.phys.BlockHitResult;
 import org.jetbrains.annotations.Nullable;
+
+import java.util.List;
 
 /** L1 storage subsystem host (controller) block. */
 public class SimplifyStorageControllerBlock extends NEBlock<SimplifyStorageHostBlockEntity>
@@ -101,8 +104,19 @@ public class SimplifyStorageControllerBlock extends NEBlock<SimplifyStorageHostB
     }
 
     @Override
+    public BlockUIMenuType.BlockUIHolder createUIHolder(Player player, BlockPos pos, BlockState state) {
+        if (!player.level().isClientSide
+                && player.level().getBlockEntity(pos) instanceof SimplifyStorageHostBlockEntity host) {
+            return HostDiskMenu.holder(this, player, pos, state, host,
+                    host.getCluster() == null ? List.of() : host.getCluster().getDrives(), false);
+        }
+        return BlockUIMenuType.BlockUI.super.createUIHolder(player, pos, state);
+    }
+
+    @Override
     public ModularUI createUI(BlockUIMenuType.BlockUIHolder holder) {
-        if (isPlayerCloseEnough(holder.player.level(), holder.pos, holder.player)
+        if ((holder.player.level().isClientSide
+                || isPlayerCloseEnough(holder.player.level(), holder.pos, holder.player))
                 && holder.player.level().getBlockEntity(holder.pos) instanceof SimplifyStorageHostBlockEntity host) {
             return host.createUI(holder);
         }

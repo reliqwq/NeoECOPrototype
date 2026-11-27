@@ -4,7 +4,6 @@ import appeng.api.storage.cells.CellState;
 import appeng.client.render.tesr.CellLedRenderer;
 import cn.dancingsnow.neoecoae.api.ECOCellModels;
 import cn.dancingsnow.neoecoae.client.rendering.IFixedBlockEntityRenderer;
-import cn.dancingsnow.neoecoae.storage.infinite.ECOInfiniteStorageMember;
 import cn.dancingsnow.neoecoprototype.blockentity.storage.SimplifyDriveBlockEntity;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
@@ -13,8 +12,10 @@ import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
 import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
 import net.minecraft.core.Direction;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.util.FastColor;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.phys.Vec2;
@@ -26,6 +27,7 @@ public class SimplifyDriveRenderer implements BlockEntityRenderer<SimplifyDriveB
         IFixedBlockEntityRenderer<SimplifyDriveBlockEntity> {
 
     private static final int INFINITE_MEMBER_LED_COLOR = 0xCA6CFF;
+    private static final String LEGACY_INFINITE_MEMBER_TAG = "neoecoae_infinite_member";
 
     public SimplifyDriveRenderer() {
     }
@@ -37,7 +39,7 @@ public class SimplifyDriveRenderer implements BlockEntityRenderer<SimplifyDriveB
     public void render(SimplifyDriveBlockEntity blockEntity, float partialTick, PoseStack poseStack,
                        MultiBufferSource bufferSource, int packedLight, int packedOverlay) {
         ItemStack cellStack = blockEntity.getCellStack();
-        if (ECOInfiniteStorageMember.isMember(cellStack)) {
+        if (isLegacyInfiniteMember(cellStack)) {
             renderLed(blockEntity, poseStack, bufferSource,
                     FastColor.ARGB32.color(255, INFINITE_MEMBER_LED_COLOR));
             return;
@@ -50,6 +52,13 @@ public class SimplifyDriveRenderer implements BlockEntityRenderer<SimplifyDriveB
             renderLed(blockEntity, poseStack, bufferSource,
                     FastColor.ARGB32.color(255, cellState.getStateColor()));
         }
+    }
+
+    // eco 3.0's broader transaction-evidence query excludes anonymous legacy members, so keep the old LED predicate.
+    private static boolean isLegacyInfiniteMember(ItemStack stack) {
+        return stack != null && !stack.isEmpty()
+                && stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY)
+                        .copyTag().getBoolean(LEGACY_INFINITE_MEMBER_TAG);
     }
 
     private static void renderLed(SimplifyDriveBlockEntity blockEntity, PoseStack poseStack,

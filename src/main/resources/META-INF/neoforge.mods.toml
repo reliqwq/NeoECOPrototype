@@ -65,44 +65,20 @@ side = "BOTH"
 # Then 21.2.4 is where StorageHostUI$CellEntry gained interactionId together with the 4-arg atDrive
 # our rows now call. On 21.2.3 every row would carry a null id, eco's client returns without a word,
 # and the panel opens only to ignore every click - so refusing at load is the better outcome.
-# 21.2.7 is now the floor for a different reason than the ones above: our host and member blocks
-# implement eco's IHostPanelTextureProvider to skin the storage and computation panels, and
-# implementing an interface is a must-resolve reference - the class has to be there when our block
-# class loads, so on 21.2.4 to 21.2.6 this is a NoClassDefFoundError at registration, not a
-# cosmetic miss. (Overriding a default method, which is what getPanelTierName() is, would NOT
-# have needed this: an extra method nobody calls is inert on the older jars.)
-# 21.2.11 is the floor because it is the baseline we compile against - the rule this file keeps: the
-# version that filled in the symbol scan is the version the range starts at, because a range is not what
-# catches an ABI surprise. This time the floor is forced by exactly such a surprise: eco re-typed a field
-# we read, so our bytecode asks for a descriptor 21.2.10 does not declare (see the dependency below).
-# The 21.2.10 line was the other case - a pure addition on the symbol face for us, 106 referenced types
-# all resolving and the member audit identical to the 21.2.9 control.
-# 21.2.9 is where the panel shape arrived: eco's #125 channels only land there (21.2.8 still carries
-# five IHostPanelTextureProvider$Part members, 21.2.9 carries twelve and the five-argument
-# getPanelTexture overload), and an enum constant that does not exist yet is a NoSuchFieldError on first
-# touch, so the code that reads them cannot claim an older floor.
-# Do not treat a range as a safety net: 1.2.7 shipped an upper bound that should have excluded
-# 21.2.0, a player still loaded it with that eco and got NoSuchMethodError when opening the L1
-# storage host GUI. ABI surprises are caught by compiling against the target, not by bounding it.
+# Floor history: 21.2.7 made IHostPanelTextureProvider a must-resolve registration dependency; 21.2.9
+# changed the panel shape; 21.2.12 moved impl/storage to storage and introduced getFluidTankHandler();
+# 21.2.16 added the #156 workbench-host APIs; 21.2.17 added the independent crafting-status glyph hook;
+# 21.2.19 beta2 changed the storage-menu ABI. Each raise was forced by a measured class, member or
+# constructor descriptor, not by a version number alone.
+# 21.3.0 is the current compile baseline and runtime floor. It moves eco's crafting.* and storage.* trees
+# under grid.* and removes ECOInfiniteStorageMember.isMember(ItemStack). The addon now follows the moved
+# descriptors and reads the legacy member marker through Minecraft's public data-component API, so it no
+# longer names that eco implementation class. A version range is not a safety net; the three-axis ABI audit
+# and a rebuild against the target jar are what catch the next surprise.
 [[dependencies.neoecoprototype]]
 modId = "neoecoae"
 mandatory = true
-versionRange = "[21.2.19,)"
-# The compile baseline and runtime floor stay aligned. 21.2.16 is still the first release with the #156
-# workbench host APIs; 21.2.17 adds the independent crafting-status tier glyph API used by both addon tier
-# families. Its status panel resolves the selected registered tier before requesting that glyph. The current
-# compile baseline and runtime floor are both 21.2.19.
-# Forced again, and by the same kind of surprise: 21.2.12 moved eco's impl/storage/** tree to storage/**,
-# and our bytecode names two of those classes directly - one in the return descriptor of the
-# createCellInventory override, one as a static call in the drive renderer. A moved class is a
-# NoClassDefFoundError on the side that still asks for the old name, so the floor cannot stay at 21.2.11
-# once the baseline is 21.2.12. The tank field that forced the previous floor is unchanged here.
-# The floor is forced, not chosen: eco 21.2.11 re-typed ECOFluidInputHatchBlockEntity.tank from
-# a neoforge FluidTank to its own util.LongFluidTank, and a field reference carries that exact
-# descriptor, so the four reads of .tank that shipped in 1.4.2 cannot be satisfied by 21.2.10.
-# We no longer read that field: this tree reads every hatch tank through getFluidTankHandler(), which
-# is new in 21.2.12 (0 declarations in 21.2.10 and 21.2.11, 2 in 21.2.12), so it is the accessor that
-# holds this floor now, not the descriptor. See build.gradle.
+versionRange = "[21.3.0,)"
 # AFTER for the same reason as AE2 above: several of our items extend eco's cell items, so binding our
 # registry entry loads eco's class and runs its statics, which read eco's and AE2's registries.
 ordering = "AFTER"

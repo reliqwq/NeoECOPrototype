@@ -1,0 +1,12 @@
+{
+	"parent": "neoecoprototype:block/energized_me_chest_base",
+	"textures": {
+		"2": "neoecoprototype:block/ec1_me_chest/front_eco_drive_on",
+		"top": "neoecoprototype:block/ec1_me_chest/top",
+		"bottom": "neoecoprototype:block/ec1_me_chest/bottom",
+		"side": "neoecoprototype:block/ec1_me_chest/side",
+		"back": "neoecoprototype:block/ec1_me_chest/back",
+		"details": "neoecoprototype:block/ec1_me_chest/details",
+		"particle": "neoecoprototype:block/ec1_me_chest/side"
+	}
+}

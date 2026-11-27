@@ -12,6 +12,7 @@ import cn.dancingsnow.neoecoae.client.rendering.FixedBlockEntityRenderers;
 import cn.dancingsnow.neoecoprototype.integration.kubejs.InfiniteMatrixClientModels;
 import cn.dancingsnow.neoecoprototype.NeoECOPrototype;
 import cn.dancingsnow.neoecoprototype.client.model.SimplifyCoolingControllerBakedModel;
+import cn.dancingsnow.neoecoprototype.client.renderer.blockentity.EnergizedMEChestRenderer;
 import cn.dancingsnow.neoecoprototype.client.renderer.blockentity.GiantPlushieRenderer;
 import cn.dancingsnow.neoecoprototype.client.renderer.blockentity.SimplifyComputationDriveRenderer;
 import cn.dancingsnow.neoecoprototype.client.renderer.blockentity.SimplifyCoolingControllerRenderer;
@@ -284,9 +285,8 @@ public final class NeoECOPrototypeClient {
         // Same hook AE2's StyleManager uses for its style cache: reloads must discard the parsed copy
         // or a resource pack could never override our assembler layout.
         if (Minecraft.getInstance().getResourceManager() instanceof ReloadableResourceManager resourceManager) {
-            resourceManager.registerReloadListener((ResourceManagerReloadListener) manager -> {
-                ProcessorAssemblerScreen.forgetStyle();
-            });
+            resourceManager.registerReloadListener((ResourceManagerReloadListener) manager ->
+                    ProcessorAssemblerScreen.forgetStyle());
         }
     }
 
@@ -364,11 +364,14 @@ public final class NeoECOPrototypeClient {
                 "/screens/neoecoprototype/l1_pattern_provider.json");
         event.<ProcessorAssemblerMenu, ProcessorAssemblerScreen>register(
                 ProcessorAssemblerMenu.type(), ProcessorAssemblerScreen::new);
+        event.<cn.dancingsnow.neoecoprototype.menu.EnergizedMEChestMenu, EnergizedMEChestScreen>register(
+                ModRegistration.ENERGIZED_ME_CHEST_MENU.get(), EnergizedMEChestScreen::new);
     }
 
     @SubscribeEvent
     public static void onRegisterRenderers(EntityRenderersEvent.RegisterRenderers event) {
         event.registerBlockEntityRenderer(ModRegistration.SIMPLIFY_DRIVE_BE.get(), SimplifyDriveRenderer::new);
+        event.registerBlockEntityRenderer(ModRegistration.ENERGIZED_ME_CHEST_BE.get(), EnergizedMEChestRenderer::new);
         // One renderer for the doll block entity type: it draws nothing for the four shelf dolls and the
         // scaled-up plushie for the giant, which is why the type is shared rather than split.
         event.registerBlockEntityRenderer(ModRegistration.FUMO_DOLL_BE.get(), GiantPlushieRenderer::new);

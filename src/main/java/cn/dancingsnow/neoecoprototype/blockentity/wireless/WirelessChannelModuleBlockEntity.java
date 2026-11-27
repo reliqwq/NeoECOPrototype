@@ -16,6 +16,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntityType;
@@ -134,6 +135,20 @@ public class WirelessChannelModuleBlockEntity extends AENetworkedBlockEntity
     /** The panel's booster column binds to this; the filter above is what keeps every other card out. */
     public InternalInventory boosterInventory() {
         return boosters;
+    }
+
+    public Slot boosterSlot(int index) {
+        return new Slot(boosters.toContainer(), index, 0, 0) {
+            @Override
+            public boolean mayPlace(ItemStack stack) {
+                return boosters.isItemValid(index, stack);
+            }
+
+            @Override
+            public int getMaxStackSize() {
+                return boosters.getSlotLimit(index);
+            }
+        };
     }
 
     @Override
