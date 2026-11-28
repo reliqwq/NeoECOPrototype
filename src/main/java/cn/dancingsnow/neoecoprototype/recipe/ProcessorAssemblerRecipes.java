@@ -106,15 +106,19 @@ public final class ProcessorAssemblerRecipes {
     }
 
 
+    /** Recipe id folders select the machine family; the EC9 accepts every declared recipe. */
+    public static boolean isL1Recipe(ResourceLocation id) {
+        String path = id.getPath();
+        return !path.startsWith("derived/inscriber/") && !path.startsWith("ec9_processor_assembler/");
+    }
+
     /**
      * The addon recipe an AE2 processing pattern asks for, or null when no registered output set and item
-     * inputs cover it. All outputs must describe the same positive integral run count. {@code includeDerived}
-     * splits the family across the two assemblers: the L1 machine answers only the curated declared recipes,
-     * the EC9 answers those plus everything the inscriber derivation contributed (ids under
-     * {@code derived/inscriber/}).
+     * inputs cover it. All outputs must describe the same positive integral run count. {@code ec9} includes
+     * both the inscriber-derived family and recipes filed under {@code ec9_processor_assembler/}.
      */
     @Nullable
-    public static ProcessorAssemblerRecipe resolve(Level level, IPatternDetails pattern, boolean includeDerived) {
+    public static ProcessorAssemblerRecipe resolve(Level level, IPatternDetails pattern, boolean ec9) {
         var outputs = pattern.getOutputs();
         if (outputs.isEmpty() || outputs.size() > 2) return null;
         if (outputs.stream().anyMatch(output -> output.amount() <= 0)) return null;
@@ -123,8 +127,7 @@ public final class ProcessorAssemblerRecipes {
         List<ProcessorAssemblerRecipe> declared = level.getRecipeManager()
                 .getAllRecipesFor(ModRegistration.PROCESSOR_ASSEMBLER_RECIPE_TYPE.get())
                 .stream()
-                .filter(holder -> includeDerived
-                        || !holder.id().getPath().startsWith("derived/inscriber/"))
+                .filter(holder -> ec9 || isL1Recipe(holder.id()))
                 .map(RecipeHolder::value).toList();
         for (ProcessorAssemblerRecipe recipe : declared) {
             if (recipe.hasItemOutput()

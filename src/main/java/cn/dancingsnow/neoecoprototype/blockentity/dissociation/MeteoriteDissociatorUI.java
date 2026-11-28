@@ -13,18 +13,30 @@ import com.lowdragmc.lowdraglib2.gui.ui.ModularUI;
 import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
 import com.lowdragmc.lowdraglib2.gui.ui.data.FillDirection;
 import com.lowdragmc.lowdraglib2.gui.ui.data.TextWrap;
+import com.lowdragmc.lowdraglib2.gui.ui.elements.Button;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.FluidSlot;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.ItemSlot;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.TextElement;
+import com.lowdragmc.lowdraglib2.gui.ui.event.HoverTooltips;
+import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvents;
 import com.lowdragmc.lowdraglib2.gui.ui.rendering.GUIContext;
+import com.lowdragmc.lowdraglib2.gui.util.WindowDragHelper;
 import dev.vfyjxf.taffy.style.TaffyPosition;
+import guideme.GuidesCommon;
+import guideme.PageAnchor;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.block.state.BlockState;
 
 import javax.annotation.Nullable;
+import java.util.List;
 
 /**
  * The dissociator's panel, built the way eco builds its own machine screens: an LDLib2 block UI whose
@@ -32,53 +44,108 @@ import javax.annotation.Nullable;
  *
  * <p>Every element is absolutely positioned and draws no frame of its own, because the recesses, the tank
  * windows and the progress groove are already painted into
- * {@code textures/gui/meteorite_dissociator.png}. Left to themselves, {@code ItemSlot} and {@code FluidSlot}
+ * {@code textures/gui/meteorite_dissociator.png}. Left to themselves, {@link ItemSlot} and {@link FluidSlot}
  * each paint a second recess one pixel off the baked one, which reads as a doubled border.
  *
- * <p>The block entity is asked for its state through plain getters and one server-to-client binding; no
- * value is pushed the other way, so nothing here can be written by a client.
+ * <p>The block entity is asked for its state through plain getters and server-to-client bindings. The guide
+ * and popup buttons are client-only actions; the six face buttons and the reset button run on the server.
  */
 public final class MeteoriteDissociatorUI {
 
     private static final ResourceLocation TEXTURE =
             NeoECOPrototype.id("textures/gui/meteorite_dissociator.png");
-    private static final int WIDTH = 168;
-    private static final int HEIGHT = 170;
+    private static final ResourceLocation FACES_TEXTURE =
+            NeoECOPrototype.id("textures/gui/meteorite_dissociator_faces.png");
+    private static final ResourceLocation FACE_STATES_TEXTURE =
+            NeoECOPrototype.id("textures/gui/meteorite_dissociator_face_states.png");
+    private static final ResourceLocation GUIDE_ID = ResourceLocation.fromNamespaceAndPath("ae2", "guide");
+    private static final ResourceLocation GUIDE_PAGE =
+            NeoECOPrototype.id("neoecoprototype_intro/meteorite_dissociator.md");
+
+    private static final int PANEL_WIDTH = 214;
+    private static final int HEIGHT = 172;
+    private static final int WIDTH = 242;
 
     /** The two baths: 8x58 windows inside the 10x60 frames the art draws. */
-    private static final int COOLANT_X = 5;
-    private static final int SOLUTION_X = 19;
-    private static final int TANK_Y = 9;
+    private static final int COOLANT_X = 28;
+    private static final int SOLUTION_X = 42;
+    private static final int TANK_Y = 11;
     private static final int TANK_WIDTH = 8;
     private static final int TANK_HEIGHT = 58;
 
     /** Cells are 18x18 in the art; the item area is the inner 16x16, which is LDLib2's own 1px padding. */
     private static final int CELL_PADDING = 1;
-    private static final int CATALYST_X = 33;
-    private static final int CATALYST_Y = 29;
-    private static final int PRODUCT_X = 91;
-    private static final int PRODUCT_Y = 11;
+    private static final int CATALYST_X = 56;
+    private static final int CATALYST_Y = 31;
+    private static final int PRODUCT_X = 114;
+    private static final int PRODUCT_Y = 13;
     private static final int PRODUCT_COLUMNS = 4;
-    /** The core cell is a 24x24 box; four pixels of padding keep the stack centred inside it. */
-    private static final int CORE_X = 55;
-    private static final int CORE_Y = 26;
-    private static final int CORE_SIZE = 24;
-    private static final int CORE_PADDING = 4;
+    /** The core cell is a 26x26 box; five pixels of padding keep the 16x16 stack centred inside it. */
+    private static final int CORE_X = 77;
+    private static final int CORE_Y = 27;
+    private static final int CORE_PADDING = 5;
 
-    private static final int INVENTORY_X = 3;
-    private static final int INVENTORY_Y = 85;
-    private static final int INVENTORY_LABEL_X = 4;
-    private static final int INVENTORY_LABEL_Y = 75;
+    private static final int INVENTORY_X = 26;
+    private static final int INVENTORY_Y = 87;
+    private static final int INVENTORY_LABEL_X = 27;
+    private static final int INVENTORY_LABEL_Y = 77;
 
-    /** The progress groove: a 4x16 core inside a 6x18 frame at x82 y29. */
-    private static final int PROGRESS_X = 83;
-    private static final int PROGRESS_Y = 30;
-    private static final int PROGRESS_WIDTH = 4;
-    private static final int PROGRESS_HEIGHT = 16;
-    private static final int PROGRESS_COLOR = 0xFF_5F_C8_64;
+    /** The progress sprite is 5x17; the atlas keeps its filled version at x224 y74. */
+    private static final int PROGRESS_X = 105;
+    private static final int PROGRESS_Y = 31;
+    private static final int PROGRESS_WIDTH = 5;
+    private static final int PROGRESS_HEIGHT = 17;
+    private static final int PROGRESS_ATLAS_X = 224;
+    private static final int PROGRESS_ATLAS_Y = 74;
     /** The hovered-slot tint: AE2's own hover is 40% of this blue, and LDLib2 ships none. */
     private static final int HOVER_BLUE = 0x66_9C_D3_FF;
     private static final ColorRectTexture HOVER_RECT = new ColorRectTexture(HOVER_BLUE);
+
+    private static final int GUIDE_BUTTON_X = 3;
+    private static final int GUIDE_BUTTON_Y = 4;
+    private static final int FACES_BUTTON_X = 3;
+    private static final int FACES_BUTTON_Y = 26;
+    private static final int TOOLBAR_BUTTON_WIDTH = 18;
+    private static final int TOOLBAR_BUTTON_HEIGHT = 19;
+
+    private static final int POPUP_X = 27;
+    private static final int POPUP_Y = 35;
+    private static final int POPUP_WIDTH = 101;
+    private static final int POPUP_HEIGHT = 85;
+    private static final int FACE_BUTTON_WIDTH = 18;
+    private static final int FACE_BUTTON_HEIGHT = 20;
+
+    private static FacePreviewRenderer facePreviewRenderer;
+
+    public static void setFacePreviewRenderer(FacePreviewRenderer renderer) {
+        facePreviewRenderer = renderer;
+    }
+
+    @FunctionalInterface
+    public interface FacePreviewRenderer {
+        void draw(GUIContext context, Direction direction, FacePreviewState state,
+                  float x, float y);
+    }
+
+    public static final class FacePreviewState {
+        private BlockPos neighborPos;
+        private BlockState neighborState;
+        private ItemStack icon = ItemStack.EMPTY;
+
+        public boolean matches(BlockPos position, BlockState state) {
+            return position.equals(neighborPos) && state == neighborState;
+        }
+
+        public void update(BlockPos position, BlockState state, ItemStack icon) {
+            this.neighborPos = position;
+            this.neighborState = state;
+            this.icon = icon;
+        }
+
+        public ItemStack icon() {
+            return icon;
+        }
+    }
 
     private MeteoriteDissociatorUI() {
     }
@@ -87,21 +154,25 @@ public final class MeteoriteDissociatorUI {
         Inventory playerInventory = holder.player.getInventory();
 
         UIElement root = new UIElement()
-                .layout(layout -> layout.width(WIDTH).height(HEIGHT))
+                .layout(layout -> layout.width(WIDTH).height(HEIGHT));
+        root.addChild(new UIElement()
                 .style(style -> style.backgroundTexture(
-                        SpriteTexture.of(TEXTURE).setSprite(0, 0, WIDTH, HEIGHT)));
+                        SpriteTexture.of(TEXTURE).setSprite(0, 0, PANEL_WIDTH, HEIGHT)))
+                .setAllowHitTest(false)
+                .layout(layout -> layout.positionType(TaffyPosition.ABSOLUTE)
+                        .left(0).top(0).width(PANEL_WIDTH).height(HEIGHT)));
 
         root.addChild(tank(host, COOLANT_X, true));
         root.addChild(tank(host, SOLUTION_X, false));
 
-        // The core goes in the oversized 24x24 box, the catalyst in the small one beside it.
+        // The core goes in the oversized 26x26 box, the catalyst in the small one beside it.
         root.addChild(place(new WideCell(new CoreSlot(host.getInputInventory().toContainer(), 0), CORE_PADDING),
                 CORE_X, CORE_Y, CORE_PADDING));
         root.addChild(slot(new PlainSlot(host.getCatalystInventory().toContainer(), 0),
                 CATALYST_X, CATALYST_Y, CELL_PADDING)
-                .addEventListener(com.lowdragmc.lowdraglib2.gui.ui.event.UIEvents.HOVER_TOOLTIPS, event ->
-                        event.hoverTooltips = new com.lowdragmc.lowdraglib2.gui.ui.event.HoverTooltips(
-                                java.util.List.of(net.minecraft.network.chat.Component.translatable(
+                .addEventListener(UIEvents.HOVER_TOOLTIPS, event ->
+                        event.hoverTooltips = new HoverTooltips(
+                                List.of(Component.translatable(
                                         "gui." + NeoECOPrototype.MOD_ID + ".dissociator_catalyst")),
                                 null, null, null)));
 
@@ -134,7 +205,112 @@ public final class MeteoriteDissociatorUI {
                 .layout(layout -> layout.positionType(TaffyPosition.ABSOLUTE)
                         .left(PROGRESS_X).top(PROGRESS_Y).width(PROGRESS_WIDTH).height(PROGRESS_HEIGHT)));
 
+        UIElement popup = facePopup(host, holder.player);
+        root.addChild(popupButton(GUIDE_BUTTON_X, GUIDE_BUTTON_Y,
+                TOOLBAR_BUTTON_WIDTH, TOOLBAR_BUTTON_HEIGHT,
+                toolbarTexture(GUIDE_BUTTON_X, GUIDE_BUTTON_Y),
+                sprite(TEXTURE, 224, 16, TOOLBAR_BUTTON_WIDTH, TOOLBAR_BUTTON_HEIGHT),
+                () -> openGuide(holder.player),
+                "gui.neoecoprototype.dissociator_guide", false));
+        root.addChild(popupButton(FACES_BUTTON_X, FACES_BUTTON_Y,
+                TOOLBAR_BUTTON_WIDTH, TOOLBAR_BUTTON_HEIGHT,
+                toolbarTexture(FACES_BUTTON_X, FACES_BUTTON_Y),
+                sprite(TEXTURE, 224, 48, TOOLBAR_BUTTON_WIDTH, TOOLBAR_BUTTON_HEIGHT),
+                () -> popup.setDisplay(!popup.isDisplayed()),
+                "gui.neoecoprototype.dissociator_faces", false));
+        root.addChild(popup);
+
         return ECOModularUI.create(root, holder.player);
+    }
+
+    private static void openGuide(Player player) {
+        GuidesCommon.openGuide(player, GUIDE_ID, PageAnchor.page(GUIDE_PAGE));
+    }
+
+    private static UIElement facePopup(MeteoriteDissociatorBlockEntity host, Player player) {
+        UIElement popup = new UIElement()
+                .style(style -> style.backgroundTexture(
+                        SpriteTexture.of(FACES_TEXTURE).setSprite(0, 0, POPUP_WIDTH, POPUP_HEIGHT)))
+                .layout(layout -> layout.positionType(TaffyPosition.ABSOLUTE)
+                        .left(POPUP_X).top(POPUP_Y).width(POPUP_WIDTH).height(POPUP_HEIGHT));
+        popup.setDisplay(false);
+        WindowDragHelper.setDragMove(popup, popup,
+                event -> event.button == 0 && event.target == popup, null);
+
+        popup.addChild(popupButton(3, 9, 17, 20,
+                sprite(FACES_TEXTURE, 122, 96, 17, 20),
+                sprite(FACES_TEXTURE, 143, 96, 17, 20),
+                () -> openGuide(player), "gui.neoecoprototype.dissociator_guide", false));
+        popup.addChild(popupButton(3, 31, 17, 20,
+                sprite(FACES_TEXTURE, 122, 121, 17, 20),
+                sprite(FACES_TEXTURE, 143, 121, 17, 20),
+                host::resetFaceModes, "gui.neoecoprototype.dissociator_faces_reset", true));
+        popup.addChild(popupButton(75, 0, 20, 20,
+                sprite(FACES_TEXTURE, 75, 0, 20, 20),
+                sprite(FACES_TEXTURE, 166, 120, 20, 20),
+                () -> popup.setDisplay(false), "gui.neoecoprototype.dissociator_faces_close", false));
+
+        popup.addChild(faceButton(host, Direction.UP, 48, 14));
+        popup.addChild(faceButton(host, Direction.NORTH, 48, 36));
+        popup.addChild(faceButton(host, Direction.WEST, 27, 36));
+        popup.addChild(faceButton(host, Direction.EAST, 69, 36));
+        popup.addChild(faceButton(host, Direction.DOWN, 48, 58));
+        popup.addChild(faceButton(host, Direction.SOUTH, 69, 58));
+        return popup;
+    }
+
+    private static IGuiTexture toolbarTexture(int x, int y) {
+        return sprite(TEXTURE, x, y, TOOLBAR_BUTTON_WIDTH, TOOLBAR_BUTTON_HEIGHT);
+    }
+
+    private static IGuiTexture sprite(ResourceLocation texture, int x, int y, int width, int height) {
+        return SpriteTexture.of(texture).setSprite(x, y, width, height);
+    }
+
+    private static Button popupButton(int x, int y, int width, int height,
+                                      IGuiTexture normal, IGuiTexture hover, Runnable action,
+                                      String tooltip, boolean server) {
+        SpriteButton button = new SpriteButton(normal, hover);
+        button.layout(layout -> layout.positionType(TaffyPosition.ABSOLUTE)
+                .left(x).top(y).width(width).height(height).paddingAll(0));
+        if (server) {
+            button.setOnServerClick(event -> action.run());
+        } else {
+            button.setOnClick(event -> action.run());
+        }
+        button.addEventListener(UIEvents.HOVER_TOOLTIPS, event ->
+                event.hoverTooltips = new HoverTooltips(
+                        List.of(Component.translatable(tooltip)), null, null, null));
+        return button;
+    }
+
+    private static Component faceName(Direction direction) {
+        if (direction == Direction.DOWN) {
+            return Component.translatable("gui.neoecoprototype.dissociator_face.down");
+        }
+        if (direction == Direction.NORTH) {
+            return Component.translatable("gui.neoecoprototype.dissociator_face.north");
+        }
+        if (direction == Direction.WEST) {
+            return Component.translatable("gui.neoecoprototype.dissociator_face.west");
+        }
+        if (direction == Direction.EAST) {
+            return Component.translatable("gui.neoecoprototype.dissociator_face.east");
+        }
+        if (direction == Direction.SOUTH) {
+            return Component.translatable("gui.neoecoprototype.dissociator_face.south");
+        }
+        return Component.translatable("gui.neoecoprototype.dissociator_face.up");
+    }
+
+    private static FaceButton faceButton(MeteoriteDissociatorBlockEntity host, Direction direction,
+                                         int x, int y) {
+        FaceButton button = new FaceButton(host, direction);
+        button.layout(layout -> layout.positionType(TaffyPosition.ABSOLUTE)
+                .left(x).top(y).width(FACE_BUTTON_WIDTH).height(FACE_BUTTON_HEIGHT));
+        button.setId("dissociator_face_" + direction.getName());
+        button.bind(DataBindingBuilder.intValS2C(() -> host.getFaceMode(direction).ordinal()).build());
+        return button;
     }
 
     /** Coolant takes fluid and gives none back; the spent bath is the other way round. */
@@ -171,7 +347,7 @@ public final class MeteoriteDissociatorUI {
     /**
      * The core cell, and the only widget that needs its own hover: {@code ItemSlot.drawHover} paints a
      * hardcoded 16x16 at the content origin -- the size is in the caller, not in the texture -- so a tint
-     * fed through {@code hoverOverlay} can never cover the 24x24 recess no matter which image is given.
+     * fed through {@code hoverOverlay} can never cover the 26x26 recess no matter which image is given.
      * Drawing from minus the padding puts the rectangle back at the cell's own corner.
      */
     private static final class WideCell extends ItemSlot {
@@ -218,6 +394,93 @@ public final class MeteoriteDissociatorUI {
         }
     }
 
+    private static final class SpriteButton extends Button {
+        private final IGuiTexture normal;
+        private final IGuiTexture hover;
+
+        private SpriteButton(IGuiTexture normal, IGuiTexture hover) {
+            this.normal = normal;
+            this.hover = hover;
+            noText();
+        }
+
+        @Override
+        public void drawBackgroundAdditional(GUIContext context) {
+            IGuiTexture texture = getState() == State.DEFAULT ? normal : hover;
+            context.drawTexture(texture, getPositionX(), getPositionY(), getSizeWidth(), getSizeHeight());
+        }
+    }
+
+    private static final class FaceButton extends Button implements IBindable<Integer> {
+        private final MeteoriteDissociatorBlockEntity host;
+        private Direction direction;
+        private FacePreviewState previewState;
+        private MeteoriteDissociatorBlockEntity.FaceMode mode =
+                MeteoriteDissociatorBlockEntity.FaceMode.INPUT;
+
+        private FaceButton(MeteoriteDissociatorBlockEntity host, Direction direction) {
+            this.host = host;
+            this.direction = direction;
+            noText();
+            setOnServerClick(event -> {
+                if (event.button == 0) {
+                    host.cycleFaceMode(direction);
+                } else if (event.button == 1) {
+                    host.setFaceMode(direction, host.getFaceMode(direction).previous());
+                }
+            });
+            addEventListener(UIEvents.HOVER_TOOLTIPS, event ->
+                    event.hoverTooltips = new HoverTooltips(List.of(faceName(direction())),
+                            null, null, null));
+            paint();
+        }
+
+        private Direction direction() {
+            if (direction == null && getId() != null && getId().startsWith("dissociator_face_")) {
+                direction = Direction.byName(getId().substring("dissociator_face_".length()));
+            }
+            return direction;
+        }
+
+        @Override
+        public Integer getValue() {
+            return mode.ordinal();
+        }
+
+        @Override
+        public IDataSource<Integer> setValue(@Nullable Integer value) {
+            int ordinal = value == null ? MeteoriteDissociatorBlockEntity.FaceMode.INPUT.ordinal() : value;
+            var values = MeteoriteDissociatorBlockEntity.FaceMode.values();
+            mode = values[Mth.clamp(ordinal, 0, values.length - 1)];
+            paint();
+            return this;
+        }
+
+        @Override
+        public void drawBackgroundAdditional(GUIContext context) {
+            super.drawBackgroundAdditional(context);
+            Direction faceDirection = direction();
+            if (facePreviewRenderer != null && faceDirection != null) {
+                if (previewState == null) {
+                    previewState = new FacePreviewState();
+                }
+                facePreviewRenderer.draw(context, faceDirection, previewState,
+                        getPositionX() + 2, getPositionY() + 3);
+            }
+        }
+
+        private void paint() {
+            IGuiTexture normal = SpriteTexture.of(FACE_STATES_TEXTURE)
+                    .setSprite(mode.ordinal() * FACE_BUTTON_WIDTH, 0,
+                            FACE_BUTTON_WIDTH, FACE_BUTTON_HEIGHT);
+            IGuiTexture hover = SpriteTexture.of(FACE_STATES_TEXTURE)
+                    .setSprite((mode.ordinal() + MeteoriteDissociatorBlockEntity.FaceMode.values().length)
+                                    * FACE_BUTTON_WIDTH, 0,
+                            FACE_BUTTON_WIDTH, FACE_BUTTON_HEIGHT);
+            buttonStyle(style -> style.baseTexture(normal).hoverTexture(hover).pressedTexture(hover));
+        }
+    }
+
     /** The groove filled from the bottom. The art draws the empty groove; this only paints the level. */
     private static final class ProgressBar extends UIElement implements IBindable<Float> {
         private float value;
@@ -235,14 +498,16 @@ public final class MeteoriteDissociatorUI {
 
         @Override
         public void drawContents(GUIContext guiContext) {
-            int filled = Mth.floor(PROGRESS_HEIGHT * value);
+            int filled = Mth.ceil(PROGRESS_HEIGHT * value);
             if (filled <= 0) {
                 return;
             }
             int x = Mth.floor(getPositionX());
             int y = Mth.floor(getPositionY());
-            guiContext.graphics.fill(x, y + PROGRESS_HEIGHT - filled, x + PROGRESS_WIDTH,
-                    y + PROGRESS_HEIGHT, PROGRESS_COLOR);
+            IGuiTexture fill = SpriteTexture.of(TEXTURE).setSprite(PROGRESS_ATLAS_X,
+                    PROGRESS_ATLAS_Y + PROGRESS_HEIGHT - filled, PROGRESS_WIDTH, filled);
+            guiContext.drawTexture(fill, x, y + PROGRESS_HEIGHT - filled,
+                    PROGRESS_WIDTH, filled);
         }
     }
 }

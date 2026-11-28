@@ -11,6 +11,7 @@ import cn.dancingsnow.neoecoae.api.ECOComputationModels;
 import cn.dancingsnow.neoecoae.client.rendering.FixedBlockEntityRenderers;
 import cn.dancingsnow.neoecoprototype.integration.kubejs.InfiniteMatrixClientModels;
 import cn.dancingsnow.neoecoprototype.NeoECOPrototype;
+import cn.dancingsnow.neoecoprototype.blockentity.dissociation.MeteoriteDissociatorUI;
 import cn.dancingsnow.neoecoprototype.client.model.SimplifyCoolingControllerBakedModel;
 import cn.dancingsnow.neoecoprototype.client.renderer.blockentity.EnergizedMEChestRenderer;
 import cn.dancingsnow.neoecoprototype.client.renderer.blockentity.GiantPlushieRenderer;
@@ -135,6 +136,7 @@ public final class NeoECOPrototypeClient {
 
     @SubscribeEvent
     public static void onClientSetup(FMLClientSetupEvent event) {
+        MeteoriteDissociatorUI.setFacePreviewRenderer(MeteoriteDissociatorFacePreview::draw);
         // 每档一格模型：1M 以下用 l0_*（drive/cell_*_lower 那组贴图，等级灯按档位往上数第几格），1M 用
         // l1_*，4M 是同一几何只把等级灯换成会闪的 cell_level_4m。以前一个介质共用一张，现在各拿自己的。
         ECOCellModels.register(ModRegistration.SIMPLIFY_ITEM_CELL_1K.get(), cellModel("l0_item_1k"));

@@ -319,13 +319,16 @@ public class NeoECOPrototype {
         registerNodeHost(event, ModRegistration.COMMUNICATION_CORE_BE.get());
         event.registerBlockEntity(Capabilities.EnergyStorage.BLOCK,
                 ModRegistration.METEORITE_DISSOCIATOR_BE.get(),
-                (blockEntity, side) -> blockEntity.getEnergyStorage());
+                (blockEntity, side) -> blockEntity.getEnergyStorage(side));
         event.registerBlockEntity(Capabilities.EnergyStorage.BLOCK,
                 ModRegistration.ENERGIZED_ME_CHEST_BE.get(),
                 (blockEntity, side) -> blockEntity.getEnergyStorage(side));
         event.registerBlockEntity(Capabilities.FluidHandler.BLOCK,
                 ModRegistration.METEORITE_DISSOCIATOR_BE.get(),
-                (blockEntity, side) -> blockEntity.getFluidInterface());
+                (blockEntity, side) -> blockEntity.getFluidInterface(side));
+        event.registerBlockEntity(Capabilities.ItemHandler.BLOCK,
+                ModRegistration.METEORITE_DISSOCIATOR_BE.get(),
+                (blockEntity, side) -> blockEntity.getItemInterface(side));
         // A Mekanism transporter asks Capabilities.ItemHandler.BLOCK and references nothing in appeng, so
         // it can only reach an interface through AE2's generic-adapter hook - which wraps whichever blocks
         // answer GENERIC_INTERNAL_INV, keyed on the block entity type. Both of our interfaces carry their

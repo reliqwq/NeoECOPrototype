@@ -143,7 +143,10 @@ public final class ProcessorAssemblyWorkstationSupport {
      * @return null for anything that is not our recipe, which never happens through our own registration
      */
     static LargeWorkstationRecipe adapt(RecipeHolder<?> recipe) {
-        if (!(recipe.value() instanceof ProcessorAssemblerRecipe processor)) return null;
+        if (!(recipe.value() instanceof ProcessorAssemblerRecipe processor)
+                || !cn.dancingsnow.neoecoprototype.recipe.ProcessorAssemblerRecipes.isL1Recipe(recipe.id())) {
+            return null;
+        }
         List<SizedIngredient> inputs = new ArrayList<>(processor.ingredients().size());
         for (Ingredient ingredient : processor.ingredients()) {
             if (ingredient.isEmpty()) {

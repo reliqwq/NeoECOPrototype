@@ -89,7 +89,7 @@ public final class NeoECOPrototypeEmiPlugin implements EmiPlugin {
             if (!isShown(holder.value())) {
                 continue;
             }
-            if (!holder.id().getPath().startsWith("derived/inscriber/")) {
+            if (cn.dancingsnow.neoecoprototype.recipe.ProcessorAssemblerRecipes.isL1Recipe(holder.id())) {
                 registry.addRecipe(new ProcessorAssemblerEmiRecipe(PROCESSOR_ASSEMBLER, holder.id(),
                         holder.value(), holder));
             }

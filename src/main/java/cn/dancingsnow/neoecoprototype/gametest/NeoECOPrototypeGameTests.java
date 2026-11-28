@@ -54,6 +54,7 @@ import cn.dancingsnow.neoecoprototype.block.music.MusicJukeboxBlock;
 import cn.dancingsnow.neoecoprototype.block.storage.SimplifyStorageControllerBlock;
 import cn.dancingsnow.neoecoprototype.blockentity.crafting.SimplifyPoweredMEInterfaceBlockEntity;
 import cn.dancingsnow.neoecoprototype.blockentity.crafting.SimplifySuperconductiveInterfaceBlockEntity;
+import cn.dancingsnow.neoecoprototype.blockentity.dissociation.MeteoriteDissociatorBlockEntity;
 import cn.dancingsnow.neoecoprototype.blockentity.music.MusicJukeboxBlockEntity;
 import cn.dancingsnow.neoecoprototype.blockentity.music.MusicRecorderBlockEntity;
 import cn.dancingsnow.neoecoprototype.blockentity.storage.SimplifyEnergyCellBlockEntity;
@@ -130,6 +131,7 @@ import java.util.function.BooleanSupplier;
 import java.util.regex.Pattern;
 import javax.annotation.Nullable;
 import net.neoforged.fml.ModList;
+import net.neoforged.neoforge.fluids.capability.IFluidHandler;
 import net.neoforged.neoforge.gametest.GameTestHolder;
 import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 
@@ -3679,6 +3681,46 @@ public final class NeoECOPrototypeGameTests {
         }
         if (ec9.getCurrentPattern() != pattern) {
             helper.fail("the EC9 accepted the derived job without installing it");
+            return;
+        }
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty", batch = "processor_assembler", timeoutTicks = 100,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void structureExpansionCardRunsOnTheEc9Only(GameTestHelper helper) {
+        var id = NeoECOPrototype.id("ec9_processor_assembler/structure_expansion_card");
+        var holder = helper.getLevel().getRecipeManager().byKey(id).orElse(null);
+        if (!(holder instanceof RecipeHolder<?> loaded)
+                || !(loaded.value() instanceof ProcessorAssemblerRecipe recipe)) {
+            helper.fail("the ECOP structure expansion card is not loaded as an assembler recipe");
+            return;
+        }
+        if (!recipe.result().is(ModRegistration.SIMPLIFY_STRUCTURE_EXPANSION_CARD.get())) {
+            helper.fail("the EC9-only recipe does not produce the ECOP structure expansion card");
+            return;
+        }
+        var inputs = new java.util.ArrayList<HandmadeInput>();
+        for (Ingredient ingredient : recipe.ingredients()) {
+            var choices = ingredient.getItems();
+            if (choices.length == 0) {
+                helper.fail("the ECOP recipe has an empty ingredient");
+                return;
+            }
+            inputs.add(new HandmadeInput(1, new GenericStack(AEItemKey.of(choices[0]), 1)));
+        }
+        var outputs = new java.util.ArrayList<GenericStack>();
+        outputs.add(new GenericStack(AEItemKey.of(recipe.result()), recipe.result().getCount()));
+        var pattern = new HandmadePattern(choices0Of(recipe), inputs, outputs);
+
+        if (cn.dancingsnow.neoecoprototype.recipe.ProcessorAssemblerRecipes
+                .resolve(helper.getLevel(), pattern, false) != null) {
+            helper.fail("the L1 assembler resolve answered the EC9-only ECOP recipe");
+            return;
+        }
+        if (cn.dancingsnow.neoecoprototype.recipe.ProcessorAssemblerRecipes
+                .resolve(helper.getLevel(), pattern, true) == null) {
+            helper.fail("the EC9 assembler resolve refused the ECOP recipe");
             return;
         }
         helper.succeed();
@@ -8782,6 +8824,38 @@ public final class NeoECOPrototypeGameTests {
             var player = helper.makeMockPlayer(net.minecraft.world.level.GameType.SURVIVAL);
             var holder = new com.lowdragmc.lowdraglib2.gui.factory.BlockUIMenuType.BlockUIHolder(
                     blockUI, player, absolute, state);
+            try (var stream = NeoECOPrototype.class.getResourceAsStream(
+                    "/assets/neoecoprototype/textures/gui/meteorite_dissociator_face_states.png")) {
+                if (stream == null) {
+                    helper.fail("the dissociator face-state atlas is missing from the classpath");
+                    return;
+                }
+                var image = javax.imageio.ImageIO.read(stream);
+                if (image == null || image.getWidth() != 144 || image.getHeight() != 20) {
+                    helper.fail("the dissociator face-state atlas must be 144x20, not "
+                            + (image == null ? "unreadable" : image.getWidth() + "x" + image.getHeight()));
+                    return;
+                }
+                for (int row = 0; row < 2; row++) {
+                    for (int mode = 0; mode < 4; mode++) {
+                        int bottom = image.getRGB(row * 72 + mode * 18 + 8, 19);
+                        if ((bottom >>> 24) == 0) {
+                            helper.fail("face-state row " + row + " mode " + mode
+                                    + " has a transparent bottom edge");
+                            return;
+                        }
+                        if (bottom != 0xFF_41_3F_54) {
+                            helper.fail("face-state row " + row + " mode " + mode
+                                    + " misses the source sprite's dark bottom border: "
+                                    + String.format("#%08X", bottom));
+                            return;
+                        }
+                    }
+                }
+            } catch (java.io.IOException failure) {
+                helper.fail("reading the dissociator face-state atlas threw " + failure);
+                return;
+            }
             try {
                 if (blockUI.createUI(holder) == null) {
                     helper.fail("right-clicking the dissociator would hand LDLib a null UI");
@@ -15603,7 +15677,9 @@ public final class NeoECOPrototypeGameTests {
         var expected = new java.util.TreeSet<String>();
         for (var holder : helper.getLevel().getRecipeManager().getAllRecipesFor(
                 ModRegistration.PROCESSOR_ASSEMBLER_RECIPE_TYPE.get())) {
-            expected.add(holder.id().toString());
+            if (cn.dancingsnow.neoecoprototype.recipe.ProcessorAssemblerRecipes.isL1Recipe(holder.id())) {
+                expected.add(holder.id().toString());
+            }
         }
         if (expected.isEmpty()) {
             helper.fail("no processor-assembler recipe loaded in this world, so this guard would pass an empty"
@@ -22430,6 +22506,257 @@ public final class NeoECOPrototypeGameTests {
         if (produced != 0) {
             helper.fail("the machine yielded " + produced + " item(s) without coolant");
             return;
+        }
+        helper.succeed();
+    }
+
+    /** A fresh machine is input-only on every face, and the popup's cycle/reset controls are exact. */
+    @GameTest(template = "empty", batch = "dissociator_faces", timeoutTicks = 100,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void dissociatorFaceModesDefaultCycleAndReset(GameTestHelper helper) {
+        var plotPos = new BlockPos(0, 1, 0);
+        helper.setBlock(plotPos, ModRegistration.METEORITE_DISSOCIATOR_BLOCK.get());
+        var level = helper.getLevel();
+        if (!(level.getBlockEntity(helper.absolutePos(plotPos))
+                instanceof cn.dancingsnow.neoecoprototype.blockentity.dissociation
+                .MeteoriteDissociatorBlockEntity machine)) {
+            helper.fail("the dissociator block placed without a block entity of its own type");
+            return;
+        }
+        var modes = MeteoriteDissociatorBlockEntity.FaceMode.values();
+        var input = MeteoriteDissociatorBlockEntity.FaceMode.INPUT;
+        var output = MeteoriteDissociatorBlockEntity.FaceMode.OUTPUT;
+        var both = MeteoriteDissociatorBlockEntity.FaceMode.BOTH;
+        var none = MeteoriteDissociatorBlockEntity.FaceMode.NONE;
+        for (Direction direction : Direction.values()) {
+            if (machine.getFaceMode(direction) != input) {
+                helper.fail("a fresh " + direction + " face is " + machine.getFaceMode(direction)
+                        + ", not the documented INPUT default");
+                return;
+            }
+        }
+        machine.cycleFaceMode(Direction.NORTH);
+        if (machine.getFaceMode(Direction.NORTH) != output) {
+            helper.fail("the first click on an INPUT face produced "
+                    + machine.getFaceMode(Direction.NORTH) + " instead of OUTPUT");
+            return;
+        }
+        machine.cycleFaceMode(Direction.NORTH);
+        if (machine.getFaceMode(Direction.NORTH) != both) {
+            helper.fail("the second click on an INPUT face produced "
+                    + machine.getFaceMode(Direction.NORTH) + " instead of BOTH");
+            return;
+        }
+        machine.cycleFaceMode(Direction.NORTH);
+        if (machine.getFaceMode(Direction.NORTH) != none) {
+            helper.fail("the third click on an INPUT face produced "
+                    + machine.getFaceMode(Direction.NORTH) + " instead of NONE");
+            return;
+        }
+        machine.cycleFaceMode(Direction.NORTH);
+        if (machine.getFaceMode(Direction.NORTH) != input) {
+            helper.fail("the cycle did not wrap back to INPUT");
+            return;
+        }
+        machine.setFaceMode(Direction.NORTH, machine.getFaceMode(Direction.NORTH).previous());
+        if (machine.getFaceMode(Direction.NORTH) != none) {
+            helper.fail("right-clicking an INPUT face produced "
+                    + machine.getFaceMode(Direction.NORTH) + " instead of NONE");
+            return;
+        }
+        machine.setFaceMode(Direction.NORTH, machine.getFaceMode(Direction.NORTH).previous());
+        if (machine.getFaceMode(Direction.NORTH) != both) {
+            helper.fail("right-clicking a NONE face produced "
+                    + machine.getFaceMode(Direction.NORTH) + " instead of BOTH");
+            return;
+        }
+        for (Direction direction : Direction.values()) {
+            machine.setFaceMode(direction, modes[direction.ordinal() % modes.length]);
+        }
+        machine.resetFaceModes();
+        for (Direction direction : Direction.values()) {
+            if (machine.getFaceMode(direction) != none) {
+                helper.fail("reset left " + direction + " at " + machine.getFaceMode(direction));
+                return;
+            }
+        }
+        helper.succeed();
+    }
+
+    /** The popup must gate the actual item, fluid and energy capabilities, not merely recolour art. */
+    @GameTest(template = "empty", batch = "dissociator_face_capabilities", timeoutTicks = 100,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void dissociatorFaceCapabilitiesFollowTheirModes(GameTestHelper helper) {
+        var plotPos = new BlockPos(0, 1, 0);
+        helper.setBlock(plotPos, ModRegistration.METEORITE_DISSOCIATOR_BLOCK.get());
+        var level = helper.getLevel();
+        var pos = helper.absolutePos(plotPos);
+        if (!(level.getBlockEntity(pos)
+                instanceof cn.dancingsnow.neoecoprototype.blockentity.dissociation
+                .MeteoriteDissociatorBlockEntity machine)) {
+            helper.fail("the dissociator block placed without a block entity of its own type");
+            return;
+        }
+        var recipe = level.getRecipeManager()
+                .getRecipeFor(ModRegistration.DISSOCIATION_TYPE.get(),
+                        new cn.dancingsnow.neoecoprototype.recipe.DissociationRecipe.Input(
+                                new ItemStack(ModRegistration.METEORITE_CORE_ITEM.get())), level)
+                .map(holder -> holder.value()).orElse(null);
+        if (recipe == null) {
+            helper.fail("the shipped dissociation table is missing, so the fluid capability test cannot run");
+            return;
+        }
+        var modes = MeteoriteDissociatorBlockEntity.FaceMode.values();
+        var input = MeteoriteDissociatorBlockEntity.FaceMode.INPUT;
+        var output = MeteoriteDissociatorBlockEntity.FaceMode.OUTPUT;
+        var both = MeteoriteDissociatorBlockEntity.FaceMode.BOTH;
+        var none = MeteoriteDissociatorBlockEntity.FaceMode.NONE;
+        var side = Direction.NORTH;
+        var items = machine.getItemInterface(side);
+        var fluids = machine.getFluidInterface(side);
+        if (items == null || fluids == null || machine.getEnergyStorage(side) == null) {
+            helper.fail("a default INPUT face does not expose item, fluid and energy access");
+            return;
+        }
+        if (machine.getItemInterface(null) == null || machine.getFluidInterface(null) == null
+                || machine.getEnergyStorage(null) == null) {
+            helper.fail("an unspecified-side capability query has no access to the default INPUT faces");
+            return;
+        }
+        var core = new ItemStack(ModRegistration.METEORITE_CORE_ITEM.get());
+        if (!items.insertItem(0, core, false).isEmpty()
+                || machine.getInputInventory().getStackInSlot(0).isEmpty()) {
+            helper.fail("an INPUT face refused the dissociator core");
+            return;
+        }
+        machine.getOutputInventory().setItemDirect(0, new ItemStack(net.minecraft.world.item.Items.STONE));
+        if (!items.extractItem(2, 1, true).isEmpty()) {
+            helper.fail("an INPUT-only face allowed a product to be extracted");
+            return;
+        }
+        if (fluids.fill(recipe.coolant(), IFluidHandler.FluidAction.SIMULATE) <= 0
+                || !fluids.drain(recipe.solution(), IFluidHandler.FluidAction.SIMULATE).isEmpty()) {
+            helper.fail("an INPUT-only face did not allow exactly coolant filling and refuse solution draining");
+            return;
+        }
+        if (machine.getEnergyStorage(side) == null
+                || machine.getEnergyStorage(side).receiveEnergy(1_000, false) != 1_000) {
+            helper.fail("an INPUT-only face refused FE");
+            return;
+        }
+
+        machine.setFaceMode(side, output);
+        machine.getSolutionTank().setFluid(recipe.solution().copy());
+        var rejectedItem = items.insertItem(0, new ItemStack(ModRegistration.METEORITE_CORE_ITEM.get()), true);
+        var extractedItem = items.extractItem(2, 1, true);
+        int rejectedFluid = fluids.fill(recipe.coolant(), IFluidHandler.FluidAction.SIMULATE);
+        var drainedFluid = fluids.drain(recipe.solution(), IFluidHandler.FluidAction.SIMULATE);
+        if (rejectedItem.isEmpty()) {
+            helper.fail("an OUTPUT face accepted a core insertion; mode=" + machine.getFaceMode(side)
+                    + ", input=" + machine.getInputInventory().getStackInSlot(0));
+            return;
+        }
+        if (extractedItem.isEmpty()) {
+            helper.fail("an OUTPUT face refused product extraction from slot 2; output slot holds "
+                    + machine.getOutputInventory().getStackInSlot(0));
+            return;
+        }
+        if (rejectedFluid != 0) {
+            helper.fail("an OUTPUT face accepted " + rejectedFluid + " mB of coolant");
+            return;
+        }
+        if (drainedFluid.isEmpty()) {
+            helper.fail("an OUTPUT face refused to drain the solution bath");
+            return;
+        }
+        if (machine.getEnergyStorage(side) != null) {
+            helper.fail("an OUTPUT face still exposes FE input");
+            return;
+        }
+
+        machine.setFaceMode(side, both);
+        var bothItem = items.insertItem(0, new ItemStack(ModRegistration.METEORITE_CORE_ITEM.get()), true);
+        var bothExtractedItem = items.extractItem(2, 1, true);
+        int bothFluid = fluids.fill(recipe.coolant(), IFluidHandler.FluidAction.SIMULATE);
+        var bothDrainedFluid = fluids.drain(recipe.solution(), IFluidHandler.FluidAction.SIMULATE);
+        if (!bothItem.isEmpty()) {
+            helper.fail("a BOTH face refused core insertion");
+            return;
+        }
+        if (bothExtractedItem.isEmpty()) {
+            helper.fail("a BOTH face refused product extraction");
+            return;
+        }
+        if (bothFluid <= 0) {
+            helper.fail("a BOTH face refused coolant filling");
+            return;
+        }
+        if (bothDrainedFluid.isEmpty()) {
+            helper.fail("a BOTH face refused solution draining");
+            return;
+        }
+        if (machine.getEnergyStorage(side) == null) {
+            helper.fail("a BOTH face does not expose FE input");
+            return;
+        }
+
+        machine.setFaceMode(side, none);
+        if (machine.getItemInterface(side) != null || machine.getFluidInterface(side) != null
+                || machine.getEnergyStorage(side) != null) {
+            helper.fail("a NONE face still exposes an automation capability");
+            return;
+        }
+        machine.resetFaceModes();
+        if (machine.getItemInterface(null) != null || machine.getFluidInterface(null) != null
+                || machine.getEnergyStorage(null) != null) {
+            helper.fail("an unspecified-side query still finds a capability after every face was reset to NONE");
+            return;
+        }
+        helper.succeed();
+    }
+
+    /** Face choices are save data, and an old save without the new field keeps the blue INPUT default. */
+    @GameTest(template = "empty", batch = "dissociator_face_persistence", timeoutTicks = 100,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void dissociatorFaceModesSurviveSaveLoad(GameTestHelper helper) {
+        var plotPos = new BlockPos(0, 1, 0);
+        helper.setBlock(plotPos, ModRegistration.METEORITE_DISSOCIATOR_BLOCK.get());
+        var level = helper.getLevel();
+        var pos = helper.absolutePos(plotPos);
+        if (!(level.getBlockEntity(pos)
+                instanceof cn.dancingsnow.neoecoprototype.blockentity.dissociation
+                .MeteoriteDissociatorBlockEntity machine)) {
+            helper.fail("the dissociator block placed without a block entity of its own type");
+            return;
+        }
+        var modes = MeteoriteDissociatorBlockEntity.FaceMode.values();
+        var expected = new java.util.EnumMap<Direction, MeteoriteDissociatorBlockEntity.FaceMode>(
+                Direction.class);
+        for (Direction direction : Direction.values()) {
+            var selected = modes[direction.ordinal() % modes.length];
+            expected.put(direction, selected);
+            machine.setFaceMode(direction, selected);
+        }
+        var tag = new net.minecraft.nbt.CompoundTag();
+        machine.saveAdditional(tag, level.registryAccess());
+        machine.resetFaceModes();
+        machine.loadTag(tag, level.registryAccess());
+        for (Direction direction : Direction.values()) {
+            if (machine.getFaceMode(direction) != expected.get(direction)) {
+                helper.fail(direction + " restored as " + machine.getFaceMode(direction)
+                        + " instead of " + expected.get(direction));
+                return;
+            }
+        }
+        tag.remove("dissociator_face_modes");
+        machine.loadTag(tag, level.registryAccess());
+        var input = MeteoriteDissociatorBlockEntity.FaceMode.INPUT;
+        for (Direction direction : Direction.values()) {
+            if (machine.getFaceMode(direction) != input) {
+                helper.fail("an old save without face data restored " + direction + " as "
+                        + machine.getFaceMode(direction) + " instead of INPUT");
+                return;
+            }
         }
         helper.succeed();
     }

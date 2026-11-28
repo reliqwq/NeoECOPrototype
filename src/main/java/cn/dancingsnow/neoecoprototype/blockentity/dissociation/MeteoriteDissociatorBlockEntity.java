@@ -11,6 +11,7 @@ import cn.dancingsnow.neoecoprototype.NeoECOPrototype;
 import cn.dancingsnow.neoecoprototype.recipe.DissociationRecipe;
 import cn.dancingsnow.neoecoprototype.registration.ModRegistration;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.util.Mth;
@@ -29,6 +30,7 @@ import net.neoforged.neoforge.energy.EnergyStorage;
 import net.neoforged.neoforge.fluids.FluidStack;
 import net.neoforged.neoforge.fluids.capability.IFluidHandler;
 import net.neoforged.neoforge.fluids.capability.templates.FluidTank;
+import net.neoforged.neoforge.items.IItemHandler;
 
 import javax.annotation.Nullable;
 import java.util.Map;
@@ -46,6 +48,30 @@ import java.util.Map;
  */
 public class MeteoriteDissociatorBlockEntity extends AENetworkedBlockEntity
         implements InternalInventoryHost {
+
+    /** What automation may do through one block face. */
+    public enum FaceMode {
+        NONE,
+        INPUT,
+        OUTPUT,
+        BOTH;
+
+        public boolean acceptsInput() {
+            return this == INPUT || this == BOTH;
+        }
+
+        public boolean acceptsOutput() {
+            return this == OUTPUT || this == BOTH;
+        }
+
+        public FaceMode next() {
+            return values()[(ordinal() + 1) % values().length];
+        }
+
+        public FaceMode previous() {
+            return values()[(ordinal() + values().length - 1) % values().length];
+        }
+    }
 
     public static final int OUTPUT_SLOTS = DissociationRecipe.MAX_PRODUCTS;
     /** Both baths are this big, so one full run's worth fits {@value} / 5 000 = ten times over. */
@@ -65,10 +91,16 @@ public class MeteoriteDissociatorBlockEntity extends AENetworkedBlockEntity
     private static final String PROGRESS_TAG = "dissociator_progress";
     private static final String TOTAL_TAG = "dissociator_total_progress";
     private static final String RECIPE_TAG = "dissociator_table";
+    private static final String FACE_MODES_TAG = "dissociator_face_modes";
 
     private final AppEngInternalInventory input = new AppEngInternalInventory(this, 1);
     private final AppEngInternalInventory catalyst = new AppEngInternalInventory(this, 1);
     private final AppEngInternalInventory outputs = new AppEngInternalInventory(this, OUTPUT_SLOTS);
+    private final IItemHandler[] itemInterfaces = new IItemHandler[Direction.values().length];
+    private final IFluidHandler[] fluidInterfaces = new IFluidHandler[Direction.values().length];
+    private final IItemHandler unsidedItemInterface;
+    private final IFluidHandler unsidedFluidInterface;
+    private final FaceMode[] faceModes = new FaceMode[Direction.values().length];
 
     private final FluidTank coolantTank = new FluidTank(TANK_CAPACITY, this::isCoolant);
     private final FluidTank solutionTank = new FluidTank(TANK_CAPACITY, this::isSolution);
@@ -88,6 +120,13 @@ public class MeteoriteDissociatorBlockEntity extends AENetworkedBlockEntity
         for (int slot = 0; slot < OUTPUT_SLOTS; slot++) {
             outputs.setMaxStackSize(slot, DissociationRecipe.MAX_PRODUCTS * 64);
         }
+        for (Direction direction : Direction.values()) {
+            faceModes[direction.ordinal()] = FaceMode.INPUT;
+            itemInterfaces[direction.ordinal()] = new SidedItemHandler(direction);
+            fluidInterfaces[direction.ordinal()] = new SidedFluidHandler(direction);
+        }
+        unsidedItemInterface = new SidedItemHandler(null);
+        unsidedFluidInterface = new SidedFluidHandler(null);
     }
 
     /**
@@ -262,6 +301,80 @@ public class MeteoriteDissociatorBlockEntity extends AENetworkedBlockEntity
         return new CatalystBonus(100, 100);
     }
 
+    // ==================== face configuration ====================
+
+    public FaceMode getFaceMode(Direction direction) {
+        return faceModes[direction.ordinal()];
+    }
+
+    public void setFaceMode(Direction direction, FaceMode mode) {
+        int index = direction.ordinal();
+        if (faceModes[index] == mode) {
+            return;
+        }
+        faceModes[index] = mode;
+        setChanged();
+        markForClientUpdate();
+    }
+
+    public void cycleFaceMode(Direction direction) {
+        setFaceMode(direction, getFaceMode(direction).next());
+    }
+
+    public void resetFaceModes() {
+        boolean changed = false;
+        for (int index = 0; index < faceModes.length; index++) {
+            if (faceModes[index] != FaceMode.NONE) {
+                faceModes[index] = FaceMode.NONE;
+                changed = true;
+            }
+        }
+        if (changed) {
+            setChanged();
+            markForClientUpdate();
+        }
+    }
+
+    private static FaceMode faceMode(int ordinal) {
+        FaceMode[] values = FaceMode.values();
+        return ordinal >= 0 && ordinal < values.length ? values[ordinal] : FaceMode.INPUT;
+    }
+
+    private boolean anyFaceAcceptsInput() {
+        for (FaceMode mode : faceModes) {
+            if (mode.acceptsInput()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean anyFaceAcceptsOutput() {
+        for (FaceMode mode : faceModes) {
+            if (mode.acceptsOutput()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean anyFaceIsOpen() {
+        for (FaceMode mode : faceModes) {
+            if (mode != FaceMode.NONE) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean acceptsInput(@Nullable Direction side) {
+        return side == null ? anyFaceAcceptsInput() : getFaceMode(side).acceptsInput();
+    }
+
+    private boolean acceptsOutput(@Nullable Direction side) {
+        return side == null ? anyFaceAcceptsOutput() : getFaceMode(side).acceptsOutput();
+    }
+
     // ==================== tanks ====================
 
     public FluidTank getCoolantTank() {
@@ -274,6 +387,11 @@ public class MeteoriteDissociatorBlockEntity extends AENetworkedBlockEntity
 
     public EnergyStorage getEnergyStorage() {
         return energy;
+    }
+
+    @Nullable
+    public EnergyStorage getEnergyStorage(@Nullable Direction side) {
+        return acceptsInput(side) ? energy : null;
     }
 
     /**
@@ -322,6 +440,58 @@ public class MeteoriteDissociatorBlockEntity extends AENetworkedBlockEntity
         return fluidInterface;
     }
 
+    @Nullable
+    public IFluidHandler getFluidInterface(@Nullable Direction side) {
+        if (side == null) {
+            return anyFaceIsOpen() ? unsidedFluidInterface : null;
+        }
+        return getFaceMode(side) == FaceMode.NONE ? null : fluidInterfaces[side.ordinal()];
+    }
+
+    private final class SidedFluidHandler implements IFluidHandler {
+        @Nullable
+        private final Direction side;
+
+        private SidedFluidHandler(Direction side) {
+            this.side = side;
+        }
+
+        @Override
+        public int getTanks() {
+            return fluidInterface.getTanks();
+        }
+
+        @Override
+        public FluidStack getFluidInTank(int tank) {
+            return fluidInterface.getFluidInTank(tank);
+        }
+
+        @Override
+        public int getTankCapacity(int tank) {
+            return fluidInterface.getTankCapacity(tank);
+        }
+
+        @Override
+        public boolean isFluidValid(int tank, FluidStack stack) {
+            return acceptsInput(side) && fluidInterface.isFluidValid(tank, stack);
+        }
+
+        @Override
+        public int fill(FluidStack resource, FluidAction action) {
+            return acceptsInput(side) ? fluidInterface.fill(resource, action) : 0;
+        }
+
+        @Override
+        public FluidStack drain(FluidStack resource, FluidAction action) {
+            return acceptsOutput(side) ? fluidInterface.drain(resource, action) : FluidStack.EMPTY;
+        }
+
+        @Override
+        public FluidStack drain(int maxDrain, FluidAction action) {
+            return acceptsOutput(side) ? fluidInterface.drain(maxDrain, action) : FluidStack.EMPTY;
+        }
+    }
+
     /**
      * A bath accepts only a fluid some table actually names, so a pipe cannot fill the coolant side with
      * lava and leave the machine holding something no run will ever consume.
@@ -366,6 +536,70 @@ public class MeteoriteDissociatorBlockEntity extends AENetworkedBlockEntity
         return outputs;
     }
 
+    @Nullable
+    public IItemHandler getItemInterface(@Nullable Direction side) {
+        if (side == null) {
+            return anyFaceIsOpen() ? unsidedItemInterface : null;
+        }
+        return getFaceMode(side) == FaceMode.NONE ? null : itemInterfaces[side.ordinal()];
+    }
+
+    private final class SidedItemHandler implements IItemHandler {
+        private static final int INPUT_SLOTS = 2;
+        @Nullable
+        private final Direction side;
+
+        private SidedItemHandler(Direction side) {
+            this.side = side;
+        }
+
+        private InternalInventory inventory(int slot) {
+            return slot == 0 ? input : slot == 1 ? catalyst : outputs;
+        }
+
+        private int localSlot(int slot) {
+            return slot < INPUT_SLOTS ? 0 : slot - INPUT_SLOTS;
+        }
+
+        @Override
+        public int getSlots() {
+            return INPUT_SLOTS + OUTPUT_SLOTS;
+        }
+
+        @Override
+        public ItemStack getStackInSlot(int slot) {
+            return slot >= 0 && slot < getSlots()
+                    ? inventory(slot).getStackInSlot(localSlot(slot)) : ItemStack.EMPTY;
+        }
+
+        @Override
+        public ItemStack insertItem(int slot, ItemStack stack, boolean simulate) {
+            if (!acceptsInput(side) || slot < 0 || slot >= INPUT_SLOTS || stack.isEmpty()) {
+                return stack;
+            }
+            return inventory(slot).insertItem(localSlot(slot), stack, simulate);
+        }
+
+        @Override
+        public ItemStack extractItem(int slot, int amount, boolean simulate) {
+            if (!acceptsOutput(side) || slot < INPUT_SLOTS || slot >= getSlots()) {
+                return ItemStack.EMPTY;
+            }
+            return outputs.toItemHandler().extractItem(localSlot(slot), amount, simulate);
+        }
+
+        @Override
+        public int getSlotLimit(int slot) {
+            return slot >= 0 && slot < getSlots() ? inventory(slot).getSlotLimit(localSlot(slot)) : 0;
+        }
+
+        @Override
+        public boolean isItemValid(int slot, ItemStack stack) {
+            return acceptsInput(side) && slot >= 0 && slot < INPUT_SLOTS
+                    && inventory(slot).isItemValid(localSlot(slot), stack);
+        }
+    }
+
     @Override
     public void saveChangedInventory(AppEngInternalInventory inv) {
         setChanged();
@@ -403,6 +637,11 @@ public class MeteoriteDissociatorBlockEntity extends AENetworkedBlockEntity
         tag.put(ENERGY_TAG, energy.serializeNBT(registries));
         tag.putInt(PROGRESS_TAG, progress);
         tag.putInt(TOTAL_TAG, totalProgress);
+        byte[] modes = new byte[faceModes.length];
+        for (int index = 0; index < faceModes.length; index++) {
+            modes[index] = (byte) faceModes[index].ordinal();
+        }
+        tag.putByteArray(FACE_MODES_TAG, modes);
         if (runningRecipe != null) {
             tag.putString(RECIPE_TAG, runningRecipe.toString());
         }
@@ -421,6 +660,10 @@ public class MeteoriteDissociatorBlockEntity extends AENetworkedBlockEntity
         }
         progress = tag.getInt(PROGRESS_TAG);
         totalProgress = Math.max(1, tag.getInt(TOTAL_TAG));
+        byte[] modes = tag.getByteArray(FACE_MODES_TAG);
+        for (int index = 0; index < faceModes.length; index++) {
+            faceModes[index] = index < modes.length ? faceMode(modes[index]) : FaceMode.INPUT;
+        }
         runningRecipe = tag.contains(RECIPE_TAG)
                 ? ResourceLocation.tryParse(tag.getString(RECIPE_TAG)) : null;
     }
@@ -452,6 +695,9 @@ public class MeteoriteDissociatorBlockEntity extends AENetworkedBlockEntity
         // chunk sync after the block is placed.
         FluidStack.OPTIONAL_STREAM_CODEC.encode(data, coolantTank.getFluid());
         FluidStack.OPTIONAL_STREAM_CODEC.encode(data, solutionTank.getFluid());
+        for (FaceMode mode : faceModes) {
+            data.writeByte((byte) mode.ordinal());
+        }
     }
 
     @Override
@@ -463,6 +709,13 @@ public class MeteoriteDissociatorBlockEntity extends AENetworkedBlockEntity
                 || !FluidStack.isSameFluidSameComponents(solution, solutionTank.getFluid());
         coolantTank.setFluid(coolant);
         solutionTank.setFluid(solution);
+        for (int index = 0; index < faceModes.length; index++) {
+            FaceMode mode = faceMode(data.readByte());
+            if (faceModes[index] != mode) {
+                faceModes[index] = mode;
+                changed = true;
+            }
+        }
         return changed || fluidsChanged;
     }
 

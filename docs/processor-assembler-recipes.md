@@ -144,7 +144,7 @@ neoecoae:energized_superconductive_ingot + #c:silicon + neoecoae:crystal_matrix
 
 过载处理器另外还有一条从压印器推导出来的路径（`ae2lt:overload_circuit_board + 红石 + 硅`），两条都能用：机器是按样板里的原料去对配方的，两条各自对得上自己的原料，不冲突。
 
-其余九条——这台机器同样是本模组的通用装配台，并不只做处理器：
+其余九条——这台机器同样是本模组的通用装配台，并不只做处理器（结构扩容卡仅由 L1-EC9 制作）：
 
 ```text
 neoecoprototype:simplify_computation_cell_1m ×2 + neoecoprototype:simplify_storage_component_4m
@@ -163,7 +163,7 @@ minecraft:snowball ×3 + minecraft:bucket
     -> minecraft:powder_snow_bucket
 
 ae2:memory_card + #c:ingots/aluminum + neoecoprototype:simplify_green_crystal_matrix
-    -> neoecoprototype:simplify_structure_expansion_card
+    -> neoecoprototype:simplify_structure_expansion_card    （仅 L1-EC9）
 
 neoecoprototype:simplify_storage_controller + neoecoprototype:simplify_computation_system
     + neoecoprototype:simplify_crafting_system
@@ -203,6 +203,8 @@ minecraft:pink_dye + minecraft:dried_kelp + minecraft:brown_mushroom
 ```
 
 数组可以是 3 项也可以是 4 项（§6 里的 `snow_block` 与 `simplify_powered_me_interface` 就是 4 项）；同一材料写几条相同的 ingredient 就表示要几份。
+
+普通配方放在 `recipe/processor_assembler/`，两台装配室都能做；只给 L1-EC9 的配方放在 `recipe/ec9_processor_assembler/`，L1 装配室、L1 集成工作站升级卡和 L1 的 JEI/EMI 页面都不会列出它。
 
 ## 8. KubeJS 写法
 

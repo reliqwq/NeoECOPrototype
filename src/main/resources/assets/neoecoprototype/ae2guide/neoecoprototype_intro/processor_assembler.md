@@ -37,12 +37,11 @@ The five processors (the overload processor needs AE2 Lightning Tech; other pres
 | Superconducting Processor | Energized Superconductive Ingot + silicon + Crystal Matrix |
 | Overload Processor (AE2 Lightning Tech) | silicon + redstone dust + Overload Crystal |
 
-The other eight:
+The other seven:
 
 | Output | Ingredients |
 |--------|-------------|
 | [L1 Powered ME Interface](powered_interface.md) | 2 Crystal Resonance Generators + 1 ME Interface + 1 Superconducting Processor |
-| ECOP - Structure Expansion Card | Memory Card + Aluminum Ingot + Green Crystal Matrix |
 | Energized Reinforced Threading Core | 2 ECO - CM4A Threading Cores + 1 ECO - C1 Computation Substructure Casing |
 | ECO - CE1R Flash Crystal Array | 2 ECO - CE1 Flash Crystal Arrays + 1 ECO - L4 Storage Component |
 | Snowball / powder snow | 4 snow blocks → 16 snowballs; 3 snowballs → 1000 mB liquid powder snow; 3 snowballs + 1 bucket → powder snow bucket |
@@ -76,7 +75,7 @@ The **L1-EC9** is the assembler's big sibling, made in a crafting table from 1 L
 
 <RecipeFor id="neoecoprototype:ec9_processor_assembler" />
 
-It runs the **same recipe family, batched**: a 64x pattern processes 64 sets in one cycle (bounded by the same server config), and it is the only machine that runs the **inscriber-derived recipes** - every press recipe another mod adds to AE2's inscriber, with no data file. Everything else about it matches the L1 machine above: same cards, same network plumbing, same fluid-into-network delivery.
+It runs the **same recipe family, batched**: a 64x pattern processes 64 sets in one cycle (bounded by the same server config), and it is the only machine that runs the **inscriber-derived recipes** - every press recipe another mod adds to AE2's inscriber, with no data file. It also owns the **ECOP - Structure Expansion Card** recipe (Memory Card + Aluminum Ingot + Green Crystal Matrix), which the L1 assembler and the L1 workstation module refuse. Everything else about it matches the L1 machine above: same cards, same network plumbing, same fluid-into-network delivery.
 
 ## L1 Pattern Provider
 
