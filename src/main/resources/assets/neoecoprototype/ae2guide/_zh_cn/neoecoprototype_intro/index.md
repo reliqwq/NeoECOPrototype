@@ -14,7 +14,7 @@ Neo ECO Prototype 把 Neo ECO AE Extension 的后期内容带到 **L1 前期**�
 |----------|----------|
 | 建一套前期就能用的存储网络 | [L1 存储系统](storage_system.md)（矩阵挂进网络，自带能量缓冲） |
 | 一台机器放 AE2 磁盘或 eco 矩阵 | [盈能 ME箱子](energized_me_chest.md)（带缓存、元件槽和网络终端） |
-| 拆解陨石核心 | [陨石核心解离器](meteorite_dissociator.md)（输入流体、按权重产出，可配置自动化面） |
+| 拆解盈能福鲁伊克斯水晶块 | [陨石核心解离器](meteorite_dissociator.md)（输入流体、按权重产出，可配置自动化面） |
 | 用样板自动化处理器 | [L1 处理器装配室](processor_assembler.md)（前期没有压印器也能做出处理器） |
 | 用 eco 的大型集成工作站跑我们的处理器配方 | [L1装配室集成工作站升级卡](processor_assembly_card.md)（同一族配方搬到工作站上，样板按 64 倍编码） |
 | 把 AE2 供应器与接口升级到 L1 | [AE2 → L1 升级卡](ae2_upgrade_cards.md)（方块和线缆部件均可转换，并保留数据） |

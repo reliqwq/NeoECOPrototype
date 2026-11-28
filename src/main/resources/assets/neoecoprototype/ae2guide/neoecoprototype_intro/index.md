@@ -14,7 +14,7 @@ If you have never used eco: think of these as **longer-buildable AE2 versions wi
 |---------------|----------------|
 | A storage network you can build early | [L1 Storage System](storage_system.md) - matrices on the network, with its own energy buffer |
 | One block for an AE2 cell or eco matrix | [Energized ME Chest](energized_me_chest.md) - a buffered, single-cell network terminal |
-| Breaking down meteorite cores | [Meteorite Core Dissociator](meteorite_dissociator.md) - fluids in, weighted products out, configurable automation faces |
+| Breaking down energized fluix crystal blocks | [Meteorite Core Dissociator](meteorite_dissociator.md) - fluids in, weighted products out, configurable automation faces |
 | Automating processors from patterns | [L1 Processor Assembler](processor_assembler.md) - processors before you have an inscriber |
 | Running our processor recipes on eco's large station | [L1 Assembler Integrated Workstation Upgrade Card](processor_assembly_card.md) - the same family on eco's big station, patterns at 64x |
 | Upgrade AE2 providers and interfaces to L1 | [AE2 to L1 Upgrade Cards](ae2_upgrade_cards.md) - convert blocks or cable parts and keep their data |

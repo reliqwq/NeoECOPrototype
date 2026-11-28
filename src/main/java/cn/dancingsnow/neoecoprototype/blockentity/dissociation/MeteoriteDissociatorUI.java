@@ -162,8 +162,8 @@ public final class MeteoriteDissociatorUI {
                 .layout(layout -> layout.positionType(TaffyPosition.ABSOLUTE)
                         .left(0).top(0).width(PANEL_WIDTH).height(HEIGHT)));
 
-        root.addChild(tank(host, COOLANT_X, true));
-        root.addChild(tank(host, SOLUTION_X, false));
+        root.addChild(tank(host, COOLANT_X, false));
+        root.addChild(tank(host, SOLUTION_X, true));
 
         // The core goes in the oversized 26x26 box, the catalyst in the small one beside it.
         root.addChild(place(new WideCell(new CoreSlot(host.getInputInventory().toContainer(), 0), CORE_PADDING),
@@ -200,10 +200,21 @@ public final class MeteoriteDissociatorUI {
                     INVENTORY_X + column * 18, INVENTORY_Y + 58, CELL_PADDING));
         }
 
-        root.addChild(new ProgressBar()
-                .bind(DataBindingBuilder.floatValS2C(() -> host.progressFraction()).build())
-                .layout(layout -> layout.positionType(TaffyPosition.ABSOLUTE)
-                        .left(PROGRESS_X).top(PROGRESS_Y).width(PROGRESS_WIDTH).height(PROGRESS_HEIGHT)));
+        var progress = new ProgressBar();
+        progress.setId("dissociator_progress");
+        progress.bind(DataBindingBuilder.floatValS2C(() -> host.progressFraction()).build());
+        progress.setAllowHitTest(false);
+        root.addChild(progress.layout(layout -> layout.positionType(TaffyPosition.ABSOLUTE)
+                .left(PROGRESS_X).top(PROGRESS_Y).width(PROGRESS_WIDTH).height(PROGRESS_HEIGHT)));
+
+        UIElement progressHover = new UIElement();
+        progressHover.setId("dissociator_progress_hover");
+        progressHover.addEventListener(UIEvents.HOVER_TOOLTIPS, event ->
+                event.hoverTooltips = HoverTooltips.empty().append(
+                        Component.literal("%.0f%%".formatted(progress.getValue() * 100.0F))));
+        root.addChild(progressHover.layout(layout -> layout.positionType(TaffyPosition.ABSOLUTE)
+                .left(PROGRESS_X - 1).top(PROGRESS_Y - 1)
+                .width(PROGRESS_WIDTH + 3).height(PROGRESS_HEIGHT + 2)));
 
         UIElement popup = facePopup(host, holder.player);
         root.addChild(popupButton(GUIDE_BUTTON_X, GUIDE_BUTTON_Y,
@@ -284,6 +295,19 @@ public final class MeteoriteDissociatorUI {
         return button;
     }
 
+    private static Component faceModeName(MeteoriteDissociatorBlockEntity.FaceMode mode) {
+        if (mode == MeteoriteDissociatorBlockEntity.FaceMode.NONE) {
+            return Component.translatable("gui.neoecoprototype.dissociator_face_mode.none");
+        }
+        if (mode == MeteoriteDissociatorBlockEntity.FaceMode.INPUT) {
+            return Component.translatable("gui.neoecoprototype.dissociator_face_mode.input");
+        }
+        if (mode == MeteoriteDissociatorBlockEntity.FaceMode.OUTPUT) {
+            return Component.translatable("gui.neoecoprototype.dissociator_face_mode.output");
+        }
+        return Component.translatable("gui.neoecoprototype.dissociator_face_mode.both");
+    }
+
     private static Component faceName(Direction direction) {
         if (direction == Direction.DOWN) {
             return Component.translatable("gui.neoecoprototype.dissociator_face.down");
@@ -313,14 +337,16 @@ public final class MeteoriteDissociatorUI {
         return button;
     }
 
-    /** Coolant takes fluid and gives none back; the spent bath is the other way round. */
-    private static FluidSlot tank(MeteoriteDissociatorBlockEntity host, int x, boolean inlet) {
+    /** Both baths are inputs; neither can be pulled back into a bucket. */
+    private static FluidSlot tank(MeteoriteDissociatorBlockEntity host, int x, boolean solution) {
         FluidSlot slot = new FluidSlot()
-                .bind(inlet ? host.getCoolantTank() : host.getSolutionTank(), 0)
+                .bind(solution ? host.getSolutionTank() : host.getCoolantTank(), 0)
                 .slotStyle(style -> style.fillDirection(FillDirection.DOWN_TO_UP)
                         .hoverOverlay(new ColorRectTexture(HOVER_BLUE)))
-                .setAllowClickFilled(inlet)
-                .setAllowClickDrained(!inlet);
+                .setAllowClickFilled(false)
+                .setAllowClickDrained(true);
+        // LDLib2 names these from the tank's side: "drained" empties the held container into it.
+        slot.setId(solution ? "dissociator_solution" : "dissociator_coolant");
         slot.style(style -> style.backgroundTexture(IGuiTexture.EMPTY));
         slot.layout(layout -> layout.positionType(TaffyPosition.ABSOLUTE)
                 .left(x).top(TANK_Y).width(TANK_WIDTH).height(TANK_HEIGHT).paddingAll(0));
@@ -430,8 +456,8 @@ public final class MeteoriteDissociatorUI {
                 }
             });
             addEventListener(UIEvents.HOVER_TOOLTIPS, event ->
-                    event.hoverTooltips = new HoverTooltips(List.of(faceName(direction())),
-                            null, null, null));
+                    event.hoverTooltips = new HoverTooltips(
+                            List.of(faceName(direction()), faceModeName(mode)), null, null, null));
             paint();
         }
 

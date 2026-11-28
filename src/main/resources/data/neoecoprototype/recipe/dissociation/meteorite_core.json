@@ -1,6 +1,6 @@
 {
   "type": "neoecoprototype:dissociation",
-  "input": { "id": "neoecoprototype:meteorite_core" },
+  "input": { "id": "neoecoae:energized_fluix_crystal_block" },
   "products": {
     "ae2:sky_stone_block": 0.4,
     "ae2:sky_dust": 0.4,

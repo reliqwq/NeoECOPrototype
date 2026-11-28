@@ -8857,8 +8857,49 @@ public final class NeoECOPrototypeGameTests {
                 return;
             }
             try {
-                if (blockUI.createUI(holder) == null) {
+                var ui = blockUI.createUI(holder);
+                if (ui == null) {
                     helper.fail("right-clicking the dissociator would hand LDLib a null UI");
+                    return;
+                }
+                var coolant = ui.ui.rootElement.getChildren().stream()
+                        .filter(element -> "dissociator_coolant".equals(element.getId()))
+                        .findFirst().orElse(null);
+                if (!(coolant instanceof com.lowdragmc.lowdraglib2.gui.ui.elements.FluidSlot coolantSlot)
+                        || coolantSlot.isAllowClickFilled() || !coolantSlot.isAllowClickDrained()) {
+                    helper.fail("the coolant gauge must accept a held fluid container without offering"
+                            + " to fill one back out of the tank");
+                    return;
+                }
+                var solution = ui.ui.rootElement.getChildren().stream()
+                        .filter(element -> "dissociator_solution".equals(element.getId()))
+                        .findFirst().orElse(null);
+                if (!(solution instanceof com.lowdragmc.lowdraglib2.gui.ui.elements.FluidSlot solutionSlot)
+                        || solutionSlot.isAllowClickFilled() || !solutionSlot.isAllowClickDrained()) {
+                    helper.fail("the dissolution-bath gauge must accept a held fluid container without offering"
+                            + " to fill one back out of the tank");
+                    return;
+                }
+                var boundHandler = com.lowdragmc.lowdraglib2.gui.ui.elements.FluidSlot.class
+                        .getDeclaredField("boundHandler");
+                boundHandler.setAccessible(true);
+                if (boundHandler.get(coolantSlot) != host.getCoolantTank()
+                        || boundHandler.get(solutionSlot) != host.getSolutionTank()) {
+                    helper.fail("the left coolant and right dissolution-bath gauges are bound to the wrong tanks");
+                    return;
+                }
+                var progressHover = ui.ui.rootElement.getChildren().stream()
+                        .filter(element -> "dissociator_progress_hover".equals(element.getId()))
+                        .findFirst().orElse(null);
+                if (!(progressHover instanceof com.lowdragmc.lowdraglib2.gui.ui.UIElement hover)
+                        || !hover.isAllowHitTest()) {
+                    helper.fail("the progress percentage needs its own visible hit target");
+                    return;
+                }
+                var tooltip = hover.collectHoverTooltips();
+                if (tooltip == null || !List.of(net.minecraft.network.chat.Component.literal("0%"))
+                        .equals(tooltip.tooltipTexts())) {
+                    helper.fail("the progress hit target did not produce the automatic 0% tooltip");
                     return;
                 }
                 // The panel reads three numbers off the machine; if the run state stopped answering, the
@@ -8868,6 +8909,9 @@ public final class NeoECOPrototypeGameTests {
                             + " and " + host.getCoolantTank().getFluidAmount() + " mB of coolant");
                     return;
                 }
+            } catch (ReflectiveOperationException failure) {
+                helper.fail("inspecting the dissociator bath bindings threw " + failure);
+                return;
             } catch (RuntimeException failure) {
                 helper.fail("building the dissociator panel threw " + failure + ", first frames: "
                         + java.util.Arrays.toString(java.util.Arrays.copyOf(
@@ -8876,6 +8920,57 @@ public final class NeoECOPrototypeGameTests {
             }
             helper.succeed();
         });
+    }
+
+
+    @GameTest(template = "empty", batch = "asset_references", timeoutTicks = 100,
+            templateNamespace = NeoECOPrototype.MOD_ID)
+    public static void dissociatorUsesEcoWorkstationModel(GameTestHelper helper) {
+        try (var localModel = NeoECOPrototype.class.getResourceAsStream(
+                "/assets/neoecoprototype/models/block/meteorite_dissociator.json");
+             var upstreamModel = cn.dancingsnow.neoecoae.NeoECOAE.class.getResourceAsStream(
+                     "/assets/neoecoae/models/block/integrated_working_station.json")) {
+            if (localModel == null || upstreamModel == null) {
+                helper.fail("the dissociator or eco workstation model is missing from the classpath");
+                return;
+            }
+            var local = com.google.gson.JsonParser.parseString(
+                    new String(localModel.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8))
+                    .getAsJsonObject();
+            var upstream = com.google.gson.JsonParser.parseString(
+                    new String(upstreamModel.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8))
+                    .getAsJsonObject();
+            if (!local.get("elements").equals(upstream.get("elements"))
+                    || !"block/block".equals(local.get("parent").getAsString())
+                    || !"cutout".equals(local.get("render_type").getAsString())) {
+                helper.fail("the dissociator must keep eco's integrated-workstation geometry and cutout rendering");
+                return;
+            }
+            var textures = local.getAsJsonObject("textures");
+            for (var entry : java.util.Map.of(
+                    "north", "front", "top", "top", "screen", "screen_off").entrySet()) {
+                var expected = "neoecoprototype:block/working_station/" + entry.getValue();
+                if (!expected.equals(textures.get(entry.getKey()).getAsString())) {
+                    helper.fail("the dissociator workstation texture slot " + entry.getKey()
+                            + " must use the local " + expected + " alias");
+                    return;
+                }
+                try (var localTexture = NeoECOPrototype.class.getResourceAsStream(
+                        "/assets/neoecoprototype/textures/block/working_station/" + entry.getValue() + ".png");
+                     var upstreamTexture = cn.dancingsnow.neoecoae.NeoECOAE.class.getResourceAsStream(
+                             "/assets/neoecoae/textures/block/working_station/" + entry.getValue() + ".png")) {
+                    if (localTexture == null || upstreamTexture == null
+                            || !java.util.Arrays.equals(localTexture.readAllBytes(), upstreamTexture.readAllBytes())) {
+                        helper.fail("the dissociator must reuse eco's " + entry.getValue() + " workstation texture");
+                        return;
+                    }
+                }
+            }
+        } catch (java.io.IOException failure) {
+            helper.fail("reading the workstation model or textures threw " + failure);
+            return;
+        }
+        helper.succeed();
     }
 
 
@@ -16427,15 +16522,26 @@ public final class NeoECOPrototypeGameTests {
         var loaded = helper.getLevel().getRecipeManager()
                 .getAllRecipesFor(cn.dancingsnow.neoecoprototype.recipe.DissociationRecipe.TYPE);
         cn.dancingsnow.neoecoprototype.recipe.DissociationRecipe table = null;
+        var inputItem = dissociatorInputItem();
+        if (inputItem == Items.AIR) {
+            helper.fail("eco's energized fluix crystal block is not registered");
+            return;
+        }
         for (var holder : loaded) {
-            if (holder.value().input().getItem() == ModRegistration.METEORITE_CORE.get().asItem()) {
+            if (holder.value().input().getItem() == inputItem) {
                 table = holder.value();
                 break;
             }
         }
         if (table == null) {
-            helper.fail("the shipped dissociation table for the meteorite core did not load - "
+            helper.fail("the shipped dissociation table for the energized fluix crystal block did not load - "
                     + loaded.size() + " dissociation recipe(s) are registered");
+            return;
+        }
+        if (helper.getLevel().getRecipeManager().getRecipeFor(ModRegistration.DISSOCIATION_TYPE.get(),
+                new cn.dancingsnow.neoecoprototype.recipe.DissociationRecipe.Input(
+                        new ItemStack(ModRegistration.METEORITE_CORE.get())), helper.getLevel()).isPresent()) {
+            helper.fail("the old meteorite core still has a dissociation table");
             return;
         }
         double sum = 0.0D;
@@ -16491,7 +16597,7 @@ public final class NeoECOPrototypeGameTests {
         var water = new net.neoforged.neoforge.fluids.FluidStack(
                 net.minecraft.world.level.material.Fluids.WATER, 1000);
         var thirds = new cn.dancingsnow.neoecoprototype.recipe.DissociationRecipe(
-                new ItemStack(ModRegistration.METEORITE_CORE.get()),
+                new ItemStack(dissociatorInputItem()),
                 java.util.Map.of(core.asItem(), 1.0D, dust.asItem(), 1.0D,
                         net.minecraft.world.item.Items.IRON_INGOT, 1.0D),
                 12, 10, water, water, 100000.0D, 200);
@@ -16518,6 +16624,11 @@ public final class NeoECOPrototypeGameTests {
             return;
         }
         helper.succeed();
+    }
+
+    private static Item dissociatorInputItem() {
+        return BuiltInRegistries.ITEM.get(ResourceLocation.fromNamespaceAndPath("neoecoae",
+                "energized_fluix_crystal_block"));
     }
 
     private static boolean refusesZeroWeights(net.neoforged.neoforge.fluids.FluidStack water) {
@@ -22342,9 +22453,9 @@ public final class NeoECOPrototypeGameTests {
     }
 
     /**
-     * A dissociator fed by FE alone, with no ME network anywhere near it: one core, one run's worth of
+     * A dissociator fed by FE alone, with no ME network anywhere near it: one input block, one run's worth of
      * both baths and enough charge in the buffer must come out as exactly draws x perHit items, all of
-     * them kinds the shipped table names, and the core and the fluids must be gone.
+     * them kinds the shipped table names, and the input and the fluids must be gone.
      */
     @GameTest(template = "empty", batch = "dissociator_run", timeoutTicks = 200,
             templateNamespace = NeoECOPrototype.MOD_ID)
@@ -22362,7 +22473,7 @@ public final class NeoECOPrototypeGameTests {
         var recipe = level.getRecipeManager()
                 .getRecipeFor(ModRegistration.DISSOCIATION_TYPE.get(),
                         new cn.dancingsnow.neoecoprototype.recipe.DissociationRecipe.Input(
-                                new ItemStack(ModRegistration.METEORITE_CORE_ITEM.get())), level)
+                                new ItemStack(dissociatorInputItem())), level)
                 .map(holder -> holder.value()).orElse(null);
         if (recipe == null) {
             helper.fail("the dissociation table that ships in the jar was not found at run time,"
@@ -22370,7 +22481,7 @@ public final class NeoECOPrototypeGameTests {
             return;
         }
         machine.getInputInventory().setItemDirect(0,
-                new ItemStack(ModRegistration.METEORITE_CORE_ITEM.get()));
+                new ItemStack(dissociatorInputItem()));
         // Two runs' worth of each bath, so the test can read off exactly one run's worth being spent
         // rather than merely noticing that an empty tank stayed empty.
         machine.getCoolantTank().setFluid(recipe.coolant().copyWithAmount(recipe.coolant().getAmount() * 2));
@@ -22389,7 +22500,7 @@ public final class NeoECOPrototypeGameTests {
                     .serverTick(level, pos, state, machine);
         }
         if (!machine.getInputInventory().getStackInSlot(0).isEmpty()) {
-            helper.fail("the run finished but the core is still in the input slot");
+            helper.fail("the run finished but the input block is still in the input slot");
             return;
         }
         if (machine.getCoolantTank().getFluidAmount() != recipe.coolant().getAmount()) {
@@ -22464,7 +22575,7 @@ public final class NeoECOPrototypeGameTests {
 
     /**
      * The same machine with an empty coolant bath must sit there doing nothing: it may not consume the
-     * core, and it may not spend the charge. This is the other half of the assertion above - without it,
+     * input block, and it may not spend the charge. This is the other half of the assertion above - without it,
      * a machine that ignored the fluids would still pass.
      */
     @GameTest(template = "empty", batch = "dissociator_refuses_without_coolant", timeoutTicks = 200,
@@ -22481,7 +22592,7 @@ public final class NeoECOPrototypeGameTests {
             return;
         }
         machine.getInputInventory().setItemDirect(0,
-                new ItemStack(ModRegistration.METEORITE_CORE_ITEM.get()));
+                new ItemStack(dissociatorInputItem()));
         machine.getSolutionTank().setFluid(new net.neoforged.neoforge.fluids.FluidStack(
                 ModRegistration.DISSOLUTION_SOLUTION.get(), 5_000));
         for (int fed = 0; fed < 400_000; fed += cn.dancingsnow.neoecoprototype.blockentity.dissociation
@@ -22495,7 +22606,7 @@ public final class NeoECOPrototypeGameTests {
                     .serverTick(level, pos, state, machine);
         }
         if (machine.getInputInventory().getStackInSlot(0).isEmpty()) {
-            helper.fail("the machine ate a core with no coolant in the bath: the fluid check is not"
+            helper.fail("the machine ate an input block with no coolant in the bath: the fluid check is not"
                     + " stopping a run");
             return;
         }
@@ -22600,7 +22711,7 @@ public final class NeoECOPrototypeGameTests {
         var recipe = level.getRecipeManager()
                 .getRecipeFor(ModRegistration.DISSOCIATION_TYPE.get(),
                         new cn.dancingsnow.neoecoprototype.recipe.DissociationRecipe.Input(
-                                new ItemStack(ModRegistration.METEORITE_CORE_ITEM.get())), level)
+                                new ItemStack(dissociatorInputItem())), level)
                 .map(holder -> holder.value()).orElse(null);
         if (recipe == null) {
             helper.fail("the shipped dissociation table is missing, so the fluid capability test cannot run");
@@ -22623,10 +22734,10 @@ public final class NeoECOPrototypeGameTests {
             helper.fail("an unspecified-side capability query has no access to the default INPUT faces");
             return;
         }
-        var core = new ItemStack(ModRegistration.METEORITE_CORE_ITEM.get());
-        if (!items.insertItem(0, core, false).isEmpty()
+        var inputStack = new ItemStack(dissociatorInputItem());
+        if (!items.insertItem(0, inputStack, false).isEmpty()
                 || machine.getInputInventory().getStackInSlot(0).isEmpty()) {
-            helper.fail("an INPUT face refused the dissociator core");
+            helper.fail("an INPUT face refused the dissociator input block");
             return;
         }
         machine.getOutputInventory().setItemDirect(0, new ItemStack(net.minecraft.world.item.Items.STONE));
@@ -22635,8 +22746,10 @@ public final class NeoECOPrototypeGameTests {
             return;
         }
         if (fluids.fill(recipe.coolant(), IFluidHandler.FluidAction.SIMULATE) <= 0
+                || fluids.fill(recipe.solution(), IFluidHandler.FluidAction.SIMULATE) <= 0
+                || !fluids.drain(recipe.coolant(), IFluidHandler.FluidAction.SIMULATE).isEmpty()
                 || !fluids.drain(recipe.solution(), IFluidHandler.FluidAction.SIMULATE).isEmpty()) {
-            helper.fail("an INPUT-only face did not allow exactly coolant filling and refuse solution draining");
+            helper.fail("an INPUT-only face must fill both baths and refuse to drain either one");
             return;
         }
         if (machine.getEnergyStorage(side) == null
@@ -22647,12 +22760,13 @@ public final class NeoECOPrototypeGameTests {
 
         machine.setFaceMode(side, output);
         machine.getSolutionTank().setFluid(recipe.solution().copy());
-        var rejectedItem = items.insertItem(0, new ItemStack(ModRegistration.METEORITE_CORE_ITEM.get()), true);
+        var rejectedItem = items.insertItem(0, new ItemStack(dissociatorInputItem()), true);
         var extractedItem = items.extractItem(2, 1, true);
         int rejectedFluid = fluids.fill(recipe.coolant(), IFluidHandler.FluidAction.SIMULATE);
+        int rejectedSolution = fluids.fill(recipe.solution(), IFluidHandler.FluidAction.SIMULATE);
         var drainedFluid = fluids.drain(recipe.solution(), IFluidHandler.FluidAction.SIMULATE);
         if (rejectedItem.isEmpty()) {
-            helper.fail("an OUTPUT face accepted a core insertion; mode=" + machine.getFaceMode(side)
+            helper.fail("an OUTPUT face accepted an input block; mode=" + machine.getFaceMode(side)
                     + ", input=" + machine.getInputInventory().getStackInSlot(0));
             return;
         }
@@ -22661,12 +22775,13 @@ public final class NeoECOPrototypeGameTests {
                     + machine.getOutputInventory().getStackInSlot(0));
             return;
         }
-        if (rejectedFluid != 0) {
-            helper.fail("an OUTPUT face accepted " + rejectedFluid + " mB of coolant");
+        if (rejectedFluid != 0 || rejectedSolution != 0) {
+            helper.fail("an OUTPUT face accepted " + rejectedFluid + " mB of coolant or "
+                    + rejectedSolution + " mB of dissolution bath");
             return;
         }
-        if (drainedFluid.isEmpty()) {
-            helper.fail("an OUTPUT face refused to drain the solution bath");
+        if (!drainedFluid.isEmpty()) {
+            helper.fail("an OUTPUT face drained the input-only dissolution bath");
             return;
         }
         if (machine.getEnergyStorage(side) != null) {
@@ -22675,24 +22790,25 @@ public final class NeoECOPrototypeGameTests {
         }
 
         machine.setFaceMode(side, both);
-        var bothItem = items.insertItem(0, new ItemStack(ModRegistration.METEORITE_CORE_ITEM.get()), true);
+        var bothItem = items.insertItem(0, new ItemStack(dissociatorInputItem()), true);
         var bothExtractedItem = items.extractItem(2, 1, true);
         int bothFluid = fluids.fill(recipe.coolant(), IFluidHandler.FluidAction.SIMULATE);
+        int bothSolution = fluids.fill(recipe.solution(), IFluidHandler.FluidAction.SIMULATE);
         var bothDrainedFluid = fluids.drain(recipe.solution(), IFluidHandler.FluidAction.SIMULATE);
         if (!bothItem.isEmpty()) {
-            helper.fail("a BOTH face refused core insertion");
+            helper.fail("a BOTH face refused input-block insertion");
             return;
         }
         if (bothExtractedItem.isEmpty()) {
             helper.fail("a BOTH face refused product extraction");
             return;
         }
-        if (bothFluid <= 0) {
-            helper.fail("a BOTH face refused coolant filling");
+        if (bothFluid <= 0 || bothSolution <= 0) {
+            helper.fail("a BOTH face refused coolant or dissolution-bath filling");
             return;
         }
-        if (bothDrainedFluid.isEmpty()) {
-            helper.fail("a BOTH face refused solution draining");
+        if (!bothDrainedFluid.isEmpty()) {
+            helper.fail("a BOTH face drained the input-only dissolution bath");
             return;
         }
         if (machine.getEnergyStorage(side) == null) {

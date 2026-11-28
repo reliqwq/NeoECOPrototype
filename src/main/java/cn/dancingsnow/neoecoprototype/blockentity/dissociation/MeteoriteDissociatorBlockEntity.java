@@ -394,11 +394,7 @@ public class MeteoriteDissociatorBlockEntity extends AENetworkedBlockEntity
         return acceptsInput(side) ? energy : null;
     }
 
-    /**
-     * One handler for both baths, pointed one way: the coolant side takes, the solution side gives. A pipe
-     * or a bucket therefore cannot pull fresh coolant back out of the machine, which is the mistake the
-     * two tanks would make if they were simply exposed as a list.
-     */
+    /** Both baths are recipe inputs; the machine consumes them and never produces either one. */
     private final IFluidHandler fluidInterface = new IFluidHandler() {
         @Override
         public int getTanks() {
@@ -422,17 +418,18 @@ public class MeteoriteDissociatorBlockEntity extends AENetworkedBlockEntity
 
         @Override
         public int fill(FluidStack resource, FluidAction action) {
-            return coolantTank.fill(resource, action);
+            int filled = coolantTank.fill(resource, action);
+            return filled > 0 ? filled : solutionTank.fill(resource, action);
         }
 
         @Override
         public FluidStack drain(FluidStack resource, FluidAction action) {
-            return solutionTank.drain(resource, action);
+            return FluidStack.EMPTY;
         }
 
         @Override
         public FluidStack drain(int maxDrain, FluidAction action) {
-            return solutionTank.drain(maxDrain, action);
+            return FluidStack.EMPTY;
         }
     };
 
